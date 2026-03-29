@@ -14967,12 +14967,9 @@ html[data-contrast="high"] .toggle::after {
   flex-wrap: wrap;
 }
 
-.page-header-standard-row-top {
-  justify-content: flex-start;
-}
-
-.page-header-standard-row-bottom {
+.page-header-standard-row-single {
   align-items: center;
+  width: 100%;
 }
 
 .page-header-standard-search {
@@ -15026,25 +15023,6 @@ html[data-contrast="high"] .toggle::after {
   display: none;
 }
 
-.page-header-standard-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1 1 420px;
-  flex-wrap: wrap;
-  min-width: 220px;
-}
-
-.page-header-standard.compact .page-header-standard-left {
-  flex-wrap: nowrap;
-}
-
-.page-header-standard-left > div {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .page-header-standard-filters-group {
   display: flex;
   align-items: center;
@@ -15058,8 +15036,8 @@ html[data-contrast="high"] .toggle::after {
 }
 
 .page-header-standard-smartviews {
-  flex: 1 1 320px;
-  min-width: 220px;
+  flex: 1 1 260px;
+  min-width: 200px;
   max-width: none;
 }
 
@@ -15092,13 +15070,8 @@ html[data-contrast="high"] .toggle::after {
   flex-wrap: nowrap;
 }
 
-.page-header-standard.compact .page-header-standard-row-bottom {
-  display: contents;
-}
-
-.page-header-standard.compact .page-header-standard-row-top {
-  flex-wrap: wrap;
-  row-gap: 6px;
+.page-header-standard-right:empty {
+  display: none;
 }
 
 .page-header-standard.compact .page-header-standard-filters,
@@ -15107,10 +15080,6 @@ html[data-contrast="high"] .toggle::after {
   border: 0;
   padding: 0;
   min-height: auto;
-}
-
-.page-header-standard-right:empty {
-  display: none;
 }
 
 .page-header-standard-summary {
@@ -15136,7 +15105,6 @@ html[data-contrast="high"] .toggle::after {
     align-items: stretch;
   }
   .page-header-standard-search,
-  .page-header-standard-left,
   .page-header-standard-smartviews,
   .page-header-standard-right {
     width: 100%;
@@ -15316,10 +15284,6 @@ html[data-contrast="high"] .toggle::after {
 /* Logs/Pagos: orden y ancho en header estándar */
 .logsPage .page-header-standard-search {
   max-width: 420px;
-}
-
-.logsPage .page-header-standard-row-bottom {
-  align-items: flex-start;
 }
 
 .logsPage .page-header-standard-smartviews {
