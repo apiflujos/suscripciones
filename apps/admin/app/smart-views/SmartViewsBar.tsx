@@ -614,6 +614,7 @@ export function SmartViewsBar({
   };
 
   const filledPins = pinnedIds.filter(Boolean);
+  const displaySlots = Math.min(Math.max(filledPins.length + 1, 1), PIN_SLOTS);
   const nextPinIndex = Math.min(filledPins.length, PIN_SLOTS - 1);
   const canAddAt = (idx: number) => mergedViews.length > 0 && idx === nextPinIndex;
 
@@ -621,7 +622,7 @@ export function SmartViewsBar({
     <div className={`smartViewsBar ${compactInline ? "smartViewsBarInline" : ""}`} data-loader="off">
       <div className="smartViewsTop">
         <div className="smartViewsPins">
-          {Array.from({ length: PIN_SLOTS }).map((_, idx) => {
+          {Array.from({ length: displaySlots }).map((_, idx) => {
             const viewId = pinnedIds[idx] || "";
             const view = viewId ? mergedViews.find((v) => v.id === viewId) : null;
             return (
