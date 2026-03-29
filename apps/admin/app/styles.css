@@ -15131,6 +15131,7 @@ html[data-contrast="high"] .toggle::after {
   gap: 8px;
   margin-top: 6px;
   margin-bottom: 6px;
+  padding-left: 10px;
 }
 
 .page-header-standard-search {
