@@ -15064,6 +15064,26 @@ html[data-contrast="high"] .toggle::after {
   width: 100%;
 }
 
+/* Uniformidad de headers no-PageHeaderStandard */
+:is(.panelHeaderRow, .filtersRow, .billing-header, .settings-group-header, .panel-header, .ui-panel-header, .tableHeader, .cardHead) .input,
+:is(.panelHeaderRow, .filtersRow, .billing-header, .settings-group-header, .panel-header, .ui-panel-header, .tableHeader, .cardHead) .select {
+  height: 28px;
+  font-size: 12px;
+}
+
+:is(.panelHeaderRow, .filtersRow, .billing-header, .settings-group-header, .panel-header, .ui-panel-header, .tableHeader, .cardHead) .btn-compact,
+:is(.panelHeaderRow, .filtersRow, .billing-header, .settings-group-header, .panel-header, .ui-panel-header, .tableHeader, .cardHead) .btn-icon-only {
+  height: 28px;
+  min-height: 28px;
+  width: 28px;
+  min-width: 28px;
+}
+
+:is(.panelHeaderRow, .filtersRow, .billing-header, .settings-group-header, .panel-header, .ui-panel-header, .tableHeader, .cardHead) .filtersSearch {
+  max-width: 360px;
+  width: 100%;
+}
+
 /* Compactar headers en Customers y Products para igualar el estándar */
 .customersPage .page-header-standard .input,
 .customersPage .page-header-standard .select,
