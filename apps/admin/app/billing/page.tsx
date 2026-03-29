@@ -944,12 +944,13 @@ export default async function BillingPage({
             )}
             configHref="http://localhost:3002/settings?tab=cobros"
             summary={(
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="muted">{rows.length} resultados</span>
-                <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="payments" allowImport={false} />
-              </div>
+              <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="payments" allowImport={false} />
             )}
           />
+        </div>
+
+        <div className="page-results-left">
+          <span className="muted">{rows.length} resultados</span>
         </div>
 
         <div className="page-actions-right">

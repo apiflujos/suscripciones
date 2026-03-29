@@ -15012,6 +15012,14 @@ html[data-contrast="high"] .toggle::after {
   width: 100%;
 }
 
+.page-results-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+}
+
 .page-header-standard-search {
   flex: 1 1 320px;
   max-width: 420px;
