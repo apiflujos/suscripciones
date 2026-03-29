@@ -15066,6 +15066,7 @@ html[data-contrast="high"] .toggle::after {
 .page-header-standard.compact .page-header-standard-smartviews {
   flex: 0 0 auto;
   min-width: 0;
+  margin-left: auto;
 }
 
 .page-header-standard-smartviews.is-empty {

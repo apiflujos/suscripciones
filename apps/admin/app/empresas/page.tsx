@@ -138,6 +138,7 @@ export default async function EmpresasPage({
               <div className="page-header-standard-filters-group" />
             )}
             views={<ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />}
+            summary={<ListCsvActions exportHref={exportHref} defaultEntity="companies" />}
           />
         </div>
 
