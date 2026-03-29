@@ -39,6 +39,7 @@ export function FilterButton({
   const [name, setName] = useState("");
   const [visibility, setVisibility] = useState<"ORG" | "PRIVATE">("ORG");
   const [type, setType] = useState<"DYNAMIC" | "STATIC">("DYNAMIC");
+  const [saveAsList, setSaveAsList] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fields, setFields] = useState<SmartField[]>(() => (Array.isArray(initialFields) ? initialFields : []));
@@ -92,8 +93,12 @@ export function FilterButton({
   };
 
   const saveFilter = async () => {
+    if (!saveAsList) {
+      setError("Activa la opción para guardar como lista inteligente.");
+      return;
+    }
     if (!name.trim()) {
-      setError("El nombre del filtro es obligatorio");
+      setError("El nombre de la lista es obligatorio");
       return;
     }
     if (!("rules" in root) || root.rules.length === 0) {
@@ -122,7 +127,9 @@ export function FilterButton({
       if (onSaved) {
         onSaved({ id: createdId || undefined, name: createdName || undefined });
       }
-      if (reloadOnSave) {
+      if (reloadOnSave && !onSaved) {
+        window.location.href = buildHref({ viewId: createdId || undefined, filters: undefined });
+      } else if (reloadOnSave && onSaved) {
         window.location.reload();
       }
     } catch (err: any) {
@@ -132,10 +139,62 @@ export function FilterButton({
     }
   };
 
+  const applyFilter = () => {
+    if (!("rules" in root) || root.rules.length === 0) {
+      setError("Agrega al menos una condición");
+      return;
+    }
+    const serialized = encodeURIComponent(JSON.stringify(serializeRule(root)));
+    setOpen(false);
+    window.location.href = buildHref({ viewId: undefined, filters: serialized });
+  };
+
   const openModal = async () => {
     await ensureFieldsLoaded();
     setOpen(true);
   };
+
+  const OP_LABELS: Record<string, string> = {
+    equals: "Igual a",
+    notEquals: "Distinto de",
+    contains: "Contiene",
+    notContains: "No contiene",
+    startsWith: "Empieza con",
+    endsWith: "Termina con",
+    in: "En lista",
+    notIn: "No está en",
+    gt: "Mayor que",
+    gte: "Mayor o igual",
+    lt: "Menor que",
+    lte: "Menor o igual",
+    before: "Antes de",
+    after: "Después de",
+    between: "Entre",
+    not_between: "Fuera del intervalo",
+    within_last: "En los últimos",
+    within_next: "En los próximos",
+    older_than: "Hace más de",
+    newer_than: "Hace menos de",
+    exists: "Tiene algún valor",
+    isEmpty: "No tiene valor"
+  };
+
+  function serializeRule(rule: Rule): any {
+    if ("rules" in rule) return { op: rule.op, rules: rule.rules.map(serializeRule) };
+    const op = rule.op;
+    if (op === "exists" || op === "isEmpty") return { field: rule.field, op };
+    return { field: rule.field, op, value: rule.value };
+  }
+
+  function buildHref(next: { viewId?: string; filters?: string }) {
+    const sp = new URLSearchParams(baseParams);
+    if (next.viewId) sp.set("viewId", next.viewId);
+    else sp.delete("viewId");
+    if (next.filters) sp.set("filters", next.filters);
+    else sp.delete("filters");
+    const qs = sp.toString();
+    return qs ? `?${qs}` : "";
+  }
 
   // Si no hay scope, solo es un botón placeholder
   if (!scope) {
@@ -203,7 +262,7 @@ export function FilterButton({
         <div className="modal-backdrop">
           <div className="modal-panel" style={{ width: "min(900px, 96vw)", maxHeight: "90vh", overflow: "auto" }}>
             <div className="panel-header" style={{ justifyContent: "space-between" }}>
-              <strong>Crear filtro inteligente</strong>
+              <strong>Filtros inteligentes</strong>
               <button
                 className="ghost modal-close"
                 type="button"
@@ -217,57 +276,10 @@ export function FilterButton({
             </div>
 
             <div className="modal-body" style={{ display: "grid", gap: 16 }}>
-              {/* Nombre y configuración */}
-              <div style={{ display: "grid", gap: 12 }}>
-                <div className="field">
-                  <label>Nombre del filtro</label>
-                  <input
-                    className="input"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ej: Morosos > 30 días"
-                    autoFocus
-                  />
-                </div>
-                <div style={{ display: "flex", gap: 12 }}>
-                  <div className="field" style={{ flex: 1 }}>
-                    <label>Visibilidad</label>
-                    <select
-                      className="select"
-                      value={visibility}
-                      onChange={(e) => setVisibility(e.target.value as any)}
-                    >
-                      <option value="ORG">Público (todos los usuarios)</option>
-                      <option value="PRIVATE">Privado (solo yo)</option>
-                    </select>
-                  </div>
-                  <div className="field" style={{ flex: 1 }}>
-                    <label>Tipo</label>
-                    <select
-                      className="select"
-                      value={type}
-                      onChange={(e) => setType(e.target.value as any)}
-                    >
-                      <option value="DYNAMIC">Dinámico (se actualiza automáticamente)</option>
-                      <option value="STATIC">Estático (lista fija de contactos)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Reglas */}
+              {/* Condiciones */}
               <div style={{ display: "grid", gap: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <strong style={{ fontSize: 13 }}>Condiciones</strong>
-                  <button
-                    className="ghost btn-compact"
-                    type="button"
-                    onClick={addRule}
-                    disabled={fields.length === 0}
-                  >
-                    + Agregar condición
-                  </button>
                 </div>
 
                 {error && <div className="field-hint" style={{ color: "var(--danger)" }}>{error}</div>}
@@ -317,7 +329,7 @@ export function FilterButton({
                             style={{ minWidth: 140, fontSize: 12 }}
                           >
                             {ops.map((o) => (
-                              <option key={o} value={o}>{o}</option>
+                              <option key={o} value={o}>{OP_LABELS[o] || o}</option>
                             ))}
                           </select>
                           {needsValue && (
@@ -346,9 +358,90 @@ export function FilterButton({
                     })}
                   </div>
                 )}
+
+                <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                  <button
+                    className="ghost btn-compact"
+                    type="button"
+                    onClick={addRule}
+                    disabled={fields.length === 0}
+                  >
+                    + Agregar condición
+                  </button>
+                </div>
               </div>
 
-              {/* Footer */}
+              {/* Acciones */}
+              <div style={{ display: "grid", gap: 12 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <button
+                    className="primary btn-compact"
+                    type="button"
+                    onClick={applyFilter}
+                    disabled={loading || fields.length === 0}
+                  >
+                    Aplicar filtro
+                  </button>
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={saveAsList}
+                      onChange={(e) => setSaveAsList(e.target.checked)}
+                    />
+                    Guardar como lista inteligente
+                  </label>
+                </div>
+
+                {saveAsList ? (
+                  <div style={{ display: "grid", gap: 10, padding: 12, borderRadius: 12, border: "1px solid var(--stroke)", background: "var(--surface-2)" }}>
+                    <div className="field">
+                      <label>Nombre de la lista</label>
+                      <input
+                        className="input"
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Ej: Morosos > 30 días"
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: 12 }}>
+                      <div className="field" style={{ flex: 1 }}>
+                        <label>Visibilidad</label>
+                        <select
+                          className="select"
+                          value={visibility}
+                          onChange={(e) => setVisibility(e.target.value as any)}
+                        >
+                          <option value="ORG">Público (todos los usuarios)</option>
+                          <option value="PRIVATE">Privado (solo yo)</option>
+                        </select>
+                      </div>
+                      <div className="field" style={{ flex: 1 }}>
+                        <label>Tipo</label>
+                        <select
+                          className="select"
+                          value={type}
+                          onChange={(e) => setType(e.target.value as any)}
+                        >
+                          <option value="DYNAMIC">Dinámica (se actualiza automáticamente)</option>
+                          <option value="STATIC">Estática (lista fija de contactos)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <button
+                        className="primary btn-compact"
+                        type="button"
+                        onClick={saveFilter}
+                        disabled={loading || fields.length === 0}
+                      >
+                        {loading ? "Guardando..." : "Crear lista inteligente"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <button
                   className="ghost btn-compact"
@@ -356,15 +449,7 @@ export function FilterButton({
                   onClick={() => setOpen(false)}
                   disabled={loading}
                 >
-                  Cancelar
-                </button>
-                <button
-                  className="primary btn-compact"
-                  type="button"
-                  onClick={saveFilter}
-                  disabled={loading || fields.length === 0}
-                >
-                  {loading ? "Guardando..." : "Guardar filtro"}
+                  Cerrar
                 </button>
               </div>
             </div>
