@@ -7572,12 +7572,20 @@ textarea.input {
   line-height: 1.3;
   height: 28px;
   white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .smartViewsPinAdd {
   color: var(--primary);
   border: 1px dashed rgba(89, 75, 246, 0.4);
   background: rgba(89, 75, 246, 0.08);
+}
+
+.smartViewsPinAdd.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .smartViewsPinRemove {
@@ -15389,18 +15397,10 @@ html[data-contrast="high"] .toggle::after {
 /* SmartViewsBar dentro de header estándar: una sola fila */
 .page-header-standard .smartViewsPins {
   flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: thin;
+  overflow: hidden;
 }
 
-.page-header-standard .smartViewsPins::-webkit-scrollbar {
-  height: 6px;
-}
-
-.page-header-standard .smartViewsPins::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--primary) 35%, transparent);
-  border-radius: 999px;
-}
+/* Sin scrollbar para vistas guardadas */
 
 .page-header-standard .smartViewsActions .btn-filter {
   display: none;
