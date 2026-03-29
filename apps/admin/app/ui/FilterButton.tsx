@@ -19,12 +19,16 @@ export function FilterButton({
   scope,
   baseParams,
   initialFields,
-  compactInline
+  compactInline,
+  label,
+  fullWidth
 }: {
   scope?: string;
   baseParams?: Record<string, string>;
   initialFields?: SmartField[];
   compactInline?: boolean;
+  label?: string;
+  fullWidth?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [root, setRoot] = useState<Rule>({ op: "and", rules: [] });
@@ -126,7 +130,21 @@ export function FilterButton({
 
   // Si no hay scope, solo es un botón placeholder
   if (!scope) {
-    return (
+    return label ? (
+      <button
+        className="ghost btn-compact"
+        type="button"
+        aria-label="Filtros"
+        title="Crear filtro inteligente"
+        disabled
+        style={{ opacity: 0.5, width: fullWidth ? "100%" : undefined, justifyContent: fullWidth ? "center" : undefined }}
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{ marginRight: 6 }}>
+          <path d="M.5 2a.75.75 0 0 1 .75-.75h13.5a.75.75 0 0 1 .56 1.247l-5.06 5.62v4.633a.75.75 0 0 1-1.083.67l-3-1.5a.75.75 0 0 1-.417-.67V8.117l-5.06-5.62A.75.75 0 0 1 .5 2z"/>
+        </svg>
+        {label}
+      </button>
+    ) : (
       <button
         className="ghost btn-compact btn-icon-only btn-filter"
         type="button"
@@ -144,17 +162,33 @@ export function FilterButton({
 
   return (
     <>
-      <button
-        className="ghost btn-compact btn-icon-only btn-filter"
-        type="button"
-        onClick={openModal}
-        aria-label="Crear filtro inteligente"
-        title="Crear filtro inteligente"
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M.5 2a.75.75 0 0 1 .75-.75h13.5a.75.75 0 0 1 .56 1.247l-5.06 5.62v4.633a.75.75 0 0 1-1.083.67l-3-1.5a.75.75 0 0 1-.417-.67V8.117l-5.06-5.62A.75.75 0 0 1 .5 2z"/>
-        </svg>
-      </button>
+      {label ? (
+        <button
+          className="ghost btn-compact"
+          type="button"
+          onClick={openModal}
+          aria-label={label}
+          title={label}
+          style={{ width: fullWidth ? "100%" : undefined, justifyContent: fullWidth ? "center" : undefined }}
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{ marginRight: 6 }}>
+            <path d="M.5 2a.75.75 0 0 1 .75-.75h13.5a.75.75 0 0 1 .56 1.247l-5.06 5.62v4.633a.75.75 0 0 1-1.083.67l-3-1.5a.75.75 0 0 1-.417-.67V8.117l-5.06-5.62A.75.75 0 0 1 .5 2z"/>
+          </svg>
+          {label}
+        </button>
+      ) : (
+        <button
+          className="ghost btn-compact btn-icon-only btn-filter"
+          type="button"
+          onClick={openModal}
+          aria-label="Crear filtro inteligente"
+          title="Crear filtro inteligente"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M.5 2a.75.75 0 0 1 .75-.75h13.5a.75.75 0 0 1 .56 1.247l-5.06 5.62v4.633a.75.75 0 0 1-1.083.67l-3-1.5a.75.75 0 0 1-.417-.67V8.117l-5.06-5.62A.75.75 0 0 1 .5 2z"/>
+          </svg>
+        </button>
+      )}
 
       {open && (
         <div className="modal-backdrop">

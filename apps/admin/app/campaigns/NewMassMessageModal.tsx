@@ -421,21 +421,9 @@ export function NewMassMessageModal({
                     ))}
                   </select>
                   
-                  {/* Botón para crear nuevo filtro */}
-                  <a
-                    href={`/customers?${new URLSearchParams({
-                      open: "filters"
-                    }).toString()}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ghost btn-compact"
-                    style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" style={{ marginRight: 4 }}>
-                      <path d="M14 7a7 7 0 1 1-14 0 7 7 0 0 1 14 0ZM7 4a.75.75 0 0 0-1.5 0v2.25H3.25a.75.75 0 0 0 0 1.5H5.5V10a.75.75 0 0 0 1.5 0V7.75h2.25a.75.75 0 0 0 0-1.5H7V4Z"/>
-                    </svg>
-                    Crear nuevo filtro (abre en nueva pestaña)
-                  </a>
+                  <div style={{ marginBottom: 8 }}>
+                    <FilterButton scope="customers" label="Crear nuevo filtro" fullWidth />
+                  </div>
                   
                   {audienceLoading ? <div className="field-hint">Calculando audiencia...</div> : null}
                   {audienceError ? <div className="field-hint" style={{ color: "var(--danger)" }}>{audienceError}</div> : null}
