@@ -72,24 +72,24 @@ export function MetricsFilters({
       {view ? <input type="hidden" name="view" value={view} /> : null}
       
       {/* Izquierda: Botones de acción (Periodo y Canal) */}
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
-        <div className="field" style={{ margin: 0, minWidth: "100px" }}>
+      <div className="metricsFiltersGroup">
+        <div className="field">
           <label style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
             <span>Periodo</span>
             <HelpTip text="Agrupación de datos: día, semana o mes." />
           </label>
-          <select className="select" name="g" value={gValue} onChange={(e) => setGValue(e.target.value as any)} required style={{ height: 26, minHeight: 26 }}>
+          <select className="select" name="g" value={gValue} onChange={(e) => setGValue(e.target.value as any)} required>
             <option value="day">Día</option>
             <option value="week">Semana</option>
             <option value="month">Mes</option>
           </select>
         </div>
-        <div className="field" style={{ margin: 0, minWidth: "120px" }}>
+        <div className="field">
           <label style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
             <span>Canal</span>
             <HelpTip text="Segmenta métricas por canal específico." />
           </label>
-          <select className="select" name="tenantId" value={tenantValue} onChange={(e) => setTenantValue(e.target.value)} style={{ height: 26, minHeight: 26 }}>
+          <select className="select" name="tenantId" value={tenantValue} onChange={(e) => setTenantValue(e.target.value)}>
             <option value="">Todos</option>
             {tenants.map((t) => (
               <option key={t.id} value={t.id}>
@@ -101,8 +101,8 @@ export function MetricsFilters({
       </div>
       
       {/* Derecha: Fechas */}
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 6, marginLeft: "auto" }}>
-        <div className="field" style={{ margin: 0, minWidth: "130px" }}>
+      <div className="metricsFiltersGroup metricsFiltersRight">
+        <div className="field">
           <label style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
             <span>Desde</span>
             <HelpTip text="Fecha de inicio del rango en UTC." />
@@ -116,10 +116,9 @@ export function MetricsFilters({
             min={minDate}
             max={toValue || maxDate}
             required
-            style={{ height: 26, minHeight: 26 }}
           />
         </div>
-        <div className="field" style={{ margin: 0, minWidth: "130px" }}>
+        <div className="field">
           <label style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
             <span>Hasta</span>
             <HelpTip text="Fecha de cierre del rango en UTC (incluye todo el día)." />
@@ -134,7 +133,6 @@ export function MetricsFilters({
             max={maxDate}
             required
             disabled={!fromValue}
-            style={{ height: 26, minHeight: 26 }}
           />
         </div>
       </div>

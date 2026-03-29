@@ -9163,21 +9163,22 @@ textarea.input {
 }
 
 .metricsPage .filtersForm {
-  gap: 6px;
+  gap: 12px;
   width: 100%;
   display: flex;
   align-items: flex-end;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 .metricsPage .field {
   gap: 2px;
-  font-size: 9px;
+  font-size: 10px;
   flex: 0 0 auto;
+  margin: 0;
 }
 
 .metricsPage .field label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   margin-bottom: 2px;
   white-space: nowrap;
@@ -9188,10 +9189,24 @@ textarea.input {
 
 .metricsPage .filtersForm .input,
 .metricsPage .filtersForm .select {
-  font-size: 11px;
-  padding: 0 6px;
-  min-height: 26px;
-  height: 26px;
+  font-size: 12px;
+  padding: 0 8px;
+  min-height: 28px;
+  height: 28px;
+}
+
+.metricsFiltersGroup {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.metricsFiltersRight {
+  margin-left: auto;
+}
+
+.metricsFiltersGroup .field {
+  min-width: 120px;
 }
 
 .metricsPage .filtersForm .select {
