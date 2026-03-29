@@ -2340,6 +2340,22 @@ a {
   gap: 12px;
 }
 
+.smartViewsModalPanel .btn-compact,
+.smartViewsModalPanel .btn,
+.smartViewsModalPanel .primary,
+.smartFilterModalPanel .btn-compact,
+.smartFilterModalPanel .btn,
+.smartFilterModalPanel .primary {
+  min-height: 32px;
+  height: 32px;
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+.smartFilterModalPanel .modal-body {
+  gap: 12px;
+}
+
 .smartViewsError {
   display: flex;
   align-items: center;

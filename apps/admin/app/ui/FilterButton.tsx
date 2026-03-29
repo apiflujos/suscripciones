@@ -260,7 +260,7 @@ export function FilterButton({
 
       {open && (
         <div className="modal-backdrop">
-          <div className="modal-panel" style={{ width: "min(900px, 96vw)", maxHeight: "90vh", overflow: "auto" }}>
+          <div className="modal-panel smartFilterModalPanel" style={{ width: "min(900px, 96vw)", maxHeight: "90vh", overflow: "auto" }}>
             <div className="panel-header" style={{ justifyContent: "space-between" }}>
               <strong>Filtros inteligentes</strong>
               <button
@@ -342,22 +342,40 @@ export function FilterButton({
                               style={{ flex: 1, fontSize: 12 }}
                             />
                           )}
-                          <button
-                            className="ghost btn-compact btn-icon-only"
-                            type="button"
-                            onClick={() => removeRule(idx)}
-                            aria-label="Eliminar"
-                            title="Eliminar condición"
-                          >
-                            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-                              <path d="M14 1.41L12.59 0 7 5.59 1.41 0 0 1.41 5.59 7 0 12.59 1.41 14 7 8.41 12.59 14 14 12.59 8.41 7z"/>
-                            </svg>
-                          </button>
+                          {idx > 0 ? (
+                            <button
+                              className="ghost btn-compact btn-icon-only"
+                              type="button"
+                              onClick={() => removeRule(idx)}
+                              aria-label="Eliminar"
+                              title="Eliminar condición"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                                <path d="M14 1.41L12.59 0 7 5.59 1.41 0 0 1.41 5.59 7 0 12.59 1.41 14 7 8.41 12.59 14 14 12.59 8.41 7z"/>
+                              </svg>
+                            </button>
+                          ) : (
+                            <div style={{ width: 32, height: 32 }} />
+                          )}
                         </div>
                       );
                     })}
                   </div>
                 )}
+
+                {"rules" in root && root.rules.length > 1 ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span className="muted" style={{ fontSize: 12 }}>Condición entre reglas</span>
+                    <select
+                      className="select select-compact"
+                      value={root.op}
+                      onChange={(e) => setRoot({ ...root, op: e.target.value as "and" | "or" })}
+                    >
+                      <option value="and">Y (todas)</option>
+                      <option value="or">O (cualquiera)</option>
+                    </select>
+                  </div>
+                ) : null}
 
                 <div style={{ display: "flex", justifyContent: "flex-start" }}>
                   <button

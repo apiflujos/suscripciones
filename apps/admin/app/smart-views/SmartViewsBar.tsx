@@ -591,7 +591,7 @@ export function SmartViewsBar({
         ) : (
           <div />
         )}
-        <button className="ghost" type="button" onClick={() => removeRule(index)}>
+        <button className="ghost" type="button" onClick={() => removeRule(index)} disabled={index === 0}>
           Quitar
         </button>
       </div>
