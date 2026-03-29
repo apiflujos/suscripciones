@@ -15411,6 +15411,39 @@ html[data-contrast="high"] .toggle::after {
   gap: 6px;
 }
 
+/* Pagos: forzar 2 filas (override final) */
+.paymentsPage .page-header-standard-row.page-header-standard-row-single {
+  display: grid !important;
+  grid-template-columns: minmax(240px, 1fr) minmax(260px, 1fr) auto;
+  grid-template-areas:
+    "search filters filters"
+    "views smartviews right";
+  align-items: center;
+  row-gap: 8px;
+}
+
+.paymentsPage .page-header-standard-search {
+  grid-area: search;
+}
+
+.paymentsPage .page-header-standard-filters {
+  grid-area: filters;
+}
+
+.paymentsPage .page-header-standard-views {
+  grid-area: views;
+}
+
+.paymentsPage .page-header-standard-smartviews {
+  grid-area: smartviews;
+  justify-self: start;
+}
+
+.paymentsPage .page-header-standard-right {
+  grid-area: right;
+  justify-self: end;
+}
+
 /* SmartViewsBar inline - padding uniforme */
 .smartViewsBar.smartViewsBarInline {
   padding: 0;
