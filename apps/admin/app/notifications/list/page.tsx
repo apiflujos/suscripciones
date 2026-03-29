@@ -71,11 +71,13 @@ export default async function WhatsappNotificationsListPage({
               title="Buscar por contacto, teléfono o contenido"
             />
             <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-            <a className="ghost btn-compact" href="/notifications/list">Limpiar</a>
           </form>
         )}
         searchActions={(
           <FilterButton />
+        )}
+        actions={(
+          <a className="ghost btn-compact" href="/notifications/list">Limpiar</a>
         )}
         filters={(
           <div className="page-header-standard-filters-group">
@@ -92,14 +94,14 @@ export default async function WhatsappNotificationsListPage({
               <option value="EXPIRY_WARNING">Vencimiento</option>
               <option value="PAYMENT_FAILED">Pago fallido</option>
             </select>
-          </div>
-        )}
-        views={(
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 130 }} />
             <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 130 }} />
           </div>
         )}
+        views={(
+          <div className="page-header-standard-filters-group" />
+        )}
+        smartViews={<div />}
         configHref="http://localhost:3002/settings?tab=notificaciones-whatsapp"
         summary={(
           <ListCsvActions

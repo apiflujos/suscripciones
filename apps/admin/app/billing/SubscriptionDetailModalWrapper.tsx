@@ -7,6 +7,7 @@ type SubscriptionDetail = {
   id: string;
   tenantId?: string | null;
   tenantName?: string;
+  tenantIds?: string[];
   customerId: string;
   customerName: string;
   customerEmail?: string | null;
@@ -25,6 +26,9 @@ type SubscriptionDetail = {
   periodoInicioAt: string | null;
   cycleStartDay: number;
   status: string;
+  inGrace?: boolean;
+  inArrears?: boolean;
+  daysLate?: number;
   paymentDay: number;
   paymentTiming: string;
   graceDays: number;

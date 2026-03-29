@@ -86,9 +86,10 @@ export default async function CampaignsPage({
           />
         )}
         filters={(
-          <div className="page-header-standard-filters-group">
-            <ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />
-          </div>
+          <div className="page-header-standard-filters-group" />
+        )}
+        views={(
+          <ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />
         )}
         smartViews={(
           <SmartViewsBar
@@ -100,6 +101,7 @@ export default async function CampaignsPage({
             }}
             initialFields={getSmartViewFields("customers")}
             compactInline
+            hideFilterButton
           />
         )}
         summary={<span className="muted">Total {total}</span>}

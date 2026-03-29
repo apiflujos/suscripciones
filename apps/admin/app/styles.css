@@ -882,6 +882,13 @@ a {
   justify-content: center;
   flex: 1;
   text-align: center;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: min(70%, 720px);
+  width: min(70%, 720px);
+  pointer-events: none;
 }
 
 .topbarLogoLink {
@@ -3899,6 +3906,22 @@ html[data-contrast="high"] .filtersPanel {
   margin: 0;
 }
 
+.settings-section-header {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-section-hint {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
 .settings-group-label {
   font-size: 13px;
   font-weight: 600;
@@ -5374,6 +5397,60 @@ textarea.input {
     min-width: 100%;
     flex: 1 1 100%;
   }
+}
+
+/* Compactar cards de contactos (igual altura que billing) */
+.customersPage .billing-card {
+  padding: 8px;
+  gap: 4px;
+}
+
+.customersPage .billing-card .billing-header {
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+
+.customersPage .billing-card .contact-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 220px);
+  gap: 8px;
+  align-items: start;
+}
+
+.customersPage .billing-card .contact-block {
+  padding: 4px;
+  gap: 2px;
+}
+
+.customersPage .billing-card .contact-person-grid,
+.customersPage .billing-card .contact-plan-grid {
+  gap: 2px 6px;
+  font-size: 11.5px;
+}
+
+.customersPage .billing-card .contact-person-grid span,
+.customersPage .billing-card .contact-plan-grid span {
+  margin-bottom: 1px;
+  font-size: 10px;
+}
+
+.customersPage .billing-card .contact-paylink {
+  padding: 4px 5px;
+  gap: 2px;
+}
+
+.customersPage .billing-card .paylink-actions {
+  gap: 6px;
+}
+
+.customersPage .billing-card .contact-paylink .btn-compact,
+.customersPage .billing-card .contact-action-btn {
+  height: 28px;
+  min-width: 110px !important;
+}
+
+.customersPage .billing-card .contact-right {
+  min-width: 220px;
 }
 
 .contact-footer {
@@ -7193,8 +7270,14 @@ textarea.input {
 }
 
 .subscription-edit-modal .btn-compact {
-  font-size: 12px;
-  padding: 4px 10px;
+  font-size: 10.5px;
+  padding: 0 6px;
+  height: 26px;
+  min-height: 26px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   white-space: nowrap;
 }
 
@@ -7211,6 +7294,30 @@ textarea.input {
 .subscription-edit-modal .module-footer {
   padding-top: 16px;
   border-top: 1px solid var(--stroke);
+}
+
+.subscription-edit-modal {
+  font-size: 12px;
+}
+
+.subscription-edit-modal .modal-body {
+  gap: 12px !important;
+}
+
+.subscription-edit-modal .card.cardPad {
+  padding: 8px !important;
+}
+
+.subscription-edit-modal .field-label,
+.subscription-edit-modal label,
+.subscription-edit-modal .field-hint {
+  font-size: 11px;
+}
+
+.subscription-edit-modal .input,
+.subscription-edit-modal .select {
+  height: 30px;
+  font-size: 12px;
 }
 
 .customer-edit-modal {
@@ -14843,15 +14950,29 @@ html[data-contrast="high"] .toggle::after {
 }
 
 .page-header-standard-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.page-header-standard-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+}
+
+.page-header-standard-row-top {
+  justify-content: flex-start;
+}
+
+.page-header-standard-row-bottom {
+  align-items: center;
 }
 
 .page-header-standard-search {
-  flex: 0 0 280px;
-  max-width: 320px;
+  flex: 1 1 320px;
+  max-width: 420px;
+  min-width: 220px;
 }
 
 .page-header-standard-search-row {
@@ -14889,14 +15010,19 @@ html[data-contrast="high"] .toggle::after {
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
-  margin-left: auto;
+}
+
+.page-header-standard-actions:empty {
+  display: none;
 }
 
 .page-header-standard-left {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
+  flex: 1 1 420px;
+  flex-wrap: wrap;
+  min-width: 220px;
 }
 
 .page-header-standard-left > div {
@@ -14909,7 +15035,7 @@ html[data-contrast="high"] .toggle::after {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 .page-header-standard-filters-group .select {
@@ -14918,9 +15044,9 @@ html[data-contrast="high"] .toggle::after {
 }
 
 .page-header-standard-smartviews {
-  flex: 1 1 auto;
-  min-width: 150px;
-  max-width: 400px;
+  flex: 1 1 320px;
+  min-width: 220px;
+  max-width: none;
 }
 
 .page-header-standard-smartviews.is-empty {
@@ -14938,6 +15064,12 @@ html[data-contrast="high"] .toggle::after {
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.page-header-standard-right:empty {
+  display: none;
 }
 
 .page-header-standard-summary {
@@ -14946,28 +15078,19 @@ html[data-contrast="high"] .toggle::after {
   justify-content: flex-end;
   font-size: 12px;
   color: var(--muted);
-  white-space: nowrap;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 @media (max-width: 1100px) {
-  .page-header-standard-controls {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
   .page-header-standard-search {
-    flex: 1 1 100%;
+    max-width: none;
     min-width: 100%;
-    order: -1;
-  }
-  .page-header-standard-left,
-  .page-header-standard-smartviews,
-  .page-header-standard-right {
-    flex: 1 1 auto;
   }
 }
 
 @media (max-width: 768px) {
-  .page-header-standard-controls {
+  .page-header-standard-row {
     flex-direction: column;
     align-items: stretch;
   }
@@ -15099,6 +15222,69 @@ html[data-contrast="high"] .toggle::after {
   border-color: var(--primary);
   color: var(--primary);
   background: var(--primary-soft);
+}
+
+.page-header-standard .btn-filter:disabled,
+.page-header-standard .btn-filter[disabled] {
+  opacity: 1 !important;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  cursor: default;
+}
+
+.page-header-standard .payments-view-toggles {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Métricas: header estándar a ancho completo */
+.metricsPage .page-header-standard-search {
+  flex: 1 1 auto;
+  max-width: none;
+}
+
+.metricsPage .page-header-standard-search-row,
+.metricsPage .page-header-standard-search-row .filtersForm {
+  width: 100%;
+}
+
+/* Logs/Pagos: orden y ancho en header estándar */
+.logsPage .page-header-standard-search {
+  max-width: 420px;
+}
+
+.logsPage .page-header-standard-row-bottom {
+  align-items: flex-start;
+}
+
+.logsPage .page-header-standard-smartviews {
+  flex: 1 1 420px;
+}
+
+.logsPage .page-header-standard-right {
+  justify-content: flex-end;
+}
+
+/* SmartViewsBar dentro de header estándar: una sola fila */
+.page-header-standard .smartViewsPins {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.page-header-standard .smartViewsPins::-webkit-scrollbar {
+  height: 6px;
+}
+
+.page-header-standard .smartViewsPins::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--primary) 35%, transparent);
+  border-radius: 999px;
+}
+
+.page-header-standard .smartViewsActions .btn-filter {
+  display: none;
 }
 
 /* Gap consistente en filters-group */

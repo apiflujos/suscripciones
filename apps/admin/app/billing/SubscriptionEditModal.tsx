@@ -90,10 +90,15 @@ export function SubscriptionEditModal({
     setFreeShipping(!currentRequiresShipping || currentShippingInCents <= 0);
   }, [open, currentShippingInCents, currentRequiresShipping]);
 
-  const nextChargeDate = useMemo(() => {
-    if (!currentChargeAt) return null;
-    return new Date(currentChargeAt);
-  }, [currentChargeAt]);
+  const toLocalDate = (value?: string | null) => {
+    if (!value) return null;
+    const datePart = String(value).slice(0, 10);
+    const [y, m, d] = datePart.split("-").map((v) => Number(v));
+    if (!y || !m || !d) return new Date(value);
+    return new Date(y, m - 1, d, 12, 0, 0);
+  };
+
+  const nextChargeDate = useMemo(() => toLocalDate(currentChargeAt), [currentChargeAt]);
 
   const fmtDate = (d: Date | null) => {
     if (!d) return "—";
@@ -392,7 +397,7 @@ export function SubscriptionEditModal({
                       <div style={{ fontSize: 16, fontWeight: 700, color: "var(--primary)" }}>{fmtDate(nextChargeDate)}</div>
                       {periodStartAt && (
                         <div style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>
-                          Ciclo: {fmtDate(new Date(periodStartAt))} → {fmtDate(nextChargeDate)}
+                          Ciclo: {fmtDate(toLocalDate(periodStartAt))} → {fmtDate(nextChargeDate)}
                         </div>
                       )}
                     </div>

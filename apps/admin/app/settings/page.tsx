@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   bootstrapCentralAttributes,
   deleteShopifyConnection,
@@ -54,6 +55,26 @@ import { listWebhookEndpoints } from "../admin/_services/webhookEndpoints";
 import { listApiTokens } from "../admin/_services/apiTokens";
 
 export const dynamic = "force-dynamic";
+
+function SettingsSectionHeader({
+  title,
+  hint,
+  help
+}: {
+  title: string;
+  hint?: string;
+  help?: ReactNode;
+}) {
+  return (
+    <div className="settings-section-header">
+      <div className="settings-section-title">
+        <h3>{title}</h3>
+        {help ?? null}
+      </div>
+      {hint ? <div className="settings-section-hint">{hint}</div> : null}
+    </div>
+  );
+}
 
 export default async function SettingsPage({
   searchParams
@@ -225,10 +246,7 @@ export default async function SettingsPage({
         <section className="settings-group">
           <div className="settings-group-header">
             <div className="panelHeaderRow">
-              <div style={{ display: "grid", gap: 4 }}>
-                <h3>Apariencia</h3>
-                <div className="field-hint">Tema, visión y contraste.</div>
-              </div>
+              <SettingsSectionHeader title="Apariencia" hint="Tema, visión y contraste." />
             </div>
           </div>
           <div className="settings-group-body">
@@ -293,10 +311,10 @@ export default async function SettingsPage({
           <section className="settings-group">
             <div className="settings-group-header">
               <div className="panelHeaderRow">
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <h3>Conexiones</h3>
-                  <HelpTip text="Abre cada conexión para configurar sus credenciales." />
-                </div>
+                <SettingsSectionHeader
+                  title="Conexiones"
+                  help={<HelpTip text="Abre cada conexión para configurar sus credenciales." />}
+                />
               </div>
             </div>
             <div className="settings-group-body">
@@ -331,10 +349,10 @@ export default async function SettingsPage({
           <section className="settings-group">
             <div className="settings-group-header">
               <div className="panelHeaderRow">
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <h3>Conexiones guardadas</h3>
-                  <HelpTip text="Resumen de las conexiones actuales." />
-                </div>
+                <SettingsSectionHeader
+                  title="Conexiones guardadas"
+                  help={<HelpTip text="Resumen de las conexiones actuales." />}
+                />
               </div>
             </div>
             <div className="settings-group-body">
@@ -478,10 +496,10 @@ export default async function SettingsPage({
             <section className="settings-group">
               <div className="settings-group-header">
                 <div className="panelHeaderRow">
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <h3>Inteligencia artificial</h3>
-                    <HelpTip text="Configura una o ambas llaves. Si una falla, usamos la otra automáticamente." />
-                  </div>
+                  <SettingsSectionHeader
+                    title="Inteligencia artificial"
+                    help={<HelpTip text="Configura una o ambas llaves. Si una falla, usamos la otra automáticamente." />}
+                  />
                 </div>
               </div>
               <div className="settings-group-body">
@@ -564,10 +582,10 @@ export default async function SettingsPage({
             <section className="settings-group">
               <div className="settings-group-header">
                 <div className="panelHeaderRow">
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <h3>Inteligencia artificial</h3>
-                    <HelpTip text="Esta sección requiere habilitación del super admin." />
-                  </div>
+                  <SettingsSectionHeader
+                    title="Inteligencia artificial"
+                    help={<HelpTip text="Esta sección requiere habilitación del super admin." />}
+                  />
                 </div>
               </div>
               <div className="settings-group-body">
@@ -588,10 +606,10 @@ export default async function SettingsPage({
           <section className="settings-group">
             <div className="settings-group-header">
               <div className="panelHeaderRow">
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <h3>Reglas de cobro</h3>
-                  <HelpTip text="Configura las reglas de cobro automático, corte, cobro manual y reintentos." />
-                </div>
+                <SettingsSectionHeader
+                  title="Reglas de cobro"
+                  help={<HelpTip text="Configura las reglas de cobro automático, corte, cobro manual y reintentos." />}
+                />
               </div>
             </div>
             <div className="settings-group-body">
@@ -739,10 +757,10 @@ export default async function SettingsPage({
           <section className="settings-group">
             <div className="settings-group-header">
               <div className="panelHeaderRow">
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <h3>Débito automático</h3>
-                  <HelpTip text="Cobros automáticos, corte, botón manual y reintentos." />
-                </div>
+                <SettingsSectionHeader
+                  title="Débito automático"
+                  help={<HelpTip text="Cobros automáticos, corte, botón manual y reintentos." />}
+                />
               </div>
             </div>
             <div className="settings-group-body">
@@ -866,7 +884,9 @@ export default async function SettingsPage({
       {tab === "suscripciones" ? (
         <section className="settings-group">
           <div className="settings-group-header">
-            <h3>Configuración de Suscripciones</h3>
+            <div className="panelHeaderRow">
+              <SettingsSectionHeader title="Configuración de Suscripciones" />
+            </div>
           </div>
           <div className="settings-group-body">
             <form action={updateSubscriptionConfig} className="panel module" style={{ display: "grid", gap: 16 }}>
@@ -933,10 +953,10 @@ export default async function SettingsPage({
         <section className="settings-group">
           <div className="settings-group-header">
             <div className="panelHeaderRow">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <h3>Checkout público</h3>
-                <HelpTip text="Crea plantillas de checkout para planes y suscripciones." />
-              </div>
+              <SettingsSectionHeader
+                title="Checkout público"
+                help={<HelpTip text="Crea plantillas de checkout para planes y suscripciones." />}
+              />
             </div>
           </div>
           <div className="settings-group-body">
@@ -971,10 +991,10 @@ export default async function SettingsPage({
         <section className="settings-group">
           <div className="settings-group-header">
             <div className="panelHeaderRow">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <h3>Canales de venta</h3>
-                <HelpTip text="Gestiona los canales (tenants) disponibles en la app." />
-              </div>
+              <SettingsSectionHeader
+                title="Canales de venta"
+                help={<HelpTip text="Gestiona los canales (tenants) disponibles en la app." />}
+              />
             </div>
           </div>
           <div className="settings-group-body">

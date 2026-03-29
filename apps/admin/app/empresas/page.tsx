@@ -130,12 +130,11 @@ export default async function EmpresasPage({
                 }}
                 initialFields={getSmartViewFields("companies")}
                 compactInline
+                hideFilterButton
               />
             )}
             filters={(
-              <div className="page-header-standard-filters-group">
-                <ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />
-              </div>
+              <div className="page-header-standard-filters-group" />
             )}
             views={<ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />}
           />

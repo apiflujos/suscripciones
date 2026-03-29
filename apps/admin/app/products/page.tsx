@@ -7,7 +7,6 @@ import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
-import { HelpTip } from "../ui/HelpTip";
 import { listCatalogProducts } from "../admin/_services/products";
 import { ProductsModalTrigger } from "./ProductsModalTrigger";
 import { PageHeaderStandard } from "../ui/PageHeaderStandard";
@@ -147,20 +146,18 @@ export default async function ProductsPage({
           />
         )}
         filters={(
-          <div className="page-header-standard-filters-group">
-            <ViewModeToggles
-              currentMode={vistaTyped}
-              baseParams={{
-                ...(tenantId ? { tenantId } : {}),
-                ...(q ? { q } : {}),
-                ...(viewId ? { viewId } : {}),
-                ...(filters ? { filters } : {})
-              }}
-            />
-          </div>
+          <div className="page-header-standard-filters-group" />
         )}
         views={(
-          <HelpTip text="Cambia entre vista de cards y lista." />
+          <ViewModeToggles
+            currentMode={vistaTyped}
+            baseParams={{
+              ...(tenantId ? { tenantId } : {}),
+              ...(q ? { q } : {}),
+              ...(viewId ? { viewId } : {}),
+              ...(filters ? { filters } : {})
+            }}
+          />
         )}
         smartViews={(
           <SmartViewsBar
@@ -173,6 +170,7 @@ export default async function ProductsPage({
             }}
             initialFields={getSmartViewFields("products")}
             compactInline
+            hideFilterButton
           />
         )}
         summary={(

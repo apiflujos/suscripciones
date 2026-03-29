@@ -7,6 +7,7 @@ import { getAdminSettings } from "./admin/_services/settings";
 import { countEmpresasAndContactos } from "./admin/_services/companies";
 import { resolveTenantId } from "./admin/_services/tenantResolver";
 import { MetricsFilters } from "./ui/MetricsFilters";
+import { PageHeaderStandard } from "./ui/PageHeaderStandard";
 import { HelpTip } from "./ui/HelpTip";
 import { AiAssistant } from "./logs/AiAssistant";
 import {
@@ -607,42 +608,37 @@ export default async function Home({
     <main className="page pageWide metricsPage">
       <section className="settings-group">
         <div className="settings-group-header">
-          <div className="filtersRow">
-            <div className="filtersLeft">
-              <div className="filtersPanel">
-                <div className="filtersHeader">
-                  <div className="filtersHeaderRow filtersHeaderRowTop">
-                    <MetricsFilters
-                      from={fromDate}
-                      to={toDate}
-                      g={g}
-                      tenantId={tenantId}
-                      view={view}
-                      tenants={tenants}
-                      minDate={firstDataAt || undefined}
-                      maxDate={maxDate}
-                    />
-                  </div>
-                  <div className="filtersHeaderRow filtersHeaderRowBottom metricsTabsRowCentered">
-                    <div />
-                    <div className="metricsTabs metricsTabsCentered">
-                      {viewTabs.map((tab) => (
-                        <Link
-                          key={tab.id}
-                          href={viewHref(tab.id)}
-                          className={`metricsTab ${view === tab.id ? "is-active" : ""}`}
-                          prefetch={false}
-                        >
-                          {tab.label}
-                        </Link>
-                      ))}
-                    </div>
-                    <div className="metricsTabsMeta metricsTabsMetaRight"><span>{rangeLabel} · {periodLabel} · {tenantLabel}</span></div>
-                  </div>
-                </div>
+          <PageHeaderStandard
+            search={(
+              <MetricsFilters
+                from={fromDate}
+                to={toDate}
+                g={g}
+                tenantId={tenantId}
+                view={view}
+                tenants={tenants}
+                minDate={firstDataAt || undefined}
+                maxDate={maxDate}
+              />
+            )}
+            filters={<div className="page-header-standard-filters-group" />}
+            views={(
+              <div className="metricsTabs metricsTabsCentered">
+                {viewTabs.map((tab) => (
+                  <Link
+                    key={tab.id}
+                    href={viewHref(tab.id)}
+                    className={`metricsTab ${view === tab.id ? "is-active" : ""}`}
+                    prefetch={false}
+                  >
+                    {tab.label}
+                  </Link>
+                ))}
               </div>
-            </div>
-          </div>
+            )}
+            smartViews={<div />}
+            summary={<span className="muted">{rangeLabel} · {periodLabel} · {tenantLabel}</span>}
+          />
         </div>
 
         <div className="settings-group-body">

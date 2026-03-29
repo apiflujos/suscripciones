@@ -644,7 +644,7 @@ export function CustomersTable({
                   </form>
                 </div>
               </div>
-              <div className="contact-body" style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 16, alignItems: "start" }}>
+              <div className="contact-body">
                 <div className="contact-left contact-block">
                   <div className="contact-block-title">Información personal</div>
                   <div className="contact-person-grid">
@@ -667,7 +667,7 @@ export function CustomersTable({
                   </div>
                 </div>
 
-                <div className="contact-right contact-block" style={{ minWidth: 280 }}>
+                <div className="contact-right contact-block">
                   <div className="contact-block-title">Suscripción</div>
                   <div className="contact-plan-grid">
                     <div>

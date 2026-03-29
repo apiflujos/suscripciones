@@ -115,7 +115,8 @@ export function SmartViewsBar({
   initialFilters,
   baseParams,
   initialFields,
-  compactInline = false
+  compactInline = false,
+  hideFilterButton = false
 }: {
   scope: string;
   initialViewId: string;
@@ -123,6 +124,7 @@ export function SmartViewsBar({
   baseParams: Record<string, string>;
   initialFields?: SmartField[];
   compactInline?: boolean;
+  hideFilterButton?: boolean;
 }) {
   const [views, setViews] = useState<SmartView[]>([]);
   const [fields, setFields] = useState<SmartField[]>(() => (Array.isArray(initialFields) ? initialFields : []));
@@ -690,22 +692,24 @@ export function SmartViewsBar({
         {compactInline ? (
           <div className="smartViewsTopRight">
             <div className="smartViewsActions">
-              <button
-                className="ghost btn-compact btn-icon-only btn-filter"
-                type="button"
-                data-loader="off"
-                aria-label="Filtros y listas inteligentes"
-                title="Filtros y listas inteligentes"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setMode("filters");
-                  setActiveViewId("");
-                  setEditingId("");
-                  setNotice(null);
-                  ensureFieldsLoaded().catch(() => null);
-                }}
-              />
+              {hideFilterButton ? null : (
+                <button
+                  className="ghost btn-compact btn-icon-only btn-filter"
+                  type="button"
+                  data-loader="off"
+                  aria-label="Filtros y listas inteligentes"
+                  title="Filtros y listas inteligentes"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setMode("filters");
+                    setActiveViewId("");
+                    setEditingId("");
+                    setNotice(null);
+                    ensureFieldsLoaded().catch(() => null);
+                  }}
+                />
+              )}
             </div>
           </div>
         ) : (
@@ -752,7 +756,7 @@ export function SmartViewsBar({
         {activeViewId && !activeViewId.startsWith("builtin:") ? (
           <button className="ghost btn-compact btn-red btn-delete-icon" type="button" onClick={() => deleteView(activeViewId)} aria-label="Eliminar vista" title="Eliminar vista" />
         ) : null}
-        {!compactInline ? (
+        {!compactInline && !hideFilterButton ? (
           <div className="smartViewsActions">
             <button
               className="primary btn-compact"

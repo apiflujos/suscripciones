@@ -91,6 +91,7 @@ export function SubscriptionDetailModal({
   updateSubscriptionBillingSettings: (formData: FormData) => void | Promise<void>;
   deleteSubscription: (formData: FormData) => void | Promise<void>;
 }) {
+  const tenantId = subscription.tenantId ?? undefined;
   const [editModalOpen, setEditModalOpen] = useState(false);
 
   const fmtMoney = (cents: number, currency: string) => {
@@ -131,13 +132,13 @@ export function SubscriptionDetailModal({
                 title="Editar suscripción"
                 aria-label="Editar"
               />
-              <PaymentHistoryButton subscriptionId={subscription.id} tenantId={subscription.tenantId} />
+              <PaymentHistoryButton subscriptionId={subscription.id} tenantId={tenantId} />
               <PaymentCyclesModal subscriptionId={subscription.id} />
               <DeleteSubscriptionButton
                 action={deleteSubscription}
                 csrfToken={csrfToken}
                 subscriptionId={subscription.id}
-                tenantId={subscription.tenantId}
+                tenantId={tenantId}
                 returnTo={returnTo}
               />
               <button
@@ -315,7 +316,7 @@ export function SubscriptionDetailModal({
                     customerId={subscription.customerId}
                     planId={subscription.planId}
                     keepSubscriptionId={subscription.id}
-                    tenantId={subscription.tenantId}
+                    tenantId={tenantId}
                     returnTo={returnTo}
                     duplicatesCount={subscription.duplicateCount}
                   />
@@ -325,7 +326,7 @@ export function SubscriptionDetailModal({
                     action={chargeSubscriptionNow}
                     csrfToken={csrfToken}
                     subscriptionId={subscription.id}
-                    tenantId={subscription.tenantId}
+                    tenantId={tenantId}
                     returnTo={returnTo}
                     warnNotDue={!subscription.chargeDue}
                     warnAlreadyPaid={alreadyPaidCurrentPeriod}
@@ -337,7 +338,7 @@ export function SubscriptionDetailModal({
                     action={markSubscriptionPaidManual}
                     csrfToken={csrfToken}
                     subscriptionId={subscription.id}
-                    tenantId={subscription.tenantId}
+                    tenantId={tenantId}
                     returnTo={returnTo}
                     warnAlreadyPaid={alreadyPaidCurrentPeriod}
                     manualMarkPaidEnabled={subscription.canManualMarkPaid}
@@ -348,14 +349,14 @@ export function SubscriptionDetailModal({
                     action={unmarkSubscriptionPaidManual}
                     csrfToken={csrfToken}
                     subscriptionId={subscription.id}
-                    tenantId={subscription.tenantId}
+                    tenantId={tenantId}
                     returnTo={returnTo}
                   />
                 ) : null}
                 <PaymentLinkModalButton
                   subscriptionId={subscription.id}
                   customerId={subscription.customerId}
-                  tenantId={subscription.tenantId}
+                  tenantId={tenantId}
                   csrfToken={csrfToken}
                   returnTo={returnTo}
                   defaultAmountPesos={Math.trunc(subscription.totalInCents / 100)}
@@ -366,7 +367,7 @@ export function SubscriptionDetailModal({
                 <TokenizationLinkModalButton
                   customerId={subscription.customerId}
                   planId={subscription.planId}
-                  tenantId={subscription.tenantId}
+                  tenantId={tenantId}
                   csrfToken={csrfToken}
                   returnTo={returnTo}
                   notificationTemplates={notificationsTemplates}
@@ -383,7 +384,7 @@ export function SubscriptionDetailModal({
       {editModalOpen && (
         <SubscriptionEditModal
           subscriptionId={subscription.id}
-          tenantId={subscription.tenantId}
+          tenantId={tenantId}
           csrfToken={csrfToken}
           returnTo={returnTo}
           currentChargeAt={subscription.vencimientoAt}

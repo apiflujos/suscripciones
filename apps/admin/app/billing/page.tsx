@@ -922,11 +922,11 @@ export default async function BillingPage({
                 }}
                 initialFields={getSmartViewFields("billing")}
                 compactInline
+                hideFilterButton
               />
             )}
             filters={(
-              <div className="page-header-standard-filters-group">
-              </div>
+              <div className="page-header-standard-filters-group" />
             )}
             views={(
               <ViewModeToggles
@@ -942,7 +942,12 @@ export default async function BillingPage({
               />
             )}
             configHref="http://localhost:3002/settings?tab=cobros"
-            summary={<span className="muted">{rows.length} resultados</span>}
+            summary={(
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="muted">{rows.length} resultados</span>
+                <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="payments" allowImport={false} />
+              </div>
+            )}
           />
         </div>
 

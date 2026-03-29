@@ -57,6 +57,7 @@ export function PageFilters({
               initialFilters={initialFilters}
               baseParams={baseParams}
               compactInline
+              hideFilterButton
             />
           </div>
           
