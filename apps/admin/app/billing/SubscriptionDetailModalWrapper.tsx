@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { SubscriptionDetailModal } from "./SubscriptionDetailModal";
 
@@ -58,7 +59,9 @@ export function SubscriptionDetailModalWrapper({
   updateSubscriptionTenants,
   changeSubscriptionPlan,
   updateSubscriptionBillingSettings,
-  deleteSubscription
+  deleteSubscription,
+  children,
+  className
 }: {
   subscription: SubscriptionDetail;
   csrfToken: string;
@@ -77,11 +80,23 @@ export function SubscriptionDetailModalWrapper({
   changeSubscriptionPlan: (formData: FormData) => void | Promise<void>;
   updateSubscriptionBillingSettings: (formData: FormData) => void | Promise<void>;
   deleteSubscription: (formData: FormData) => void | Promise<void>;
+  children?: ReactNode;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
 
   if (!open) {
-    return (
+    return children ? (
+      <button
+        className={className}
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Ver detalles"
+        title="Ver detalles"
+      >
+        {children}
+      </button>
+    ) : (
       <button
         className="ghost btn-compact btn-view"
         type="button"
@@ -89,22 +104,34 @@ export function SubscriptionDetailModalWrapper({
         aria-label="Ver detalles"
         title="Ver detalles"
       >
-        👁️ Ver
+        Ver
       </button>
     );
   }
 
   return (
     <>
-      <button
-        className="ghost btn-compact btn-view"
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Ver detalles"
-        title="Ver detalles"
-      >
-        👁️ Ver
-      </button>
+      {children ? (
+        <button
+          className={className}
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Ver detalles"
+          title="Ver detalles"
+        >
+          {children}
+        </button>
+      ) : (
+        <button
+          className="ghost btn-compact btn-view"
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Ver detalles"
+          title="Ver detalles"
+        >
+          Ver
+        </button>
+      )}
       {open && (
         <SubscriptionDetailModal
           subscription={subscription}
