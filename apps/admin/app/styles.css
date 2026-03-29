@@ -15538,6 +15538,22 @@ html[data-contrast="high"] .toggle::after {
   flex-wrap: nowrap;
 }
 
+/* Pagos: mantener fila 2 compacta y en una sola línea */
+.paymentsPage .page-header-standard-views .page-header-standard-filters-group {
+  flex-wrap: nowrap;
+}
+
+.paymentsPage .page-header-standard-smartviews .smartViewsBarInline {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.paymentsPage .page-header-standard-smartviews .smartViewsPins {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
 /* SmartViewsBar inline - padding uniforme */
 .smartViewsBar.smartViewsBarInline {
   padding: 0;
