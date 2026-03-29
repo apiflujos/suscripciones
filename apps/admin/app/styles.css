@@ -1936,10 +1936,10 @@ a {
 }
 
 .page-header-standard .list-csv-actions .btn-icon-only {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
 }
 
 /* Pagos: forzar header en 2 filas (compacto y ordenado) */
