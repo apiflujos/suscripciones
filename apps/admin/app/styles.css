@@ -1935,6 +1935,13 @@ a {
   min-height: 28px;
 }
 
+.page-header-standard .list-csv-actions .btn-icon-only {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+}
+
 .import-modal-grid {
   display: grid;
   gap: 10px;

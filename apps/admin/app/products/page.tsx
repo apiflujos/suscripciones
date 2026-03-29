@@ -115,6 +115,7 @@ export default async function ProductsPage({
       {sent ? <div className="card cardPad">Mensaje enviado.</div> : null}
 
       <PageHeaderStandard
+        className="compact"
         search={(
           <form action="/products" method="GET" className="filtersForm filtersSearch">
             {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}

@@ -323,6 +323,7 @@ export default async function CustomersPage({
       {paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
 
       <PageHeaderStandard
+        className="compact"
         search={(
           <form action="/customers" method="GET" className="filtersForm filtersSearch">
             {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}

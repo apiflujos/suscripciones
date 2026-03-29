@@ -63,6 +63,7 @@ export default async function CampaignsPage({
       {sp.running ? <div className="panel module">Campaña en cola.</div> : null}
 
       <PageHeaderStandard
+        className="compact"
         search={(
           <form action="/campaigns" method="GET" className="filtersForm filtersSearch">
             {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}

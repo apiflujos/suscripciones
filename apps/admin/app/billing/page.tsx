@@ -875,6 +875,7 @@ export default async function BillingPage({
       <section className="settings-group">
         <div className="settings-group-header">
           <PageHeaderStandard
+            className="compact"
             search={(
               <form action="/billing" method="GET" className="filtersForm filtersSearch">
                 {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}

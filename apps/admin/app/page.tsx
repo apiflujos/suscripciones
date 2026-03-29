@@ -609,6 +609,7 @@ export default async function Home({
       <section className="settings-group">
         <div className="settings-group-header">
           <PageHeaderStandard
+            className="compact"
             search={(
               <MetricsFilters
                 from={fromDate}
