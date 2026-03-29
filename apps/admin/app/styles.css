@@ -5505,12 +5505,15 @@ textarea.input {
 .customersPage .billing-card .contact-block {
   padding: 3px;
   gap: 2px;
+  height: auto;
+  align-content: start;
 }
 
 .customersPage .billing-card .contact-person-grid,
 .customersPage .billing-card .contact-plan-grid {
   gap: 2px 6px;
-  font-size: 11.5px;
+  font-size: 11px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .customersPage .billing-card .contact-person-grid span,
@@ -5531,8 +5534,8 @@ textarea.input {
 .customersPage .billing-card .contact-paylink .btn-compact,
 .customersPage .billing-card .contact-action-btn {
   height: 26px;
-  min-width: 96px !important;
-  font-size: 11px;
+  min-width: 88px !important;
+  font-size: 10.5px;
 }
 
 .customersPage .billing-card .contact-right {
@@ -5546,6 +5549,16 @@ textarea.input {
 
 .customersPage .billing-card .paylink-title {
   font-size: 10px;
+}
+
+.customersPage .billing-card .contact-title {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.customersPage .billing-card .contact-value {
+  font-size: 11px;
+  line-height: 1.15;
 }
 
 .contact-footer {
