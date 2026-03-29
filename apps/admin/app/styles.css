@@ -1942,6 +1942,39 @@ a {
   min-height: 32px;
 }
 
+/* Pagos: forzar header en 2 filas (compacto y ordenado) */
+.paymentsPage .page-header-standard-row-single {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(260px, 1fr) auto;
+  grid-template-areas:
+    "search filters filters"
+    "views smartviews right";
+  align-items: center;
+  row-gap: 8px;
+}
+
+.paymentsPage .page-header-standard-search {
+  grid-area: search;
+}
+
+.paymentsPage .page-header-standard-filters {
+  grid-area: filters;
+}
+
+.paymentsPage .page-header-standard-views {
+  grid-area: views;
+}
+
+.paymentsPage .page-header-standard-smartviews {
+  grid-area: smartviews;
+  justify-self: start;
+}
+
+.paymentsPage .page-header-standard-right {
+  grid-area: right;
+  justify-self: end;
+}
+
 .import-modal-grid {
   display: grid;
   gap: 10px;
