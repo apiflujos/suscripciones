@@ -24,6 +24,21 @@ function isNextRedirect(err: unknown) {
   return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
 }
 
+function parseProductIds(raw: string): any[] {
+  const trimmed = String(raw || "").trim();
+  if (!trimmed) return [];
+  if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+  }
+  return trimmed
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export async function createCheckoutTemplate(formData: FormData) {
   try {
     await assertCsrfToken(formData);
@@ -35,11 +50,6 @@ export async function createCheckoutTemplate(formData: FormData) {
     }
     const name = String(formData.get("name") || "").trim();
     const kind = String(formData.get("kind") || "PLAN").trim().toUpperCase();
-    const allowProductSelect = String(formData.get("allowProductSelect") || "") === "on";
-    const productIds = String(formData.get("productIds") || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
     const tenantId = String(formData.get("tenantId") || "").trim();
     if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION" && kind !== "CART")) {
       return redirectWith("checkout_template_create", "fail", "invalid_body");
@@ -47,7 +57,15 @@ export async function createCheckoutTemplate(formData: FormData) {
     if (!tenantId) {
       return redirectWith("checkout_template_create", "fail", "tenant_required");
     }
-    if (!allowProductSelect && productIds.length === 0) {
+
+    const existing = await listCheckoutTemplates({ tenantId });
+    if (existing.some((t: any) => String(t.kind) === kind)) {
+      return redirectWith("checkout_template_create", "fail", "already_exists");
+    }
+
+    const allowProductSelect = kind === "CART" ? String(formData.get("allowProductSelect") || "") === "on" : false;
+    const productIds = kind === "CART" ? parseProductIds(String(formData.get("productIds") || "")) : [];
+    if (kind === "CART" && !productIds.length) {
       return redirectWith("checkout_template_create", "fail", "invalid_body");
     }
     const expiryHoursRaw = String(formData.get("expiryHours") || "").trim();
@@ -90,16 +108,13 @@ export async function updateCheckoutTemplate(formData: FormData) {
     }
     const name = String(formData.get("name") || "").trim();
     const kind = String(formData.get("kind") || "PLAN").trim().toUpperCase();
-    const allowProductSelect = String(formData.get("allowProductSelect") || "") === "on";
-    const productIds = String(formData.get("productIds") || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
     const tenantId = String(formData.get("tenantId") || "").trim();
     if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION" && kind !== "CART")) {
       return redirectWith("checkout_template_update", "fail", "invalid_body");
     }
-    if (!allowProductSelect && productIds.length === 0) {
+    const allowProductSelect = kind === "CART" ? String(formData.get("allowProductSelect") || "") === "on" : false;
+    const productIds = kind === "CART" ? parseProductIds(String(formData.get("productIds") || "")) : [];
+    if (kind === "CART" && !productIds.length) {
       return redirectWith("checkout_template_update", "fail", "invalid_body");
     }
     const expiryHoursRaw = String(formData.get("expiryHours") || "").trim();
@@ -157,8 +172,8 @@ export async function duplicateCheckoutTemplate(formData: FormData) {
       name: `Copia - ${template.name || "Plantilla"}`,
       kind: template.kind,
       active: template.active,
-      allowProductSelect: template.allowProductSelect,
-      productIds: template.productIds || [],
+      allowProductSelect: template.kind === "CART" ? template.allowProductSelect : false,
+      productIds: template.kind === "CART" ? template.productIds || [] : [],
       tenantId: template.tenantId,
       expiryHours: template.expiryHours ?? undefined,
       logoUrl: template.logoUrl || "",
@@ -204,71 +219,27 @@ export async function createCheckoutTemplateDefaults(formData: FormData) {
       const tenantId = String(tenant.id);
       const productsRes = await listCatalogProducts({ tenantId, take: 500 });
       const products = Array.isArray(productsRes?.items) ? productsRes.items : [];
-      const planProducts = products.filter((p: any) => {
-        const mode = String(p?.collectionMode || p?.metadata?.collectionMode || "");
-        return !mode || mode === "AUTO_LINK" || mode === "MANUAL_LINK";
-      });
-      const subProducts = products.filter((p: any) => String(p?.collectionMode || p?.metadata?.collectionMode || "") === "AUTO_DEBIT");
-      if (!planProducts.length && !subProducts.length) continue;
+      if (!products.length) continue;
 
       const templates = await listCheckoutTemplates({ tenantId });
-      const cartTemplates = templates.filter((t: any) => String(t?.kind || "") === "CART");
+      const hasCart = templates.some((t: any) => String(t?.kind || "") === "CART");
 
-      const existingPlan = cartTemplates.find((t: any) => {
-        const ids = Array.isArray(t?.productIds) ? t.productIds : [];
-        let hasPlan = false;
-        let hasSub = false;
-        for (const id of ids) {
-          const p = products.find((prod: any) => String(prod.id) === String(id)) as any;
-          const mode = String(p?.collectionMode || p?.metadata?.collectionMode || "");
-          if (!mode || mode === "AUTO_LINK" || mode === "MANUAL_LINK") hasPlan = true;
-          if (mode === "AUTO_DEBIT") hasSub = true;
-        }
-        return hasPlan && !hasSub;
-      });
-      const existingSub = cartTemplates.find((t: any) => {
-        const ids = Array.isArray(t?.productIds) ? t.productIds : [];
-        let hasPlan = false;
-        let hasSub = false;
-        for (const id of ids) {
-          const p = products.find((prod: any) => String(prod.id) === String(id)) as any;
-          const mode = String(p?.collectionMode || p?.metadata?.collectionMode || "");
-          if (!mode || mode === "AUTO_LINK" || mode === "MANUAL_LINK") hasPlan = true;
-          if (mode === "AUTO_DEBIT") hasSub = true;
-        }
-        return hasSub && !hasPlan;
-      });
-
-      if (mode !== "SUBSCRIPTION" && !existingPlan && planProducts.length) {
+      if (!hasCart) {
         await createCheckoutTemplateService({
-          name: "Catálogo planes",
+          name: "Catálogo",
           kind: "CART",
           active: true,
           allowProductSelect: true,
-          productIds: planProducts.map((p: any) => p.id),
+          productIds: products.map((p: any) => ({
+            id: p.id,
+            mode: String(p?.metadata?.collectionMode || "AUTO_LINK").toUpperCase()
+          })),
           tenantId,
           logoUrl,
           publicTitle: planTitle,
           publicDescription: planDescription,
           wompiTitle: planTitle,
           wompiDescription: planDescription,
-          utmParams
-        } as any);
-        createdCount += 1;
-      }
-      if (mode !== "PLAN" && !existingSub && subProducts.length) {
-        await createCheckoutTemplateService({
-          name: "Catálogo suscripciones",
-          kind: "CART",
-          active: true,
-          allowProductSelect: true,
-          productIds: subProducts.map((p: any) => p.id),
-          tenantId,
-          logoUrl,
-          publicTitle: subTitle,
-          publicDescription: subDescription,
-          wompiTitle: subTitle,
-          wompiDescription: subDescription,
           utmParams
         } as any);
         createdCount += 1;

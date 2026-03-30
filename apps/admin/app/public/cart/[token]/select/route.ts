@@ -96,8 +96,22 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     return Response.json({ error: "template_not_found" }, { status: 404 });
   }
 
-  const templateProductIds = Array.isArray(template.productIds) ? template.productIds : [];
-  if (!templateProductIds.includes(planId)) {
+  const parseTemplateProducts = (raw: any): Array<{ id: string; mode?: string }> => {
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((entry) => {
+        if (typeof entry === "string") return { id: entry };
+        const id = String(entry?.id || "").trim();
+        if (!id) return null;
+        const mode = String(entry?.mode || "").trim();
+        return { id, mode };
+      })
+      .filter(Boolean) as Array<{ id: string; mode?: string }>;
+  };
+
+  const templateProducts = parseTemplateProducts(template.productIds);
+  const selectedTemplateProduct = templateProducts.find((p) => String(p.id) === planId);
+  if (!selectedTemplateProduct) {
     return Response.json({ error: "plan_not_allowed" }, { status: 400 });
   }
 
@@ -117,7 +131,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       : Number.isFinite(configExpiryHours) && configExpiryHours > 0
         ? Math.min(Math.max(Math.trunc(configExpiryHours), 1), 168)
         : 24;
-  const collectionMode = String((plan.metadata as PlanMetadata | null)?.collectionMode || "MANUAL_LINK");
+  const collectionMode = String(
+    selectedTemplateProduct?.mode || (plan.metadata as PlanMetadata | null)?.collectionMode || "MANUAL_LINK"
+  ).toUpperCase();
 
   if (collectionMode === "AUTO_DEBIT") {
     const base = normalizeCheckoutBase(cfg.subscriptionBaseUrl, "suscripcion");

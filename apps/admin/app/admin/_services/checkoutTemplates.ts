@@ -41,7 +41,7 @@ export async function createCheckoutTemplate(args: {
   kind: PublicCheckoutKind;
   active?: boolean;
   allowProductSelect?: boolean;
-  productIds?: string[];
+  productIds?: any[];
   tenantId: string;
   expiryHours?: number;
   logoUrl?: string;
@@ -88,7 +88,7 @@ export async function updateCheckoutTemplate(args: {
   kind: PublicCheckoutKind;
   active?: boolean;
   allowProductSelect?: boolean;
-  productIds?: string[];
+  productIds?: any[];
   expiryHours?: number;
   logoUrl?: string;
   publicTitle?: string;

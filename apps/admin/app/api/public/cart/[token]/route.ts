@@ -88,11 +88,24 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
     });
   }
 
-  const productIds = Array.isArray(template.productIds)
-    ? template.productIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0)
-    : [];
+  const parseTemplateProducts = (raw: any): Array<{ id: string; mode?: string }> => {
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((entry) => {
+        if (typeof entry === "string") return { id: entry };
+        const id = String(entry?.id || "").trim();
+        if (!id) return null;
+        const mode = String(entry?.mode || "").trim();
+        return { id, mode };
+      })
+      .filter(Boolean) as Array<{ id: string; mode?: string }>;
+  };
+
+  const templateProducts = parseTemplateProducts(template.productIds);
+  const productIds = templateProducts.map((p) => p.id).filter(Boolean);
   const plans = productIds.length ? await prisma.subscriptionPlan.findMany({ where: { id: { in: productIds } } }) : [];
   const plansTyped = plans as PlanPublic[];
+  const modeById = new Map(templateProducts.map((p) => [String(p.id), String(p.mode || "").toUpperCase()]));
 
   const tenant = await getTenantBrand(template?.tenantId || customer.tenantId || null);
 
@@ -124,7 +137,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
         currency: p.currency,
         intervalUnit: p.intervalUnit,
         intervalCount: p.intervalCount,
-        collectionMode: String((p.metadata as PlanMetadata | null)?.collectionMode || "MANUAL_LINK")
+        collectionMode: String(modeById.get(String(p.id)) || (p.metadata as PlanMetadata | null)?.collectionMode || "MANUAL_LINK")
       }))
     }),
     { status: 200, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", Pragma: "no-cache" } }

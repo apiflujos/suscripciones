@@ -33,9 +33,15 @@ const kindSchema = z.preprocess((v) => {
 
 const productIdsSchema = z.preprocess((v) => {
   if (Array.isArray(v)) return v;
-  if (typeof v === "string") return v.split(",").map((s) => s.trim()).filter(Boolean);
+  if (typeof v === "string") {
+    try {
+      const parsed = JSON.parse(v);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+    return v.split(",").map((s) => s.trim()).filter(Boolean);
+  }
   return v;
-}, z.array(z.string()).optional());
+}, z.array(z.any()).optional());
 
 const templateSchema = z.object({
   name: z.string().min(1),
@@ -83,25 +89,8 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
   const data = parsed.data;
 
   const hasProducts = Array.isArray(data.productIds) && data.productIds.length > 0;
-  if (!data.allowProductSelect && !hasProducts) {
+  if (String(data.kind) === "CART" && !hasProducts) {
     return Response.json({ error: "product_required" }, { status: 400 });
-  }
-  if (String(data.kind) === "CART" && data.productIds?.length) {
-    const plans = await prisma.subscriptionPlan.findMany({
-      where: { id: { in: data.productIds } },
-      select: { id: true, metadata: true }
-    });
-    let hasPlan = false;
-    let hasSub = false;
-    for (const p of plans) {
-      const mode = String((p.metadata as any)?.collectionMode || "");
-      if (!mode || mode === "AUTO_LINK") hasPlan = true;
-      if (mode === "AUTO_DEBIT") hasSub = true;
-      if (hasPlan && hasSub) break;
-    }
-    if (hasPlan && hasSub) {
-      return Response.json({ error: "cart_mixed_collection" }, { status: 400 });
-    }
   }
 
   const compatReq = reqToCompat(req, body);

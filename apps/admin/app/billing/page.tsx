@@ -726,6 +726,9 @@ export default async function BillingPage({
                 </div>
                 <div className="billing-product-meta">
                   <strong className="billing-value">{r.planName}</strong>
+                  <div className="billing-sub">
+                    {r.tipoTx} · {r.cada}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1089,7 +1092,7 @@ export default async function BillingPage({
                     </div>
                     <div className="billing-list-cell billing-list-product">
                       <a className="billing-list-link" href={productHref}>{r.planName || "—"}</a>
-                      <div className="billing-list-sub">{r.tipoTx || "—"} · Suscripción {estadoSimple.label}</div>
+                      <div className="billing-list-sub">{r.tipoTx || "—"} · {r.cada} · Suscripción {estadoSimple.label}</div>
                     </div>
                     <div className="billing-list-cell billing-list-cutoff">
                       <LocalDateTime value={r.vencimientoAt} variant="short" />
@@ -1203,6 +1206,7 @@ export default async function BillingPage({
                                 <span>·</span>
                                 <LocalDateTime value={r.vencimientoAt} variant="short" />
                               </div>
+                              <div className="billing-kanban-sub">{r.tipoTx} · {r.cada}</div>
                               <div className="billing-kanban-badges">
                                 <span className={`pill pill-sm ${getEstadoSimple(r.status).class}`}>
                                   {getEstadoSimple(r.status).label}

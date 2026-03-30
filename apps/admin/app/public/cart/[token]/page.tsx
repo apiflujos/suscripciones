@@ -118,8 +118,8 @@ export default async function PublicCartPage({
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
           {products.map((p: any) => {
-            const mode = String(p?.collectionMode || "");
-            const label = mode === "AUTO_DEBIT" ? "Suscripción" : "Plan";
+            const mode = String(p?.collectionMode || "").toUpperCase();
+            const label = mode === "AUTO_DEBIT" ? "Débito automático" : "Link de pago";
             return (
               <div key={p.id} className="card cardPad" style={{ display: "grid", gap: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
