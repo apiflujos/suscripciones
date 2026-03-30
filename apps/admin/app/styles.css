@@ -5510,7 +5510,7 @@ textarea.input {
 
 .customersPage .billing-card .contact-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 200px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 180px);
   gap: 6px;
   align-items: start;
 }
@@ -5526,6 +5526,15 @@ textarea.input {
 .customersPage .billing-card .contact-plan-grid {
   gap: 2px 6px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.customersPage .billing-card .contact-plan-grid {
+  grid-template-columns: 1fr;
+}
+
+.customersPage .billing-card .contact-plan-grid .field-hint {
+  font-size: 10px;
+  line-height: 1.2;
 }
 
 .customersPage .billing-card .contact-person-grid span,
@@ -5549,7 +5558,7 @@ textarea.input {
 }
 
 .customersPage .billing-card .contact-right {
-  min-width: 200px;
+  min-width: 180px;
 }
 
 .customersPage .billing-card .contact-block-title {
