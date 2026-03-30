@@ -35,7 +35,7 @@ export function BillingModals({
   return (
     <>
       <div className="customer-actions">
-        <button className="primary btn-subscription" type="button" data-modal="true" data-loader="off" onClick={() => setOpen(true)}>
+        <button className="primary btn-compact btn-subscription" type="button" data-modal="true" data-loader="off" onClick={() => setOpen(true)}>
           Crear suscripción
         </button>
       </div>

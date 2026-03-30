@@ -109,7 +109,7 @@ export default async function SettingsUsersPage({
                 <span>Usuario Activo</span>
               </label>
 
-              <button className="primary" type="submit" style={{ justifySelf: "start" }}>
+              <button className="primary btn-compact" type="submit" style={{ justifySelf: "start" }}>
                 Crear Usuario
               </button>
             </form>

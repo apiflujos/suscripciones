@@ -465,6 +465,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
   subscriptionId: string;
   amountInCentsOverride?: number;
   forceNewTransaction?: boolean;
+  cycleNumberOverride?: number;
 }): Promise<{ paymentId: string; wompiTransactionId: string }> {
   const sub = await prisma.subscription.findUnique({
     where: { id: args.subscriptionId },
@@ -503,7 +504,10 @@ export async function createAutoDebitTransactionForSubscription(args: {
   })();
   if (!Number.isFinite(paymentSourceId as any)) throw new Error("customer_payment_source_missing");
 
-  const cycle = sub.currentCycle;
+  const overrideCycle = Number.isFinite(args.cycleNumberOverride)
+    ? Math.max(1, Math.trunc(args.cycleNumberOverride as number))
+    : null;
+  const cycle = overrideCycle ?? sub.currentCycle;
   let reference = `SUB_${sub.id}_${cycle}`;
   const amountInCents = Math.trunc(args.amountInCentsOverride ?? readSubscriptionTotalInCents(sub.metadata, sub.plan.priceInCents));
   const currency = validateWompiCurrency(sub.plan.currency);

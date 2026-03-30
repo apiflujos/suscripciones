@@ -50,6 +50,8 @@ export async function POST(req: Request) {
     if (!tpl || !String(tpl?.chatwootTemplate?.name || "").trim()) {
       return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
     }
+  } else {
+    return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
   }
 
   const reference = `CONTACT_${customerId.slice(0, 6)}_${Date.now()}`;

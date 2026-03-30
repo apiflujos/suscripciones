@@ -48,7 +48,7 @@ export default async function SaModulesPage({
               <input name="active" value="1" type="checkbox" defaultChecked />
               <span>Activo globalmente</span>
             </label>
-            <button className="primary btn-save" type="submit">
+            <button className="primary btn-compact btn-save" type="submit">
               Guardar módulo
             </button>
             <div className="field-hint">Tip: si un módulo está inactivo, no permite consumo (aunque exista el tenant toggle).</div>
@@ -67,7 +67,7 @@ export default async function SaModulesPage({
                   ))}
                 </select>
               </div>
-              <button className="primary btn-view" type="submit" style={{ height: 38 }}>
+              <button className="primary btn-compact btn-view" type="submit">
                 Ver
               </button>
             </form>

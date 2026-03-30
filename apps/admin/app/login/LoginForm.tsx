@@ -41,7 +41,7 @@ export function LoginForm({
         <input type="checkbox" name="remember" value="1" />
         <span>Recordarme</span>
       </label>
-      <PendingButton className="primary loginPrimary" type="submit" pendingText="Entrando...">
+      <PendingButton className="primary btn-compact loginPrimary" type="submit" pendingText="Entrando...">
         Entrar
       </PendingButton>
     </form>

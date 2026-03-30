@@ -148,7 +148,13 @@ export default async function CampaignsPage({
                   <input type="hidden" name="csrf" value={csrfToken} />
                   <input type="hidden" name="id" value={c.id} />
                   <input type="hidden" name="returnTo" value={returnTo} />
-                  <RunCampaignButton disabled={c.status === "RUNNING"} label={c.sentCount > 0 ? "Reenviar" : "Enviar"} />
+                  <RunCampaignButton
+                    disabled={c.status === "RUNNING"}
+                    label={c.sentCount > 0 ? "Reenviar" : "Enviar"}
+                    name={c.name}
+                    content={c.content}
+                    template={c.templateParams || null}
+                  />
                 </form>
               </div>
               {c.content ? (
@@ -203,21 +209,7 @@ export default async function CampaignsPage({
               <a className="page-link page-nav" href={`/campaigns?page=${Math.max(1, currentPage - 1)}`} aria-disabled={currentPage <= 1}>
                 Anterior
               </a>
-              <div className="pagination-pages">
-                {pages.map((p) => {
-                  const isDesktopOnly = p < mobileStart || p > mobileEnd;
-                  return (
-                    <a
-                      key={`campaigns-page-${p}`}
-                      className={`page-link ${p === currentPage ? "is-active" : ""} ${isDesktopOnly ? "page-desktop-only" : ""}`}
-                      href={`/campaigns?page=${p}`}
-                      aria-current={p === currentPage ? "page" : undefined}
-                    >
-                      {p}
-                    </a>
-                  );
-                })}
-              </div>
+              <div className="pagination-pages" style={{ display: "none" }} />
               <a className="page-link page-nav" href={`/campaigns?page=${currentPage + 1}`} aria-disabled={!hasNext}>
                 Siguiente
               </a>

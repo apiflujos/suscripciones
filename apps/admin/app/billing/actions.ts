@@ -9,6 +9,7 @@ import { createCustomer as createCustomerService, getCustomerById, updateCustome
 import { prisma } from "@suscripciones/database";
 import { createCatalogProduct, getCatalogProductById } from "../admin/_services/products";
 import { createPlan as createPlanService, updatePlanRecurrence as updatePlanRecurrenceService, deletePlan as deletePlanService } from "../admin/_services/plans";
+import { associatePaymentToSubscription } from "../admin/_services/logsActions";
 import {
   createSubscription,
   createSubscriptionPaymentLink,
@@ -22,7 +23,6 @@ import {
   markSubscriptionPaidManual as markSubscriptionPaidManualService,
   unmarkSubscriptionPaidManual as unmarkSubscriptionPaidManualService
 } from "../admin/_services/subscriptions";
-import { sendChatwootMessageForCustomer } from "../admin/_services/chatwoot";
 import { getAdminSettings } from "../admin/_services/settings";
 import { getCheckoutTemplateById } from "../admin/_services/checkoutTemplates";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
@@ -99,37 +99,19 @@ function humanizeChargeError(raw: string) {
   return "No se pudo cobrar la suscripción.";
 }
 
-function escapeHtml(value: string) {
-  return String(value || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function buildChatwootLinkMessage(args: { name?: string; lead: string; url: string }) {
-  const safeName = escapeHtml(args.name || "Cliente");
-  const safeLead = escapeHtml(args.lead);
-  const safeUrl = escapeHtml(args.url);
-  return `<p>Hola ${safeName},</p><p>${safeLead}</p><p><a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeUrl}</a></p>`;
-}
-
 async function hasNotificationRule(trigger: string): Promise<boolean | null> {
   try {
     const cfg = await getNotificationsConfigForEnv("PRODUCTION");
     const rules = Array.isArray((cfg as any)?.rules) ? (cfg as any).rules : [];
-    return rules.some((r: any) => r?.enabled && r?.trigger === trigger);
+    const templates = Array.isArray((cfg as any)?.templates) ? (cfg as any).templates : [];
+    const match = rules.find((r: any) => r?.enabled && r?.trigger === trigger);
+    if (!match) return false;
+    const tpl = templates.find((t: any) => String(t?.id || "") === String(match?.templateId || ""));
+    if (!tpl) return false;
+    const chatwootName = String((tpl as any)?.chatwootTemplate?.name || "").trim();
+    return Boolean(chatwootName);
   } catch {
     return null;
-  }
-}
-
-async function sendChatwootMessageSafe(args: { customerId: string; content: string }) {
-  try {
-    await sendChatwootMessageForCustomer({ customerId: args.customerId, content: args.content });
-  } catch {
-    // best effort
   }
 }
 
@@ -625,6 +607,34 @@ export async function updateSubscriptionBillingSettings(formData: FormData) {
   }
 }
 
+export async function movePaymentToCycle(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  const paymentId = String(formData.get("paymentId") || "").trim();
+  const cycleId = String(formData.get("cycleId") || "").trim();
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
+
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+  const session = sessionToken ? await verifyAdminSessionToken(sessionToken) : null;
+
+  const res = await associatePaymentToSubscription({
+    paymentId,
+    cycleId,
+    subscriptionId,
+    tenantId: tenantId || undefined,
+    actorEmail: session?.email || undefined
+  });
+
+  redirect(
+    mergeQuery(returnTo, {
+      payment_move: res.ok ? "1" : "0",
+      payment_move_error: res.ok ? undefined : res.error
+    })
+  );
+}
+
 export async function changeSubscriptionPlan(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
@@ -975,13 +985,15 @@ export async function createPlanAndSubscription(formData: FormData) {
       await updateCustomerProfile({ customerId: resolvedCustomerId, metadata: nextMeta }).catch(() => {});
 
       const rulesActive = await hasNotificationRule("PAYMENT_LINK_CREATED");
-      if (rulesActive === false) {
-        const content = buildChatwootLinkMessage({
-          name: customer?.name || "Cliente",
-          lead: "Aquí está tu link de pago:",
-          url
-        });
-        await sendChatwootMessageSafe({ customerId: resolvedCustomerId, content });
+      if (shouldCreateLink && rulesActive !== true) {
+        redirect(
+          mergeQuery(returnTo, {
+            error: "missing_template",
+            checkoutUrl: url,
+            customerId: resolvedCustomerId,
+            ...(tenantId ? { tenantId } : {})
+          })
+        );
       }
 
       redirect(
@@ -1036,13 +1048,15 @@ export async function createPlanAndSubscription(formData: FormData) {
       } catch {
         rulesActive = null;
       }
-      if (rulesActive === false) {
-        const content = buildChatwootLinkMessage({
-          name: customer?.name || "Cliente",
-          lead: "Activa tu suscripción guardando tu método de pago aquí:",
-          url
-        });
-        await sendChatwootMessageSafe({ customerId: resolvedCustomerId, content });
+      if (rulesActive !== true) {
+        redirect(
+          mergeQuery(returnTo, {
+            error: "missing_template",
+            checkoutUrl: url,
+            customerId: resolvedCustomerId,
+            ...(tenantId ? { tenantId } : {})
+          })
+        );
       }
 
       redirect(mergeQuery(returnTo, { created: "1", checkoutUrl: url, customerId: resolvedCustomerId, ...(tenantId ? { tenantId } : {}) }));
@@ -1069,22 +1083,7 @@ export async function createPlanAndSubscription(formData: FormData) {
 export async function sendChatwootPaymentLink(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
-  const checkoutUrl = String(formData.get("checkoutUrl") || "").trim();
-  const customerId = String(formData.get("customerId") || "").trim();
-  if (!checkoutUrl || !customerId) return redirect(mergeQuery(returnTo, { error: "missing_checkout_or_customer" }));
-
-  const content = buildChatwootLinkMessage({
-    name: "Cliente",
-    lead: "Aquí está tu link de pago:",
-    url: checkoutUrl
-  });
-
-  try {
-    await sendChatwootMessageForCustomer({ customerId, content });
-    redirect(mergeQuery(returnTo, { created: "1", central: "sent", customerId, checkoutUrl }));
-  } catch (err: any) {
-    redirect(mergeQuery(returnTo, { error: String(err?.message || "chatwoot_send_failed") }));
-  }
+  return redirect(mergeQuery(returnTo, { error: "missing_template" }));
 }
 
 export async function sendCentralComPaymentLink(formData: FormData) {
@@ -1113,15 +1112,10 @@ export async function sendCentralComPaymentLink(formData: FormData) {
     let centralMode = "created";
     if (sendNow) {
       const rulesActive = await hasNotificationRule("PAYMENT_LINK_CREATED");
-      centralMode = rulesActive === false ? "chatwoot" : "rules";
-      if (rulesActive === false) {
-        const content = buildChatwootLinkMessage({
-          name: "Cliente",
-          lead: "Aquí está tu link de pago:",
-          url: checkoutUrl
-        });
-        await sendChatwootMessageSafe({ customerId, content });
+      if (rulesActive !== true) {
+        return redirect(mergeQuery(returnTo, { error: "missing_template", ...(tenantId ? { tenantId } : {}) }));
       }
+      centralMode = "rules";
     }
 
     redirect(
@@ -1197,13 +1191,8 @@ export async function sendCentralComTokenizationLink(formData: FormData) {
     } catch {
       rulesActive = null;
     }
-    if (rulesActive === false) {
-      const content = buildChatwootLinkMessage({
-        name: customer?.name || "Cliente",
-        lead: "Activa tu suscripción guardando tu método de pago aquí:",
-        url
-      });
-      await sendChatwootMessageSafe({ customerId, content });
+    if (rulesActive !== true) {
+      return redirect(mergeQuery(returnTo, { error: "missing_template", ...(tenantId ? { tenantId } : {}) }));
     }
 
     redirect(mergeQuery(returnTo, { central: "sent", tokenUrl: url, customerId, ...(tenantId ? { tenantId } : {}) }));

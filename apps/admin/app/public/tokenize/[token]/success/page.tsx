@@ -76,7 +76,7 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
       fontFamily={fontFamily}
       maxWidth={680}
     >
-      <a className="primary" href={redirectUrl} style={{ width: "fit-content" }} referrerPolicy="no-referrer">
+      <a className="primary btn-compact btn-noicon" href={redirectUrl} style={{ width: "fit-content" }} referrerPolicy="no-referrer">
         {buttonLabel}
       </a>
     </PublicCheckoutLayout>

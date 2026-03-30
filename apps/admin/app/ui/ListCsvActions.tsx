@@ -141,7 +141,7 @@ export function ListCsvActions({
                 <button className="ghost btn-cancel" type="button" onClick={() => setOpen(false)}>
                   Cerrar
                 </button>
-                <button className="primary btn-import" type="submit" disabled={uploading}>
+                <button className="primary btn-compact btn-import" type="submit" disabled={uploading}>
                   {uploading ? "Importando..." : "Importar CSV"}
                 </button>
               </div>

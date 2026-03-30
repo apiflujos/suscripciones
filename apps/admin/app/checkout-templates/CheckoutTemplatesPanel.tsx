@@ -806,7 +806,7 @@ export function CheckoutTemplatesPanel({
               Cancelar edición
             </button>
           ) : null}
-          <button className="primary btn-create" type="button" data-modal="true" data-loader="off" onClick={openCreate}>
+          <button className="primary btn-compact btn-create" type="button" data-modal="true" data-loader="off" onClick={openCreate}>
             Nueva plantilla
           </button>
         </div>

@@ -97,7 +97,7 @@ export function UsersPanel({
             </div>
 
             <div className="module-footer">
-              <PendingButton className="primary" type="submit" pendingText="Creando...">
+              <PendingButton className="primary btn-compact" type="submit" pendingText="Creando...">
                 Crear Usuario
               </PendingButton>
             </div>

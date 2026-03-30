@@ -151,7 +151,7 @@ function WaTemplateFields({
       <div className="field" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <label style={{ margin: 0 }}>Plantillas disponibles</label>
         {onSync ? (
-          <button className="ghost btn-compact" type="button" onClick={onSync} data-loader="off">
+          <button className="ghost btn-compact" type="button" onClick={onSync} data-loader="off" disabled={syncing}>
             {syncing ? "Sincronizando..." : "Sincronizar"}
           </button>
         ) : null}
@@ -169,7 +169,16 @@ function WaTemplateFields({
           {syncError ? <div className="field-hint" style={{ color: "var(--danger)" }}>{syncError}</div> : null}
         </div>
       ) : (
-        <div className="field-hint">No hay plantillas disponibles. Sincroniza para cargarlas.</div>
+        <div className="field-hint ui-alert-warn">
+          No hay plantillas disponibles. Sincroniza para cargarlas.
+          {syncError && String(syncError).includes("chatwoot_not_configured") ? (
+            <div style={{ marginTop: 6 }}>
+              <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp">
+                Configurar Chatwoot
+              </a>
+            </div>
+          ) : null}
+        </div>
       )}
       <div className="field">
         <label>Mensaje</label>
@@ -394,7 +403,7 @@ export function NewMassMessageModal({
 
   return (
     <>
-      <button className="primary" type="button" onClick={() => setOpen(true)} data-modal="true" data-loader="off">
+      <button className="primary btn-compact" type="button" onClick={() => setOpen(true)} data-modal="true" data-loader="off">
         Nueva campaña
       </button>
       {open ? (
@@ -523,10 +532,10 @@ export function NewMassMessageModal({
                 </div>
 
                 <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                  <button className="ghost" type="button" onClick={() => setOpen(false)} data-loader="off">
+                  <button className="ghost btn-compact btn-noicon" type="button" onClick={() => setOpen(false)} data-loader="off">
                     Cancelar
                   </button>
-                  <PendingButton className="primary" type="submit" pendingText="Guardando..." disabled={!isFormValid}>
+                  <PendingButton className="primary btn-compact" type="submit" pendingText="Guardando..." disabled={!isFormValid}>
                     Guardar campaña
                   </PendingButton>
                 </div>

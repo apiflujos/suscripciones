@@ -57,8 +57,13 @@ function displayNameFromEmail(email: string) {
 }
 
 export function TopBar({ session }: { session: AdminSession | null }) {
-  const pathname = usePathname() || "/";
-  const header = useMemo(() => getHeader(pathname), [pathname]);
+  const pathname = usePathname() || "";
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const currentPath = mounted ? pathname : "";
+  const header = useMemo(() => getHeader(currentPath || "/"), [currentPath]);
   const isSuperAdmin = session?.role === "SUPER_ADMIN";
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -159,7 +164,7 @@ export function TopBar({ session }: { session: AdminSession | null }) {
   };
 
   return (
-    <header className="topbar" aria-label="Topbar">
+    <header className="topbar" aria-label="Topbar" suppressHydrationWarning>
       <div className="topbarLeft">
         <div className="topbarLeftRow">
           <Link href="/" className="topbarLogoLink" prefetch={false} aria-label="Ir al home">
@@ -169,8 +174,8 @@ export function TopBar({ session }: { session: AdminSession | null }) {
           </Link>
         </div>
         <div className="topbarTitleCentered">
-          <h1 className="topbarTitle">{header.title}</h1>
-          <div className="topbarSubtitle">{header.subtitle}</div>
+          <h1 className="topbarTitle" suppressHydrationWarning>{header.title}</h1>
+          <div className="topbarSubtitle" suppressHydrationWarning>{header.subtitle}</div>
         </div>
         <div className={`topbarPulse ${paymentPulse ? "is-active" : ""}`} aria-live="polite">
           <span className="topbarPulseDot" aria-hidden="true" />

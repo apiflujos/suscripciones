@@ -120,7 +120,7 @@ export function NewCustomerForm({
             <h3 className="ui-title-reset">Nuevo contacto</h3>
             <HelpTip text="Crea un contacto con datos básicos, dirección (DANE) e identificación." />
             {alwaysOpen ? null : (
-              <button className="primary btn-create" type="button" onClick={() => setOpen(true)}>
+              <button className="primary btn-compact btn-create" type="button" onClick={() => setOpen(true)}>
                 Crear contacto
               </button>
             )}
@@ -254,7 +254,7 @@ export function NewCustomerForm({
           </div>
 
                 <div className="module-footer grid-span-2">
-                  <button className="primary btn-save" type="submit">
+                  <button className="primary btn-compact btn-save" type="submit">
                     Guardar
                   </button>
                 </div>
@@ -378,7 +378,7 @@ export function NewCustomerForm({
           </div>
 
             <div className="module-footer grid-span-2">
-              <button className="primary btn-save" type="submit">
+              <button className="primary btn-compact btn-save" type="submit">
                 Guardar
               </button>
             </div>

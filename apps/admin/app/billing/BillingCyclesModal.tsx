@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Fragment } from "react";
 import { LocalDateTime } from "../ui/LocalDateTime";
+import { movePaymentToCycle } from "./actions";
 
 type BillingCycleItem = {
   id: string;
@@ -26,6 +27,9 @@ type BillingCycleItem = {
 
 type Props = {
   subscriptionId: string;
+  csrfToken: string;
+  returnTo: string;
+  tenantId?: string | null;
   trigger?: (onOpen: () => void) => React.ReactNode;
 };
 
@@ -80,7 +84,7 @@ function formatDateRange(start: string, end: string) {
   );
 }
 
-export function BillingCyclesModal({ subscriptionId, trigger }: Props) {
+export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenantId, trigger }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<BillingCycleItem[]>([]);
@@ -283,6 +287,33 @@ export function BillingCyclesModal({ subscriptionId, trigger }: Props) {
                                         </div>
                                       )}
                                     </div>
+
+                                    {cycle.paymentId ? (
+                                      <form
+                                        action={movePaymentToCycle}
+                                        className="cycle-move-form"
+                                        style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 16 }}
+                                      >
+                                        <input type="hidden" name="csrf" value={csrfToken} />
+                                        <input type="hidden" name="paymentId" value={cycle.paymentId} />
+                                        <input type="hidden" name="subscriptionId" value={cycle.subscriptionId} />
+                                        <input type="hidden" name="tenantId" value={String(tenantId || "")} />
+                                        <input type="hidden" name="returnTo" value={returnTo} />
+                                        <select className="select select-sm" name="cycleId" defaultValue="">
+                                          <option value="">Mover pago a…</option>
+                                          {items
+                                            .filter((c) => c.id !== cycle.id && !c.paymentId)
+                                            .map((c) => (
+                                              <option key={`move-${cycle.id}-${c.id}`} value={c.id}>
+                                                Ciclo {c.cycleNumber} · {new Date(c.periodStartAt).toLocaleDateString("es-CO")} → {new Date(c.periodEndAt).toLocaleDateString("es-CO")}
+                                              </option>
+                                            ))}
+                                        </select>
+                                        <button className="ghost btn-compact btn-noicon" type="submit">
+                                          Mover pago
+                                        </button>
+                                      </form>
+                                    ) : null}
 
                                     {/* IDs - Información técnica al final */}
                                     <div style={{

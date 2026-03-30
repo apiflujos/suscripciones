@@ -37,7 +37,7 @@ export default async function SaLoginPage({
           <label>Password</label>
           <input name="password" className="input" type="password" autoComplete="current-password" />
         </div>
-        <button className="primary" type="submit">
+        <button className="primary btn-compact" type="submit">
           Entrar
         </button>
       </form>

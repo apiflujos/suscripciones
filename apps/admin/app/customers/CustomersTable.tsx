@@ -406,6 +406,8 @@ export function CustomersTable({
         return "No hay plantillas de catálogo activas. Crea una en Checkout público.";
       case "missing_template":
         return "Selecciona una plantilla antes de enviar.";
+      case "no_rules":
+        return "No hay plantillas activas en Notificaciones para este envío.";
       case "invalid_body":
         return "Faltan datos obligatorios. Revisa la configuración.";
       case "invalid_payload":
@@ -679,19 +681,19 @@ export function CustomersTable({
                               <Link
                                 href={`/billing?subscriptionId=${subInfo.subscriptionId}`}
                                 className="contact-value contact-value-strong"
-                                style={{ fontSize: 13, color: 'var(--primary)', textDecoration: 'underline' }}
+                                style={{ color: 'var(--primary)', textDecoration: 'underline' }}
                                 title="Ir a la suscripción"
                               >
                                 {planName}
                               </Link>
                             ) : (
-                              <span className="contact-value contact-value-strong" style={{ fontSize: 13 }}>
+                              <span className="contact-value contact-value-strong">
                                 {planName}
                               </span>
                             )}
                           </>
                         ) : (
-                          <span className="contact-value contact-value-strong" style={{ fontSize: 13 }}>—</span>
+                          <span className="contact-value contact-value-strong">—</span>
                         )}
                       </div>
                     </div>
@@ -712,7 +714,7 @@ export function CustomersTable({
                       </div>
                     </div>
                     {!hasToken(c) ? (
-                      <div>
+                      <div className="contact-plan-hint">
                         <span className="field-hint">Envía link de débito automático para guardar tarjeta.</span>
                       </div>
                     ) : null}
@@ -831,6 +833,13 @@ export function CustomersTable({
                 e.preventDefault();
                 const customer = payModalCustomer;
                 if (!customer) return;
+                const payTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK");
+                const canSendPay = Boolean(payTemplate?.chatwootTemplate?.name);
+                if (!canSendPay) {
+                  setSendError((prev) => ({ ...prev, [customer.id]: "missing_template" }));
+                  openNotify("fail", mapSendError("missing_template"));
+                  return;
+                }
                 setSendingPaymentId(customer.id);
                 setSendError((prev) => ({ ...prev, [customer.id]: "" }));
                 setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
@@ -862,11 +871,6 @@ export function CustomersTable({
                     openNotify("fail", mapSendError(msg));
                     return;
                   }
-                  if (json?.notificationsRulesActive === false && !json?.fallbackSent) {
-                    setSendError((prev) => ({ ...prev, [customer.id]: "no_rules" }));
-                    openNotify("fail", "No hay notificaciones activas para enviar el link.");
-                    return;
-                  }
                   if (json?.publicUrl || json?.checkoutUrl) {
                     const nextUrl = String(json?.publicUrl || json?.checkoutUrl || "");
                     setLinkOverrides((prev) => ({ ...prev, [customer.id]: { ...(prev[customer.id] || {}), payment: nextUrl } }));
@@ -889,6 +893,11 @@ export function CustomersTable({
                 }
               }}
             >
+              {(() => {
+                const payTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK");
+                const canSendPay = Boolean(payTemplate?.chatwootTemplate?.name);
+                return (
+                  <>
               <div className="field">
                 <label>Monto</label>
                 <input
@@ -906,11 +915,21 @@ export function CustomersTable({
                   className="input"
                   rows={4}
                   readOnly
-                  value={renderNotificationPreview(resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK"))}
+                  value={renderNotificationPreview(payTemplate)}
                   style={{ whiteSpace: "pre-wrap" }}
                 />
                 <div className="field-hint">Se usa la plantilla configurada en Notificaciones.</div>
               </div>
+              {!canSendPay ? (
+                <div className="paylink-error">
+                  {mapSendError("missing_template")}
+                  <div style={{ marginTop: 6 }}>
+                    <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=payment_link_created">
+                      Configurar plantilla
+                    </a>
+                  </div>
+                </div>
+              ) : null}
               {sendError[payModalCustomer.id] ? (
                 <div className="paylink-error">
                   {mapSendError(sendError[payModalCustomer.id])}
@@ -928,10 +947,13 @@ export function CustomersTable({
                 <button className="ghost btn-cancel" type="button" onClick={closePayModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
-                <button className="primary btn-send" type="submit" disabled={!payAmount}>
+                <button className="primary btn-compact btn-send" type="submit" disabled={!payAmount || !canSendPay}>
                   Enviar
                 </button>
               </div>
+                  </>
+                );
+              })()}
             </form>
           </div>
         </div>
@@ -955,6 +977,16 @@ export function CustomersTable({
                 const templateId = resolveCartTemplate(customer.id, cartModalMode);
                 if (!templateId) {
                   openNotify("fail", "No hay plantillas de catálogo para enviar.");
+                  return;
+                }
+                const notifTemplate = resolveNotificationTemplate(
+                  "CATALOG_LINK_CREATED",
+                  cartModalMode === "SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN"
+                );
+                const canSendNotif = Boolean(notifTemplate?.chatwootTemplate?.name);
+                if (!canSendNotif) {
+                  setSendError((prev) => ({ ...prev, [customer.id]: "missing_template" }));
+                  openNotify("fail", mapSendError("missing_template"));
                   return;
                 }
                 setSendingCartId(customer.id);
@@ -1000,6 +1032,14 @@ export function CustomersTable({
                 }
               }}
             >
+              {(() => {
+                const notifTemplate = resolveNotificationTemplate(
+                  "CATALOG_LINK_CREATED",
+                  cartModalMode === "SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN"
+                );
+                const canSendNotif = Boolean(notifTemplate?.chatwootTemplate?.name);
+                return (
+                  <>
               <div className="field">
                 <label>Tipo de catálogo</label>
                 <select className="select" value={cartModalMode} onChange={(e) => setCartModalMode(e.target.value as any)}>
@@ -1054,7 +1094,7 @@ export function CustomersTable({
               {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "CART" && inferTemplateMode(t) === cartModalMode).length === 0 ? (
                 <div className="card cardPad" style={{ borderColor: "var(--danger)", display: "grid", gap: 8 }}>
                   <div>Debes crear una plantilla de catálogo antes de enviar.</div>
-                  <a className="primary" href="/settings?tab=checkout-publico&kind=CART&step=form" data-loader="off">
+                  <a className="primary btn-compact btn-noicon" href="/settings?tab=checkout-publico&kind=CART&step=form" data-loader="off">
                     Crear plantilla de catálogo
                   </a>
                 </div>
@@ -1072,6 +1112,16 @@ export function CustomersTable({
                 />
                 <div className="field-hint">Se usa la plantilla configurada en Notificaciones.</div>
               </div>
+              {!canSendNotif ? (
+                <div className="paylink-error">
+                  {mapSendError("missing_template")}
+                  <div style={{ marginTop: 6 }}>
+                    <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=catalog_link_created">
+                      Configurar plantilla
+                    </a>
+                  </div>
+                </div>
+              ) : null}
               {sendError[cartModalCustomer.id] ? <div className="paylink-error">{mapSendError(sendError[cartModalCustomer.id])}</div> : null}
               {sendOk[cartModalCustomer.id] ? <div className="paylink-success">Mensaje enviado correctamente.</div> : null}
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
@@ -1079,13 +1129,16 @@ export function CustomersTable({
                   Cancelar
                 </button>
                 <button
-                  className="primary btn-send"
+                  className="primary btn-compact btn-send"
                   type="submit"
-                  disabled={missingPublicBase || !resolveCartTemplate(cartModalCustomer.id, cartModalMode)}
+                  disabled={missingPublicBase || !resolveCartTemplate(cartModalCustomer.id, cartModalMode) || !canSendNotif}
                 >
                   Enviar
                 </button>
               </div>
+                  </>
+                );
+              })()}
             </form>
           </div>
         </div>
@@ -1107,6 +1160,13 @@ export function CustomersTable({
                 const customer = tokenModalCustomer;
                 if (!customer) return;
                 const templateId = resolveTokenTemplate(customer.id);
+                const notifTemplate = resolveNotificationTemplate("TOKENIZATION_LINK_CREATED");
+                const canSendNotif = Boolean(notifTemplate?.chatwootTemplate?.name);
+                if (!canSendNotif) {
+                  setSendError((prev) => ({ ...prev, [customer.id]: "missing_template" }));
+                  openNotify("fail", mapSendError("missing_template"));
+                  return;
+                }
                 setSendingTokenId(customer.id);
                 setSendError((prev) => ({ ...prev, [customer.id]: "" }));
                 setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
@@ -1149,6 +1209,11 @@ export function CustomersTable({
                 }
               }}
             >
+              {(() => {
+                const notifTemplate = resolveNotificationTemplate("TOKENIZATION_LINK_CREATED");
+                const canSendNotif = Boolean(notifTemplate?.chatwootTemplate?.name);
+                return (
+                  <>
               <div className="field">
                 <label>Plantilla de suscripción</label>
                 <select
@@ -1184,7 +1249,7 @@ export function CustomersTable({
               {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "SUBSCRIPTION").length === 0 ? (
                 <div className="card cardPad" style={{ borderColor: "var(--danger)", display: "grid", gap: 8 }}>
                   <div>Debes crear una plantilla de suscripción antes de enviar débito automático.</div>
-                  <a className="primary" href="/settings?tab=checkout-publico&kind=SUBSCRIPTION&step=form" data-loader="off">
+                  <a className="primary btn-compact btn-noicon" href="/settings?tab=checkout-publico&kind=SUBSCRIPTION&step=form" data-loader="off">
                     Crear plantilla de suscripción
                   </a>
                 </div>
@@ -1200,6 +1265,16 @@ export function CustomersTable({
                 />
                 <div className="field-hint">Se usa la plantilla configurada en Notificaciones.</div>
               </div>
+              {!canSendNotif ? (
+                <div className="paylink-error">
+                  {mapSendError("missing_template")}
+                  <div style={{ marginTop: 6 }}>
+                    <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=tokenization_link_created">
+                      Configurar plantilla
+                    </a>
+                  </div>
+                </div>
+              ) : null}
               {sendError[tokenModalCustomer.id] ? (
                 <div className="paylink-error">
                   {mapSendError(sendError[tokenModalCustomer.id])}
@@ -1217,10 +1292,13 @@ export function CustomersTable({
                 <button className="ghost btn-cancel" type="button" onClick={closeTokenModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
-                <button className="primary btn-send" type="submit" disabled={!resolveTokenTemplate(tokenModalCustomer.id) || missingSubBase}>
+                <button className="primary btn-compact btn-send" type="submit" disabled={!resolveTokenTemplate(tokenModalCustomer.id) || missingSubBase || !canSendNotif}>
                   Enviar
                 </button>
               </div>
+                  </>
+                );
+              })()}
             </form>
           </div>
         </div>

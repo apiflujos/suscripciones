@@ -200,16 +200,13 @@ export function FilterButton({
   if (!scope) {
     return label ? (
       <button
-        className="ghost btn-compact"
+        className="ghost btn-compact btn-filter"
         type="button"
         aria-label="Filtros"
         title="Crear filtro inteligente"
         disabled
         style={{ opacity: 0.5, width: fullWidth ? "100%" : undefined, justifyContent: fullWidth ? "center" : undefined }}
       >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{ marginRight: 6 }}>
-          <path d="M.5 2a.75.75 0 0 1 .75-.75h13.5a.75.75 0 0 1 .56 1.247l-5.06 5.62v4.633a.75.75 0 0 1-1.083.67l-3-1.5a.75.75 0 0 1-.417-.67V8.117l-5.06-5.62A.75.75 0 0 1 .5 2z"/>
-        </svg>
         {label}
       </button>
     ) : (
@@ -220,11 +217,7 @@ export function FilterButton({
         title="Crear filtro inteligente"
         disabled
         style={{ opacity: 0.5 }}
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M.5 2a.75.75 0 0 1 .75-.75h13.5a.75.75 0 0 1 .56 1.247l-5.06 5.62v4.633a.75.75 0 0 1-1.083.67l-3-1.5a.75.75 0 0 1-.417-.67V8.117l-5.06-5.62A.75.75 0 0 1 .5 2z"/>
-        </svg>
-      </button>
+      />
     );
   }
 
@@ -232,16 +225,13 @@ export function FilterButton({
     <>
       {label ? (
         <button
-          className="ghost btn-compact"
+          className="ghost btn-compact btn-filter"
           type="button"
           onClick={openModal}
           aria-label={label}
           title={label}
           style={{ width: fullWidth ? "100%" : undefined, justifyContent: fullWidth ? "center" : undefined }}
         >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{ marginRight: 6 }}>
-            <path d="M.5 2a.75.75 0 0 1 .75-.75h13.5a.75.75 0 0 1 .56 1.247l-5.06 5.62v4.633a.75.75 0 0 1-1.083.67l-3-1.5a.75.75 0 0 1-.417-.67V8.117l-5.06-5.62A.75.75 0 0 1 .5 2z"/>
-          </svg>
           {label}
         </button>
       ) : (
@@ -251,11 +241,7 @@ export function FilterButton({
           onClick={openModal}
           aria-label="Crear filtro inteligente"
           title="Crear filtro inteligente"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path d="M.5 2a.75.75 0 0 1 .75-.75h13.5a.75.75 0 0 1 .56 1.247l-5.06 5.62v4.633a.75.75 0 0 1-1.083.67l-3-1.5a.75.75 0 0 1-.417-.67V8.117l-5.06-5.62A.75.75 0 0 1 .5 2z"/>
-          </svg>
-        </button>
+        />
       )}
 
       {open && (
@@ -359,7 +345,7 @@ export function FilterButton({
                               <div style={{ width: 32, height: 32 }} />
                             )}
                           </div>
-                          {idx === 0 && arr.length > 1 ? (
+                          {idx < arr.length - 1 ? (
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 26 }}>
                               <span className="muted" style={{ fontSize: 12 }}>Condición entre reglas</span>
                               <select

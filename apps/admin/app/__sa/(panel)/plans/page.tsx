@@ -67,7 +67,7 @@ export default async function SaPlansPage({
                 <input name="monthlyPriceInCents" className="input" type="number" defaultValue={0} min={0} />
               </div>
             </div>
-            <button className="primary btn-create" type="submit">
+            <button className="primary btn-compact btn-create" type="submit">
               Crear plan
             </button>
           </form>

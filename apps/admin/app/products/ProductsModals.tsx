@@ -15,7 +15,9 @@ export function ProductsModals({
   createProduct,
   createCustomer,
   createPlanAndSubscription,
-  returnTo
+  returnTo,
+  actionsClassName,
+  showPlanButton = true
 }: {
   customers: any[];
   empresas: any[];
@@ -28,15 +30,17 @@ export function ProductsModals({
   createCustomer: (formData: FormData) => Promise<void>;
   createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
   returnTo: string;
+  actionsClassName?: string;
+  showPlanButton?: boolean;
 }) {
   const [openProduct, setOpenProduct] = useState(false);
   const [openPlan, setOpenPlan] = useState(false);
 
   return (
     <>
-      <div className="customer-actions">
+      <div className={actionsClassName || "customer-actions"}>
         <button
-          className="primary btn-create"
+          className="primary btn-compact btn-create"
           type="button"
           data-modal="true"
           data-loader="off"
@@ -45,16 +49,18 @@ export function ProductsModals({
         >
           Crear producto
         </button>
-        <button
-          className="primary btn-subscription"
-          type="button"
-          data-modal="true"
-          data-loader="off"
-          onClick={() => setOpenPlan(true)}
-          title="Crea un plan o una suscripción desde este producto"
-        >
-          Crear suscripción
-        </button>
+        {showPlanButton ? (
+          <button
+            className="primary btn-compact btn-subscription"
+            type="button"
+            data-modal="true"
+            data-loader="off"
+            onClick={() => setOpenPlan(true)}
+            title="Crea un plan o una suscripción desde este producto"
+          >
+            Crear suscripción
+          </button>
+        ) : null}
       </div>
 
       {openProduct ? (

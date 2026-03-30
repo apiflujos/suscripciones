@@ -533,21 +533,7 @@ export default async function LogsPage({
         >
           Anterior
         </a>
-        <div className="pagination-pages">
-          {pages.map((p) => {
-            const isDesktopOnly = p < mobileStart || p > mobileEnd;
-            return (
-              <a
-                key={`logs-page-${p}`}
-                className={`page-link ${p === currentPage ? "is-active" : ""} ${isDesktopOnly ? "page-desktop-only" : ""}`}
-                href={`${routeBase}?${new URLSearchParams({ ...baseParams, page: String(p) })}`}
-                aria-current={p === currentPage ? "page" : undefined}
-              >
-                {p}
-              </a>
-            );
-          })}
-        </div>
+        <div className="pagination-pages" style={{ display: "none" }} />
         <a
           className="page-link page-nav"
           href={`${routeBase}?${new URLSearchParams({
@@ -767,6 +753,35 @@ export default async function LogsPage({
     <div className="page-header-standard-filters-group" />
   );
 
+  const paymentsActions =
+    tab === "payments" ? (
+      <div className="payments-header-actions">
+        <ListCsvActions
+          exportHref={`/api/list-csv?${new URLSearchParams({
+            scope: "payments",
+            ...(q ? { q } : {}),
+            ...(status ? { status } : {}),
+            ...(from ? { from } : {}),
+            ...(to ? { to } : {}),
+            ...(tenantId ? { tenantId } : {})
+          }).toString()}`}
+          defaultEntity="payments"
+        />
+        <form action={reconcilePendingPayments} className="filtersForm">
+          <input type="hidden" name="returnTo" value={returnTo} />
+          <input type="hidden" name="csrf" value={csrfToken} />
+          <input type="hidden" name="days" value="7" />
+          <input type="hidden" name="minutes" value="720" />
+          <input type="hidden" name="take" value="150" />
+          {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+          <PendingButton className="primary btn-compact" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">
+            Recolectar
+          </PendingButton>
+        </form>
+        <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} className="primary btn-compact btn-noicon btn-reconcile" />
+      </div>
+    ) : null;
+
   return (
     <main className={`page${tab === "payments" ? " paymentsPage" : ""}`}>
       <LogsFiltersAutoSubmit />
@@ -851,23 +866,8 @@ export default async function LogsPage({
         filters={headerFilters}
         views={headerViews}
         smartViews={headerSmartViews ?? <div />}
-        summary={tab === "payments"
-          ? (
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <ListCsvActions exportHref={`/api/list-csv?${new URLSearchParams({ scope: "payments", ...(q ? { q } : {}), ...(status ? { status } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}), ...(tenantId ? { tenantId } : {}) }).toString()}`} defaultEntity="payments" />
-              <form action={reconcilePendingPayments} className="filtersForm">
-                <input type="hidden" name="returnTo" value={returnTo} />
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="days" value="7" />
-                <input type="hidden" name="minutes" value="720" />
-                <input type="hidden" name="take" value="150" />
-                {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                <PendingButton className="primary btn-compact" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">Recolectar</PendingButton>
-              </form>
-              <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} className="primary btn-compact" />
-            </div>
-          )
-          : headerSummary}
+        actions={paymentsActions || undefined}
+        summary={tab === "payments" ? undefined : headerSummary}
       />
 
       {/* Panel de salud del sistema (solo non-payments) */}

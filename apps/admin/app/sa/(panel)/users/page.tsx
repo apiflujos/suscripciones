@@ -61,7 +61,7 @@ export default async function SaUsersPage({
                   ))}
                 </select>
               </div>
-              <button className="primary" type="submit" style={{ height: 38 }}>
+              <button className="primary btn-compact" type="submit">
                 Ver
               </button>
             </form>
@@ -111,7 +111,7 @@ export default async function SaUsersPage({
               <span>Activo</span>
             </label>
 
-            <button className="primary btn-create" type="submit">
+            <button className="primary btn-compact btn-create" type="submit">
               Crear usuario
             </button>
           </form>

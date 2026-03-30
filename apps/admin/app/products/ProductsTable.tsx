@@ -426,7 +426,7 @@ export function ProductsTable({
   }
 
   const paymentLinkTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK");
-  const canSendPaymentLink = Boolean(paymentLinkTemplate);
+  const canSendPaymentLink = Boolean(paymentLinkTemplate?.chatwootTemplate?.name);
 
   function formatCustomerLabel(c: any) {
     return String(c?.name || c?.email || c?.phone || "Contacto").trim() || "Contacto";
@@ -723,6 +723,7 @@ export function ProductsTable({
             <form action={sendProductToCustomer} className="send-product-grid">
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="productId" value={sendProduct.id} />
+              <input type="hidden" name="customerId" value={sendCustomerId} />
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
 
               <div className="send-product-left">
@@ -797,6 +798,7 @@ export function ProductsTable({
                         className="ghost btn-compact"
                         onClick={() => {
                           setSendSearch("");
+                          setSendCustomerId("");
                         }}
                       >
                         Cambiar
@@ -839,50 +841,6 @@ export function ProductsTable({
                   ) : null}
                 </div>
 
-                <div className="field">
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
-                    <span>Contacto destino</span>
-                    {selectedCustomer ? (
-                      <button
-                        type="button"
-                        className="ghost btn-compact"
-                        onClick={() => {
-                          setSendCustomerId("");
-                          setSendSearch("");
-                        }}
-                      >
-                        Limpiar
-                      </button>
-                    ) : null}
-                  </label>
-                  <select
-                    className="select"
-                    name="customerId"
-                    value={sendCustomerId}
-                    onChange={(e) => {
-                      const nextId = e.target.value;
-                      setSendCustomerId(nextId);
-                      const found = filteredCustomers.find((c: any) => String(c?.id) === String(nextId));
-                      if (found) {
-                        setSendSearch(formatCustomerLabel(found));
-                      }
-                    }}
-                  >
-                    <option value="">Selecciona un contacto…</option>
-                    {filteredCustomers.map((c: any) => (
-                      <option key={c.id} value={c.id}>
-                        {formatCustomerLabel(c)}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedCustomer ? (
-                    <div className="field-hint">
-                      <span>Seleccionado: {formatCustomerLabel(selectedCustomer)}</span>
-                      {formatCustomerMeta(selectedCustomer) ? <span> · {formatCustomerMeta(selectedCustomer)}</span> : null}
-                    </div>
-                  ) : null}
-                </div>
-
               </div>
 
               <div className="send-product-right">
@@ -894,7 +852,7 @@ export function ProductsTable({
                     readOnly
                     value={renderNotificationPreview(paymentLinkTemplate)}
                   />
-                  <div className="field-hint">Se enviará usando las reglas activas de Notificaciones (link de pago).</div>
+                  <div className="field-hint">Se usa la plantilla configurada en Notificaciones (link de pago).</div>
                 </div>
                 <div className="send-product-actions">
                   <button
@@ -1250,7 +1208,7 @@ export function ProductsTable({
               )}
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                <button className="primary btn-save" type="submit">
+                <button className="primary btn-compact btn-save" type="submit">
                   Guardar cambios
                 </button>
               </div>

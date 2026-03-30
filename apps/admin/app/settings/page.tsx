@@ -940,7 +940,7 @@ export default async function SettingsPage({
               </div>
 
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                <PendingButton className="primary" type="submit" pendingText="Guardando...">
+                <PendingButton className="primary btn-compact" type="submit" pendingText="Guardando...">
                   Guardar configuración
                 </PendingButton>
               </div>
@@ -1035,7 +1035,7 @@ export default async function SettingsPage({
                     hint="Se usa en los links públicos de pago/débito automático."
                   />
                 </div>
-                <PendingButton className="primary" type="submit" pendingText="Creando...">
+                <PendingButton className="primary btn-compact" type="submit" pendingText="Creando...">
                   Crear canal
                 </PendingButton>
               </form>
@@ -1085,7 +1085,7 @@ export default async function SettingsPage({
                             <div style={{ minWidth: 240, flex: 1 }}>
                               <LogoUploadField name="logoUrl" label="Logo del canal" defaultValue={tenantLogo} />
                             </div>
-                            <PendingButton className="ghost" type="submit" pendingText="Guardando...">
+                            <PendingButton className="ghost btn-compact" type="submit" pendingText="Guardando...">
                               Guardar
                             </PendingButton>
                           </form>

@@ -55,7 +55,7 @@ export function BillingCycleSettingsButton({
             <span className="field-hint">Tipo</span>
             <select className="select select-sm" name="paymentTiming" defaultValue={String(paymentTiming || "EN_CURSO")}>
               <option value="EN_CURSO">En curso</option>
-              <option value="ANTICIPADO">Anticipado</option>
+              <option value="ANTICIPADO">Adelantado</option>
             </select>
           </label>
           <label className="field field-inline">

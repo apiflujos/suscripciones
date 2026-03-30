@@ -126,7 +126,7 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
           Procesado por Wompi
         </div>
         {checkoutUrl ? (
-          <a className="primary btn-pay" href={checkoutUrl} referrerPolicy="no-referrer">
+          <a className="primary btn-compact btn-pay" href={checkoutUrl} referrerPolicy="no-referrer">
             {ctaLabel}
           </a>
         ) : (

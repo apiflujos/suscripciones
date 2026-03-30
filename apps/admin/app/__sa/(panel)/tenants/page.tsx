@@ -43,7 +43,7 @@ export default async function SaTenantsPage({
               <label>Nuevo tenant</label>
               <input name="name" className="input" placeholder="Nombre del tenant" />
             </div>
-            <button className="primary btn-create" type="submit">
+            <button className="primary btn-compact btn-create" type="submit">
               Crear
             </button>
           </form>
@@ -93,7 +93,7 @@ export default async function SaTenantsPage({
                         ))}
                       </select>
                     </div>
-                    <button type="submit" className="primary">
+                    <button type="submit" className="primary btn-compact">
                       Asignar
                     </button>
                   </form>

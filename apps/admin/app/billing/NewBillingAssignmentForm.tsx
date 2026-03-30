@@ -382,7 +382,7 @@ export function NewBillingAssignmentForm({
           <div className="ui-panel-title">
             <h3 style={{ margin: 0 }}>Crear plan o suscripción para un contacto</h3>
             {!forceOpen ? (
-              <button className={open ? "ghost btn-cancel" : "primary btn-subscription"} type="button" data-loader="off" onClick={() => setOpen((v) => !v)}>
+              <button className={open ? "ghost btn-compact btn-cancel" : "primary btn-compact btn-subscription"} type="button" data-loader="off" onClick={() => setOpen((v) => !v)}>
                 {open ? "Cerrar" : "Crear suscripción"}
               </button>
             ) : null}
@@ -406,7 +406,7 @@ export function NewBillingAssignmentForm({
                   </span>
                 </div>
                 <button
-                  className="ghost btn-noicon"
+                  className="ghost btn-compact btn-noicon"
                   type="button"
                   onClick={() => {
                     setProductId("");
@@ -436,35 +436,17 @@ export function NewBillingAssignmentForm({
                       <button
                         key={p.id}
                         type="button"
-                        className="ghost btn-noicon"
+                        className="ghost btn-compact btn-noicon product-search-item"
                         onClick={() => {
                           setProductId(String(p.id));
                           setProductQ(String(p.name || ""));
                         }}
-                        style={{ textAlign: "left" }}
                       >
                         {p.sku || "—"} · {p.name} · {p.kind === "SERVICE" ? "Servicio" : "Producto"} · {fmtMoneyFromCents(p.basePriceInCents, p.currency)}
                       </button>
                     ))}
                   </div>
                 ) : null}
-                <select
-                  className="select"
-                  value={productId}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    setProductId(id);
-                    const picked = filteredProducts.find((p) => String(p.id) === String(id)) || null;
-                    if (picked) setProductQ(String(picked.name || ""));
-                  }}
-                >
-                  <option value="">Selecciona un producto…</option>
-                  {filteredProducts.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.sku || "—"} · {p.name} · {p.kind === "SERVICE" ? "Servicio" : "Producto"} · {fmtMoneyFromCents(p.basePriceInCents, p.currency)}
-                    </option>
-                  ))}
-                </select>
                 {!productSearching && filteredProducts.length === 0 ? (
                   <div className="field-hint">
                     {productQ.trim().length >= 2 ? "Sin resultados. Prueba con otro término." : "No se encontraron productos."}
@@ -477,9 +459,9 @@ export function NewBillingAssignmentForm({
           <div className="panel module" style={{ margin: 0 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <h3 style={{ margin: 0 }}>2) Contacto</h3>
-              <button className={showNewCustomer ? "ghost btn-cancel" : "ghost btn-contact"} type="button" onClick={() => setShowNewCustomer((v) => !v)}>
-                {showNewCustomer ? "Cerrar" : "Crear contacto"}
-              </button>
+                  <button className={showNewCustomer ? "ghost btn-compact btn-cancel" : "ghost btn-compact btn-contact"} type="button" onClick={() => setShowNewCustomer((v) => !v)}>
+                    {showNewCustomer ? "Cerrar" : "Crear contacto"}
+                  </button>
             </div>
 
             {selectedCustomer || selectedEmpresa ? (
@@ -521,7 +503,7 @@ export function NewBillingAssignmentForm({
                   ) : null}
                 </div>
                 <button
-                  className="ghost btn-noicon"
+                  className="ghost btn-compact btn-noicon"
                   type="button"
                   onClick={() => {
                     setCustomerId("");
@@ -553,7 +535,7 @@ export function NewBillingAssignmentForm({
                       <button
                         key={`customer-${c.id}`}
                         type="button"
-                        className="ghost btn-noicon customer-search-item"
+                        className="ghost btn-compact btn-noicon customer-search-item"
                         onClick={() => {
                           setCustomerId(String(c.id));
                           setSelectedCustomerOverride(c);
@@ -576,7 +558,7 @@ export function NewBillingAssignmentForm({
                       <button
                         key={`empresa-${e.id}`}
                         type="button"
-                        className="ghost btn-noicon customer-search-item"
+                        className="ghost btn-compact btn-noicon customer-search-item"
                         onClick={() => {
                           setSelectedEmpresaId(String(e.id));
                           setCustomerId("");

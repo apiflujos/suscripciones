@@ -32,9 +32,13 @@ type SubscriptionDetail = {
   totalInCents: number;
   valorBaseInCents: number;
   currentShippingInCents: number;
+  planIntervalUnit: string;
+  planIntervalCount: number;
   cada: string;
   vencimientoAt: string | null;
   periodoInicioAt: string | null;
+  periodoFinAt?: string | null;
+  tipoTx?: string | null;
   cycleStartDay: number;
   status: string;
   inGrace?: boolean;
@@ -70,7 +74,11 @@ export function SubscriptionDetailModal({
   updateSubscriptionTenants,
   changeSubscriptionPlan,
   updateSubscriptionBillingSettings,
-  deleteSubscription
+  deleteSubscription,
+  suspendSubscription,
+  cancelSubscription,
+  resumeSubscription,
+  activateSubscription
 }: {
   subscription: SubscriptionDetail;
   csrfToken: string;
@@ -90,6 +98,10 @@ export function SubscriptionDetailModal({
   changeSubscriptionPlan: (formData: FormData) => void | Promise<void>;
   updateSubscriptionBillingSettings: (formData: FormData) => void | Promise<void>;
   deleteSubscription: (formData: FormData) => void | Promise<void>;
+  suspendSubscription: (formData: FormData) => void | Promise<void>;
+  cancelSubscription: (formData: FormData) => void | Promise<void>;
+  resumeSubscription: (formData: FormData) => void | Promise<void>;
+  activateSubscription: (formData: FormData) => void | Promise<void>;
 }) {
   const tenantId = subscription.tenantId ?? undefined;
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -113,6 +125,9 @@ export function SubscriptionDetailModal({
   const showChargeButton = !subscription.status.includes("CANCELED");
   const showMarkPaidButton = !subscription.status.includes("CANCELED");
   const alreadyPaidCurrentPeriod = Boolean(subscription.lastPaidInCurrentPeriod);
+  const showResume = subscription.status === "SUSPENDED";
+  const showActivate = subscription.status === "CANCELED";
+  const showCancelSuspend = !showResume && !showActivate;
 
   return (
     <>
@@ -133,7 +148,12 @@ export function SubscriptionDetailModal({
                 aria-label="Editar"
               />
               <PaymentHistoryButton subscriptionId={subscription.id} tenantId={tenantId} />
-              <PaymentCyclesModal subscriptionId={subscription.id} />
+              <PaymentCyclesModal
+                subscriptionId={subscription.id}
+                csrfToken={csrfToken}
+                returnTo={returnTo}
+                tenantId={tenantId}
+              />
               <DeleteSubscriptionButton
                 action={deleteSubscription}
                 csrfToken={csrfToken}
@@ -211,11 +231,11 @@ export function SubscriptionDetailModal({
                   <div>
                     <div className="billing-value" style={{ fontSize: 14 }}>{subscription.planName}</div>
                     <div className="field-hint" style={{ marginTop: 4 }}>
-                      <span className={`pill pill-sm ${String(subscription.paymentTiming).includes("AUTO") ? "pill-ok" : "pill-muted"}`}>
-                        {String(subscription.paymentTiming).includes("AUTO") ? "Débito automático" : "Link de pago"}
-                      </span>
-                    </div>
+                    <span className={`pill pill-sm ${String(subscription.tipoTx || "").includes("Débito") ? "pill-ok" : "pill-muted"}`}>
+                      {subscription.tipoTx || "—"}
+                    </span>
                   </div>
+                </div>
                 </div>
               </div>
             </div>
@@ -235,11 +255,11 @@ export function SubscriptionDetailModal({
                       <LocalDateTime value={subscription.vencimientoAt} variant="short" />
                     </div>
                   </div>
-                  {subscription.periodoInicioAt && subscription.vencimientoAt ? (
+                  {subscription.periodoInicioAt && subscription.periodoFinAt ? (
                     <div>
                       <div className="field-hint">Ciclo actual</div>
                       <div className="contact-value">
-                        {new Date(subscription.periodoInicioAt).toLocaleDateString("es-CO")} → {new Date(subscription.vencimientoAt).toLocaleDateString("es-CO")}
+                        {new Date(subscription.periodoInicioAt).toLocaleDateString("es-CO")} → {new Date(subscription.periodoFinAt).toLocaleDateString("es-CO")}
                       </div>
                     </div>
                   ) : null}
@@ -297,9 +317,9 @@ export function SubscriptionDetailModal({
                   <div className="contact-value">{subscription.cancelDays || 30} días</div>
                 </div>
                 <div>
-                  <div className="field-hint">Tipo de pago</div>
+                  <div className="field-hint">Tipo de cobro</div>
                   <div className="contact-value">
-                    {subscription.paymentTiming === "START" ? "Inicio de mes" : subscription.paymentTiming === "END" ? "Fin de mes" : `Día ${subscription.paymentDay}`}
+                    {String(subscription.paymentTiming || "").toUpperCase() === "ANTICIPADO" ? "Adelantado" : "En curso"}
                   </div>
                 </div>
               </div>
@@ -374,6 +394,46 @@ export function SubscriptionDetailModal({
                   notificationRules={notificationsRules}
                   action={sendCentralComTokenizationLink}
                 />
+                {showResume ? (
+                  <form action={resumeSubscription}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
+                    <input type="hidden" name="subscriptionId" value={subscription.id} />
+                    {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                    <button className="ghost btn-compact btn-green" type="submit" title="Reanudar suscripción">
+                      Reanudar
+                    </button>
+                  </form>
+                ) : null}
+                {showActivate ? (
+                  <form action={activateSubscription}>
+                    <input type="hidden" name="csrf" value={csrfToken} />
+                    <input type="hidden" name="subscriptionId" value={subscription.id} />
+                    {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                    <button className="ghost btn-compact btn-green" type="submit" title="Activar suscripción">
+                      Activar
+                    </button>
+                  </form>
+                ) : null}
+                {showCancelSuspend ? (
+                  <>
+                    <form action={cancelSubscription}>
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="subscriptionId" value={subscription.id} />
+                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                      <button className="ghost btn-compact btn-red" type="submit" title="Cancelar suscripción">
+                        Cancelar
+                      </button>
+                    </form>
+                    <form action={suspendSubscription}>
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="subscriptionId" value={subscription.id} />
+                      {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                      <button className="ghost btn-compact btn-amber" type="submit" title="Suspender suscripción">
+                        Suspender
+                      </button>
+                    </form>
+                  </>
+                ) : null}
               </div>
             </div>
           </div>
@@ -394,6 +454,8 @@ export function SubscriptionDetailModal({
           currentPlanCurrency={subscription.moneda}
           currentShippingInCents={subscription.currentShippingInCents}
           currentRequiresShipping={subscription.currentShippingInCents > 0}
+          planIntervalUnit={subscription.planIntervalUnit}
+          planIntervalCount={subscription.planIntervalCount}
           plans={planOptions}
           changeSubscriptionPlan={changeSubscriptionPlan}
           cycleStartDay={subscription.cycleStartDay}

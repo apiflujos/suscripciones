@@ -8,7 +8,6 @@ import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
 import { listCatalogProducts } from "../admin/_services/products";
-import { ProductsModalTrigger } from "./ProductsModalTrigger";
 import { PageHeaderStandard } from "../ui/PageHeaderStandard";
 import "./page-header.css";
 import { listTenants } from "../admin/_services/tenants";
@@ -19,6 +18,7 @@ import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notif
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
+import { normalizeErrorParam } from "../lib/errorParam";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +35,7 @@ export default async function ProductsPage({
   const deleted = typeof spParams.deleted === "string" ? spParams.deleted : "";
   const tenantId = typeof spParams.tenantId === "string" ? spParams.tenantId : "";
   const tenantCreated = typeof spParams.tenantCreated === "string" ? spParams.tenantCreated : "";
-  const error = typeof spParams.error === "string" ? spParams.error : "";
+  const error = normalizeErrorParam(typeof spParams.error === "string" ? spParams.error : undefined);
   const sent = typeof spParams.sent === "string" ? spParams.sent : "";
   const q = typeof spParams.q === "string" ? spParams.q : "";
   const page = typeof spParams.page === "string" ? Number(spParams.page) : 1;
@@ -179,25 +179,21 @@ export default async function ProductsPage({
         )}
       />
 
-      <div className="customers-actions-right" style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, marginBottom: 12 }}>
-        <ProductsModalTrigger />
-      </div>
-
-      <div id="products-modals-container" style={{ display: 'none' }}>
-        <ProductsModals
-          customers={filteredCustomers}
-          empresas={empresas}
-          products={productItems}
-          checkoutTemplates={templatesRes ?? []}
-          csrfToken={csrfToken}
-          tenants={tenantsFiltered}
-          tenantId={tenantId}
-          createProduct={createProduct}
-          createCustomer={createCustomerFromBilling}
-          createPlanAndSubscription={createPlanAndSubscription}
-          returnTo={returnTo}
-        />
-      </div>
+      <ProductsModals
+        actionsClassName="customers-actions-right"
+        showPlanButton={false}
+        customers={filteredCustomers}
+        empresas={empresas}
+        products={productItems}
+        checkoutTemplates={templatesRes ?? []}
+        csrfToken={csrfToken}
+        tenants={tenantsFiltered}
+        tenantId={tenantId}
+        createProduct={createProduct}
+        createCustomer={createCustomerFromBilling}
+        createPlanAndSubscription={createPlanAndSubscription}
+        returnTo={returnTo}
+      />
 
       <div className="settings-group-body">
           <div style={{ display: "grid", gap: 14 }}>
@@ -266,21 +262,7 @@ export default async function ProductsPage({
                   >
                     Anterior
                   </a>
-                  <div className="pagination-pages">
-                    {pages.map((p) => {
-                      const isDesktopOnly = p < mobileStart || p > mobileEnd;
-                      return (
-                        <a
-                          key={`products-page-${p}`}
-                          className={`page-link ${p === currentPage ? "is-active" : ""} ${isDesktopOnly ? "page-desktop-only" : ""}`}
-                          href={`/products?${new URLSearchParams({ ...baseParams, page: String(p) })}`}
-                          aria-current={p === currentPage ? "page" : undefined}
-                        >
-                          {p}
-                        </a>
-                      );
-                    })}
-                  </div>
+                  <div className="pagination-pages" style={{ display: "none" }} />
                   <a
                     className="page-link page-nav"
                     href={`/products?${new URLSearchParams({

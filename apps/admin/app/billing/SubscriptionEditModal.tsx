@@ -27,6 +27,8 @@ export function SubscriptionEditModal({
   currentPlanCurrency,
   currentShippingInCents,
   currentRequiresShipping,
+  planIntervalUnit,
+  planIntervalCount,
   plans,
   changeSubscriptionPlan,
   cycleStartDay,
@@ -50,6 +52,8 @@ export function SubscriptionEditModal({
   currentPlanCurrency: string;
   currentShippingInCents: number;
   currentRequiresShipping: boolean;
+  planIntervalUnit: string;
+  planIntervalCount: number;
   plans: PlanOption[];
   changeSubscriptionPlan: (formData: FormData) => void;
   cycleStartDay: number;
@@ -69,10 +73,11 @@ export function SubscriptionEditModal({
   const [open, setOpen] = useState(false);
   const [subscriptionType, setSubscriptionType] = useState<"AUTO_DEBIT" | "LINK_PAYMENT">("AUTO_DEBIT");
   const [products, setProducts] = useState<SubscriptionProduct[]>([]);
-  const [intervalCount, setIntervalCount] = useState(1);
-  const [intervalUnit, setIntervalUnit] = useState("MONTH");
+  const [intervalCount, setIntervalCount] = useState(Number(planIntervalCount || 1));
+  const [intervalUnit, setIntervalUnit] = useState(String(planIntervalUnit || "MONTH"));
   const [localCycleStartDay, setLocalCycleStartDay] = useState(cycleStartDay || 1);
   const [localPaymentDay, setLocalPaymentDay] = useState(paymentDay || 15);
+  const [localPaymentTiming, setLocalPaymentTiming] = useState(String(paymentTiming || "EN_CURSO"));
   const [useGlobalConfig, setUseGlobalConfig] = useState(true);
   const [localGraceDays, setLocalGraceDays] = useState(graceDays || 5);
   const [localSuspendDays, setLocalSuspendDays] = useState(suspendDays || 15);
@@ -102,7 +107,8 @@ export function SubscriptionEditModal({
 
   const fmtDate = (d: Date | null) => {
     if (!d) return "—";
-    return new Intl.DateTimeFormat("es-CO", { dateStyle: "short" }).format(d);
+    const normalized = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
+    return new Intl.DateTimeFormat("es-CO", { dateStyle: "short" }).format(normalized);
   };
 
   const handleSave = async () => {
@@ -114,6 +120,7 @@ export function SubscriptionEditModal({
     formData.set("intervalUnit", intervalUnit);
     formData.set("cycleStartDay", localCycleStartDay.toString());
     formData.set("paymentDay", localPaymentDay.toString());
+    formData.set("paymentTiming", localPaymentTiming);
     formData.set("useGlobalConfig", useGlobalConfig ? "1" : "0");
     if (!useGlobalConfig) {
       formData.set("graceDays", localGraceDays.toString());
@@ -228,11 +235,13 @@ export function SubscriptionEditModal({
                         <strong>{product.name}</strong>
                         <div className="muted" style={{ fontSize: 11 }}>{new Intl.NumberFormat("es-CO", { style: "currency", currency: product.currency, maximumFractionDigits: 0 }).format(product.priceInCents / 100)}</div>
                       </div>
-                      <button className="ghost btn-compact btn-icon-only btn-red" type="button" title="Quitar" onClick={() => removeProduct(product.productId)}>
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-                          <path d="M14 1.41L12.59 0 7 5.59 1.41 0 0 1.41 5.59 7 0 12.59 1.41 14 7 8.41 12.59 14 14 12.59 8.41 7z"/>
-                        </svg>
-                      </button>
+                      <button
+                        className="ghost btn-compact btn-icon-only btn-cancel"
+                        type="button"
+                        title="Quitar"
+                        aria-label="Quitar producto"
+                        onClick={() => removeProduct(product.productId)}
+                      />
                     </div>
                   ))}
                   {products.length === 0 && (
@@ -339,6 +348,18 @@ export function SubscriptionEditModal({
                         ))}
                       </select>
                     </div>
+                  </div>
+
+                  <div className="field">
+                    <label className="field-label">Tipo de cobro</label>
+                    <select
+                      className="select"
+                      value={localPaymentTiming}
+                      onChange={(e) => setLocalPaymentTiming(e.target.value)}
+                    >
+                      <option value="EN_CURSO">En curso</option>
+                      <option value="ANTICIPADO">Adelantado</option>
+                    </select>
                   </div>
 
                   <label style={{ display: "flex", alignItems: "center", gap: 8 }}>

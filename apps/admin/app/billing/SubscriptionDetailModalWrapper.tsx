@@ -22,9 +22,13 @@ type SubscriptionDetail = {
   totalInCents: number;
   valorBaseInCents: number;
   currentShippingInCents: number;
+  planIntervalUnit: string;
+  planIntervalCount: number;
   cada: string;
   vencimientoAt: string | null;
   periodoInicioAt: string | null;
+  periodoFinAt?: string | null;
+  tipoTx?: string | null;
   cycleStartDay: number;
   status: string;
   inGrace?: boolean;
@@ -60,6 +64,10 @@ export function SubscriptionDetailModalWrapper({
   changeSubscriptionPlan,
   updateSubscriptionBillingSettings,
   deleteSubscription,
+  suspendSubscription,
+  cancelSubscription,
+  resumeSubscription,
+  activateSubscription,
   children,
   className
 }: {
@@ -80,6 +88,10 @@ export function SubscriptionDetailModalWrapper({
   changeSubscriptionPlan: (formData: FormData) => void | Promise<void>;
   updateSubscriptionBillingSettings: (formData: FormData) => void | Promise<void>;
   deleteSubscription: (formData: FormData) => void | Promise<void>;
+  suspendSubscription: (formData: FormData) => void | Promise<void>;
+  cancelSubscription: (formData: FormData) => void | Promise<void>;
+  resumeSubscription: (formData: FormData) => void | Promise<void>;
+  activateSubscription: (formData: FormData) => void | Promise<void>;
   children?: ReactNode;
   className?: string;
 }) {
@@ -98,14 +110,12 @@ export function SubscriptionDetailModalWrapper({
       </button>
     ) : (
       <button
-        className="ghost btn-compact btn-view"
+        className="ghost btn-compact btn-icon-only btn-view"
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Ver detalles"
         title="Ver detalles"
-      >
-        Ver
-      </button>
+      />
     );
   }
 
@@ -123,14 +133,12 @@ export function SubscriptionDetailModalWrapper({
         </button>
       ) : (
         <button
-          className="ghost btn-compact btn-view"
+          className="ghost btn-compact btn-icon-only btn-view"
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Ver detalles"
           title="Ver detalles"
-        >
-          Ver
-        </button>
+        />
       )}
       {open && (
         <SubscriptionDetailModal
@@ -152,6 +160,10 @@ export function SubscriptionDetailModalWrapper({
           changeSubscriptionPlan={changeSubscriptionPlan}
           updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
           deleteSubscription={deleteSubscription}
+          suspendSubscription={suspendSubscription}
+          cancelSubscription={cancelSubscription}
+          resumeSubscription={resumeSubscription}
+          activateSubscription={activateSubscription}
         />
       )}
     </>

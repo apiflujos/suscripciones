@@ -52,7 +52,8 @@ export function TokenizationLinkModalButton({
   }
 
   const tokenTemplate = resolveNotificationTemplate("TOKENIZATION_LINK_CREATED");
-  const canSend = Boolean(tokenTemplate);
+  const hasTemplate = Boolean(tokenTemplate);
+  const canSend = hasTemplate;
 
   return (
     <>
@@ -94,16 +95,16 @@ export function TokenizationLinkModalButton({
                   className="primary btn-compact btn-save" 
                   type="submit" 
                   pendingText="Enviando..." 
-                  disabled={!canSend}
                   title="Enviar link de tokenización"
                   aria-label="Enviar link"
+                  disabled={!canSend}
                 >
                   Enviar link
                 </PendingButton>
               </div>
-              {!canSend ? (
-                <div className="field-hint ui-alert-danger">
-                  No hay plantilla activa para tokenización en Notificaciones.
+              {!hasTemplate ? (
+                <div className="field-hint ui-alert-warn">
+                  No hay plantilla activa para tokenización. Configura una plantilla para habilitar el envío.
                   <div style={{ marginTop: 6 }}>
                     <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=tokenization_link_created">
                       Configurar plantilla

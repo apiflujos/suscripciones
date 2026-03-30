@@ -273,7 +273,7 @@ export function AiAssistant({
           }}
         />
         <button
-          className="primary ai-send"
+          className="primary btn-compact ai-send"
           type="button"
           data-loader="off"
           onClick={sendPrompt}

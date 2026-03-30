@@ -31,7 +31,7 @@ export function EmpresaCreateModal({
 
   return (
     <>
-      <button className="primary btn-create" type="button" data-loader="off" onClick={() => setOpen(true)}>
+      <button className="primary btn-compact btn-create" type="button" data-loader="off" onClick={() => setOpen(true)}>
         Crear empresa
       </button>
       {open ? (

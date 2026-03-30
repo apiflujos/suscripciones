@@ -113,7 +113,7 @@ export function CheckoutConfigPanel({
           <div className="field-hint">Expiración y textos públicos.</div>
         </div>
         {showFullscreen ? (
-          <button className="ghost" type="button" data-loader="off" onClick={() => setPreviewOpen(true)}>
+          <button className="ghost btn-compact" type="button" data-loader="off" onClick={() => setPreviewOpen(true)}>
             Ver fullscreen
           </button>
         ) : null}
@@ -218,7 +218,7 @@ export function CheckoutConfigPanel({
             </div>
           ) : null}
         </div>
-        <PendingButton className="primary btn-save" type="submit" pendingText="Guardando...">
+        <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
           Guardar
         </PendingButton>
       </div>

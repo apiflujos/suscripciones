@@ -239,41 +239,6 @@ export async function associatePaymentToSubscription(args: {
   const paymentAt = payment.paidAt || payment.createdAt;
   const toleranceDays = 7;
   const toleranceMs = toleranceDays * 24 * 60 * 60 * 1000;
-  if (!cycle) {
-    const periodStart = subscription.currentPeriodStartAt;
-    const periodEnd = subscription.currentPeriodEndAt;
-    const windowStart = new Date(periodStart.getTime() - toleranceMs);
-    const windowEnd = new Date(periodEnd.getTime() + toleranceMs);
-    if (paymentAt < windowStart || paymentAt > windowEnd) {
-      return {
-        ok: false as const,
-        error: "out_of_cycle" as const,
-        details: {
-          paidAt: paymentAt,
-          periodStart,
-          periodEnd
-        }
-      };
-    }
-  } else {
-    const windowStart = new Date(new Date(cycle.periodStartAt).getTime() - toleranceMs);
-    const windowEnd = new Date(new Date(cycle.periodEndAt).getTime() + toleranceMs);
-    if (paymentAt < windowStart || paymentAt > windowEnd) {
-      return {
-        ok: false as const,
-        error: "out_of_cycle" as const,
-        details: {
-          paidAt: paymentAt,
-          periodStart: cycle.periodStartAt,
-          periodEnd: cycle.periodEndAt
-        }
-      };
-    }
-  }
-
-  if (payment.subscriptionId === subscription.id) {
-    return { ok: true as const, updated: false as const };
-  }
 
   await ensureBillingCyclesForSubscriptions([
     {
@@ -302,12 +267,73 @@ export async function associatePaymentToSubscription(args: {
     }
   });
 
+  const now = new Date();
   let cycleToAttach = cycle;
+  if (!cycleToAttach) {
+    cycleToAttach = await prisma.subscriptionBillingCycle.findFirst({
+      where: {
+        subscriptionId: subscription.id,
+        paymentId: null,
+        status: { not: "PAID" },
+        dueAt: { lte: now }
+      },
+      orderBy: { dueAt: "asc" }
+    });
+  }
   if (!cycleToAttach) {
     cycleToAttach = await prisma.subscriptionBillingCycle.findUnique({
       where: { subscriptionId_cycleNumber: { subscriptionId: subscription.id, cycleNumber: subscription.currentCycle } }
     });
   }
+
+  if (cycleToAttach) {
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        cycleNumber: cycleToAttach.cycleNumber,
+        subscriptionCycleKey: `${subscription.id}:${cycleToAttach.cycleNumber}`
+      }
+    }).catch(() => {});
+  }
+
+  const targetWindowStart = cycleToAttach
+    ? new Date(new Date(cycleToAttach.periodStartAt).getTime() - toleranceMs)
+    : new Date(subscription.currentPeriodStartAt.getTime() - toleranceMs);
+  const targetWindowEnd = cycleToAttach
+    ? new Date(new Date(cycleToAttach.periodEndAt).getTime() + toleranceMs)
+    : new Date(subscription.currentPeriodEndAt.getTime() + toleranceMs);
+  if (paymentAt < targetWindowStart || paymentAt > targetWindowEnd) {
+    return {
+      ok: false as const,
+      error: "out_of_cycle" as const,
+      details: {
+        paidAt: paymentAt,
+        periodStart: cycleToAttach ? cycleToAttach.periodStartAt : subscription.currentPeriodStartAt,
+        periodEnd: cycleToAttach ? cycleToAttach.periodEndAt : subscription.currentPeriodEndAt
+      }
+    };
+  }
+
+  const existingCycle = await prisma.subscriptionBillingCycle.findFirst({
+    where: { paymentId: payment.id }
+  });
+  if (existingCycle && cycleToAttach && existingCycle.id !== cycleToAttach.id) {
+    await prisma.subscriptionBillingCycle.update({
+      where: { id: existingCycle.id },
+      data: {
+        status: "PENDING",
+        paidAt: null,
+        paymentId: null,
+        paidOnTime: null,
+        daysEarly: null,
+        daysLate: null,
+        origin: null,
+        associationReason: null,
+        associatedBy: null
+      }
+    }).catch(() => {});
+  }
+
   if (cycleToAttach) {
     await attachPaymentToCycle({
       paymentId: payment.id,

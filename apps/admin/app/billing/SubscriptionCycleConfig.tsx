@@ -33,9 +33,21 @@ export function SubscriptionCycleConfig({
   nextChargeDate?: Date | null;
   periodStartAt?: string | null;
 }) {
+  const toLocalDate = (value?: string | null) => {
+    if (!value) return null;
+    const datePart = String(value).slice(0, 10);
+    const [y, m, d] = datePart.split("-").map((v) => Number(v));
+    if (!y || !m || !d) return new Date(value);
+    return new Date(y, m - 1, d, 12, 0, 0);
+  };
+
   const fmtDate = (d: Date | string | null) => {
     if (!d) return "—";
-    const date = typeof d === "string" ? new Date(d) : d;
+    const date =
+      typeof d === "string"
+        ? toLocalDate(d)
+        : new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
+    if (!(date instanceof Date)) return "—";
     if (Number.isNaN(date.getTime())) return "—";
     return new Intl.DateTimeFormat("es-CO", { dateStyle: "short" }).format(date);
   };

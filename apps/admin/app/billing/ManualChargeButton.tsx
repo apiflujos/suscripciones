@@ -53,7 +53,7 @@ export function ManualChargeButton({
           className="primary btn-compact btn-pay"
           type="submit"
           title={manualChargeEnabled === false ? "El cobro manual está deshabilitado. Hacé clic para ir a Configuración." : "Cobrar suscripción ahora (débito automático)"}
-          disabled={manualChargeEnabled === false}
+          aria-disabled={manualChargeEnabled === false}
           style={manualChargeEnabled === false ? { opacity: 0.7, cursor: "pointer" } : undefined}
         >
           Cobrar
@@ -75,10 +75,10 @@ export function ManualChargeButton({
                 <li>Activá la opción <strong>"Permitir cobro manual"</strong></li>
               </ol>
               <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                <a className="primary" href="/settings?tab=cobros">
+                <a className="primary btn-compact btn-noicon" href="/settings?tab=cobros">
                   Ir a Configuración
                 </a>
-                <button className="ghost" type="button" onClick={() => setShowConfigAlert(false)}>
+                <button className="ghost btn-compact btn-noicon" type="button" onClick={() => setShowConfigAlert(false)}>
                   Cancelar
                 </button>
               </div>

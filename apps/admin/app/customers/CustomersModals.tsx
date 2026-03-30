@@ -15,7 +15,8 @@ export function CustomersModals({
   createCustomer,
   createPlanAndSubscription,
   returnTo,
-  actionsClassName
+  actionsClassName,
+  showPlanButton = true
 }: {
   customers: any[];
   empresas: any[];
@@ -28,6 +29,7 @@ export function CustomersModals({
   createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
   returnTo: string;
   actionsClassName?: string;
+  showPlanButton?: boolean;
 }) {
   const [openCustomer, setOpenCustomer] = useState(false);
   const [openPlan, setOpenPlan] = useState(false);
@@ -36,7 +38,7 @@ export function CustomersModals({
     <>
       <div className={actionsClassName || "customer-actions"}>
         <button
-          className="primary btn-contact"
+          className="primary btn-compact btn-contact"
           type="button"
           data-modal="true"
           data-loader="off"
@@ -45,16 +47,18 @@ export function CustomersModals({
         >
           Crear contacto
         </button>
-        <button
-          className="primary btn-subscription"
-          type="button"
-          data-modal="true"
-          data-loader="off"
-          onClick={() => setOpenPlan(true)}
-          title="Crea un plan o una suscripción para un contacto o empresa"
-        >
-          Crear suscripción
-        </button>
+        {showPlanButton ? (
+          <button
+            className="primary btn-compact btn-subscription"
+            type="button"
+            data-modal="true"
+            data-loader="off"
+            onClick={() => setOpenPlan(true)}
+            title="Crea un plan o una suscripción para un contacto o empresa"
+          >
+            Crear suscripción
+          </button>
+        ) : null}
       </div>
 
       {openCustomer ? (

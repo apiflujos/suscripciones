@@ -74,7 +74,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <link id="theme-favicon" rel="icon" type="image/svg+xml" href="/brand/isotipo_icono.svg" data-theme-favicon="true" />
         <script src="/theme-init.js" />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <ShellGate session={session}>{children}</ShellGate>
         <ClientProviders />
       </body>

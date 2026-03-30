@@ -4,16 +4,8 @@ import { getCheckoutConfig } from "../../../admin/_services/settings";
 import { getActiveCheckoutTemplates } from "../../../admin/_services/checkoutTemplates";
 import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
 import { scheduleCatalogLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
-import { sendChatwootMessageForCustomer } from "../../../admin/_services/chatwoot";
 import { signPublicToken } from "../../../../lib/publicTokens";
-
-function buildChatwootLinkMessage(args: { name?: string; lead: string; url: string }) {
-  const safeName = String(args.name || "Cliente").trim() || "Cliente";
-  const safeLead = String(args.lead || "").trim();
-  const safeUrl = String(args.url || "").trim();
-  const leadLine = safeLead ? `**${safeLead}**` : "";
-  return [`Hola ${safeName},`, "", leadLine, safeUrl].filter((line) => line !== "").join("\n");
-}
+import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
 
 function ensureHttps(value: string) {
   if (!value) return value;
@@ -40,12 +32,30 @@ export async function POST(req: Request) {
   }
 
   const customerId = String(body?.customerId || "").trim();
-  const customerName = String(body?.customerName || "").trim() || "Cliente";
   const tenantId = String(body?.tenantId || "").trim();
   const templateIdInput = String(body?.templateId || "").trim();
   const catalogTypeRaw = String(body?.catalogType || "").trim().toUpperCase();
   const catalogType = catalogTypeRaw === "SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN";
   if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
+
+  const notificationsConfig = await getNotificationsConfig().catch(() => null);
+  if (notificationsConfig) {
+    const rules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
+    const templates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
+    const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === "CATALOG_LINK_CREATED");
+    const filtered = candidates.filter((r: any) => {
+      const types = r?.conditions?.requirePaymentTypeIn;
+      if (!Array.isArray(types) || !types.length) return true;
+      return types.includes(catalogType === "SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN");
+    });
+    const rule = filtered[0] || null;
+    const tpl = rule ? templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || "")) : null;
+    if (!tpl || !String(tpl?.chatwootTemplate?.name || "").trim()) {
+      return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
+    }
+  } else {
+    return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
+  }
 
   const checkoutConfig = await getCheckoutConfig();
   const baseFromSettings =
@@ -98,21 +108,8 @@ export async function POST(req: Request) {
     actor: auth.session.sub
   });
   const rulesActive = Boolean(schedule?.rulesActive);
-
-  let chatwootError: string | null = null;
-  let fallbackSent = false;
-  if (!rulesActive && publicUrl) {
-    const msg = buildChatwootLinkMessage({
-      name: customerName || "Cliente",
-      lead: "Aquí está tu link de catálogo:",
-      url: publicUrl
-    });
-    const chatRes = await sendChatwootMessageForCustomer({ customerId, content: msg, actor: auth.session.sub });
-    if (!chatRes.ok) {
-      chatwootError = String((chatRes as any)?.error || "chatwoot_error");
-    } else {
-      fallbackSent = true;
-    }
+  if (!rulesActive) {
+    return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
   }
 
   return NextResponse.json({
@@ -120,8 +117,6 @@ export async function POST(req: Request) {
     link: publicUrl,
     notificationsScheduled: schedule?.scheduled ?? 0,
     notificationsSent: schedule?.sentNow ?? 0,
-    notificationsRulesActive: rulesActive,
-    chatwootError,
-    fallbackSent
+    notificationsRulesActive: rulesActive
   });
 }

@@ -67,7 +67,7 @@ export default function Error({
         marginTop: "8px"
       }}>
         <button
-          className="primary"
+        className="primary btn-compact"
           onClick={() => reset()}
           style={{ height: "40px" }}
         >

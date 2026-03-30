@@ -36,7 +36,7 @@ export function PublicErrorPage({
       <div className="publicErrorStack">
         <PublicAlert>{message}</PublicAlert>
         {supportHref ? (
-          <a className="primary" href={supportHref} referrerPolicy="no-referrer" style={{ width: "fit-content" }}>
+          <a className="primary btn-compact btn-noicon" href={supportHref} referrerPolicy="no-referrer" style={{ width: "fit-content" }}>
             Solicitar nuevo link
           </a>
         ) : null}

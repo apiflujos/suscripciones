@@ -614,8 +614,9 @@ export function SmartViewsBar({
   };
 
   const filledPins = pinnedIds.filter(Boolean);
-  const displaySlots = Math.min(Math.max(filledPins.length + 1, 1), PIN_SLOTS);
-  const nextPinIndex = Math.min(filledPins.length, PIN_SLOTS - 1);
+  const normalizedPins = filledPins.slice(0, PIN_SLOTS);
+  const displaySlots = Math.min(Math.max(normalizedPins.length + 1, 1), PIN_SLOTS);
+  const nextPinIndex = Math.min(normalizedPins.length, PIN_SLOTS - 1);
   const canAddAt = (idx: number) => idx === nextPinIndex;
 
   return (
@@ -623,7 +624,7 @@ export function SmartViewsBar({
       <div className="smartViewsTop">
         <div className="smartViewsPins">
           {Array.from({ length: displaySlots }).map((_, idx) => {
-            const viewId = pinnedIds[idx] || "";
+            const viewId = normalizedPins[idx] || "";
             const view = viewId ? mergedViews.find((v) => v.id === viewId) : null;
             return (
               <div key={`pin-${idx}`} className={`smartViewsPinSlot ${view ? "is-filled" : ""}`}>
@@ -698,11 +699,7 @@ export function SmartViewsBar({
                     setNotice(null);
                     ensureFieldsLoaded().catch(() => null);
                   }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                    <path d="M.5 2a.75.75 0 0 1 .75-.75h13.5a.75.75 0 0 1 .56 1.247l-5.06 5.62v4.633a.75.75 0 0 1-1.083.67l-3-1.5a.75.75 0 0 1-.417-.67V8.117l-5.06-5.62A.75.75 0 0 1 .5 2z"/>
-                  </svg>
-                </button>
+                />
               )}
             </div>
           </div>
@@ -811,7 +808,7 @@ export function SmartViewsBar({
       {"rules" in root && root.rules.map((rule, index) => (
         <div key={`rule-wrap-${index}`} style={{ display: "grid", gap: 6 }}>
           {renderRule(rule, index)}
-          {index === 0 && root.rules.length > 1 ? (
+          {index < root.rules.length - 1 ? (
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 6 }}>
               <span className="muted">Condición entre reglas</span>
               <select
@@ -840,7 +837,7 @@ export function SmartViewsBar({
                   <div className="smartViewsSave">
                     <div className="smartViewsSaveRow smartViewsSaveRowButtons" style={{ marginBottom: 10 }}>
                       <button
-                        className="primary"
+                        className="primary btn-compact"
                         type="button"
                         onClick={() => {
                           if (!fields.length) return;
@@ -856,7 +853,7 @@ export function SmartViewsBar({
                         Aplicar filtros
                       </button>
                       <button
-                        className="ghost"
+                        className="ghost btn-compact"
                         type="button"
                         onClick={() => {
                           if (!fields.length) return;
@@ -883,7 +880,7 @@ export function SmartViewsBar({
                         <option value="STATIC">Estática</option>
                       </select>
                       <button
-                        className="primary"
+                        className="primary btn-compact"
                         type="button"
                         disabled={loading}
                         onClick={() => {

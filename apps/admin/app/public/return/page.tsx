@@ -30,7 +30,7 @@ export default async function PublicReturnPage() {
       maxWidth={680}
     >
       {supportHref ? (
-        <a className="primary" href={supportHref} style={{ width: "fit-content" }} referrerPolicy="no-referrer">
+        <a className="primary btn-compact btn-noicon" href={supportHref} style={{ width: "fit-content" }} referrerPolicy="no-referrer">
           Contactar soporte
         </a>
       ) : null}

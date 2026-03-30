@@ -7,6 +7,7 @@ import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/
 import { getAutoDebitConfig, getPaymentsConfig } from "@suscripciones/core/services/runtimeConfig";
 import { addIntervalUtc, toUtc } from "@suscripciones/core/lib/dates";
 import { systemLog } from "@suscripciones/core/services/systemLog";
+import { attachPaymentToCycle, ensureBillingCyclesForSubscriptions } from "@suscripciones/core/services/billingCycles";
 import {
   createAutoDebitTransactionForSubscription,
   createPaymentLinkForSubscription,
@@ -72,6 +73,97 @@ function subtractIntervalUtc(date: Date, unit: any, count: number): Date {
 
   d.setUTCDate(d.getUTCDate() - c);
   return d;
+}
+
+function clampDayUtc(year: number, month0: number, day: number) {
+  const last = daysInMonthUtc(year, month0);
+  return Math.max(1, Math.min(day, last));
+}
+
+function dateForDayInMonthUtc(year: number, month0: number, day: number) {
+  const d = clampDayUtc(year, month0, day);
+  return new Date(Date.UTC(year, month0, d, 0, 0, 0, 0));
+}
+
+function shiftMonths(year: number, month0: number, delta: number) {
+  const targetMonth = month0 + delta;
+  const targetYear = year + Math.floor(targetMonth / 12);
+  const nextMonth0 = ((targetMonth % 12) + 12) % 12;
+  return { year: targetYear, month0: nextMonth0 };
+}
+
+function resolveMonthlyPeriodStart(now: Date, cycleStartDay: number) {
+  const year = now.getUTCFullYear();
+  const month0 = now.getUTCMonth();
+  const candidate = dateForDayInMonthUtc(year, month0, cycleStartDay);
+  if (now.getTime() >= candidate.getTime()) return candidate;
+  const prev = shiftMonths(year, month0, -1);
+  return dateForDayInMonthUtc(prev.year, prev.month0, cycleStartDay);
+}
+
+function normalizeInterval(unit: string, count: number) {
+  const safeCount = Math.max(1, Math.trunc(count || 1));
+  if (unit === "YEAR") {
+    return { unit: "MONTH", count: safeCount * 12 };
+  }
+  return { unit, count: safeCount };
+}
+
+function resolvePeriodStartFromAnchor(now: Date, anchor: Date, unit: string, count: number) {
+  const normalizedNow = toUtc(now);
+  const normalizedAnchor = toUtc(anchor);
+  const safeCount = Math.max(1, Math.trunc(count || 1));
+
+  if (unit === "DAY" || unit === "WEEK") {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const intervalMs = dayMs * safeCount * (unit === "WEEK" ? 7 : 1);
+    const diff = normalizedNow.getTime() - normalizedAnchor.getTime();
+    const steps = diff >= 0 ? Math.floor(diff / intervalMs) : 0;
+    return new Date(normalizedAnchor.getTime() + steps * intervalMs);
+  }
+
+  if (unit === "MONTH") {
+    const anchorYear = normalizedAnchor.getUTCFullYear();
+    const anchorMonth = normalizedAnchor.getUTCMonth();
+    const nowYear = normalizedNow.getUTCFullYear();
+    const nowMonth = normalizedNow.getUTCMonth();
+    const monthsDiff = (nowYear - anchorYear) * 12 + (nowMonth - anchorMonth);
+    const steps = monthsDiff >= 0 ? Math.floor(monthsDiff / safeCount) : 0;
+    return addIntervalUtc(normalizedAnchor, "MONTH" as any, steps * safeCount);
+  }
+
+  return normalizedAnchor;
+}
+
+function computeDueAtForPeriod(args: {
+  periodStartAt?: Date | null;
+  periodEndAt?: Date | null;
+  cycleStartDay?: number;
+  paymentDay?: number;
+  paymentTiming?: string;
+  intervalUnit?: string;
+}) {
+  const { periodStartAt, periodEndAt } = args;
+  if (!periodStartAt || !periodEndAt) return periodEndAt || null;
+  const intervalUnit = String(args.intervalUnit || "MONTH").toUpperCase();
+  if (intervalUnit !== "MONTH") return periodEndAt;
+  const timing = String(args.paymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
+  const cycleStartDay = Math.max(1, Math.min(31, Math.trunc(args.cycleStartDay || 1)));
+  const paymentDay = Math.max(1, Math.min(31, Math.trunc(args.paymentDay || 1)));
+  const start = toUtc(periodStartAt);
+  const startYear = start.getUTCFullYear();
+  const startMonth = start.getUTCMonth();
+
+  if (timing === "ANTICIPADO") {
+    const prev = shiftMonths(startYear, startMonth, -1);
+    return dateForDayInMonthUtc(prev.year, prev.month0, paymentDay);
+  }
+
+  if (paymentDay >= cycleStartDay) {
+    return dateForDayInMonthUtc(startYear, startMonth, paymentDay);
+  }
+  const next = shiftMonths(startYear, startMonth, 1);
+  return dateForDayInMonthUtc(next.year, next.month0, paymentDay);
 }
 
 function computePlanTotalInCents(args: {
@@ -348,8 +440,14 @@ export async function listSubscriptions(args: {
       Boolean(lastPaidAt && periodStartAt && periodEndAt) &&
       lastPaidAt!.getTime() >= periodStartAt!.getTime() &&
       lastPaidAt!.getTime() <= periodEndAt!.getTime();
-    const dueByCutoff = periodEndAt;
-    const dueAt = dueByCutoff;
+    const dueAt = computeDueAtForPeriod({
+      periodStartAt,
+      periodEndAt,
+      cycleStartDay: s.cycleStartDay,
+      paymentDay: s.paymentDay,
+      paymentTiming: s.paymentTiming,
+      intervalUnit: s.plan?.intervalUnit
+    }) || periodEndAt;
     const chargeDue = dueAt ? dueAt.getTime() <= Date.now() + 5_000 : false;
     const isInactive =
       s.status === SubscriptionStatus.CANCELED || s.status === SubscriptionStatus.EXPIRED || s.status === SubscriptionStatus.SUSPENDED;
@@ -611,6 +709,31 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
   }
 
   const now = new Date();
+  await ensureBillingCyclesForSubscriptions([
+    {
+      id: subscription.id,
+      currentCycle: subscription.currentCycle,
+      currentPeriodStartAt: subscription.currentPeriodStartAt,
+      currentPeriodEndAt: subscription.currentPeriodEndAt,
+      cycleStartDay: subscription.cycleStartDay,
+      paymentDay: subscription.paymentDay,
+      paymentTiming: (subscription.paymentTiming as any) || "EN_CURSO",
+      graceDays: subscription.graceDays,
+      plan: {
+        intervalUnit: subscription.plan.intervalUnit,
+        intervalCount: subscription.plan.intervalCount
+      }
+    }
+  ]).catch(() => {});
+  const overdueCycle = await prisma.subscriptionBillingCycle.findFirst({
+    where: {
+      subscriptionId: subscription.id,
+      paymentId: null,
+      status: { not: "PAID" },
+      dueAt: { lte: now }
+    },
+    orderBy: { dueAt: "asc" }
+  });
   const latestApproved = await prisma.payment.findFirst({
     where: { subscriptionId, status: PaymentStatus.APPROVED },
     orderBy: [{ paidAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
@@ -626,7 +749,8 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
       ? lastApprovedAtDate.getTime() >= periodStartAt.getTime() &&
         lastApprovedAtDate.getTime() <= periodEndAt.getTime()
       : false;
-  if (lastPaidInCurrentPeriod) {
+  const bypassPaidCheck = Boolean(overdueCycle && overdueCycle.cycleNumber !== (subscription.currentCycle ?? 1));
+  if (lastPaidInCurrentPeriod && !bypassPaidCheck) {
     const paymentId = await recordManualChargeFailure({
       subscription,
       amountInCentsOverride: args.amountInCents,
@@ -714,10 +838,13 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
   }
 
   try {
+    const cycleNumberOverride = overdueCycle?.cycleNumber;
+
     const result = await createAutoDebitTransactionForSubscription({
       subscriptionId,
       amountInCentsOverride: args.amountInCents,
-      forceNewTransaction: true
+      forceNewTransaction: true,
+      cycleNumberOverride
     });
     return { ok: true, ...result };
   } catch (err: any) {
@@ -760,8 +887,40 @@ export async function markSubscriptionPaidManual(args: {
   if (!subscription.plan) return { ok: false, status: 409, error: "plan_not_found" as const };
 
   const now = new Date();
-  const cycle = subscription.currentCycle ?? 1;
-  const subscriptionCycleKey = `${subscription.id}:${cycle}`;
+
+  await ensureBillingCyclesForSubscriptions([
+    {
+      id: subscription.id,
+      currentCycle: subscription.currentCycle,
+      currentPeriodStartAt: subscription.currentPeriodStartAt,
+      currentPeriodEndAt: subscription.currentPeriodEndAt,
+      cycleStartDay: subscription.cycleStartDay,
+      paymentDay: subscription.paymentDay,
+      paymentTiming: (subscription.paymentTiming as any) || "EN_CURSO",
+      graceDays: subscription.graceDays,
+      plan: {
+        intervalUnit: subscription.plan.intervalUnit,
+        intervalCount: subscription.plan.intervalCount
+      }
+    }
+  ]).catch(() => {});
+
+  const targetCycle =
+    (await prisma.subscriptionBillingCycle.findFirst({
+      where: {
+        subscriptionId: subscription.id,
+        paymentId: null,
+        status: { not: "PAID" },
+        dueAt: { lte: now }
+      },
+      orderBy: { dueAt: "asc" }
+    })) ||
+    (await prisma.subscriptionBillingCycle.findUnique({
+      where: { subscriptionId_cycleNumber: { subscriptionId: subscription.id, cycleNumber: subscription.currentCycle ?? 1 } }
+    }));
+
+  const cycleNumber = targetCycle?.cycleNumber ?? (subscription.currentCycle ?? 1);
+  const subscriptionCycleKey = `${subscription.id}:${cycleNumber}`;
   const baseStart = subscription.currentPeriodEndAt || subscription.currentPeriodStartAt || subscription.createdAt || now;
   const nextEnd = addIntervalUtc(baseStart, subscription.plan.intervalUnit, subscription.plan.intervalCount);
 
@@ -797,7 +956,7 @@ export async function markSubscriptionPaidManual(args: {
       });
       paymentId = updated.id;
     } else {
-      const reference = `MANUAL_${subscription.id}_${cycle}_${Date.now()}`;
+      const reference = `MANUAL_${subscription.id}_${cycleNumber}_${Date.now()}`;
       const created = await tx.payment.create({
         data: {
           tenantId: subscription.tenantId,
@@ -805,7 +964,7 @@ export async function markSubscriptionPaidManual(args: {
           subscriptionId: subscription.id,
           amountInCents: readSubscriptionTotalInCents(subscription.metadata, subscription.plan.priceInCents),
           currency: validateWompiCurrency(subscription.plan.currency),
-          cycleNumber: cycle,
+          cycleNumber: cycleNumber,
           reference,
           status: PaymentStatus.APPROVED,
           paidAt: now,
@@ -826,21 +985,55 @@ export async function markSubscriptionPaidManual(args: {
       paymentId = created.id;
     }
 
-    await tx.subscription.update({
-      where: { id: subscription.id },
-      data: {
-        status: SubscriptionStatus.ACTIVE,
-        retryCount: 0,
-        currentCycle: { increment: 1 },
-        currentPeriodStartAt: baseStart,
-        currentPeriodEndAt: nextEnd,
-        suspendedAt: null,
-        canceledAt: null
-      }
-    });
+    if (targetCycle) {
+      await attachPaymentToCycle({
+        paymentId,
+        subscriptionId: subscription.id,
+        cycleId: targetCycle.id,
+        paymentAt: now,
+        origin: "MANUAL_USER" as any,
+        associationReason: "MANUAL_RECONCILE",
+        associatedBy: args.actor || "system"
+      }).catch(() => {});
+    }
+
+    if (cycleNumber === (subscription.currentCycle ?? 1)) {
+      await tx.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          status: SubscriptionStatus.ACTIVE,
+          retryCount: 0,
+          currentCycle: { increment: 1 },
+          currentPeriodStartAt: baseStart,
+          currentPeriodEndAt: nextEnd,
+          suspendedAt: null,
+          canceledAt: null
+        }
+      });
+    }
 
     return { paymentId };
   });
+
+  const remainingOverdue = await prisma.subscriptionBillingCycle.count({
+    where: {
+      subscriptionId: subscription.id,
+      paymentId: null,
+      status: { not: "PAID" },
+      dueAt: { lte: now }
+    }
+  });
+  if (remainingOverdue > 0) {
+    await prisma.subscription.update({
+      where: { id: subscription.id },
+      data: { status: SubscriptionStatus.PAST_DUE }
+    }).catch(() => {});
+  } else {
+    await prisma.subscription.update({
+      where: { id: subscription.id },
+      data: { status: SubscriptionStatus.ACTIVE }
+    }).catch(() => {});
+  }
 
   await prisma.retryJob.deleteMany({
     where: {
@@ -1147,7 +1340,10 @@ export async function updateSubscriptionBillingSettings(args: {
 }) {
   const subscriptionId = String(args.subscriptionId || "").trim();
   if (!subscriptionId) return { ok: false as const, status: 400, error: "invalid_subscription_id" as const };
-  const subscription = await prisma.subscription.findUnique({ where: { id: subscriptionId } });
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { plan: { select: { intervalUnit: true, intervalCount: true } } }
+  });
   if (!subscription) return { ok: false as const, status: 404, error: "subscription_not_found" as const };
   if (args.tenantId && String(subscription.tenantId || "") !== String(args.tenantId || "")) {
     return { ok: false as const, status: 404, error: "subscription_not_found" as const };
@@ -1159,13 +1355,34 @@ export async function updateSubscriptionBillingSettings(args: {
   const timingRaw = String(args.paymentTiming ?? subscription.paymentTiming ?? "EN_CURSO").toUpperCase();
   const paymentTiming = timingRaw === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
 
+  const planUnitRaw = String(subscription.plan?.intervalUnit || "MONTH").toUpperCase();
+  const planCountRaw = Number(subscription.plan?.intervalCount || 1);
+  const normalized = normalizeInterval(planUnitRaw, planCountRaw);
+  const cycleDay = Math.max(1, Math.min(31, Math.trunc(cycleStartDay)));
+  const now = new Date();
+  const anchor = subscription.startAt ? new Date(subscription.startAt) : now;
+
+  const baseStart =
+    normalized.unit === "MONTH"
+      ? resolveMonthlyPeriodStart(toUtc(now), cycleDay)
+      : resolvePeriodStartFromAnchor(now, anchor, normalized.unit, normalized.count);
+
+  const effectiveStart =
+    paymentTiming === "ANTICIPADO"
+      ? addIntervalUtc(baseStart, normalized.unit as any, normalized.count)
+      : baseStart;
+
+  const effectiveEnd = addIntervalUtc(effectiveStart, normalized.unit as any, normalized.count);
+
   const updated = await prisma.subscription.update({
     where: { id: subscriptionId },
     data: {
       cycleStartDay: Math.max(1, Math.min(31, Math.trunc(cycleStartDay))),
       paymentDay: Math.max(1, Math.min(31, Math.trunc(paymentDay))),
       graceDays: Math.max(1, Math.min(5, Math.trunc(graceDays))),
-      paymentTiming
+      paymentTiming,
+      currentPeriodStartAt: effectiveStart,
+      currentPeriodEndAt: effectiveEnd
     }
   });
 

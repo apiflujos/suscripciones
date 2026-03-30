@@ -2,7 +2,8 @@ import { LocalDateTime } from "../../ui/LocalDateTime";
 import { listChatwootMessages } from "../../admin/_services/logs";
 import { PageHeaderStandard } from "../../ui/PageHeaderStandard";
 import { ListCsvActions } from "../../ui/ListCsvActions";
-import { FilterButton } from "../../ui/FilterButton";
+import { FiltersFocusButton } from "../../ui/FiltersFocusButton";
+import { LogsFiltersAutoSubmit } from "../../logs/LogsFiltersAutoSubmit";
 import { ViewModeToggles } from "../../ui/ViewModeToggles";
 
 function renderContactBlock(item: any) {
@@ -59,6 +60,7 @@ export default async function WhatsappNotificationsListPage({
 
   return (
     <main className="page notificationsPage">
+      <LogsFiltersAutoSubmit />
       <PageHeaderStandard
         className="compact"
         search={(
@@ -74,30 +76,29 @@ export default async function WhatsappNotificationsListPage({
             <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
           </form>
         )}
-        searchActions={(
-          <FilterButton />
-        )}
+        searchActions={<FiltersFocusButton />}
         actions={(
           <a className="ghost btn-compact" href="/notifications/list">Limpiar</a>
         )}
         filters={(
-          <div className="page-header-standard-filters-group">
-            <select className="select" name="status" defaultValue={status} style={{ minWidth: 140 }}>
+          <form action="/notifications/list" method="GET" className="filtersForm page-header-standard-filters-group" data-debounce-form="true">
+            {q ? <input type="hidden" name="q" value={q} /> : null}
+            <select className="select" name="status" defaultValue={status} style={{ minWidth: 140 }} data-auto-submit="true">
               <option value="">Estado: Todos</option>
               <option value="SENT">Enviado</option>
               <option value="PENDING">Pendiente</option>
               <option value="FAILED">Fallido</option>
             </select>
-            <select className="select" name="type" defaultValue={type} style={{ minWidth: 140 }}>
+            <select className="select" name="type" defaultValue={type} style={{ minWidth: 140 }} data-auto-submit="true">
               <option value="">Tipo: Todos</option>
               <option value="PAYMENT_LINK">Link de pago</option>
               <option value="PAYMENT_CONFIRMED">Pago confirmado</option>
               <option value="EXPIRY_WARNING">Vencimiento</option>
               <option value="PAYMENT_FAILED">Pago fallido</option>
             </select>
-            <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 130 }} />
-            <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 130 }} />
-          </div>
+            <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 130 }} data-auto-submit="true" />
+            <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 130 }} data-auto-submit="true" />
+          </form>
         )}
         views={(
           <div className="page-header-standard-filters-group" />

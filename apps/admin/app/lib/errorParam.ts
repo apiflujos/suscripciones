@@ -37,6 +37,9 @@ export function normalizeErrorParam(input?: string | null) {
   if (norm.includes("centralcom_send_failed")) {
     return "No se pudo enviar el mensaje por CentralCom.";
   }
+  if (norm.includes("missing_template")) {
+    return "Falta configurar una plantilla activa en Notificaciones para este envío.";
+  }
 
   return raw;
 }

@@ -91,7 +91,7 @@ export default async function EmpresasPage({
                     <span className="field-hint" style={{ margin: 0 }}>Vista:</span>
                     <ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />
                   </div>
-                  <a className="primary btn-create" href="/dashboard/empresas/new" style={{ marginLeft: "auto" }}>
+                  <a className="primary btn-compact btn-create" href="/dashboard/empresas/new" style={{ marginLeft: "auto" }}>
                     Crear empresa
                   </a>
                 </div>
@@ -198,10 +198,7 @@ export default async function EmpresasPage({
             <a className="page-link page-nav" href={pageHref(Math.max(1, currentPage - 1))} aria-disabled={currentPage <= 1}>
               Anterior
             </a>
-            <div className="pagination-pages">
-              <span className="page-link is-active">{currentPage}</span>
-              <span className="page-link">{totalPages}</span>
-            </div>
+            <div className="pagination-pages" style={{ display: "none" }} />
             <a className="page-link page-nav" href={pageHref(Math.min(totalPages, currentPage + 1))} aria-disabled={currentPage >= totalPages}>
               Siguiente
             </a>

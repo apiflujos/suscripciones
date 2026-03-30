@@ -16,8 +16,8 @@ export function ReconcilePaymentModal({
 
   return (
     <>
-      <button className={className || "ghost btn-compact btn-blue"} type="button" data-loader="off" onClick={() => setOpen(true)}>
-        Reconciliar pago
+      <button className={className || "ghost btn-compact btn-blue btn-noicon"} type="button" data-loader="off" onClick={() => setOpen(true)}>
+        Reconciliar
       </button>
 
       {open ? (

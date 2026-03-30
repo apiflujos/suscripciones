@@ -90,57 +90,55 @@ export default async function EmpresasPage({
       {deleted ? <div className="card cardPad">Empresa eliminada.</div> : null}
 
       <section className="settings-group">
-        <div className="settings-group-header">
-          <PageHeaderStandard
-            className="compact"
-            search={(
-              <form action="/empresas" method="GET" className="filtersForm filtersSearch">
-                {vista ? <input type="hidden" name="vista" value={vista} /> : null}
-                {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
-                {filters ? <input type="hidden" name="filters" value={filters} /> : null}
-                <input
-                  className="input"
-                  type="search"
-                  name="q"
-                  defaultValue={q}
-                  placeholder="Buscar empresa por nombre, email o teléfono..."
-                  aria-label="Buscar empresas"
-                  title="Busca por nombre, email o teléfono"
-                />
-                <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-              </form>
-            )}
-            searchActions={(
-              <FilterButton
-                scope="companies"
-                baseParams={{
-                  ...(q ? { q } : {}),
-                  ...(viewId ? { viewId } : {}),
-                  ...(filters ? { filters } : {})
-                }}
-                initialFields={getSmartViewFields("companies")}
+        <PageHeaderStandard
+          className="compact"
+          search={(
+            <form action="/empresas" method="GET" className="filtersForm filtersSearch">
+              {vista ? <input type="hidden" name="vista" value={vista} /> : null}
+              {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+              {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+              <input
+                className="input"
+                type="search"
+                name="q"
+                defaultValue={q}
+                placeholder="Buscar empresa por nombre, email o teléfono..."
+                aria-label="Buscar empresas"
+                title="Busca por nombre, email o teléfono"
               />
-            )}
-            smartViews={(
-              <SmartViewsBar
-                scope="companies"
-                initialViewId={viewId}
-                initialFilters={filters}
-                baseParams={{
-                  ...(q ? { q } : {})
-                }}
-                initialFields={getSmartViewFields("companies")}
-                compactInline
-                hideFilterButton
-              />
-            )}
-            filters={(
-              <div className="page-header-standard-filters-group" />
-            )}
-            views={<ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />}
-            summary={<ListCsvActions exportHref={exportHref} defaultEntity="companies" />}
-          />
-        </div>
+              <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+            </form>
+          )}
+          searchActions={(
+            <FilterButton
+              scope="companies"
+              baseParams={{
+                ...(q ? { q } : {}),
+                ...(viewId ? { viewId } : {}),
+                ...(filters ? { filters } : {})
+              }}
+              initialFields={getSmartViewFields("companies")}
+            />
+          )}
+          smartViews={(
+            <SmartViewsBar
+              scope="companies"
+              initialViewId={viewId}
+              initialFilters={filters}
+              baseParams={{
+                ...(q ? { q } : {})
+              }}
+              initialFields={getSmartViewFields("companies")}
+              compactInline
+              hideFilterButton
+            />
+          )}
+          filters={(
+            <div className="page-header-standard-filters-group" />
+          )}
+          views={<ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />}
+          summary={<ListCsvActions exportHref={exportHref} defaultEntity="companies" />}
+        />
 
         <div className="customers-actions-right" style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, marginBottom: 12 }}>
           <EmpresaCreateModal
@@ -263,10 +261,7 @@ export default async function EmpresasPage({
             <a className="page-link page-nav" href={pageHref(Math.max(1, currentPage - 1))} aria-disabled={currentPage <= 1}>
               Anterior
             </a>
-            <div className="pagination-pages">
-              <span className="page-link is-active">{currentPage}</span>
-              <span className="page-link">{totalPages}</span>
-            </div>
+            <div className="pagination-pages" style={{ display: "none" }} />
             <a className="page-link page-nav" href={pageHref(Math.min(totalPages, currentPage + 1))} aria-disabled={currentPage >= totalPages}>
               Siguiente
             </a>

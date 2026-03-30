@@ -95,7 +95,7 @@ export function ViewLinksModal({
         </div>
 
         <div className="module-footer" style={{ justifyContent: "flex-end" }}>
-          <button className="primary" type="button" onClick={onClose}>Cerrar</button>
+          <button className="primary btn-compact btn-noicon" type="button" onClick={onClose}>Cerrar</button>
         </div>
       </div>
     </div>

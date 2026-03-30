@@ -20,7 +20,6 @@ import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
-import { CustomersModalTrigger } from "./CustomersModalTrigger";
 import { PageHeaderStandard } from "../ui/PageHeaderStandard";
 import "./page-header.css";
 
@@ -264,21 +263,7 @@ export default async function CustomersPage({
         >
           Anterior
         </a>
-        <div className="pagination-pages">
-          {pages.map((p) => {
-            const isDesktopOnly = p < mobileStart || p > mobileEnd;
-            return (
-              <a
-                key={`customers-page-${p}`}
-                className={`page-link ${p === currentPage ? "is-active" : ""} ${isDesktopOnly ? "page-desktop-only" : ""}`}
-                href={`/customers?${new URLSearchParams({ ...baseParams, page: String(p) })}`}
-                aria-current={p === currentPage ? "page" : undefined}
-              >
-                {p}
-              </a>
-            );
-          })}
-        </div>
+        <div className="pagination-pages" style={{ display: "none" }} />
         <a
           className="page-link page-nav"
           href={`/customers?${new URLSearchParams({
@@ -387,24 +372,20 @@ export default async function CustomersPage({
         )}
       />
 
-      <div className="customers-actions-right" style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, marginBottom: 12 }}>
-        <CustomersModalTrigger />
-      </div>
-
-      <div id="customers-modals-container" style={{ display: 'none' }}>
-        <CustomersModals
-          customers={items}
-          empresas={empresas}
-          products={productsRes?.items ?? []}
-          checkoutTemplates={templatesRes?.items ?? []}
-          csrfToken={csrfToken}
-          tenants={tenants}
-          tenantId={tenantId}
-          createCustomer={createCustomer}
-          createPlanAndSubscription={createPlanAndSubscription}
-          returnTo={returnTo}
-        />
-      </div>
+      <CustomersModals
+        actionsClassName="customers-actions-right"
+        showPlanButton={false}
+        customers={items}
+        empresas={empresas}
+        products={productsRes?.items ?? []}
+        checkoutTemplates={templatesRes?.items ?? []}
+        csrfToken={csrfToken}
+        tenants={tenants}
+        tenantId={tenantId}
+        createCustomer={createCustomer}
+        createPlanAndSubscription={createPlanAndSubscription}
+        returnTo={returnTo}
+      />
 
       <div className="settings-group-body">
 

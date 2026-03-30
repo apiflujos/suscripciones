@@ -31,6 +31,8 @@ export async function POST(req: Request) {
     if (!tpl || !String(tpl?.chatwootTemplate?.name || "").trim()) {
       return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
     }
+  } else {
+    return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
   }
 
   const checkoutConfig = await getCheckoutConfig();

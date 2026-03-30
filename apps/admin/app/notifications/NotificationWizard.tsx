@@ -638,14 +638,14 @@ export function NotificationWizard({
                 Atrás
               </button>
               {step < 3 ? (
-                <button className="primary btn-next" type="button" onClick={() => setStep((s) => (s === 3 ? 3 : ((s + 1) as any)))} disabled={!canGoNext() || isPending}>
-                  Siguiente
-                </button>
+              <button className="primary btn-compact btn-next" type="button" onClick={() => setStep((s) => (s === 3 ? 3 : ((s + 1) as any)))} disabled={!canGoNext() || isPending}>
+                Siguiente
+              </button>
               ) : null}
             </div>
 
             {step === 3 ? (
-              <button className="primary btn-create" type="button" onClick={onCreate} disabled={!canGoNext() || isPending}>
+              <button className="primary btn-compact btn-create" type="button" onClick={onCreate} disabled={!canGoNext() || isPending}>
                 {isPending ? "Creando..." : "Crear"}
               </button>
             ) : (

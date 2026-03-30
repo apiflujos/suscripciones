@@ -68,7 +68,7 @@ export default async function SaLimitsPage({
               <input name="active" value="1" type="checkbox" defaultChecked />
               <span>Activo</span>
             </label>
-            <button className="primary btn-save" type="submit">
+            <button className="primary btn-compact btn-save" type="submit">
               Guardar servicio
             </button>
             <div className="field-hint">Cambiar el catálogo no requiere código: todo se mide por service key.</div>

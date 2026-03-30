@@ -30,12 +30,9 @@ export function NewProductForm({
   const [sku, setSku] = useState("");
   const [priceCop, setPriceCop] = useState("");
   const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
-  const [intervalUnit, setIntervalUnit] = useState<"DAY" | "WEEK" | "MONTH" | "CUSTOM">("MONTH");
-  const [intervalCount, setIntervalCount] = useState("1");
   const [taxPercent, setTaxPercent] = useState("0");
   const [requiresShipping, setRequiresShipping] = useState(false);
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>(tenantId ? [tenantId] : []);
-  const [collectionMode, setCollectionMode] = useState<"AUTO_LINK" | "AUTO_DEBIT">("AUTO_LINK");
 
   const [vendor, setVendor] = useState("");
   const [productType, setProductType] = useState("");
@@ -87,21 +84,13 @@ export function NewProductForm({
         <div className="field-hint">Define el ítem recurrente. Luego lo puedes usar en planes y suscripciones.</div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <div className="field">
           <label>Tipo</label>
           <select className="select" name="kind" value={kind} onChange={(e) => setKind(e.target.value as any)}>
             <option value="PRODUCT">Producto</option>
             <option value="SERVICE">Servicio</option>
           </select>
-        </div>
-        <div className="field">
-          <label>Tipo de cobro</label>
-          <select className="select" name="collectionMode" value={collectionMode} onChange={(e) => setCollectionMode(e.target.value as any)}>
-            <option value="AUTO_LINK">Link de pago</option>
-            <option value="AUTO_DEBIT">Débito automático</option>
-          </select>
-          <div className="field-hint">Define si este producto se cobra por link de pago o débito automático.</div>
         </div>
         <div className="field">
           <label>Nombre</label>
@@ -174,21 +163,6 @@ export function NewProductForm({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <div className="field">
-        <label>Unidad de recurrencia</label>
-        <select className="select" name="intervalUnit" value={intervalUnit} onChange={(e) => setIntervalUnit(e.target.value as any)}>
-          <option value="DAY">Día</option>
-          <option value="WEEK">Semana</option>
-          <option value="MONTH">Mes</option>
-        </select>
-        </div>
-        <div className="field">
-        <label>Cada (cantidad)</label>
-          <input className="input no-icon" name="intervalCount" value={intervalCount} onChange={(e) => setIntervalCount(e.target.value)} inputMode="numeric" />
-        </div>
-      </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
         <div className="field">
           <label>Impuesto</label>
@@ -248,7 +222,7 @@ export function NewProductForm({
       </div>
 
       <div className="module-footer">
-        <PendingButton className="primary btn-create" type="submit" pendingText="Guardando...">
+        <PendingButton className="primary btn-compact btn-create" type="submit" pendingText="Guardando...">
           Crear producto/servicio
         </PendingButton>
       </div>

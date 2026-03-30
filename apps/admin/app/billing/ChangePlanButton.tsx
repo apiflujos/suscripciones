@@ -304,6 +304,7 @@ export function ChangePlanButton({
               <input type="hidden" name="subscriptionId" value={subscriptionId} />
               <input type="hidden" name="returnTo" value={returnTo} />
               {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+              <input type="hidden" name="planId" value={planId} />
 
               <div className="field">
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -319,13 +320,20 @@ export function ChangePlanButton({
                   style={{ marginBottom: 8 }}
                 />
                 {searching ? <div className="field-hint">Buscando productos...</div> : null}
-                <select className="select" name="planId" value={planId} onChange={(e) => setPlanId(e.target.value)}>
-                  {filteredPlans.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                {filteredPlans.length ? (
+                  <div className="plan-option-list">
+                    {filteredPlans.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={`ghost btn-compact btn-noicon plan-option-item${String(planId) === String(p.id) ? " is-selected" : ""}`}
+                        onClick={() => setPlanId(String(p.id))}
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 {!filteredPlans.length ? (
                   <div className="field-hint" style={{ color: "var(--danger)" }}>
                     No hay resultados con esa búsqueda.

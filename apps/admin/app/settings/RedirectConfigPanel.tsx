@@ -89,7 +89,7 @@ export function RedirectConfigPanel({
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {urlsReady && tokenMessagesReady ? <span className="pill pill-ok">Listo</span> : null}
-          <button className="ghost" type="button" data-loader="off" onClick={() => setOpen(true)}>
+          <button className="ghost btn-compact" type="button" data-loader="off" onClick={() => setOpen(true)}>
             Editar
           </button>
         </div>

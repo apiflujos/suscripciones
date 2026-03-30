@@ -266,12 +266,8 @@ export async function sendProductToCustomer(formData: FormData) {
 
   const notificationsConfig = await getNotificationsConfigForEnv("PRODUCTION").catch(() => null);
   const paymentTemplate = resolveNotificationTemplate(notificationsConfig, "PAYMENT_LINK_CREATED", "LINK");
-  if (!paymentTemplate) {
-    return redirect(
-      mergeQuery(returnTo, {
-        error: "No hay una notificación activa para link de pago. Configúrala en Notificaciones."
-      })
-    );
+  if (!paymentTemplate || !String((paymentTemplate as any)?.chatwootTemplate?.name || "").trim()) {
+    return redirect(mergeQuery(returnTo, { error: "missing_template" }));
   }
 
   let product: any = null;
@@ -313,11 +309,7 @@ export async function sendProductToCustomer(formData: FormData) {
     });
     if (!orderRes.ok) throw new Error(orderRes.error);
     if (orderRes.notificationsRulesActive === false) {
-      return redirect(
-        mergeQuery(returnTo, {
-          error: "No hay reglas activas de notificación para link de pago. Configúralas en Notificaciones."
-        })
-      );
+      return redirect(mergeQuery(returnTo, { error: "missing_template" }));
     }
   } catch (err: any) {
     return redirect(mergeQuery(returnTo, { error: String(err?.message || "order_create_failed") }));

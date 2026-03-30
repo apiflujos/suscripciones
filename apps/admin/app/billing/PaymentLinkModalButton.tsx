@@ -63,7 +63,8 @@ export function PaymentLinkModalButton({
   }
 
   const paymentLinkTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK");
-  const canSendPayment = Boolean(paymentLinkTemplate);
+  const hasTemplate = Boolean(paymentLinkTemplate);
+  const canSend = hasTemplate;
 
   useEffect(() => {
     if (!open) return;
@@ -110,7 +111,7 @@ export function PaymentLinkModalButton({
                 <div className="field-hint">Se enviará usando las reglas activas de Notificaciones (link de pago).</div>
               </div>
               <label className="field" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input type="checkbox" name="sendNow" value="1" defaultChecked disabled={!canSendPayment} />
+                <input type="checkbox" name="sendNow" value="1" defaultChecked={canSend} disabled={!canSend} />
                 <span>Enviar por WhatsApp al crear (Notificaciones)</span>
               </label>
               <div className="module-footer">
@@ -128,16 +129,15 @@ export function PaymentLinkModalButton({
                   className="primary btn-compact btn-save" 
                   type="submit" 
                   pendingText="Creando..." 
-                  disabled={!canSendPayment}
                   title="Crear link de pago"
                   aria-label="Crear link"
                 >
                   Crear link
                 </PendingButton>
               </div>
-              {!canSendPayment ? (
-                <div className="field-hint ui-alert-danger">
-                  No hay plantilla activa para link de pago en Notificaciones.
+              {!hasTemplate ? (
+                <div className="field-hint ui-alert-warn">
+                  No hay plantilla activa para link de pago. Configura una plantilla para habilitar el envío por WhatsApp.
                   <div style={{ marginTop: 6 }}>
                     <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=payment_link_created">
                       Configurar plantilla

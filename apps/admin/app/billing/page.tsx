@@ -95,6 +95,54 @@ function getEstado(status: any): { key: "si" | "no" | "mora"; label: string; cla
   return { key: "no", ...base };
 }
 
+function clampDay(year: number, month0: number, day: number) {
+  const last = new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
+  return Math.max(1, Math.min(day, last));
+}
+
+function dateForDayInMonth(year: number, month0: number, day: number) {
+  const d = clampDay(year, month0, day);
+  return new Date(Date.UTC(year, month0, d, 0, 0, 0, 0));
+}
+
+function shiftMonth(year: number, month0: number, delta: number) {
+  const targetMonth = month0 + delta;
+  const targetYear = year + Math.floor(targetMonth / 12);
+  const nextMonth0 = ((targetMonth % 12) + 12) % 12;
+  return { year: targetYear, month0: nextMonth0 };
+}
+
+function computeDueAtFromPeriod(args: {
+  periodStartAt?: Date | string | null;
+  periodEndAt?: Date | string | null;
+  cycleStartDay?: number;
+  paymentDay?: number;
+  paymentTiming?: string;
+  intervalUnit?: string;
+}) {
+  if (!args.periodStartAt || !args.periodEndAt) return null;
+  const intervalUnit = String(args.intervalUnit || "MONTH").toUpperCase();
+  if (intervalUnit !== "MONTH") return new Date(args.periodEndAt);
+  const start = new Date(args.periodStartAt);
+  if (Number.isNaN(start.getTime())) return new Date(args.periodEndAt);
+  const cycleStartDay = Math.max(1, Math.min(31, Math.trunc(args.cycleStartDay || 1)));
+  const paymentDay = Math.max(1, Math.min(31, Math.trunc(args.paymentDay || 1)));
+  const timing = String(args.paymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
+
+  if (timing === "ANTICIPADO") {
+    const prev = shiftMonth(start.getUTCFullYear(), start.getUTCMonth(), -1);
+    return dateForDayInMonth(prev.year, prev.month0, paymentDay);
+  }
+
+  const startYear = start.getUTCFullYear();
+  const startMonth = start.getUTCMonth();
+  if (paymentDay >= cycleStartDay) {
+    return dateForDayInMonth(startYear, startMonth, paymentDay);
+  }
+  const next = shiftMonth(startYear, startMonth, 1);
+  return dateForDayInMonth(next.year, next.month0, paymentDay);
+}
+
 function subscriptionRank(status: any) {
   const s = String(status || "");
   if (s === "ACTIVE") return 0;
@@ -216,6 +264,7 @@ export default async function BillingPage({
   const tenantsUpdated = typeof sp.tenantsUpdated === "string" ? sp.tenantsUpdated : "";
   const central = typeof sp.central === "string" ? sp.central : "";
   const centralMode = typeof sp.centralMode === "string" ? sp.centralMode : "";
+  const error = typeof sp.error === "string" ? sp.error : "";
   const crear = typeof sp.crear === "string" ? sp.crear : "";
   const selectCustomerId = typeof sp.selectCustomerId === "string" ? sp.selectCustomerId : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
@@ -352,7 +401,16 @@ export default async function BillingPage({
       const requiresShipping = String((plan?.metadata as any)?.catalog?.kind || "").toUpperCase() !== "SERVICE";
       const shippingAppliedInCents = requiresShipping ? Math.max(0, shippingInCents) : 0;
       const baseValueInCents = Math.max(0, totalInCents - shippingAppliedInCents);
-      const dueAt = s.currentPeriodEndAt ? new Date(s.currentPeriodEndAt).getTime() : null;
+      const dueAtDate =
+        computeDueAtFromPeriod({
+          periodStartAt: s.currentPeriodStartAt,
+          periodEndAt: s.currentPeriodEndAt,
+          cycleStartDay: s.cycleStartDay,
+          paymentDay: s.paymentDay,
+          paymentTiming: s.paymentTiming,
+          intervalUnit: plan?.intervalUnit
+        }) || (s.currentPeriodEndAt ? new Date(s.currentPeriodEndAt) : null);
+      const dueAt = dueAtDate ? dueAtDate.getTime() : null;
       const nowTs = Date.now();
       const daysLate = dueAt && nowTs > dueAt ? Math.ceil((nowTs - dueAt) / (24 * 60 * 60 * 1000)) : 0;
       const graceDays = Number(s.graceDays || 1);
@@ -387,7 +445,7 @@ export default async function BillingPage({
         cada: fmtEvery(plan?.intervalUnit, plan?.intervalCount),
         pagoAt: s.lastPayment?.paidAt || null,
         lastPaymentLink: s.lastPaymentLink || null,
-        vencimientoAt: s.currentPeriodEndAt || null,
+        vencimientoAt: dueAtDate ? dueAtDate.toISOString() : s.currentPeriodEndAt || null,
         periodoInicioAt: s.currentPeriodStartAt || null,
         periodoFinAt: s.currentPeriodEndAt || null,
         cycleStartDay: Number(s.cycleStartDay || 1),
@@ -606,6 +664,8 @@ export default async function BillingPage({
                 currentPlanCurrency={r.moneda}
                 currentShippingInCents={r.currentShippingInCents}
                 currentRequiresShipping={r.currentRequiresShipping}
+                planIntervalUnit={r.planIntervalUnit}
+                planIntervalCount={r.planIntervalCount}
                 plans={planOptions}
                 changeSubscriptionPlan={changeSubscriptionPlan}
                 cycleStartDay={r.cycleStartDay}
@@ -619,7 +679,12 @@ export default async function BillingPage({
                 globalConfig={{ graceDays: 5, suspendDays: 15, cancelDays: 30 }}
               />
               <PaymentHistoryButton subscriptionId={r.id} tenantId={r.tenantId} />
-              <PaymentCyclesModal subscriptionId={r.id} />
+              <PaymentCyclesModal
+                subscriptionId={r.id}
+                csrfToken={csrfToken}
+                returnTo={returnTo}
+                tenantId={r.tenantId}
+              />
               <DeleteSubscriptionButton
                 action={deleteSubscription}
                 csrfToken={csrfToken}
@@ -674,9 +739,9 @@ export default async function BillingPage({
               <div className="billing-date-display">
                 <LocalDateTime value={r.vencimientoAt} variant="stacked" />
               </div>
-              {r.periodoInicioAt && r.vencimientoAt ? (
+              {r.periodoInicioAt && r.periodoFinAt ? (
                 <div className="billing-cycle-info" style={{ marginTop: "4px", fontSize: "12px", color: "var(--muted)" }}>
-                  Ciclo actual: <strong>{new Date(r.periodoInicioAt).toLocaleDateString("es-CO")} → {new Date(r.vencimientoAt).toLocaleDateString("es-CO")}</strong>
+                  Ciclo actual: <strong>{new Date(r.periodoInicioAt).toLocaleDateString("es-CO")} → {new Date(r.periodoFinAt).toLocaleDateString("es-CO")}</strong>
                 </div>
               ) : null}
               <div className="billing-cycle-info" style={{ marginTop: "2px", fontSize: "12px", color: "var(--muted)" }}>
@@ -846,8 +911,23 @@ export default async function BillingPage({
     );
   };
 
+  const errorMessage = (() => {
+    const code = String(error || "").trim();
+    if (!code) return "";
+    if (code === "missing_template") return "Falta configurar una plantilla activa en Notificaciones para este envío.";
+    if (code === "empresa_no_encontrada") return "No se encontró la empresa seleccionada.";
+    if (code === "empresa_sin_contacto_principal") return "La empresa no tiene contacto principal.";
+    if (code === "missing_contact_or_company_or_product") return "Selecciona un contacto/empresa y un producto.";
+    return code;
+  })();
+
   return (
     <main className="page pageWide billing-page">
+      {errorMessage ? (
+        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
+          {errorMessage}
+        </div>
+      ) : null}
       {markPaidStatus ? (
         <div className="card cardPad" style={{ borderColor: markPaidStatus === "ok" ? "var(--success)" : "var(--danger)" }}>
           {markPaidStatus === "ok" ? "Suscripción marcada como pagada manualmente." : `Error marcando pago manual: ${markPaidError || "unknown_error"}`}
@@ -873,81 +953,79 @@ export default async function BillingPage({
       ) : null}
 
       <section className="settings-group">
-        <div className="settings-group-header">
-          <PageHeaderStandard
-            className="compact"
-            search={(
-              <form action="/billing" method="GET" className="filtersForm filtersSearch">
-                {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                {tipo ? <input type="hidden" name="tipo" value={tipo} /> : null}
-                {estado ? <input type="hidden" name="estado" value={estado} /> : null}
-                {ordenar ? <input type="hidden" name="ordenar" value={ordenar} /> : null}
-                {vista ? <input type="hidden" name="vista" value={vista} /> : null}
-                {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
-                {filters ? <input type="hidden" name="filters" value={filters} /> : null}
-                <input
-                  className="input"
-                  type="search"
-                  name="q"
-                  defaultValue={q}
-                  placeholder="Buscar por contacto, email o identificación..."
-                  aria-label="Buscar suscripciones"
-                />
-                <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-              </form>
-            )}
-            searchActions={(
-              <FilterButton
-                scope="billing"
-                baseParams={{
-                  ...(tenantId ? { tenantId } : {}),
-                  ...(q ? { q } : {}),
-                  ...(tipo ? { tipo } : {}),
-                  ...(estado ? { estado } : {}),
-                  ...(ordenar ? { ordenar } : {})
-                }}
-                initialFields={getSmartViewFields("billing")}
+        <PageHeaderStandard
+          className="compact"
+          search={(
+            <form action="/billing" method="GET" className="filtersForm filtersSearch">
+              {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+              {tipo ? <input type="hidden" name="tipo" value={tipo} /> : null}
+              {estado ? <input type="hidden" name="estado" value={estado} /> : null}
+              {ordenar ? <input type="hidden" name="ordenar" value={ordenar} /> : null}
+              {vista ? <input type="hidden" name="vista" value={vista} /> : null}
+              {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+              {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+              <input
+                className="input"
+                type="search"
+                name="q"
+                defaultValue={q}
+                placeholder="Buscar por contacto, email o identificación..."
+                aria-label="Buscar suscripciones"
               />
-            )}
-            smartViews={(
-              <SmartViewsBar
-                scope="billing"
-                initialViewId={viewId}
-                initialFilters={filters}
-                baseParams={{
-                  ...(tenantId ? { tenantId } : {}),
-                  ...(q ? { q } : {}),
-                  ...(tipo ? { tipo } : {}),
-                  ...(estado ? { estado } : {}),
-                  ...(ordenar ? { ordenar } : {})
-                }}
-                initialFields={getSmartViewFields("billing")}
-                compactInline
-                hideFilterButton
-              />
-            )}
-            filters={(
-              <div className="page-header-standard-filters-group" />
-            )}
-            views={(
-              <ViewModeToggles
-                currentMode={vistaTyped}
-                baseParams={{
-                  ...(tenantId ? { tenantId } : {}),
-                  ...(q ? { q } : {}),
-                  ...(tipo ? { tipo } : {}),
-                  ...(estado ? { estado } : {}),
-                  ...(ordenar ? { ordenar } : {})
-                }}
-                showKanban
-              />
-            )}
-            configHref="http://localhost:3002/settings?tab=cobros"
-            summary={(
-              <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="payments" allowImport={false} />
-            )}
-          />
-        </div>
+              <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+            </form>
+          )}
+          searchActions={(
+            <FilterButton
+              scope="billing"
+              baseParams={{
+                ...(tenantId ? { tenantId } : {}),
+                ...(q ? { q } : {}),
+                ...(tipo ? { tipo } : {}),
+                ...(estado ? { estado } : {}),
+                ...(ordenar ? { ordenar } : {})
+              }}
+              initialFields={getSmartViewFields("billing")}
+            />
+          )}
+          smartViews={(
+            <SmartViewsBar
+              scope="billing"
+              initialViewId={viewId}
+              initialFilters={filters}
+              baseParams={{
+                ...(tenantId ? { tenantId } : {}),
+                ...(q ? { q } : {}),
+                ...(tipo ? { tipo } : {}),
+                ...(estado ? { estado } : {}),
+                ...(ordenar ? { ordenar } : {})
+              }}
+              initialFields={getSmartViewFields("billing")}
+              compactInline
+              hideFilterButton
+            />
+          )}
+          filters={(
+            <div className="page-header-standard-filters-group" />
+          )}
+          views={(
+            <ViewModeToggles
+              currentMode={vistaTyped}
+              baseParams={{
+                ...(tenantId ? { tenantId } : {}),
+                ...(q ? { q } : {}),
+                ...(tipo ? { tipo } : {}),
+                ...(estado ? { estado } : {}),
+                ...(ordenar ? { ordenar } : {})
+              }}
+              showKanban
+            />
+          )}
+          configHref="http://localhost:3002/settings?tab=cobros"
+          summary={(
+            <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="payments" allowImport={false} />
+          )}
+        />
 
         <div className="page-results-left">
           <span className="muted">{rows.length} resultados</span>
@@ -1048,6 +1126,10 @@ export default async function BillingPage({
                         changeSubscriptionPlan={changeSubscriptionPlan}
                         updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
                         deleteSubscription={deleteSubscription}
+                        suspendSubscription={suspendSubscription}
+                        cancelSubscription={cancelSubscription}
+                        resumeSubscription={resumeSubscription}
+                        activateSubscription={activateSubscription}
                       />
                     </div>
                   </div>
@@ -1105,6 +1187,10 @@ export default async function BillingPage({
                             changeSubscriptionPlan={changeSubscriptionPlan}
                             updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
                             deleteSubscription={deleteSubscription}
+                            suspendSubscription={suspendSubscription}
+                            cancelSubscription={cancelSubscription}
+                            resumeSubscription={resumeSubscription}
+                            activateSubscription={activateSubscription}
                           >
                             <div
                               className="billing-kanban-summary"
@@ -1167,21 +1253,7 @@ export default async function BillingPage({
                 >
                   Anterior
                 </a>
-                <div className="pagination-pages">
-                  {pages.map((p) => {
-                    const isDesktopOnly = p < mobileStart || p > mobileEnd;
-                    return (
-                      <a
-                        key={`billing-page-${p}`}
-                        className={`page-link ${p === currentPage ? "is-active" : ""} ${isDesktopOnly ? "page-desktop-only" : ""}`}
-                        href={`/billing?${new URLSearchParams({ ...paginationBase, page: String(p) })}`}
-                        aria-current={p === currentPage ? "page" : undefined}
-                      >
-                        {p}
-                      </a>
-                    );
-                  })}
-                </div>
+                <div className="pagination-pages" style={{ display: "none" }} />
                 <a
                   className="page-link page-nav"
                   href={`/billing?${new URLSearchParams({

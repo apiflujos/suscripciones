@@ -66,7 +66,7 @@ export function ManualMarkPaidButton({
           className="ghost btn-compact btn-amber btn-noicon"
           type="submit"
           title={manualMarkPaidEnabled === false ? "El marcado manual está deshabilitado. Hacé clic para ir a Configuración." : "Marcar como pagada manualmente"}
-          disabled={manualMarkPaidEnabled === false}
+          aria-disabled={manualMarkPaidEnabled === false}
           style={manualMarkPaidEnabled === false ? { opacity: 0.7, cursor: "pointer" } : undefined}
         >
           Marcar pagada
@@ -88,10 +88,10 @@ export function ManualMarkPaidButton({
                 <li>Activá la opción <strong>"Permitir marcado manual de pagos"</strong></li>
               </ol>
               <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                <a className="primary" href="/settings?tab=cobros">
+                <a className="primary btn-compact btn-noicon" href="/settings?tab=cobros">
                   Ir a Configuración
                 </a>
-                <button className="ghost" type="button" onClick={() => setShowConfigAlert(false)}>
+                <button className="ghost btn-compact btn-noicon" type="button" onClick={() => setShowConfigAlert(false)}>
                   Cancelar
                 </button>
               </div>
