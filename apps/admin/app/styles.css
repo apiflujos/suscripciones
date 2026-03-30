@@ -5584,6 +5584,27 @@ textarea.input {
 .customersPage .billing-card .contact-value {
 }
 
+/* Modal crear suscripción: resultados de búsqueda */
+.customer-search-list {
+  display: grid;
+  gap: 6px;
+}
+
+.customer-search-item {
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--panel);
+}
+
+.customer-search-item:hover {
+  border-color: var(--primary);
+  background: var(--panel-soft);
+}
+
 .contact-footer {
   grid-column: 1 / -1;
   justify-items: start;

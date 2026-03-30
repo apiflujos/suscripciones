@@ -131,8 +131,8 @@ export function NewBillingAssignmentForm({
   const [duplicateCount, setDuplicateCount] = useState(0);
   const [duplicateChecking, setDuplicateChecking] = useState(false);
 
-  const startAtIso = "";
-  const cutoffAtIso = "";
+  const [startAtIso, setStartAtIso] = useState("");
+  const [cutoffAtIso, setCutoffAtIso] = useState("");
 
   const selectedProduct = useMemo(() => {
     if (!productId) return null;
@@ -147,8 +147,16 @@ export function NewBillingAssignmentForm({
     setAllowDuplicate(false);
   }, [customerId, productId, billingType]);
 
-  const intervalUnit = (selectedProduct?.intervalUnit || "MONTH") as "DAY" | "WEEK" | "MONTH" | "CUSTOM";
-  const intervalCount = Number(selectedProduct?.intervalCount || 1);
+  const [intervalUnit, setIntervalUnit] = useState<"DAY" | "WEEK" | "MONTH" | "CUSTOM">("MONTH");
+  const [intervalCount, setIntervalCount] = useState<number>(1);
+
+  useEffect(() => {
+    if (!selectedProduct) return;
+    const unit = (selectedProduct.intervalUnit || "MONTH") as "DAY" | "WEEK" | "MONTH" | "CUSTOM";
+    const count = Number(selectedProduct.intervalCount || 1);
+    setIntervalUnit(unit);
+    setIntervalCount(Number.isFinite(count) && count > 0 ? Math.trunc(count) : 1);
+  }, [selectedProduct]);
 
   useEffect(() => {
     if (!defaultSelectedProductId) return;
@@ -540,12 +548,12 @@ export function NewBillingAssignmentForm({
                   {customerSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{customerSearchError}</div> : null}
                 </div>
                 {customerQ.trim().length >= 2 && (filteredCustomers.length > 0 || filteredEmpresas.length > 0) ? (
-                  <div style={{ display: "grid", gap: 6 }}>
+                  <div className="customer-search-list">
                     {filteredCustomers.slice(0, 6).map((c) => (
                       <button
                         key={`customer-${c.id}`}
                         type="button"
-                        className="ghost btn-noicon"
+                        className="ghost btn-noicon customer-search-item"
                         onClick={() => {
                           setCustomerId(String(c.id));
                           setSelectedCustomerOverride(c);
@@ -553,7 +561,6 @@ export function NewBillingAssignmentForm({
                           setSelectedEmpresaId("");
                           setShowNewCustomer(false);
                         }}
-                        style={{ textAlign: "left" }}
                       >
                         {c.name || c.email || c.id} · {c.metadata?.identificacion || c.email || c.phone || "—"} ·{" "}
                         {(typeof c.metadata?.wompi?.paymentSourceId === "number" && Number.isFinite(c.metadata?.wompi?.paymentSourceId)) ||
@@ -569,7 +576,7 @@ export function NewBillingAssignmentForm({
                       <button
                         key={`empresa-${e.id}`}
                         type="button"
-                        className="ghost btn-noicon"
+                        className="ghost btn-noicon customer-search-item"
                         onClick={() => {
                           setSelectedEmpresaId(String(e.id));
                           setCustomerId("");
@@ -577,7 +584,6 @@ export function NewBillingAssignmentForm({
                           setCustomerQ(String(e.nombre || ""));
                           setShowNewCustomer(false);
                         }}
-                        style={{ textAlign: "left" }}
                       >
                         {e.nombre} · {e.email || e.telefono || "Sin contacto"} ·{" "}
                         {e.contactoPrincipal ? `${e.contactoPrincipal.nombre} · ${e.contactoPrincipal.cargo}` : "Sin contacto principal"}
@@ -585,32 +591,6 @@ export function NewBillingAssignmentForm({
                     ))}
                   </div>
                 ) : null}
-                <select
-                  className="select"
-                  value={customerId}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    setCustomerId(id);
-                    const picked = filteredCustomers.find((c) => String(c.id) === String(id)) || null;
-                    setSelectedCustomerOverride(picked);
-                    setSelectedEmpresaId("");
-                    setShowNewCustomer(false);
-                  }}
-                >
-                  <option value="">Selecciona un contacto…</option>
-                  {filteredCustomers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name || c.email || c.id} · {c.metadata?.identificacion || c.email || c.phone || "—"} ·{" "}
-                      {(typeof c.metadata?.wompi?.paymentSourceId === "number" && Number.isFinite(c.metadata?.wompi?.paymentSourceId)) ||
-                      (typeof c.metadata?.wompi?.paymentSourceId === "string" && /^\d+$/.test(c.metadata?.wompi?.paymentSourceId)) ||
-                      (typeof c.metadata?.wompi?.payment_source_id === "string" && /^\d+$/.test(c.metadata?.wompi?.payment_source_id)) ||
-                      (typeof c.metadata?.paymentSourceId === "string" && /^\d+$/.test(c.metadata?.paymentSourceId)) ||
-                      (typeof c.metadata?.payment_source_id === "string" && /^\d+$/.test(c.metadata?.payment_source_id))
-                        ? "Tokenizada"
-                        : "Sin token"}
-                    </option>
-                  ))}
-                </select>
                 {!customerSearching && filteredCustomers.length === 0 ? (
                   <div className="field-hint">
                     {customerQ.trim().length >= 2 ? "Sin resultados. Prueba con otro término." : "No se encontraron contactos ni empresas."}
@@ -712,6 +692,54 @@ export function NewBillingAssignmentForm({
                     <option value="SUBSCRIPCION">Débito automático</option>
                     <option value="PLAN">Link de pago</option>
                   </select>
+                </div>
+                <div className="field">
+                  <label>Periodicidad</label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <select
+                      className="select"
+                      value={intervalCount}
+                      onChange={(e) => setIntervalCount(Number(e.target.value))}
+                      disabled={!productId}
+                    >
+                      {[1, 2, 3, 6, 12].map((v) => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="select"
+                      value={intervalUnit}
+                      onChange={(e) => setIntervalUnit(e.target.value as any)}
+                      disabled={!productId}
+                    >
+                      <option value="DAY">día(s)</option>
+                      <option value="WEEK">semana(s)</option>
+                      <option value="MONTH">mes(es)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="field">
+                  <label>Inicio del ciclo</label>
+                  <input
+                    className="input"
+                    type="date"
+                    value={startAtIso}
+                    onChange={(e) => setStartAtIso(e.target.value)}
+                    disabled={!productId || !(customerId || selectedEmpresaId)}
+                  />
+                </div>
+                <div className="field">
+                  <label>Fin del primer ciclo</label>
+                  <input
+                    className="input"
+                    type="date"
+                    value={cutoffAtIso}
+                    onChange={(e) => setCutoffAtIso(e.target.value)}
+                    disabled={!productId || !(customerId || selectedEmpresaId)}
+                  />
                 </div>
               </div>
 
