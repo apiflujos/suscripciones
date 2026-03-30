@@ -8,7 +8,6 @@ import { countEmpresasAndContactos } from "./admin/_services/companies";
 import { resolveTenantId } from "./admin/_services/tenantResolver";
 import { MetricsFilters } from "./ui/MetricsFilters";
 import { PageHeaderStandard } from "./ui/PageHeaderStandard";
-import { HelpTip } from "./ui/HelpTip";
 import { AiAssistant } from "./logs/AiAssistant";
 import {
   alignSeries,
@@ -660,10 +659,7 @@ export default async function Home({
                           <path d="M6 9h.01M18 15h.01" />
                         </svg>
                       </span>
-                      <div className="metric-label">
-                        Ingresos totales
-                        <HelpTip text="Suma de pagos aprobados en el rango. Solo cuenta pagos con fecha de pago confirmada." />
-                      </div>
+                      <div className="metric-label">Ingresos totales</div>
                       <div className="metric-value">${fmtMoneyCop(totalRevenue)} COP</div>
                       <div className="metric-sub">
                         <span title="Promedio por pago aprobado (ingresos / pagos aprobados)">
@@ -685,10 +681,7 @@ export default async function Home({
                           <path d="M8 12l3 3 5-6" />
                         </svg>
                       </span>
-                      <div className="metric-label">
-                        Tasa de aprobación
-                        <HelpTip text="Porcentaje de pagos aprobados vs fallidos en el período. Sirve para medir fricción en cobros." />
-                      </div>
+                      <div className="metric-label">Tasa de aprobación</div>
                       <div className="metric-value">{fmtPct(approvalPct)}</div>
                       <div className="metric-sub">
                         <span title="Pagos aprobados y fallidos en el período">
@@ -710,10 +703,7 @@ export default async function Home({
                           <path d="M14 11a5 5 0 0 0-7.1 0L4.8 13.1a5 5 0 0 0 7.1 7.1L14 19" />
                         </svg>
                       </span>
-                      <div className="metric-label">
-                        Conversión link → pago
-                        <HelpTip text="De los links de pago enviados en el rango, cuántos terminaron pagados. Si no se enviaron links, no se calcula." />
-                      </div>
+                      <div className="metric-label">Conversión link → pago</div>
                       <div className="metric-value">{fmtPct(linkConversionPct)}</div>
                       <div className="metric-sub">
                         {hasLinkActivity ? (
@@ -743,10 +733,7 @@ export default async function Home({
                           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                         </svg>
                       </span>
-                      <div className="metric-label">
-                        Suscripciones activas
-                        <HelpTip text="Cantidad de suscripciones vigentes (activa, en mora o suspendida) al cierre del rango." />
-                      </div>
+                      <div className="metric-label">Suscripciones activas</div>
                       <div className="metric-value">{totalActiveSubscriptions}</div>
                       <div className="metric-sub">Δ {activeDelta >= 0 ? "+" : ""}{activeDelta} ({fmtPct(activeDeltaPct)})</div>
                     </div>
@@ -757,10 +744,7 @@ export default async function Home({
                           <polyline points="21 3 21 9 15 9" />
                         </svg>
                       </span>
-                      <div className="metric-label">
-                        MRR automático
-                        <HelpTip text="Ingreso recurrente mensual estimado de suscripciones automáticas activas. Si no hay autosuscripciones, no aplica." />
-                      </div>
+                      <div className="metric-label">MRR automático</div>
                       <div className="metric-value">{autoMrrDisplay == null ? "—" : `$${fmtMoneyCop(autoMrr)} COP`}</div>
                       <div className="metric-sub">
                         {hasAutoActivity ? (
@@ -780,10 +764,7 @@ export default async function Home({
                           <line x1="12" y1="22.08" x2="12" y2="12" />
                         </svg>
                       </span>
-                      <div className="metric-label">
-                        Planes vendidos
-                        <HelpTip text="Suscripciones cuyo primer pago aprobado ocurrió en el rango." />
-                      </div>
+                      <div className="metric-label">Planes vendidos</div>
                       <div className="metric-value">{metricsData?.totals?.totalPlansSold || 0}</div>
                       <div className="metric-sub">
                         Rango: {rangeLabel} ·

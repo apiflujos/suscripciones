@@ -992,7 +992,10 @@ export default async function SettingsPage({
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 <div className="field">
-                  <label>Link de pago</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    Link de pago
+                    <HelpTip text="Se usa cuando envías un link de pago manual o automático." />
+                  </label>
                   <select className="select" name="defaultPlanTemplateId" defaultValue={String(settings?.checkoutConfig?.defaultPlanTemplateId || "")}>
                     <option value="">Sin predeterminada</option>
                     {templates.filter((t: any) => String(t?.kind || "") === "PLAN").map((t: any) => (
@@ -1001,7 +1004,10 @@ export default async function SettingsPage({
                   </select>
                 </div>
                 <div className="field">
-                  <label>Débito automático</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    Débito automático
+                    <HelpTip text="Se usa al enviar cobros recurrentes de suscripción." />
+                  </label>
                   <select className="select" name="defaultSubscriptionTemplateId" defaultValue={String(settings?.checkoutConfig?.defaultSubscriptionTemplateId || "")}>
                     <option value="">Sin predeterminada</option>
                     {templates.filter((t: any) => String(t?.kind || "") === "SUBSCRIPTION").map((t: any) => (
@@ -1010,7 +1016,10 @@ export default async function SettingsPage({
                   </select>
                 </div>
                 <div className="field">
-                  <label>Catálogo</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    Catálogo
+                    <HelpTip text="Se usa al enviar catálogo con selección de productos." />
+                  </label>
                   <select className="select" name="defaultCartTemplateId" defaultValue={String(settings?.checkoutConfig?.defaultCartTemplateId || "")}>
                     <option value="">Sin predeterminada</option>
                     {templates.filter((t: any) => String(t?.kind || "") === "CART").map((t: any) => (

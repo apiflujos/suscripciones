@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
+import { HelpTip } from "../ui/HelpTip";
 
 type LayoutFields = {
   showName?: boolean;
@@ -362,7 +363,10 @@ export function CheckoutTemplatesPanel({
 
           {stepIndex === 0 ? (
             <div style={{ display: "grid", gap: 12 }}>
-              <div className="field-hint">Selecciona el tipo de plantilla.</div>
+              <div className="field-hint" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <strong>Tipo de plantilla</strong>
+                <HelpTip text="Link de pago = cobro único. Suscripción = débito automático. Catálogo = selección de productos." />
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
                 <label
                   className={`card cardPad ${kind === "PLAN" ? "is-active" : ""}`}
@@ -387,7 +391,7 @@ export function CheckoutTemplatesPanel({
                     style={{ display: "none" }}
                   />
                   <strong>Link de pago</strong>
-                  <div className="field-hint">Checkout de pago / link.</div>
+                  <div className="field-hint">Cobro único con link directo.</div>
                 </label>
                 <label
                   className={`card cardPad ${kind === "SUBSCRIPTION" ? "is-active" : ""}`}
@@ -411,7 +415,7 @@ export function CheckoutTemplatesPanel({
                     style={{ display: "none" }}
                   />
                   <strong>Suscripción</strong>
-                  <div className="field-hint">Checkout de débito automático.</div>
+                  <div className="field-hint">Cobro recurrente con débito automático.</div>
                 </label>
                 <label
                   className={`card cardPad ${kind === "CART" ? "is-active" : ""}`}
@@ -435,7 +439,7 @@ export function CheckoutTemplatesPanel({
                     style={{ display: "none" }}
                   />
                   <strong>Catálogo</strong>
-                  <div className="field-hint">Checkout con selección de productos.</div>
+                  <div className="field-hint">Selecciona productos desde el checkout.</div>
                 </label>
               </div>
             </div>
@@ -469,7 +473,10 @@ export function CheckoutTemplatesPanel({
             {stepIndex === 1 ? (
               <div style={{ display: "grid", gap: 10 }}>
                 <div className="field">
-                  <label>Nombre interno</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    Nombre interno
+                    <HelpTip text="Solo visible en el panel. Útil para identificar la plantilla." />
+                  </label>
                   <input
                     className="input"
                     name="name"
@@ -482,7 +489,10 @@ export function CheckoutTemplatesPanel({
                 </div>
                 {requireTenant ? (
                   <div className="field">
-                    <label>Canal de ventas</label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      Canal de ventas
+                      <HelpTip text="Define el tenant/canal que usará esta plantilla." />
+                    </label>
                   <select
                     className="select"
                     value={tenantId}
@@ -535,34 +545,52 @@ export function CheckoutTemplatesPanel({
             {stepIndex === 2 ? (
               <div style={{ display: "grid", gap: 10 }}>
                 <div className="field">
-                  <label>Logo</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    Logo
+                    <HelpTip text="Se muestra en el checkout público." />
+                  </label>
                   <div className="file-row">
                     <input type="file" accept="image/*" onChange={onLogoFile} />
                     {logoUrl ? <img src={logoUrl} alt="Logo" className="logo-preview" /> : null}
                   </div>
                 </div>
                 <div className="field">
-                  <label>Color principal</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    Color principal
+                    <HelpTip text="Color de botones y acentos del checkout." />
+                  </label>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <input type="color" value={primaryColor || "#1f2937"} onChange={(e) => setPrimaryColor(e.target.value)} />
                     <input className="input" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} placeholder="#0ea5e9" />
                   </div>
                 </div>
                 <div className="field">
-                  <label>Tipografía (opcional)</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    Tipografía (opcional)
+                    <HelpTip text="Si la dejas vacía se usa la fuente por defecto." />
+                  </label>
                   <input className="input" value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} placeholder="'Source Sans 3', sans-serif" />
                 </div>
                 <div className="field">
-                  <label>Soporte (email)</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    Soporte (email)
+                    <HelpTip text="Email visible para asistencia del cliente." />
+                  </label>
                   <input className="input" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} placeholder="soporte@tu-dominio.com" />
                 </div>
                 <div className="field">
-                  <label>Soporte (URL)</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    Soporte (URL)
+                    <HelpTip text="URL de soporte (ej: WhatsApp o landing)." />
+                  </label>
                   <input className="input" value={supportUrl} onChange={(e) => setSupportUrl(e.target.value)} placeholder="https://wa.me/57..." />
                 </div>
                 {selectedKind === "PLAN" ? (
                   <div className="field">
-                    <label>Texto del botón de pago</label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      Texto del botón de pago
+                      <HelpTip text="Texto principal del CTA en el checkout." />
+                    </label>
                     <input className="input" value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} placeholder="Pagar" />
                   </div>
                 ) : null}
@@ -573,7 +601,10 @@ export function CheckoutTemplatesPanel({
               <div style={{ display: "grid", gap: 10 }}>
                 {selectedKind === "CART" ? (
                   <div className="field" ref={productsRef}>
-                    <label>Productos del catálogo</label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      Productos del catálogo
+                      <HelpTip text="El catálogo puede mezclar productos, pero todos deben ser del mismo tipo de cobro por producto (link o débito). Define el modo en cada ítem." />
+                    </label>
                     <div style={{ display: "grid", gap: 8 }}>
                       {filteredProducts.map((p) => {
                         const selection = productIds.find((item) => item.id === p.id);
@@ -596,18 +627,23 @@ export function CheckoutTemplatesPanel({
                               />
                               <span>{p.name}</span>
                             </label>
-                            <select
-                              className="select"
-                              value={mode}
-                              disabled={!activeItem}
-                              onChange={(e) => {
-                                const nextMode = String(e.target.value || "AUTO_LINK").toUpperCase() === "AUTO_DEBIT" ? "AUTO_DEBIT" : "AUTO_LINK";
-                                setProductIds(productIds.map((item) => (item.id === p.id ? { ...item, mode: nextMode } : item)));
-                              }}
-                            >
-                              <option value="AUTO_LINK">Link de pago</option>
-                              <option value="AUTO_DEBIT">Débito automático</option>
-                            </select>
+                            <div style={{ display: "grid", gap: 6 }}>
+                              <label className="field-hint" style={{ margin: 0 }}>
+                                Tipo de cobro
+                              </label>
+                              <select
+                                className="select"
+                                value={mode}
+                                disabled={!activeItem}
+                                onChange={(e) => {
+                                  const nextMode = String(e.target.value || "AUTO_LINK").toUpperCase() === "AUTO_DEBIT" ? "AUTO_DEBIT" : "AUTO_LINK";
+                                  setProductIds(productIds.map((item) => (item.id === p.id ? { ...item, mode: nextMode } : item)));
+                                }}
+                              >
+                                <option value="AUTO_LINK">Link de pago</option>
+                                <option value="AUTO_DEBIT">Débito automático</option>
+                              </select>
+                            </div>
                           </div>
                         );
                       })}
@@ -622,7 +658,10 @@ export function CheckoutTemplatesPanel({
                   <div className="field-hint">Este checkout es global y no requiere seleccionar productos.</div>
                 )}
                 <div className="field">
-                  <label>Expiración</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    Expiración
+                    <HelpTip text="Tiempo de validez del checkout público." />
+                  </label>
                   <select className="select" name="expiryHours" value={expiryHours} onChange={(e) => setExpiryHours(e.target.value)}>
                     <option value="1">1 hora</option>
                     <option value="6">6 horas</option>
@@ -633,7 +672,10 @@ export function CheckoutTemplatesPanel({
                 </div>
                 {selectedKind === "PLAN" ? (
                   <div style={{ display: "grid", gap: 8 }}>
-                    <div className="field-hint">Campos visibles en el checkout.</div>
+                    <div className="field-hint" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      Campos visibles en el checkout
+                      <HelpTip text="Solo aplica para link de pago (plan)." />
+                    </div>
                     <label className="field row">
                       <span>Mostrar nombre</span>
                       <input type="checkbox" checked={showName} onChange={(e) => setShowName(e.target.checked)} />
@@ -759,7 +801,7 @@ export function CheckoutTemplatesPanel({
       <div className="panelHeaderRow checkout-templates-header">
         <div className="checkout-templates-header-copy">
           <strong>Plantillas</strong>
-          <div className="field-hint">Wizard para crear plantillas de checkout público.</div>
+          <div className="field-hint">Paso 1: crea plantillas. Paso 2: define predeterminadas abajo.</div>
         </div>
         <div className="checkout-templates-header-actions">
           {editing ? (

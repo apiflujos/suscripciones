@@ -7603,6 +7603,18 @@ textarea.input {
   border-top: 1px solid var(--stroke);
   gap: 8px;
   flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
+  justify-content: flex-end;
+}
+
+.subscription-edit-modal .module-footer .btn-compact {
+  min-width: 124px;
+  padding: 0 16px;
+  line-height: 1;
+  box-sizing: border-box;
+  text-align: center;
+  justify-content: center;
 }
 
 .subscription-edit-modal {

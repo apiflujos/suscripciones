@@ -1,7 +1,6 @@
 import { listEmpresas } from "../admin/_services/companies";
 import { getCsrfToken } from "../lib/csrf";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
-import { HelpTip } from "../ui/HelpTip";
 import { FilterButton } from "../ui/FilterButton";
 import { deleteEmpresa, createEmpresa, updateEmpresa } from "./actions";
 import { EmpresaCreateModal } from "./EmpresaCreateModal";

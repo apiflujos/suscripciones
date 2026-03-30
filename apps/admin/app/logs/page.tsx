@@ -10,7 +10,6 @@ import { LogsFiltersAutoSubmit } from "./LogsFiltersAutoSubmit";
 import { getCsrfToken, assertCsrfToken } from "../lib/csrf";
 import { PendingButton } from "../ui/PendingButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
-import { HelpTip } from "../ui/HelpTip";
 import { ReconcilePaymentModal } from "./ReconcilePaymentModal";
 import { PageHeaderStandard } from "../ui/PageHeaderStandard";
 import { ListCsvActions } from "../ui/ListCsvActions";
