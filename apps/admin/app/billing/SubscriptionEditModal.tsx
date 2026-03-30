@@ -293,7 +293,10 @@ export function SubscriptionEditModal({
               {/* 3. Periodicidad */}
               <section className="card cardPad" style={{ padding: "12px" }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span>Cobrar cada:</span>
+                  <span>
+                    Cobrar cada
+                    <HelpTip text="Define la periodicidad del ciclo (ej. cada 1 mes, cada 2 semanas)." />
+                  </span>
                   <select
                     className="select select-compact"
                     value={intervalCount}
@@ -325,7 +328,10 @@ export function SubscriptionEditModal({
                 <div style={{ display: "grid", gap: 12 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div className="field">
-                      <label className="field-label">Día inicio ciclo</label>
+                      <label className="field-label">
+                        Día inicio ciclo
+                        <HelpTip text="Día del mes en que inicia cada ciclo. Ej: Día 1." />
+                      </label>
                       <select
                         className="select"
                         value={localCycleStartDay}
@@ -337,7 +343,10 @@ export function SubscriptionEditModal({
                       </select>
                     </div>
                     <div className="field">
-                      <label className="field-label">Día de cobro</label>
+                      <label className="field-label">
+                        Día de cobro
+                        <HelpTip text="Día del mes en que se realiza el cobro." />
+                      </label>
                       <select
                         className="select"
                         value={localPaymentDay}
@@ -351,7 +360,10 @@ export function SubscriptionEditModal({
                   </div>
 
                   <div className="field">
-                    <label className="field-label">Tipo de cobro</label>
+                    <label className="field-label">
+                      Tipo de cobro
+                      <HelpTip text="En curso: cobras al final del ciclo. Adelantado: cobras al inicio del ciclo siguiente." />
+                    </label>
                     <select
                       className="select"
                       value={localPaymentTiming}

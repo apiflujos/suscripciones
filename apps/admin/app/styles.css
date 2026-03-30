@@ -12981,6 +12981,12 @@ html[data-contrast="high"] .icon-btn.danger:hover {
   padding: 0 12px;
   font-size: 13px;
   min-width: 100px;
+  line-height: 1.1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .module-footer .btn-compact::before,
