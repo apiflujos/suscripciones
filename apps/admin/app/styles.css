@@ -1963,6 +1963,11 @@ a {
 
 .paymentsPage .page-header-standard-filters .filtersForm {
   flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.paymentsPage .page-header-standard-filters .filtersForm {
+  flex-wrap: nowrap;
 }
 
 .paymentsPage .page-header-standard-views {
@@ -9215,11 +9220,11 @@ textarea.input {
 }
 
 .metricsPage .filtersForm {
-  gap: 12px;
+  gap: 8px;
   width: 100%;
   display: flex;
   align-items: flex-end;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .metricsPage .field {
@@ -9250,15 +9255,26 @@ textarea.input {
 .metricsFiltersGroup {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: nowrap;
 }
 
 .metricsFiltersRight {
-  margin-left: auto;
+  margin-left: 12px;
 }
 
 .metricsFiltersGroup .field {
-  min-width: 120px;
+  min-width: 96px;
+}
+
+/* Métricas: permitir que el bloque de filtros use más ancho en el header */
+.metricsPage .page-header-standard-search {
+  flex: 1 1 720px;
+  max-width: none;
+}
+
+.metricsPage .page-header-standard-search-row {
+  flex-wrap: nowrap;
 }
 
 .metricsPage .filtersForm .select {
@@ -15571,7 +15587,7 @@ html[data-contrast="high"] .toggle::after {
 /* Pagos: forzar 2 filas (override final) */
 .paymentsPage .page-header-standard-row.page-header-standard-row-single {
   display: grid !important;
-  grid-template-columns: minmax(240px, 1fr) minmax(260px, 1fr) auto;
+  grid-template-columns: minmax(320px, 1fr) minmax(380px, 1fr) auto;
   grid-template-areas:
     "search filters right"
     "views smartviews smartviews";
@@ -15589,11 +15605,13 @@ html[data-contrast="high"] .toggle::after {
 
 .paymentsPage .page-header-standard-views {
   grid-area: views;
+  display: none;
 }
 
 .paymentsPage .page-header-standard-smartviews {
   grid-area: smartviews;
   justify-self: start;
+  min-width: 0;
 }
 
 .paymentsPage .page-header-standard-right {
@@ -15619,6 +15637,31 @@ html[data-contrast="high"] .toggle::after {
 .paymentsPage .page-header-standard-smartviews .smartViewsPins {
   flex-wrap: nowrap;
   overflow: hidden;
+}
+
+/* Métricas: header en 2 filas */
+.metricsPage .page-header-standard-row.page-header-standard-row-single {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "search right"
+    "views views";
+  row-gap: 8px;
+  align-items: center;
+}
+
+.metricsPage .page-header-standard-search {
+  grid-area: search;
+}
+
+.metricsPage .page-header-standard-right {
+  grid-area: right;
+  justify-self: end;
+}
+
+.metricsPage .page-header-standard-views {
+  grid-area: views;
+  justify-self: center;
 }
 
 /* SmartViewsBar inline - padding uniforme */
