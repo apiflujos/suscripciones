@@ -198,13 +198,6 @@ export function CheckoutTemplatesPanel({
     setCreateModalOpen(true);
   }
 
-  function openCreateCatalogWizard() {
-    resetWizard();
-    setKind("CART");
-    setStepIndex(1);
-    setCreateModalOpen(true);
-  }
-
   function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -769,9 +762,6 @@ export function CheckoutTemplatesPanel({
           <div className="field-hint">Wizard para crear plantillas de checkout público.</div>
         </div>
         <div className="checkout-templates-header-actions">
-          <button className="ghost" type="button" data-modal="true" data-loader="off" onClick={openCreateCatalogWizard}>
-            Crear catálogo
-          </button>
           {editing ? (
             <button className="ghost btn-cancel" type="button" onClick={resetWizard} data-loader="off">
               Cancelar edición

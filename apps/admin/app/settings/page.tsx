@@ -967,6 +967,22 @@ export default async function SettingsPage({
               returnTo={`/settings?${new URLSearchParams({ tab: "checkout-publico" }).toString()}`}
               onSave={updateCheckoutConfig}
             />
+            <CheckoutTemplatesPanel
+              templates={templates}
+              products={products}
+              tenants={tenants}
+              csrfToken={csrfToken}
+              inlineState={inlineState}
+              initialKind={templateKind === "PLAN" || templateKind === "SUBSCRIPTION" ? (templateKind as any) : ""}
+              initialStep={templateStep === "form" ? "form" : "choose"}
+              actions={{
+                create: createCheckoutTemplate,
+                update: updateCheckoutTemplate,
+                remove: deleteCheckoutTemplate,
+                duplicate: duplicateCheckoutTemplate,
+                defaults: createCheckoutTemplateDefaults
+              }}
+            />
             <form action={updateCheckoutConfig} className="panel module" style={{ display: "grid", gap: 12 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="returnTo" value={`/settings?${new URLSearchParams({ tab: "checkout-publico" }).toString()}`} />
@@ -1009,22 +1025,6 @@ export default async function SettingsPage({
                 </PendingButton>
               </div>
             </form>
-            <CheckoutTemplatesPanel
-              templates={templates}
-              products={products}
-              tenants={tenants}
-              csrfToken={csrfToken}
-              inlineState={inlineState}
-              initialKind={templateKind === "PLAN" || templateKind === "SUBSCRIPTION" ? (templateKind as any) : ""}
-              initialStep={templateStep === "form" ? "form" : "choose"}
-              actions={{
-                create: createCheckoutTemplate,
-                update: updateCheckoutTemplate,
-                remove: deleteCheckoutTemplate,
-                duplicate: duplicateCheckoutTemplate,
-                defaults: createCheckoutTemplateDefaults
-              }}
-            />
           </div>
         </section>
       ) : null}
