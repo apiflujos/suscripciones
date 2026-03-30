@@ -5516,7 +5516,7 @@ textarea.input {
 
 .customersPage .billing-card .contact-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 180px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 4px;
   align-items: start;
 }
@@ -5553,6 +5553,10 @@ textarea.input {
   gap: 2px;
 }
 
+.customersPage .billing-card .contact-footer {
+  gap: 4px;
+}
+
 .customersPage .billing-card .paylink-actions {
   gap: 3px;
 }
@@ -5564,7 +5568,7 @@ textarea.input {
 }
 
 .customersPage .billing-card .contact-right {
-  min-width: 180px;
+  min-width: 0;
 }
 
 .customersPage .billing-card .contact-block-title {
