@@ -5499,25 +5499,26 @@ textarea.input {
 
 /* Compactar cards de contactos (igual altura que billing) */
 .customersPage .billing-card {
-  padding: 6px;
-  gap: 3px;
+  padding: 4px;
+  gap: 2px;
 }
 
 .customersPage .billing-card .billing-header {
-  padding-bottom: 2px;
-  margin-bottom: 2px;
+  padding-bottom: 1px;
+  margin-bottom: 1px;
+  gap: 4px;
 }
 
 .customersPage .billing-card .contact-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 180px);
-  gap: 6px;
+  gap: 4px;
   align-items: start;
 }
 
 .customersPage .billing-card .contact-block {
-  padding: 3px;
-  gap: 2px;
+  padding: 2px;
+  gap: 1px;
   height: auto;
   align-content: start;
 }
@@ -5543,12 +5544,12 @@ textarea.input {
 }
 
 .customersPage .billing-card .contact-paylink {
-  padding: 3px 4px;
+  padding: 2px 3px;
   gap: 2px;
 }
 
 .customersPage .billing-card .paylink-actions {
-  gap: 4px;
+  gap: 3px;
 }
 
 .customersPage .billing-card .contact-paylink .btn-compact,
