@@ -12368,6 +12368,12 @@ body.is-global-loading {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.send-product-actions .btn-send {
+  height: 32px;
 }
 
 .send-product-summary {

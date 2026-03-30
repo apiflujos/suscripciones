@@ -898,12 +898,15 @@ export function ProductsTable({
                 </div>
                 <div className="send-product-actions">
                   <button
-                    className="primary btn-send"
+                    className="primary btn-compact btn-send"
                     type="submit"
                     disabled={!sendCustomerId || !canSendPaymentLink}
                   >
                     Enviar link de pago
                   </button>
+                  {!sendCustomerId ? (
+                    <div className="field-hint">Selecciona un contacto para habilitar el envío.</div>
+                  ) : null}
                   {!canSendPaymentLink ? (
                     <div className="field-hint ui-alert-danger">
                       No hay plantilla activa para link de pago en Notificaciones.
