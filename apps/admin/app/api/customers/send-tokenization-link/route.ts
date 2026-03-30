@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiSession } from "../../_lib/requireApiSession";
 import { getCheckoutConfig } from "../../../admin/_services/settings";
+import { getActiveCheckoutTemplates } from "../../../admin/_services/checkoutTemplates";
 import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
 import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { signPublicToken } from "../../../../lib/publicTokens";
@@ -36,6 +37,17 @@ export async function POST(req: Request) {
   }
 
   const checkoutConfig = await getCheckoutConfig();
+  const defaultTemplateId = String((checkoutConfig as any)?.defaultSubscriptionTemplateId || "").trim();
+  let resolvedTemplateId = templateId;
+  if (!resolvedTemplateId) {
+    const items = await getActiveCheckoutTemplates({ tenantId: String(body?.tenantId || "").trim() || null, kind: "SUBSCRIPTION" as any });
+    const selected =
+      (defaultTemplateId ? items?.find((t: any) => String(t?.id || "") === defaultTemplateId) : null) ||
+      items?.[0] ||
+      null;
+    resolvedTemplateId = selected ? String((selected as any).id || "") : "";
+  }
+  if (!resolvedTemplateId) return NextResponse.json({ ok: false, error: "missing_subscription_template" }, { status: 400 });
   const baseFromSettings = String(checkoutConfig.subscriptionBaseUrl || "").trim();
   const base = baseFromSettings.replace(/\/$/, "");
   if (!base) return NextResponse.json({ ok: false, error: "missing_subscription_base_url" }, { status: 400 });
@@ -67,7 +79,7 @@ export async function POST(req: Request) {
       ...(prevMeta?.tokenizationLink?.expiresAt ? { previousExpiresAt: prevMeta.tokenizationLink.expiresAt } : {}),
       ...(prevMeta?.tokenizationLink?.usedAt ? { previousUsedAt: prevMeta.tokenizationLink.usedAt } : {}),
       ...(prevMeta?.tokenizationLink?.createdAt ? { previousCreatedAt: prevMeta.tokenizationLink.createdAt } : {}),
-      ...(templateId ? { templateId } : {}),
+      ...(resolvedTemplateId ? { templateId: resolvedTemplateId } : {}),
       createdAt: new Date().toISOString(),
       expiresAt,
       usedAt: null

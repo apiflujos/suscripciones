@@ -102,6 +102,7 @@ export function CustomersTable({
   const [linkOverrides, setLinkOverrides] = useState<Record<string, { payment?: string; token?: string; cart?: string }>>({});
   const [cartTemplateByCustomer, setCartTemplateByCustomer] = useState<Record<string, string>>({});
   const [tokenTemplateByCustomer, setTokenTemplateByCustomer] = useState<Record<string, string>>({});
+  const [payTemplateByCustomer, setPayTemplateByCustomer] = useState<Record<string, string>>({});
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planModalCustomer, setPlanModalCustomer] = useState<CustomerRow | null>(null);
   const [cartModalOpen, setCartModalOpen] = useState(false);
@@ -121,6 +122,9 @@ export function CustomersTable({
   const planBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
   const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
   const publicBaseUrl = String(checkoutConfig?.planBaseUrl || checkoutConfig?.subscriptionBaseUrl || "").trim();
+  const defaultPlanTemplateId = String(checkoutConfig?.defaultPlanTemplateId || "").trim();
+  const defaultSubscriptionTemplateId = String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim();
+  const defaultCartTemplateId = String(checkoutConfig?.defaultCartTemplateId || "").trim();
   const missingSubBase = !subscriptionBaseUrl;
   const missingPublicBase = !publicBaseUrl;
 
@@ -207,19 +211,26 @@ export function CustomersTable({
   function resolveCartTemplate(customerId: string, mode?: "PLAN" | "SUBSCRIPTION") {
     const chosen = cartTemplateByCustomer[customerId];
     if (chosen) return chosen;
-    const first = checkoutTemplates.find((t: any) => {
-      if (String(t?.kind || "") !== "CART") return false;
-      if (!mode) return true;
-      const inferred = inferTemplateMode(t);
-      return inferred !== "MIXED" && inferred === mode;
-    });
+    const fromDefault = checkoutTemplates.find((t: any) => String(t?.id || "") === defaultCartTemplateId && String(t?.kind || "") === "CART");
+    if (fromDefault) return String(fromDefault.id);
+    const first = checkoutTemplates.find((t: any) => String(t?.kind || "") === "CART");
     return first?.id || "";
   }
 
   function resolveTokenTemplate(customerId: string) {
     const chosen = tokenTemplateByCustomer[customerId];
     if (chosen) return chosen;
-    return "";
+    const fromDefault = checkoutTemplates.find((t: any) => String(t?.id || "") === defaultSubscriptionTemplateId && String(t?.kind || "") === "SUBSCRIPTION");
+    if (fromDefault) return String(fromDefault.id);
+    return checkoutTemplates.find((t: any) => String(t?.kind || "") === "SUBSCRIPTION")?.id || "";
+  }
+
+  function resolvePayTemplate(customerId: string) {
+    const chosen = payTemplateByCustomer[customerId];
+    if (chosen) return chosen;
+    const fromDefault = checkoutTemplates.find((t: any) => String(t?.id || "") === defaultPlanTemplateId && String(t?.kind || "") === "PLAN");
+    if (fromDefault) return String(fromDefault.id);
+    return checkoutTemplates.find((t: any) => String(t?.kind || "") === "PLAN")?.id || "";
   }
 
 
@@ -407,6 +418,10 @@ export function CustomersTable({
         return "Falta configurar la URL base de plan en Checkout público.";
       case "missing_cart_template":
         return "No hay plantillas de catálogo activas. Crea una en Checkout público.";
+      case "missing_plan_template":
+        return "No hay plantillas de link de pago activas. Crea una en Checkout público.";
+      case "missing_subscription_template":
+        return "No hay plantillas de suscripción activas. Crea una en Checkout público.";
       case "missing_template":
         return "Selecciona una plantilla antes de enviar.";
       case "no_rules":
@@ -856,7 +871,8 @@ export function CustomersTable({
                       customerId: customer.id,
                       customerName: customer.name || "",
                       amount: payAmount,
-                      tenantId: customer.tenantId || ""
+                      tenantId: customer.tenantId || "",
+                      templateId: resolvePayTemplate(customer.id)
                     }),
                     signal: controller.signal
                   });
@@ -913,6 +929,46 @@ export function CustomersTable({
                 />
               </div>
               <div className="field">
+                <label>Plantilla de checkout</label>
+                <select
+                  className="select"
+                  value={resolvePayTemplate(payModalCustomer.id)}
+                  onChange={(e) =>
+                    setPayTemplateByCustomer((prev) => ({
+                      ...prev,
+                      [payModalCustomer.id]: e.target.value
+                    }))
+                  }
+                  required
+                >
+                  {checkoutTemplates
+                    .filter((t: any) => String(t?.kind || "") === "PLAN")
+                    .map((t: any) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                </select>
+                {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "PLAN").length === 0 ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    No hay plantillas de link de pago configuradas.
+                  </div>
+                ) : null}
+                {missingPublicBase ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    Falta configurar la URL base de checkout público.
+                  </div>
+                ) : null}
+              </div>
+              {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "PLAN").length === 0 ? (
+                <div className="card cardPad" style={{ borderColor: "var(--danger)", display: "grid", gap: 8 }}>
+                  <div>Debes crear una plantilla de link de pago antes de enviar.</div>
+                  <a className="primary btn-compact btn-noicon" href="/settings?tab=checkout-publico&kind=PLAN&step=form" data-loader="off">
+                    Crear plantilla de link de pago
+                  </a>
+                </div>
+              ) : null}
+              <div className="field">
                 <label>Plantilla de mensaje</label>
                 <textarea
                   className="input"
@@ -950,7 +1006,17 @@ export function CustomersTable({
                 <button className="ghost btn-cancel" type="button" onClick={closePayModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
-                <button className="primary btn-compact btn-send" type="submit" disabled={!payAmount || !canSendPay}>
+                <button
+                  className="primary btn-compact btn-send"
+                  type="submit"
+                  disabled={
+                    !payAmount ||
+                    !canSendPay ||
+                    !resolvePayTemplate(payModalCustomer.id) ||
+                    checkoutTemplates.filter((t: any) => String(t?.kind || "") === "PLAN").length === 0 ||
+                    missingPublicBase
+                  }
+                >
                   Enviar
                 </button>
               </div>
@@ -1067,11 +1133,7 @@ export function CustomersTable({
                   required
                 >
                   {checkoutTemplates
-                    .filter((t: any) => {
-                      if (String(t?.kind || "") !== "CART") return false;
-                      const mode = inferTemplateMode(t);
-                      return mode === "MIXED" ? false : mode === cartModalMode;
-                    })
+                    .filter((t: any) => String(t?.kind || "") === "CART")
                     .map((t: any) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
@@ -1083,18 +1145,13 @@ export function CustomersTable({
                     No hay plantillas de catálogo configuradas.
                   </div>
                 ) : null}
-                {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "CART" && inferTemplateMode(t) === cartModalMode).length === 0 ? (
-                  <div className="field-hint" style={{ color: "var(--danger)" }}>
-                    No hay plantillas de catálogo para {cartModalMode === "PLAN" ? "link de pago" : "débito automático"}.
-                  </div>
-                ) : null}
                 {missingPublicBase ? (
                   <div className="field-hint" style={{ color: "var(--danger)" }}>
                     Falta configurar la URL pública base en Checkout público.
                   </div>
                 ) : null}
               </div>
-              {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "CART" && inferTemplateMode(t) === cartModalMode).length === 0 ? (
+              {checkoutTemplates.filter((t: any) => String(t?.kind || "") === "CART").length === 0 ? (
                 <div className="card cardPad" style={{ borderColor: "var(--danger)", display: "grid", gap: 8 }}>
                   <div>Debes crear una plantilla de catálogo antes de enviar.</div>
                   <a className="primary btn-compact btn-noicon" href="/settings?tab=checkout-publico&kind=CART&step=form" data-loader="off">
@@ -1134,7 +1191,12 @@ export function CustomersTable({
                 <button
                   className="primary btn-compact btn-send"
                   type="submit"
-                  disabled={missingPublicBase || !resolveCartTemplate(cartModalCustomer.id, cartModalMode) || !canSendNotif}
+                  disabled={
+                    missingPublicBase ||
+                    !resolveCartTemplate(cartModalCustomer.id, cartModalMode) ||
+                    !canSendNotif ||
+                    checkoutTemplates.filter((t: any) => String(t?.kind || "") === "CART").length === 0
+                  }
                 >
                   Enviar
                 </button>
@@ -1229,7 +1291,6 @@ export function CustomersTable({
                     }))
                   }
                 >
-                  <option value="">Selecciona una plantilla</option>
                   {checkoutTemplates
                     .filter((t: any) => String(t?.kind || "") === "SUBSCRIPTION")
                     .map((t: any) => (
@@ -1295,7 +1356,16 @@ export function CustomersTable({
                 <button className="ghost btn-cancel" type="button" onClick={closeTokenModal} data-modal-close="true" data-loader="off">
                   Cancelar
                 </button>
-                <button className="primary btn-compact btn-send" type="submit" disabled={!resolveTokenTemplate(tokenModalCustomer.id) || missingSubBase || !canSendNotif}>
+                <button
+                  className="primary btn-compact btn-send"
+                  type="submit"
+                  disabled={
+                    !resolveTokenTemplate(tokenModalCustomer.id) ||
+                    missingSubBase ||
+                    !canSendNotif ||
+                    checkoutTemplates.filter((t: any) => String(t?.kind || "") === "SUBSCRIPTION").length === 0
+                  }
+                >
                   Enviar
                 </button>
               </div>

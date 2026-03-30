@@ -84,7 +84,11 @@ export async function POST(req: Request) {
       let templateName: string | null = null;
       if (!resolvedTemplateId) {
         const items = await getActiveCheckoutTemplates({ tenantId: tenantId || null, kind: "PLAN" as any });
-        const selected = items?.[0] || null;
+        const defaultTemplateId = String((checkoutConfig as any)?.defaultPlanTemplateId || "").trim();
+        const selected =
+          (defaultTemplateId ? items?.find((t: any) => String(t?.id || "") === defaultTemplateId) : null) ||
+          items?.[0] ||
+          null;
         resolvedTemplateId = selected ? String((selected as any).id || "") : "";
         templateName = selected ? String((selected as any).name || "") : null;
       } else {
@@ -99,6 +103,10 @@ export async function POST(req: Request) {
       const baseUrl = `${normalized}${hasPlanPath ? "" : "/public/plan"}/${tokenValue}`;
       const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
       publicUrl = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
+
+      if (!resolvedTemplateId) {
+        return NextResponse.json({ ok: false, error: "missing_plan_template" }, { status: 400 });
+      }
 
       const customer = await getCustomerById(customerId);
       if (!customer) return NextResponse.json({ ok: false, error: "customer_not_found" }, { status: 404 });

@@ -59,15 +59,17 @@ export async function POST(req: Request) {
 
   const checkoutConfig = await getCheckoutConfig();
   const baseFromSettings =
-    String((catalogType === "SUBSCRIPTION" ? checkoutConfig?.subscriptionBaseUrl : checkoutConfig?.planBaseUrl) || "").trim() ||
-    String(checkoutConfig?.planBaseUrl || checkoutConfig?.subscriptionBaseUrl || "").trim();
+    String(checkoutConfig?.planBaseUrl || "").trim() ||
+    String(checkoutConfig?.subscriptionBaseUrl || "").trim();
   const base = baseFromSettings.replace(/\/$/, "");
   if (!base) return NextResponse.json({ ok: false, error: "missing_public_base_url" }, { status: 400 });
 
   const templates = await getActiveCheckoutTemplates({ tenantId: tenantId || null, kind: "CART" as any });
   const cartTemplates = templates.filter((t: any) => String(t?.kind || "") === "CART" && Boolean(t?.active));
+  const defaultTemplateId = String((checkoutConfig as any)?.defaultCartTemplateId || "").trim();
   const selectedTemplate =
     (templateIdInput ? cartTemplates.find((t: any) => String(t?.id || "") === templateIdInput) : null) ||
+    (defaultTemplateId ? cartTemplates.find((t: any) => String(t?.id || "") === defaultTemplateId) : null) ||
     cartTemplates[0] ||
     null;
   if (!selectedTemplate) {

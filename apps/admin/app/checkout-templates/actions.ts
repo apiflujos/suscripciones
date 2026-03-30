@@ -58,11 +58,6 @@ export async function createCheckoutTemplate(formData: FormData) {
       return redirectWith("checkout_template_create", "fail", "tenant_required");
     }
 
-    const existing = await listCheckoutTemplates({ tenantId });
-    if (existing.some((t: any) => String(t.kind) === kind)) {
-      return redirectWith("checkout_template_create", "fail", "already_exists");
-    }
-
     const allowProductSelect = kind === "CART" ? String(formData.get("allowProductSelect") || "") === "on" : false;
     const productIds = kind === "CART" ? parseProductIds(String(formData.get("productIds") || "")) : [];
     if (kind === "CART" && !productIds.length) {

@@ -25,7 +25,10 @@ export async function getCheckoutConfig() {
     subscriptionBaseUrl: storedSubscriptionBaseUrl || envBases.subscriptionBaseUrl,
     defaultUtmParams: String(checkoutConfig?.defaultUtmParams || ""),
     tokenExpiryHours: Number(checkoutConfig?.tokenExpiryHours || 24),
-    timeZone: timeZone || "America/Bogota"
+    timeZone: timeZone || "America/Bogota",
+    defaultPlanTemplateId: String(checkoutConfig?.defaultPlanTemplateId || "").trim(),
+    defaultSubscriptionTemplateId: String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim(),
+    defaultCartTemplateId: String(checkoutConfig?.defaultCartTemplateId || "").trim()
   };
 }
 
@@ -258,6 +261,9 @@ export async function getAdminSettings() {
       planBaseUrl: storedPlanBaseUrl || envBases.planBaseUrl,
       subscriptionBaseUrl: storedSubscriptionBaseUrl || envBases.subscriptionBaseUrl,
       defaultUtmParams: checkoutConfig.defaultUtmParams || "",
+      defaultPlanTemplateId: String(checkoutConfig?.defaultPlanTemplateId || "").trim(),
+      defaultSubscriptionTemplateId: String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim(),
+      defaultCartTemplateId: String(checkoutConfig?.defaultCartTemplateId || "").trim(),
       tokenExpiryHours:
         Number.isFinite(Number(checkoutConfig.tokenExpiryHours)) && Number(checkoutConfig.tokenExpiryHours) > 0
           ? Number(checkoutConfig.tokenExpiryHours)
