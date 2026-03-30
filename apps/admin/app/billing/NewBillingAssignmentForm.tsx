@@ -151,14 +151,6 @@ export function NewBillingAssignmentForm({
   const [intervalCount, setIntervalCount] = useState<number>(1);
 
   useEffect(() => {
-    if (!selectedProduct) return;
-    const unit = (selectedProduct.intervalUnit || "MONTH") as "DAY" | "WEEK" | "MONTH" | "CUSTOM";
-    const count = Number(selectedProduct.intervalCount || 1);
-    setIntervalUnit(unit);
-    setIntervalCount(Number.isFinite(count) && count > 0 ? Math.trunc(count) : 1);
-  }, [selectedProduct]);
-
-  useEffect(() => {
     if (!defaultSelectedProductId) return;
     if (productId && String(productId) === String(defaultSelectedProductId)) return;
     setProductId(defaultSelectedProductId);

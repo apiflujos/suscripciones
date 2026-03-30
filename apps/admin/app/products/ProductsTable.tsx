@@ -24,19 +24,6 @@ function formatMoneyFromCents(cents: number, currency: string) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(pesos);
 }
 
-function getCollectionModeLabel(mode?: string | null) {
-  return String(mode || "").toUpperCase() === "AUTO_DEBIT" ? "Débito automático" : "Link de pago";
-}
-
-function formatRecurrence(unit?: "DAY" | "WEEK" | "MONTH" | "CUSTOM", count?: number) {
-  const n = Math.max(1, Number(count || 1));
-  const u = String(unit || "MONTH").toUpperCase();
-  if (u === "DAY") return `${n} ${n === 1 ? "día" : "días"}`;
-  if (u === "WEEK") return `${n} ${n === 1 ? "semana" : "semanas"}`;
-  if (u === "MONTH") return `${n} ${n === 1 ? "mes" : "meses"}`;
-  return `${n} ${n === 1 ? "ciclo" : "ciclos"}`;
-}
-
 type ProductRow = {
   id: string;
   sku: string;
@@ -47,8 +34,6 @@ type ProductRow = {
   kind: "PRODUCT" | "SERVICE";
   currency: string;
   basePriceInCents: number;
-  intervalUnit?: "DAY" | "WEEK" | "MONTH" | "CUSTOM";
-  intervalCount?: number;
   taxPercent?: number;
   discountType?: "NONE" | "FIXED" | "PERCENT";
   discountValueInCents?: number;
@@ -63,7 +48,6 @@ type ProductRow = {
   option2Name?: string | null;
   variants?: Array<{ option1?: string | null; option2?: string | null; priceDeltaInCents: number }> | null;
   imageUrl?: string | null;
-  collectionMode?: string | null;
   activeSubscriptions?: number;
   pastDueSubscriptions?: number;
   totalSubscriptions?: number;
@@ -126,12 +110,9 @@ export function ProductsTable({
   const [priceCop, setPriceCop] = useState("");
   const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
   const [taxPercent, setTaxPercent] = useState("0");
-  const [intervalUnit, setIntervalUnit] = useState<"DAY" | "WEEK" | "MONTH" | "CUSTOM">("MONTH");
-  const [intervalCount, setIntervalCount] = useState("1");
   const [discountType, setDiscountType] = useState<"NONE" | "FIXED" | "PERCENT">("NONE");
   const [discountCop, setDiscountCop] = useState("");
   const [discountPercent, setDiscountPercent] = useState("0");
-  const [collectionMode, setCollectionMode] = useState<"AUTO_LINK" | "AUTO_DEBIT">("AUTO_LINK");
   const [requiresShipping, setRequiresShipping] = useState(false);
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
   const [primaryTenantId, setPrimaryTenantId] = useState("");
@@ -167,9 +148,6 @@ export function ProductsTable({
     setDiscountType((item.discountType as any) || "NONE");
     setDiscountCop(formatMoneyFromCents(Number(item.discountValueInCents || 0), normalizedCurrency));
     setDiscountPercent(String(item.discountPercent ?? 0));
-    setCollectionMode(String(item.collectionMode || "AUTO_LINK") as any);
-    setIntervalUnit((item.intervalUnit as any) || "MONTH");
-    setIntervalCount(String(item.intervalCount || 1));
     setRequiresShipping(Boolean(item.requiresShipping));
     setOption1Name(item.option1Name || "");
     setOption2Name(item.option2Name || "");
@@ -235,12 +213,10 @@ export function ProductsTable({
   function openViewLinks(item: ProductRow) {
     lastActiveRef.current = document.activeElement as HTMLElement | null;
     const links: Array<{ label: string; url: string; isValid: boolean }> = [];
-    
-    // Payment/Subscription link based on collection mode
-    const isAutoDebit = String(item.collectionMode || "").toUpperCase() === "AUTO_DEBIT";
+
     links.push({
-      label: isAutoDebit ? "Link de suscripción" : "Link de pago",
-      url: `${window.location.origin}/public/${isAutoDebit ? "suscripcion" : "plan"}/${item.id}`,
+      label: "Link de pago",
+      url: `${window.location.origin}/public/plan/${item.id}`,
       isValid: true
     });
     
@@ -556,24 +532,8 @@ export function ProductsTable({
 
         <div className="entity-card-grid">
           <div>
-            <div className="field-hint">Tipo de cobro</div>
-            <div>
-              <span
-                className={`pill pill-sm ${
-                  String(p.collectionMode || "").toUpperCase() === "AUTO_DEBIT" ? "pill-ok" : "pill-muted"
-                }`}
-              >
-                {getCollectionModeLabel(p.collectionMode)}
-              </span>
-            </div>
-          </div>
-          <div>
             <div className="field-hint">Canal</div>
             <div>{p.tenantName || "—"}</div>
-          </div>
-          <div>
-            <div className="field-hint">Recurrencia</div>
-            <div>{p.intervalUnit ? formatRecurrence(p.intervalUnit, p.intervalCount) : "—"}</div>
           </div>
         </div>
 
@@ -607,7 +567,6 @@ export function ProductsTable({
           <div className="product-list-header">
             <span>Producto</span>
             <span>Precio</span>
-            <span>Recurrencia</span>
             <span>Suscripciones</span>
             <span>Acciones</span>
           </div>
@@ -623,9 +582,6 @@ export function ProductsTable({
               </div>
               <div className="product-list-cell">
                 <div className="product-price">{formatMoneyFromCents(p.basePriceInCents, String(p.currency || DEFAULT_CURRENCY))}</div>
-              </div>
-              <div className="product-list-cell">
-                <div className="product-stock">{p.intervalUnit ? formatRecurrence(p.intervalUnit, p.intervalCount) : "—"}</div>
               </div>
               <div className="product-list-cell">
                 <div className="product-stock">Activas: {Number(p.activeSubscriptions || 0)}</div>
@@ -910,8 +866,6 @@ export function ProductsTable({
                 <input key={id} type="hidden" name="tenantIds" value={id} />
               ))}
               <input type="hidden" name="imageUrl" value={imageUrl} />
-              <input type="hidden" name="intervalUnit" value={intervalUnit} />
-              <input type="hidden" name="intervalCount" value={intervalCount} />
 
               <div className="field">
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -922,14 +876,6 @@ export function ProductsTable({
                   <option value="PRODUCT">Producto</option>
                   <option value="SERVICE">Servicio</option>
                 </select>
-              </div>
-              <div className="field">
-                <label>Tipo de cobro</label>
-                <select className="select" name="collectionMode" value={collectionMode} onChange={(e) => setCollectionMode(e.target.value as any)}>
-                  <option value="AUTO_LINK">Link de pago</option>
-                  <option value="AUTO_DEBIT">Débito automático</option>
-                </select>
-                <div className="field-hint">Define si este producto se cobra por link de pago o débito automático.</div>
               </div>
 
               <div className="ui-grid-2-wide">
@@ -1009,27 +955,6 @@ export function ProductsTable({
                 <div className="field">
                   <label>Etiquetas</label>
                   <input className="input" name="tags" value={tags} onChange={(e) => setTags(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="ui-grid-4">
-                <div className="field">
-                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span>Unidad de recurrencia</span>
-                    <HelpTip text="Cada cuánto se cobra este plan/producto." />
-                  </label>
-                  <select className="select" value={intervalUnit} onChange={(e) => setIntervalUnit(e.target.value as any)}>
-                    <option value="DAY">Día</option>
-                    <option value="WEEK">Semana</option>
-                    <option value="MONTH">Mes</option>
-                  </select>
-                </div>
-                <div className="field">
-                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span>Cada (cantidad)</span>
-                    <HelpTip text="Número de unidades entre cobros." />
-                  </label>
-                  <input className="input" value={intervalCount} onChange={(e) => setIntervalCount(e.target.value)} inputMode="numeric" />
                 </div>
               </div>
 

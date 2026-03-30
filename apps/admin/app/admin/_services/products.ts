@@ -69,7 +69,6 @@ export async function createCatalogProduct(args: {
           sku,
           displayName: args.name,
           itemKind: args.kind || "PRODUCT",
-          collectionMode: (args.metadata as any)?.collectionMode || "AUTO_LINK",
           description: args.description || null,
           vendor: args.vendor || null,
           productType: args.productType || null,
@@ -294,7 +293,7 @@ export async function updateCatalogProduct(args: {
     sku: skuNormalized || args.sku,
     displayName: args.name,
     itemKind: args.kind,
-    collectionMode: (args.metadata as any)?.collectionMode || (existing.metadata as any)?.collectionMode || "AUTO_LINK",
+    collectionMode: null,
     description: args.description || null,
     vendor: args.vendor || null,
     productType: args.productType || null,
@@ -312,10 +311,6 @@ export async function updateCatalogProduct(args: {
     imageUrl: normalizeImageUrl(args.imageUrl)
   };
 
-  const intervalUnit = args.intervalUnit ?? PlanIntervalUnit.MONTH;
-  const intervalCountRaw = Number(args.intervalCount ?? 1);
-  const intervalCount = Number.isFinite(intervalCountRaw) && intervalCountRaw > 0 ? Math.trunc(intervalCountRaw) : 1;
-
   const updated = await prisma.subscriptionPlan.update({
     where: { id },
     data: {
@@ -323,8 +318,6 @@ export async function updateCatalogProduct(args: {
       name: `[${skuNormalized || args.sku}] ${args.name}`,
       currency: args.currency,
       priceInCents: args.basePriceInCents,
-      intervalUnit,
-      intervalCount,
       metadata: mergedMetadata as any
     }
   });
@@ -370,8 +363,6 @@ export async function updateCatalogProduct(args: {
           where: { id: plan.id },
           data: {
             priceInCents: totals.totalInCents,
-            intervalUnit,
-            intervalCount,
             metadata: nextMeta as any
           }
         });

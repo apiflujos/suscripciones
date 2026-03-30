@@ -100,9 +100,6 @@ export async function createProduct(formData: FormData) {
   const kind = String(formData.get("kind") || "PRODUCT").trim();
   const currency = normalizeSupportedCurrency(String(formData.get("currency") || DEFAULT_CURRENCY));
   const basePriceInCents = pesosToCents(String(formData.get("basePricePesos") || ""));
-  const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
-  const intervalCountRaw = Number(String(formData.get("intervalCount") || "1"));
-  const intervalCount = Number.isFinite(intervalCountRaw) && intervalCountRaw > 0 ? Math.trunc(intervalCountRaw) : 1;
   const taxPercent = Number(String(formData.get("taxPercent") || "0"));
   const discountType = String(formData.get("discountType") || "NONE").trim();
   const discountValueInCents = pesosToCents(String(formData.get("discountValuePesos") || ""));
@@ -118,7 +115,6 @@ export async function createProduct(formData: FormData) {
   const option2Name = String(formData.get("option2Name") || "").trim();
   const variantsJson = String(formData.get("variantsJson") || "").trim();
   const imageUrl = String(formData.get("imageUrl") || "").trim();
-  const collectionMode = String(formData.get("collectionMode") || "AUTO_LINK").trim();
   const tenantIds = readTenantIds(formData);
   if (!name || !sku || basePriceInCents <= 0) {
     return redirect(mergeQuery(returnTo, { error: "invalid_body" }));
@@ -140,8 +136,6 @@ export async function createProduct(formData: FormData) {
       kind: kind === "SERVICE" ? "SERVICE" : "PRODUCT",
       currency,
       basePriceInCents,
-      intervalUnit: intervalUnit as any,
-      intervalCount,
       taxPercent,
       discountType,
       discountValueInCents,
@@ -154,7 +148,6 @@ export async function createProduct(formData: FormData) {
       taxable,
       requiresShipping,
       metadata: {
-        collectionMode,
         imageUrl: imageUrl || null,
         option1Name: option1Name || null,
         option2Name: option2Name || null,
@@ -181,9 +174,6 @@ export async function updateProduct(formData: FormData) {
   const kind = String(formData.get("kind") || "PRODUCT").trim();
   const currency = normalizeSupportedCurrency(String(formData.get("currency") || DEFAULT_CURRENCY));
   const basePriceInCents = pesosToCents(String(formData.get("basePricePesos") || ""));
-  const intervalUnit = String(formData.get("intervalUnit") || "MONTH").trim();
-  const intervalCountRaw = Number(String(formData.get("intervalCount") || "1"));
-  const intervalCount = Number.isFinite(intervalCountRaw) && intervalCountRaw > 0 ? Math.trunc(intervalCountRaw) : 1;
   const taxPercent = Number(String(formData.get("taxPercent") || "0"));
   const discountType = String(formData.get("discountType") || "NONE").trim();
   const discountValueInCents = pesosToCents(String(formData.get("discountValuePesos") || ""));
@@ -199,7 +189,6 @@ export async function updateProduct(formData: FormData) {
   const option2Name = String(formData.get("option2Name") || "").trim();
   const variantsJson = String(formData.get("variantsJson") || "").trim();
   const imageUrl = String(formData.get("imageUrl") || "").trim();
-  const collectionMode = String(formData.get("collectionMode") || "AUTO_LINK").trim();
 
   let variants: any[] | undefined;
   if (variantsJson) {
@@ -225,8 +214,6 @@ export async function updateProduct(formData: FormData) {
       kind: kind === "SERVICE" ? "SERVICE" : "PRODUCT",
       currency,
       basePriceInCents,
-      intervalUnit: intervalUnit as any,
-      intervalCount,
       taxPercent,
       discountType,
       discountValueInCents,
@@ -241,10 +228,7 @@ export async function updateProduct(formData: FormData) {
       option1Name: option1Name || null,
       option2Name: option2Name || null,
       variants: variants || null,
-      imageUrl: imageUrl || null,
-      metadata: {
-        collectionMode
-      }
+      imageUrl: imageUrl || null
     });
     if (!updated.ok) throw new Error(updated.error);
     redirect(mergeQuery(returnTo, { updated: "1", ...(tenantId ? { tenantId } : {}) }));

@@ -12046,7 +12046,7 @@ body.is-global-loading {
 
 .product-list-header {
   display: grid;
-  grid-template-columns: 1.4fr 0.8fr 0.8fr 0.7fr 0.6fr;
+  grid-template-columns: 1.6fr 0.8fr 0.8fr 0.6fr;
   gap: 8px;
   font-size: 9px;
   letter-spacing: 0.08em;
@@ -12057,7 +12057,7 @@ body.is-global-loading {
 
 .product-list-row {
   display: grid;
-  grid-template-columns: 1.4fr 0.8fr 0.8fr 0.7fr 0.6fr;
+  grid-template-columns: 1.6fr 0.8fr 0.8fr 0.6fr;
   gap: 8px;
   align-items: center;
   padding: 8px 10px;
