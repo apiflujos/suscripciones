@@ -623,23 +623,23 @@ export default async function Home({
               />
             )}
             filters={<div className="page-header-standard-filters-group" />}
-            views={(
-              <div className="metricsTabs metricsTabsCentered">
-                {viewTabs.map((tab) => (
-                  <Link
-                    key={tab.id}
-                    href={viewHref(tab.id)}
-                    className={`metricsTab ${view === tab.id ? "is-active" : ""}`}
-                    prefetch={false}
-                  >
-                    {tab.label}
-                  </Link>
-                ))}
-              </div>
-            )}
+            views={<div className="page-header-standard-filters-group" />}
             smartViews={<div />}
             summary={<span className="muted">{rangeLabel} · {periodLabel} · {tenantLabel}</span>}
           />
+        </div>
+
+        <div className="panel-tabs panel-tabs-top" style={{ marginBottom: 0, borderBottom: "1px solid var(--stroke)" }}>
+          {viewTabs.map((tab) => (
+            <Link
+              key={tab.id}
+              href={viewHref(tab.id)}
+              className={`ghost no-icon panel-tab ${view === tab.id ? "is-active" : ""}`}
+              prefetch={false}
+            >
+              {tab.label}
+            </Link>
+          ))}
         </div>
 
         <div className="settings-group-body">
