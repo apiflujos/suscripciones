@@ -2481,6 +2481,19 @@ a {
   align-items: center;
 }
 
+.smartViewsSaveRow.smartViewsSaveRowButtons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.smartViewsSaveRow.smartViewsSaveRowButtons .primary,
+.smartViewsSaveRow.smartViewsSaveRowButtons .ghost,
+.smartViewsSaveRow.smartViewsSaveRowButtons .btn-compact {
+  width: auto !important;
+  min-width: 120px;
+}
+
 .notice {
   margin-top: 8px;
   color: #177245;

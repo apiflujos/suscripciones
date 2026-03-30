@@ -838,7 +838,7 @@ export function SmartViewsBar({
                   </div>
 
                   <div className="smartViewsSave">
-                    <div className="smartViewsSaveRow" style={{ marginBottom: 10 }}>
+                    <div className="smartViewsSaveRow smartViewsSaveRowButtons" style={{ marginBottom: 10 }}>
                       <button
                         className="primary"
                         type="button"
