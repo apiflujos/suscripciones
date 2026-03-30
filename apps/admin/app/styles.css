@@ -15675,7 +15675,7 @@ html[data-contrast="high"] .toggle::after {
 }
 
 .settings-group-body {
-  margin-top: 12px;
+  margin-top: 6px;
 }
 
 /* Page padding consistente */
@@ -15750,8 +15750,15 @@ html[data-contrast="high"] .toggle::after {
 }
 
 .settings-group-body {
-  margin-top: 16px;
-  padding-top: 16px;
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+/* Reducir espacios entre header y acciones/botones de página */
+.page-actions-right,
+.customers-actions-right {
+  margin-top: 4px !important;
+  margin-bottom: 6px !important;
 }
 
 /* Panel header row - layout uniforme */
