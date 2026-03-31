@@ -20,7 +20,7 @@ import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
-import { PageHeaderStandard } from "../ui/PageHeaderStandard";
+import { PageToolbar } from "../ui/PageToolbar";
 import "./page-header.css";
 
 export const dynamic = "force-dynamic";
@@ -307,7 +307,7 @@ export default async function CustomersPage({
       {paymentSource ? <div className="card cardPad">Método de pago guardado.</div> : null}
       {paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
 
-      <PageHeaderStandard
+      <PageToolbar
         className="compact"
         search={(
           <form action="/customers" method="GET" className="filtersForm filtersSearch">
@@ -338,9 +338,6 @@ export default async function CustomersPage({
             }}
             initialFields={getSmartViewFields("customers")}
           />
-        )}
-        filters={(
-          <div className="page-header-standard-filters-group" />
         )}
         views={(
           <ViewModeToggles

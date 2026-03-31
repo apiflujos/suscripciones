@@ -32,7 +32,7 @@ import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
-import { PageHeaderStandard } from "../ui/PageHeaderStandard";
+import { PageToolbar } from "../ui/PageToolbar";
 
 export const dynamic = "force-dynamic";
 
@@ -956,7 +956,7 @@ export default async function BillingPage({
       ) : null}
 
       <section className="settings-group">
-        <PageHeaderStandard
+        <PageToolbar
           className="compact"
           search={(
             <form action="/billing" method="GET" className="filtersForm filtersSearch">
@@ -1007,9 +1007,6 @@ export default async function BillingPage({
               compactInline
               hideFilterButton
             />
-          )}
-          filters={(
-            <div className="page-header-standard-filters-group" />
           )}
           views={(
             <ViewModeToggles

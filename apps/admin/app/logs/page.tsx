@@ -11,7 +11,7 @@ import { getCsrfToken, assertCsrfToken } from "../lib/csrf";
 import { PendingButton } from "../ui/PendingButton";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ReconcilePaymentModal } from "./ReconcilePaymentModal";
-import { PageHeaderStandard } from "../ui/PageHeaderStandard";
+import { PageToolbar } from "../ui/PageToolbar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { FilterButton } from "../ui/FilterButton";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
@@ -748,9 +748,7 @@ export default async function LogsPage({
     </form>
   );
 
-  const headerViews = (
-    <div className="page-header-standard-filters-group" />
-  );
+  const headerViews = null;
 
   const paymentsActions =
     tab === "payments" ? (
@@ -858,7 +856,7 @@ export default async function LogsPage({
       {assocStatus === "ok" ? <div className="card cardPad">Pago asociado manualmente a la suscripción.</div> : null}
       {assocStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error asociando pago: {assocError || "unknown_error"}</div> : null}
 
-      <PageHeaderStandard
+      <PageToolbar
         className="compact"
         search={headerSearch}
         searchActions={headerFilterButton || undefined}

@@ -1,6 +1,6 @@
 import { LocalDateTime } from "../../ui/LocalDateTime";
 import { listChatwootMessages } from "../../admin/_services/logs";
-import { PageHeaderStandard } from "../../ui/PageHeaderStandard";
+import { PageToolbar } from "../../ui/PageToolbar";
 import { ListCsvActions } from "../../ui/ListCsvActions";
 import { FiltersFocusButton } from "../../ui/FiltersFocusButton";
 import { LogsFiltersAutoSubmit } from "../../logs/LogsFiltersAutoSubmit";
@@ -61,7 +61,7 @@ export default async function WhatsappNotificationsListPage({
   return (
     <main className="page notificationsPage">
       <LogsFiltersAutoSubmit />
-      <PageHeaderStandard
+      <PageToolbar
         className="compact"
         search={(
           <form action="/notifications/list" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
@@ -99,9 +99,6 @@ export default async function WhatsappNotificationsListPage({
             <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 130 }} data-auto-submit="true" />
             <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 130 }} data-auto-submit="true" />
           </form>
-        )}
-        views={(
-          <div className="page-header-standard-filters-group" />
         )}
         smartViews={<div />}
         configHref="http://localhost:3002/settings?tab=notificaciones-whatsapp"

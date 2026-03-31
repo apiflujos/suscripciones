@@ -8,7 +8,7 @@ import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
 import { listCatalogProducts } from "../admin/_services/products";
-import { PageHeaderStandard } from "../ui/PageHeaderStandard";
+import { PageToolbar } from "../ui/PageToolbar";
 import "./page-header.css";
 import { listTenants } from "../admin/_services/tenants";
 import { listCustomers } from "../admin/_services/customers";
@@ -114,7 +114,7 @@ export default async function ProductsPage({
       {tenantCreated ? <div className="card cardPad">Canal creado.</div> : null}
       {sent ? <div className="card cardPad">Mensaje enviado.</div> : null}
 
-      <PageHeaderStandard
+      <PageToolbar
         className="compact"
         search={(
           <form action="/products" method="GET" className="filtersForm filtersSearch">
@@ -145,9 +145,6 @@ export default async function ProductsPage({
             }}
             initialFields={getSmartViewFields("products")}
           />
-        )}
-        filters={(
-          <div className="page-header-standard-filters-group" />
         )}
         views={(
           <ViewModeToggles

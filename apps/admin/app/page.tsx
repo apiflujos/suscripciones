@@ -7,7 +7,7 @@ import { getAdminSettings } from "./admin/_services/settings";
 import { countEmpresasAndContactos } from "./admin/_services/companies";
 import { resolveTenantId } from "./admin/_services/tenantResolver";
 import { MetricsFilters } from "./ui/MetricsFilters";
-import { PageHeaderStandard } from "./ui/PageHeaderStandard";
+import { PageToolbar } from "./ui/PageToolbar";
 import { AiAssistant } from "./logs/AiAssistant";
 import {
   alignSeries,
@@ -607,7 +607,7 @@ export default async function Home({
     <main className="page pageWide metricsPage">
       <section className="settings-group">
         <div className="settings-group-header">
-          <PageHeaderStandard
+          <PageToolbar
             className="compact"
             search={(
               <MetricsFilters
@@ -621,9 +621,6 @@ export default async function Home({
                 maxDate={maxDate}
               />
             )}
-            filters={<div className="page-header-standard-filters-group" />}
-            views={<div className="page-header-standard-filters-group" />}
-            smartViews={<div />}
             summary={<span className="muted">{rangeLabel} · {periodLabel} · {tenantLabel}</span>}
           />
         </div>

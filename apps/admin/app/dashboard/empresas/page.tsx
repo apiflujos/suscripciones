@@ -1,6 +1,7 @@
 import { listEmpresas } from "../../admin/_services/companies";
 import { getCsrfToken } from "../../lib/csrf";
 import { ViewModeToggles } from "../../ui/ViewModeToggles";
+import { PageToolbar } from "../../ui/PageToolbar";
 import { deleteEmpresa } from "./actions";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../lib/session";
@@ -66,39 +67,30 @@ export default async function EmpresasPage({
       {deleted ? <div className="card cardPad">Empresa eliminada.</div> : null}
 
       <section className="settings-group">
-        <div className="settings-group-header">
-          <div className="filtersRow">
-            <div className="filtersLeft">
-              <div className="filtersPanel">
-                {/* Fila 1: Búsqueda */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", flexWrap: "wrap" }}>
-                  <form action="/dashboard/empresas" method="GET" className="filtersForm filtersSearch" style={{ flex: "0 0 280px" }}>
-                    {vista ? <input type="hidden" name="vista" value={vista} /> : null}
-                    <input
-                      className="input"
-                      type="search"
-                      name="q"
-                      defaultValue={q}
-                      placeholder="Buscar empresa por nombre, email o teléfono..."
-                      aria-label="Buscar empresas"
-                    />
-                    <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-                  </form>
-                </div>
-                {/* Fila 2: Vista + Botones Crear (derecha) */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", marginTop: 6 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span className="field-hint" style={{ margin: 0 }}>Vista:</span>
-                    <ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />
-                  </div>
-                  <a className="primary btn-compact btn-create" href="/dashboard/empresas/new" style={{ marginLeft: "auto" }}>
-                    Crear empresa
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PageToolbar
+          search={(
+            <form action="/dashboard/empresas" method="GET" className="filtersForm filtersSearch">
+              {vista ? <input type="hidden" name="vista" value={vista} /> : null}
+              <input
+                className="input"
+                type="search"
+                name="q"
+                defaultValue={q}
+                placeholder="Buscar empresa por nombre, email o teléfono..."
+                aria-label="Buscar empresas"
+              />
+              <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+            </form>
+          )}
+          views={(
+            <ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />
+          )}
+          actions={(
+            <a className="primary btn-compact btn-create" href="/dashboard/empresas/new">
+              Crear empresa
+            </a>
+          )}
+        />
 
         <div className="settings-group-body">
           {vista === "lista" ? (

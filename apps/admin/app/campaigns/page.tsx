@@ -7,7 +7,7 @@ import { listSmartViews, resolveSmartViewIds, parseFiltersParam, getSmartViewFie
 import { listCampaigns } from "../admin/_services/campaigns";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
-import { PageHeaderStandard } from "../ui/PageHeaderStandard";
+import { PageToolbar } from "../ui/PageToolbar";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
@@ -62,7 +62,7 @@ export default async function CampaignsPage({
       {sp.created ? <div className="panel module">Campaña guardada.</div> : null}
       {sp.running ? <div className="panel module">Campaña en cola.</div> : null}
 
-      <PageHeaderStandard
+      <PageToolbar
         className="compact"
         search={(
           <form action="/campaigns" method="GET" className="filtersForm filtersSearch">
@@ -85,9 +85,6 @@ export default async function CampaignsPage({
             baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }}
             initialFields={getSmartViewFields("customers")}
           />
-        )}
-        filters={(
-          <div className="page-header-standard-filters-group" />
         )}
         views={(
           <ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />

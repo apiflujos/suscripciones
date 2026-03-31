@@ -6,7 +6,7 @@ import { deleteEmpresa, createEmpresa, updateEmpresa } from "./actions";
 import { EmpresaCreateModal } from "./EmpresaCreateModal";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
-import { PageHeaderStandard } from "../ui/PageHeaderStandard";
+import { PageToolbar } from "../ui/PageToolbar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
@@ -89,7 +89,7 @@ export default async function EmpresasPage({
       {deleted ? <div className="card cardPad">Empresa eliminada.</div> : null}
 
       <section className="settings-group">
-        <PageHeaderStandard
+        <PageToolbar
           className="compact"
           search={(
             <form action="/empresas" method="GET" className="filtersForm filtersSearch">
@@ -131,9 +131,6 @@ export default async function EmpresasPage({
               compactInline
               hideFilterButton
             />
-          )}
-          filters={(
-            <div className="page-header-standard-filters-group" />
           )}
           views={<ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />}
           summary={<ListCsvActions exportHref={exportHref} defaultEntity="companies" />}
