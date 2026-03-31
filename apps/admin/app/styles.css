@@ -2614,14 +2614,12 @@ a {
   border: 1px solid var(--stroke);
   border-radius: 12px;
   padding: var(--space-2);
-  position: relative;
 }
 
 .filtersSearch .input {
   flex: 1;
   min-width: 0;
   width: 100%;
-  padding-left: calc(var(--control-padding-x) + var(--btn-icon-size) + var(--space-2));
 }
 
 .filtersSearch .ghost {
@@ -2631,20 +2629,9 @@ a {
 }
 
 .filtersSearch .btn-search {
-  position: absolute;
-  left: var(--control-padding-x);
-  top: 50%;
-  transform: translateY(-50%);
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-  color: var(--text-faint);
-}
-
-.filtersSearch .btn-search:hover {
-  background: transparent;
-  border-color: transparent;
-  color: var(--primary);
+  background: var(--panel);
+  border-color: var(--stroke);
+  box-shadow: var(--btn-shadow-soft);
 }
 
 .contacts-search-row {
