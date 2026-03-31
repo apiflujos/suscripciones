@@ -532,6 +532,19 @@ export default async function BillingPage({
     ...(filters ? { filters } : {})
   };
 
+  const resolveRowTokenUrl = (r: any) => {
+    const tokenMeta = (r.customerMetadata?.tokenizationLink as any) || {};
+    const tokenMetaUrl = String(tokenMeta?.url || "").trim();
+    const tokenMetaUsedAt = tokenMeta?.usedAt ? Date.parse(String(tokenMeta.usedAt)) : NaN;
+    const tokenMetaExpiresAt = tokenMeta?.expiresAt ? Date.parse(String(tokenMeta.expiresAt)) : NaN;
+    const now = Date.now();
+    const tokenMetaValid =
+      Boolean(tokenMetaUrl) &&
+      !Number.isFinite(tokenMetaUsedAt) &&
+      (!Number.isFinite(tokenMetaExpiresAt) || tokenMetaExpiresAt > now);
+    return tokenUrl || (tokenMetaValid ? tokenMetaUrl : "");
+  };
+
   const renderBillingCard = (r: any) => {
     const isPlan = r.mode !== "AUTO_DEBIT";
     const isAutoDebit = r.mode === "AUTO_DEBIT";
@@ -544,18 +557,7 @@ export default async function BillingPage({
     const estadoSimple = getEstadoSimple(r.status);
     const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
     // Leer URL de tokenización del metadata del customer
-    const tokenMeta = (r.customerMetadata?.tokenizationLink as any) || {};
-    const tokenMetaUrl = String(tokenMeta?.url || "").trim();
-    const tokenMetaToken = String(tokenMeta?.token || "").trim();
-    const tokenMetaUsedAt = tokenMeta?.usedAt ? Date.parse(String(tokenMeta.usedAt)) : NaN;
-    const tokenMetaExpiresAt = tokenMeta?.expiresAt ? Date.parse(String(tokenMeta.expiresAt)) : NaN;
-    const now = Date.now();
-    const tokenMetaValid =
-      Boolean(tokenMetaUrl) &&
-      !Number.isFinite(tokenMetaUsedAt) &&
-      (!Number.isFinite(tokenMetaExpiresAt) || tokenMetaExpiresAt > now);
-    // Prioridad: 1) tokenUrl de query params, 2) tokenMetaUrl válido
-    const rowTokenUrl = tokenUrl || (tokenMetaValid ? tokenMetaUrl : "");
+    const rowTokenUrl = resolveRowTokenUrl(r);
     const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
     const sentTokenForRow = Boolean(sentForRow && rowTokenUrl);
     const sentPaymentForRow = Boolean(sentForRow && !rowTokenUrl);
@@ -1103,34 +1105,76 @@ export default async function BillingPage({
                       </span>
                     </div>
                     <div className="billing-list-cell billing-list-more">
-                      <SubscriptionDetailModalWrapper
-                        subscription={{
-                          ...r,
-                          inGrace: r.inGrace,
-                          inArrears: r.inArrears,
-                          daysLate: r.daysLate
-                        }}
-                        csrfToken={csrfToken}
-                        returnTo={returnTo}
-                        tenants={tenants}
-                        planOptions={planOptions}
-                        notificationsTemplates={notificationsTemplates}
-                        notificationsRules={notificationsRules}
-                        chargeSubscriptionNow={chargeSubscriptionNow}
-                        markSubscriptionPaidManual={markSubscriptionPaidManual}
-                        unmarkSubscriptionPaidManual={unmarkSubscriptionPaidManual}
-                        mergeDuplicateSubscriptions={mergeDuplicateSubscriptions}
-                        sendCentralComPaymentLink={sendCentralComPaymentLink}
-                        sendCentralComTokenizationLink={sendCentralComTokenizationLink}
-                        updateSubscriptionTenants={updateSubscriptionTenants}
-                        changeSubscriptionPlan={changeSubscriptionPlan}
-                        updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
-                        deleteSubscription={deleteSubscription}
-                        suspendSubscription={suspendSubscription}
-                        cancelSubscription={cancelSubscription}
-                        resumeSubscription={resumeSubscription}
-                        activateSubscription={activateSubscription}
-                      />
+                      <div className="billing-list-actions">
+                        <SubscriptionDetailModalWrapper
+                          subscription={{
+                            ...r,
+                            inGrace: r.inGrace,
+                            inArrears: r.inArrears,
+                            daysLate: r.daysLate
+                          }}
+                          csrfToken={csrfToken}
+                          returnTo={returnTo}
+                          tenants={tenants}
+                          planOptions={planOptions}
+                          notificationsTemplates={notificationsTemplates}
+                          notificationsRules={notificationsRules}
+                          chargeSubscriptionNow={chargeSubscriptionNow}
+                          markSubscriptionPaidManual={markSubscriptionPaidManual}
+                          unmarkSubscriptionPaidManual={unmarkSubscriptionPaidManual}
+                          mergeDuplicateSubscriptions={mergeDuplicateSubscriptions}
+                          sendCentralComPaymentLink={sendCentralComPaymentLink}
+                          sendCentralComTokenizationLink={sendCentralComTokenizationLink}
+                          updateSubscriptionTenants={updateSubscriptionTenants}
+                          changeSubscriptionPlan={changeSubscriptionPlan}
+                          updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
+                          deleteSubscription={deleteSubscription}
+                          suspendSubscription={suspendSubscription}
+                          cancelSubscription={cancelSubscription}
+                          resumeSubscription={resumeSubscription}
+                          activateSubscription={activateSubscription}
+                        />
+                        {(!isAutoDebit && !isInactive) ? (
+                          <PaymentLinkModalButton
+                            subscriptionId={r.id}
+                            customerId={r.customerId}
+                            tenantId={r.tenantId}
+                            csrfToken={csrfToken}
+                            returnTo={returnTo}
+                            defaultAmountPesos={Math.trunc(Number(r.totalInCents || r.montoInCents || 0) / 100)}
+                            notificationTemplates={notificationsTemplates}
+                            notificationRules={notificationsRules}
+                            action={sendCentralComPaymentLink}
+                          />
+                        ) : null}
+                        {isAutoDebit && !r.customerTokenized && !isInactive ? (
+                          (() => {
+                            const rowTokenUrl = resolveRowTokenUrl(r);
+                            return rowTokenUrl ? (
+                              <a
+                                className="ghost btn-compact btn-send btn-highlight"
+                                href={rowTokenUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Abrir link de tokenización"
+                              >
+                                Abrir link
+                              </a>
+                            ) : (
+                              <TokenizationLinkModalButton
+                                customerId={r.customerId}
+                                planId={r.planId}
+                                tenantId={r.tenantId}
+                                csrfToken={csrfToken}
+                                returnTo={returnTo}
+                                notificationTemplates={notificationsTemplates}
+                                notificationRules={notificationsRules}
+                                action={sendCentralComTokenizationLink}
+                              />
+                            );
+                          })()
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 );
@@ -1161,57 +1205,106 @@ export default async function BillingPage({
                         <span className="pill pill-sm pill-muted">{grouped.get(col)?.length || 0}</span>
                       </div>
                       <div className="billing-kanban-list">
-                        {(grouped.get(col) || []).map((r) => (
-                          <SubscriptionDetailModalWrapper
-                            key={`kanban-item-${r.id}`}
-                            className="billing-kanban-card billing-kanban-card-button"
-                            subscription={{
-                              ...r,
-                              inGrace: r.inGrace,
-                              inArrears: r.inArrears,
-                              daysLate: r.daysLate
-                            }}
-                            csrfToken={csrfToken}
-                            returnTo={returnTo}
-                            tenants={tenants}
-                            planOptions={planOptions}
-                            notificationsTemplates={notificationsTemplates}
-                            notificationsRules={notificationsRules}
-                            chargeSubscriptionNow={chargeSubscriptionNow}
-                            markSubscriptionPaidManual={markSubscriptionPaidManual}
-                            unmarkSubscriptionPaidManual={unmarkSubscriptionPaidManual}
-                            mergeDuplicateSubscriptions={mergeDuplicateSubscriptions}
-                            sendCentralComPaymentLink={sendCentralComPaymentLink}
-                            sendCentralComTokenizationLink={sendCentralComTokenizationLink}
-                            updateSubscriptionTenants={updateSubscriptionTenants}
-                            changeSubscriptionPlan={changeSubscriptionPlan}
-                            updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
-                            deleteSubscription={deleteSubscription}
-                            suspendSubscription={suspendSubscription}
-                            cancelSubscription={cancelSubscription}
-                            resumeSubscription={resumeSubscription}
-                            activateSubscription={activateSubscription}
-                          >
-                            <div
-                              className="billing-kanban-summary"
-                              title={`Suscripción: ${getEstadoSimple(r.status).label}`}
-                            >
-                              <div className="billing-kanban-name">{r.customerName}</div>
-                              <div className="billing-kanban-sub">{r.planName || "—"}</div>
-                              <div className="billing-kanban-meta">
-                                <span>{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</span>
-                                <span>·</span>
-                                <LocalDateTime value={r.vencimientoAt} variant="short" />
-                              </div>
-                              <div className="billing-kanban-sub">{r.tipoTx} · {r.cada}</div>
-                              <div className="billing-kanban-badges">
-                                <span className={`pill pill-sm ${getEstadoSimple(r.status).class}`}>
-                                  {getEstadoSimple(r.status).label}
-                                </span>
+                        {(grouped.get(col) || []).map((r) => {
+                          const isAutoDebit = r.mode === "AUTO_DEBIT";
+                          const isCanceled = r.status === "CANCELED";
+                          const isSuspended = r.status === "SUSPENDED";
+                          const isInactive = isCanceled || isSuspended;
+                          return (
+                            <div key={`kanban-item-${r.id}`} className="billing-kanban-card">
+                              <SubscriptionDetailModalWrapper
+                                className="billing-kanban-card-button"
+                                subscription={{
+                                  ...r,
+                                  inGrace: r.inGrace,
+                                  inArrears: r.inArrears,
+                                  daysLate: r.daysLate
+                                }}
+                                csrfToken={csrfToken}
+                                returnTo={returnTo}
+                                tenants={tenants}
+                                planOptions={planOptions}
+                                notificationsTemplates={notificationsTemplates}
+                                notificationsRules={notificationsRules}
+                                chargeSubscriptionNow={chargeSubscriptionNow}
+                                markSubscriptionPaidManual={markSubscriptionPaidManual}
+                                unmarkSubscriptionPaidManual={unmarkSubscriptionPaidManual}
+                                mergeDuplicateSubscriptions={mergeDuplicateSubscriptions}
+                                sendCentralComPaymentLink={sendCentralComPaymentLink}
+                                sendCentralComTokenizationLink={sendCentralComTokenizationLink}
+                                updateSubscriptionTenants={updateSubscriptionTenants}
+                                changeSubscriptionPlan={changeSubscriptionPlan}
+                                updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
+                                deleteSubscription={deleteSubscription}
+                                suspendSubscription={suspendSubscription}
+                                cancelSubscription={cancelSubscription}
+                                resumeSubscription={resumeSubscription}
+                                activateSubscription={activateSubscription}
+                              >
+                                <div
+                                  className="billing-kanban-summary"
+                                  title={`Suscripción: ${getEstadoSimple(r.status).label}`}
+                                >
+                                  <div className="billing-kanban-name">{r.customerName}</div>
+                                  <div className="billing-kanban-sub">{r.planName || "—"}</div>
+                                  <div className="billing-kanban-meta">
+                                    <span>{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</span>
+                                    <span>·</span>
+                                    <LocalDateTime value={r.vencimientoAt} variant="short" />
+                                  </div>
+                                  <div className="billing-kanban-sub">{r.tipoTx} · {r.cada}</div>
+                                  <div className="billing-kanban-badges">
+                                    <span className={`pill pill-sm ${getEstadoSimple(r.status).class}`}>
+                                      {getEstadoSimple(r.status).label}
+                                    </span>
+                                  </div>
+                                </div>
+                              </SubscriptionDetailModalWrapper>
+                              <div className="billing-kanban-card-actions">
+                                {(!isAutoDebit && !isInactive) ? (
+                                  <PaymentLinkModalButton
+                                    subscriptionId={r.id}
+                                    customerId={r.customerId}
+                                    tenantId={r.tenantId}
+                                    csrfToken={csrfToken}
+                                    returnTo={returnTo}
+                                    defaultAmountPesos={Math.trunc(Number(r.totalInCents || r.montoInCents || 0) / 100)}
+                                    notificationTemplates={notificationsTemplates}
+                                    notificationRules={notificationsRules}
+                                    action={sendCentralComPaymentLink}
+                                  />
+                                ) : null}
+                                {isAutoDebit && !r.customerTokenized && !isInactive ? (
+                                  (() => {
+                                    const rowTokenUrl = resolveRowTokenUrl(r);
+                                    return rowTokenUrl ? (
+                                      <a
+                                        className="ghost btn-compact btn-send btn-highlight"
+                                        href={rowTokenUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        title="Abrir link de tokenización"
+                                      >
+                                        Abrir link
+                                      </a>
+                                    ) : (
+                                      <TokenizationLinkModalButton
+                                        customerId={r.customerId}
+                                        planId={r.planId}
+                                        tenantId={r.tenantId}
+                                        csrfToken={csrfToken}
+                                        returnTo={returnTo}
+                                        notificationTemplates={notificationsTemplates}
+                                        notificationRules={notificationsRules}
+                                        action={sendCentralComTokenizationLink}
+                                      />
+                                    );
+                                  })()
+                                ) : null}
                               </div>
                             </div>
-                          </SubscriptionDetailModalWrapper>
-                        ))}
+                          );
+                        })}
                         {(grouped.get(col) || []).length === 0 ? <div className="billing-kanban-empty">Sin registros</div> : null}
                       </div>
                     </div>

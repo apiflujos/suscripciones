@@ -7189,7 +7189,7 @@ textarea.input {
 
 .billing-list-header {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 0.8fr 0.6fr 56px;
+  grid-template-columns: 1.4fr 1fr 0.8fr 0.6fr max-content;
   gap: 8px;
   font-size: 9px;
   letter-spacing: 0.08em;
@@ -7200,7 +7200,7 @@ textarea.input {
 
 .billing-list-row {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 0.8fr 0.6fr 56px;
+  grid-template-columns: 1.4fr 1fr 0.8fr 0.6fr max-content;
   gap: 8px;
   align-items: center;
   padding: 8px 10px;
@@ -7208,6 +7208,14 @@ textarea.input {
   border-radius: 12px;
   background: var(--panel);
   box-shadow: var(--shadow);
+}
+
+.billing-list-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .billing-list-cell {
@@ -7380,12 +7388,22 @@ textarea.input {
   overflow: hidden;
 }
 
+.billing-kanban-card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  padding: var(--space-2);
+  border-top: 1px solid var(--stroke);
+}
+
 .billing-kanban-card-button {
   display: block;
   width: 100%;
   text-align: left;
   border: none;
-  padding: 0;
+  padding: var(--space-2);
   cursor: pointer;
   background: transparent;
 }
