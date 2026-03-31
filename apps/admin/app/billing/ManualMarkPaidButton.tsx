@@ -19,8 +19,11 @@ export function ManualMarkPaidButton({
   warnAlreadyPaid: boolean;
   manualMarkPaidEnabled?: boolean;
 }) {
+  const formRef = useRef<HTMLFormElement | null>(null);
   const methodRef = useRef<HTMLInputElement | null>(null);
   const [showConfigAlert, setShowConfigAlert] = useState(false);
+  const [showMethodModal, setShowMethodModal] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<"TRANSFERENCIA" | "BREB" | "EFECTIVO">("TRANSFERENCIA");
 
   const handleSubmit = (e: React.FormEvent) => {
     if (manualMarkPaidEnabled === false) {
@@ -36,27 +39,13 @@ export function ManualMarkPaidButton({
         return;
       }
     }
-    const raw = prompt("¿Cómo se pagó? Escribe: Transferencia, Bre-B o Efectivo.", "Transferencia") || "";
-    const normalized = raw.trim().toUpperCase().replace(/\s+/g, "");
-    const method =
-      normalized === "TRANSFERENCIA"
-        ? "TRANSFERENCIA"
-        : normalized === "BRE-B" || normalized === "BREB"
-          ? "BREB"
-          : normalized === "EFECTIVO"
-            ? "EFECTIVO"
-            : "";
-    if (!method) {
-      alert("Método inválido. Usa: Transferencia, Bre-B o Efectivo.");
-      e.preventDefault();
-      return;
-    }
-    if (methodRef.current) methodRef.current.value = method;
+    e.preventDefault();
+    setShowMethodModal(true);
   };
 
   return (
     <>
-      <form action={action} onSubmit={handleSubmit}>
+      <form ref={formRef} action={action} onSubmit={handleSubmit}>
         <input type="hidden" name="csrf" value={csrfToken} />
         <input type="hidden" name="subscriptionId" value={subscriptionId} />
         {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
@@ -92,6 +81,50 @@ export function ManualMarkPaidButton({
                   Ir a Configuración
                 </a>
                 <button className="ghost btn-compact btn-noicon" type="button" onClick={() => setShowConfigAlert(false)}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMethodModal && (
+        <div className="modal-backdrop" onClick={() => setShowMethodModal(false)}>
+          <div className="modal-panel" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ margin: 0 }}>Método de pago</h3>
+              <button className="ghost modal-close" type="button" onClick={() => setShowMethodModal(false)}>X</button>
+            </div>
+            <div className="modal-body">
+              <p>Seleccioná cómo se pagó esta suscripción:</p>
+              <div style={{ display: "grid", gap: 8 }}>
+                <select
+                  className="select"
+                  value={selectedMethod}
+                  onChange={(e) => {
+                    const next = String(e.target.value || "TRANSFERENCIA") as "TRANSFERENCIA" | "BREB" | "EFECTIVO";
+                    setSelectedMethod(next);
+                  }}
+                >
+                  <option value="TRANSFERENCIA">Transferencia</option>
+                  <option value="BREB">Bre-B</option>
+                  <option value="EFECTIVO">Efectivo</option>
+                </select>
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                <button
+                  className="primary btn-compact btn-noicon"
+                  type="button"
+                  onClick={() => {
+                    if (methodRef.current) methodRef.current.value = selectedMethod;
+                    setShowMethodModal(false);
+                    formRef.current?.requestSubmit();
+                  }}
+                >
+                  Confirmar
+                </button>
+                <button className="ghost btn-compact btn-noicon" type="button" onClick={() => setShowMethodModal(false)}>
                   Cancelar
                 </button>
               </div>

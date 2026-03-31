@@ -457,6 +457,7 @@ export default async function BillingPage({
         nextRetryAt: s.nextRetryJob?.runAt || (s.metadata as any)?.manualRetry?.nextRetryAt || (s.metadata as any)?.autoRetry?.nextRetryAt || null,
         mode: collectionMode,
         canManualCharge: typeof s?.canManualCharge === "boolean" ? s.canManualCharge : undefined,
+        canManualMarkPaid: typeof s?.canManualMarkPaid === "boolean" ? s.canManualMarkPaid : undefined,
         chargeDue: typeof s?.chargeDue === "boolean" ? s.chargeDue : undefined,
         lastPaidInCurrentPeriod: typeof s?.lastPaidInCurrentPeriod === "boolean" ? s.lastPaidInCurrentPeriod : false,
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
@@ -809,7 +810,7 @@ export default async function BillingPage({
                 tenantId={r.tenantId}
                 returnTo={returnTo}
                 warnAlreadyPaid={alreadyPaidCurrentPeriod}
-                manualMarkPaidEnabled={r.canManualCharge}
+                manualMarkPaidEnabled={r.canManualMarkPaid}
               />
             ) : null}
             {alreadyPaidCurrentPeriod ? (

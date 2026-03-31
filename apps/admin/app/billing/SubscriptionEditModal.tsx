@@ -132,6 +132,7 @@ export function SubscriptionEditModal({
     if (returnTo) formData.set("returnTo", returnTo);
 
     await updateSubscriptionBillingSettings(formData);
+    setOpen(false);
   };
 
   const searchProducts = useCallback(async (query: string) => {
@@ -284,7 +285,7 @@ export function SubscriptionEditModal({
                     )}
                   </div>
                 ) : (
-                  <button className="primary btn-compact" type="button" onClick={() => setProductSearchOpen(true)}>
+                  <button className="primary btn-compact" type="button" onClick={() => setProductSearchOpen(true)} style={{ whiteSpace: "nowrap", width: "fit-content" }}>
                     Agregar producto
                   </button>
                 )}
@@ -440,22 +441,24 @@ export function SubscriptionEditModal({
 
               {/* Acciones */}
               <div className="module-footer">
-                <button 
-                  className="ghost btn-compact btn-cancel" 
-                  type="button" 
+                <button
+                  className="ghost btn-compact btn-cancel"
+                  type="button"
                   onClick={() => setOpen(false)}
                   title="Cerrar sin guardar"
                   aria-label="Cancelar"
+                  style={{ whiteSpace: "nowrap", width: "fit-content" }}
                 >
                   Cancelar
                 </button>
-                <PendingButton 
-                  className="primary btn-compact btn-save" 
-                  type="button" 
-                  pendingText="Guardando..." 
+                <PendingButton
+                  className="primary btn-compact btn-save"
+                  type="button"
+                  pendingText="Guardando..."
                   onClick={handleSave}
                   title="Guardar cambios en la suscripción"
                   aria-label="Guardar cambios"
+                  style={{ whiteSpace: "nowrap", width: "fit-content" }}
                 >
                   Guardar
                 </PendingButton>

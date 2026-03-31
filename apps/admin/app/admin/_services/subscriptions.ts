@@ -451,13 +451,18 @@ export async function listSubscriptions(args: {
     const chargeDue = dueAt ? dueAt.getTime() <= Date.now() + 5_000 : false;
     const isInactive =
       s.status === SubscriptionStatus.CANCELED || s.status === SubscriptionStatus.EXPIRED || s.status === SubscriptionStatus.SUSPENDED;
+    const allowManualCharge = Boolean(autoDebitCfg?.allowManualCharge ?? true);
     const canManualCharge =
-      Boolean(autoDebitCfg?.allowManualCharge ?? true) &&
+      allowManualCharge &&
       resolvedMode === "AUTO_DEBIT" &&
       chargeDue &&
       !isInactive &&
       customerTokenized &&
       !lastPaidInCurrentPeriod;
+    const canManualMarkPaid =
+      allowManualCharge &&
+      resolvedMode === "AUTO_DEBIT" &&
+      !isInactive;
 
     return {
       ...s,
@@ -469,6 +474,7 @@ export async function listSubscriptions(args: {
       customerTokenized,
       chargeDue,
       canManualCharge,
+      canManualMarkPaid,
       lastPaidInCurrentPeriod
     };
   });

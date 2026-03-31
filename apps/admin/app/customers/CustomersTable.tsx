@@ -579,7 +579,7 @@ export function CustomersTable({
                     <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar contacto" title="Eliminar contacto" />
                   </form>
                   <details className="inline-detail">
-                    <summary className="ghost btn-compact btn-icon-only btn-open" aria-label="Ver más" title="Ver más" />
+                    <summary className="ghost btn-compact btn-icon-only btn-view" aria-label="Ver más" title="Ver más" />
                     <div className="inline-detail-body">
                       <div><strong>Email:</strong> {c.email || "—"}</div>
                       <div><strong>Teléfono:</strong> {c.phone || "—"}</div>
