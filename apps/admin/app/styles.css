@@ -15461,6 +15461,7 @@ html[data-contrast="high"] .toggle::after {
   flex: 1 1 320px;
   max-width: 360px;
   min-width: 220px;
+  order: 1;
 }
 
 .page-header-standard-search-row {
@@ -15527,6 +15528,7 @@ html[data-contrast="high"] .toggle::after {
   flex: 1 1 260px;
   min-width: 200px;
   max-width: none;
+  order: 4;
 }
 
 .page-header-standard.compact .page-header-standard-smartviews {
@@ -15552,6 +15554,7 @@ html[data-contrast="high"] .toggle::after {
   flex-shrink: 0;
   margin-left: auto;
   flex-wrap: wrap;
+  order: 5;
 }
 
 .page-header-standard.compact .page-header-standard-right {
@@ -15576,6 +15579,9 @@ html[data-contrast="high"] .toggle::after {
   gap: 6px;
   flex-shrink: 0;
   min-width: max-content;
+  order: 2;
+  width: 100%;
+  justify-content: flex-start;
 }
 
 .page-header-standard-summary {
