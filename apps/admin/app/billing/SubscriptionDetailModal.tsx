@@ -373,27 +373,6 @@ export function SubscriptionDetailModal({
                     returnTo={returnTo}
                   />
                 ) : null}
-                <PaymentLinkModalButton
-                  subscriptionId={subscription.id}
-                  customerId={subscription.customerId}
-                  tenantId={tenantId}
-                  csrfToken={csrfToken}
-                  returnTo={returnTo}
-                  defaultAmountPesos={Math.trunc(subscription.totalInCents / 100)}
-                  notificationTemplates={notificationsTemplates}
-                  notificationRules={notificationsRules}
-                  action={sendCentralComPaymentLink}
-                />
-                <TokenizationLinkModalButton
-                  customerId={subscription.customerId}
-                  planId={subscription.planId}
-                  tenantId={tenantId}
-                  csrfToken={csrfToken}
-                  returnTo={returnTo}
-                  notificationTemplates={notificationsTemplates}
-                  notificationRules={notificationsRules}
-                  action={sendCentralComTokenizationLink}
-                />
                 {showResume ? (
                   <form action={resumeSubscription}>
                     <input type="hidden" name="csrf" value={csrfToken} />
@@ -435,6 +414,30 @@ export function SubscriptionDetailModal({
                   </>
                 ) : null}
               </div>
+            </div>
+
+            <div className="module-footer">
+              <PaymentLinkModalButton
+                subscriptionId={subscription.id}
+                customerId={subscription.customerId}
+                tenantId={tenantId}
+                csrfToken={csrfToken}
+                returnTo={returnTo}
+                defaultAmountPesos={Math.trunc(subscription.totalInCents / 100)}
+                notificationTemplates={notificationsTemplates}
+                notificationRules={notificationsRules}
+                action={sendCentralComPaymentLink}
+              />
+              <TokenizationLinkModalButton
+                customerId={subscription.customerId}
+                planId={subscription.planId}
+                tenantId={tenantId}
+                csrfToken={csrfToken}
+                returnTo={returnTo}
+                notificationTemplates={notificationsTemplates}
+                notificationRules={notificationsRules}
+                action={sendCentralComTokenizationLink}
+              />
             </div>
           </div>
         </div>
