@@ -7925,9 +7925,7 @@ textarea.input {
 }
 
 .btn-filter svg {
-  width: 16px;
-  height: 16px;
-  fill: currentColor;
+  display: none;
 }
 
 .btn-filter:hover {
