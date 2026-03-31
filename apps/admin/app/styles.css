@@ -1946,7 +1946,7 @@ a {
 /* Pagos: forzar header en 2 filas (compacto y ordenado) */
 .paymentsPage .page-header-standard-row-single {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(260px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) max-content;
   grid-template-areas:
     "search filters filters"
     "views smartviews right";
@@ -1956,6 +1956,7 @@ a {
 
 .paymentsPage .page-header-standard-search {
   grid-area: search;
+  min-width: 0;
 }
 
 .paymentsPage .page-header-standard-filters {
@@ -1978,11 +1979,13 @@ a {
 .paymentsPage .page-header-standard-smartviews {
   grid-area: smartviews;
   justify-self: start;
+  min-width: 0;
 }
 
 .paymentsPage .page-header-standard-right {
   grid-area: right;
   justify-self: end;
+  min-width: 0;
 }
 
 .paymentsPage {
@@ -2610,18 +2613,38 @@ a {
   background: var(--surface-2);
   border: 1px solid var(--stroke);
   border-radius: 12px;
-  padding: 6px;
+  padding: var(--space-2);
+  position: relative;
 }
 
 .filtersSearch .input {
   flex: 1;
-  min-width: 240px;
+  min-width: 0;
+  width: 100%;
+  padding-left: calc(var(--control-padding-x) + var(--btn-icon-size) + var(--space-2));
 }
 
 .filtersSearch .ghost {
   background: var(--panel);
   border-color: var(--stroke);
   font-weight: 600;
+}
+
+.filtersSearch .btn-search {
+  position: absolute;
+  left: var(--control-padding-x);
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--text-faint);
+}
+
+.filtersSearch .btn-search:hover {
+  background: transparent;
+  border-color: transparent;
+  color: var(--primary);
 }
 
 .contacts-search-row {
