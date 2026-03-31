@@ -13329,6 +13329,7 @@ html[data-contrast="high"] .module-footer .ghost {
   display: grid;
   place-items: center;
   font-weight: 700;
+  color: var(--text);
 }
 
 .modal-close::before {
