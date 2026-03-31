@@ -13335,6 +13335,10 @@ html[data-contrast="high"] .module-footer .ghost {
   content: none;
 }
 
+.modal-close:empty::before {
+  content: "X";
+}
+
 .modal-close:hover {
   background: var(--primary-soft);
   border-color: var(--primary);
