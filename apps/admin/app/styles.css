@@ -1985,6 +1985,10 @@ a {
   justify-self: end;
 }
 
+.paymentsPage {
+  overflow-x: hidden;
+}
+
 .import-modal-grid {
   display: grid;
   gap: 10px;
