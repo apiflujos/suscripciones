@@ -13,7 +13,6 @@ import "./page-header.css";
 import { listTenants } from "../admin/_services/tenants";
 import { listCustomers } from "../admin/_services/customers";
 import { listEmpresas } from "../admin/_services/companies";
-import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
@@ -82,10 +81,9 @@ export default async function ProductsPage({
     q: q.trim(),
     ids
   });
-  const [tenants, customersRes, templatesRes, empresasRes, notificationsConfig] = await Promise.all([
+  const [tenants, customersRes, empresasRes, notificationsConfig] = await Promise.all([
     listTenants(),
     listCustomers({ take: 200, tenantId: effectiveTenantId }),
-    listCheckoutTemplates({ tenantId: effectiveTenantId }),
     listEmpresas({ tenantId: effectiveTenantId, take: 200 }),
     getNotificationsConfigForEnv("PRODUCTION").catch(() => ({ templates: [], rules: [] }))
   ]);
@@ -182,7 +180,6 @@ export default async function ProductsPage({
         customers={filteredCustomers}
         empresas={empresas}
         products={productItems}
-        checkoutTemplates={templatesRes ?? []}
         csrfToken={csrfToken}
         tenants={tenantsFiltered}
         tenantId={tenantId}
