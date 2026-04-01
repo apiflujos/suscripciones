@@ -16065,28 +16065,23 @@ html[data-contrast="high"] .toggle::after {
   overflow: visible;
 }
 
-.paymentsPage .payments-header-actions .btn-reconcile {
-  min-width: 200px !important;
-  width: fit-content !important;
-  max-width: none !important;
-  height: 30px !important;
-  min-height: 30px !important;
-  padding: 0 18px !important;
+.paymentsPage .payments-header-actions .payments-action-btn {
+  min-width: 150px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  white-space: nowrap !important;
-  line-height: 1.1 !important;
-  font-size: 12px !important;
-  overflow: visible !important;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.1;
   box-sizing: border-box;
   flex: 0 0 auto;
-  text-overflow: clip !important;
 }
 
 /* Asegurar texto completo en acciones de pagos */
 .paymentsPage .payments-header-actions .btn-compact:not(.btn-icon-only) {
-  min-width: max-content;
   max-width: none;
   white-space: nowrap;
   flex: 0 0 auto;

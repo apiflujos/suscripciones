@@ -6,10 +6,12 @@ import { PendingButton } from "../ui/PendingButton";
 export function ReconcilePaymentModal({
   csrfToken,
   action,
+  returnTo,
   className
 }: {
   csrfToken: string;
   action: (formData: FormData) => void | Promise<void>;
+  returnTo?: string;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -39,6 +41,7 @@ export function ReconcilePaymentModal({
 
             <form action={action} style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
+              {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
 
               <div className="muted" style={{ fontSize: 12 }}>
                 Ingresa al menos uno: Transacción, Referencia, Payment ID o Link id.

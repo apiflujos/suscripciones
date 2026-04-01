@@ -65,6 +65,7 @@ async function reconcilePayment(formData: FormData) {
   await assertCsrfToken(formData);
   const session = await getSuperAdminSession();
   if (!session) return;
+  const returnTo = safeReturnToLogs(formData);
   const wompiTransactionId = String(formData.get("wompiTransactionId") || "").trim();
   const reference = String(formData.get("reference") || "").trim();
   const paymentId = String(formData.get("paymentId") || "").trim();
@@ -73,19 +74,33 @@ async function reconcilePayment(formData: FormData) {
   const amountInCentsRaw = Number(String(formData.get("amountInCents") || "0"));
   const amountInCents = Number.isFinite(amountInCentsRaw) ? Math.trunc(amountInCentsRaw) : 0;
   const currency = String(formData.get("currency") || "").trim().toUpperCase();
-  if (!wompiTransactionId && !reference && !wompiPaymentLinkId && !paymentId) return;
-  await reconcilePaymentAction({
-    wompiTransactionId: wompiTransactionId || undefined,
-    reference: reference || undefined,
-    paymentId: paymentId || undefined,
-    wompiPaymentLinkId: wompiPaymentLinkId || undefined,
-    tenantId: tenantId || undefined,
-    amountInCents: amountInCents > 0 ? amountInCents : undefined,
-    currency: currency || undefined,
-    actorEmail: session.email || undefined
-  });
-  revalidatePath("/logs");
-  revalidatePath("/payments");
+  if (!wompiTransactionId && !reference && !wompiPaymentLinkId && !paymentId) {
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}reconcile=fail&reconcileError=missing_ids`);
+  }
+  let reconcileError: string | null = null;
+  try {
+    await reconcilePaymentAction({
+      wompiTransactionId: wompiTransactionId || undefined,
+      reference: reference || undefined,
+      paymentId: paymentId || undefined,
+      wompiPaymentLinkId: wompiPaymentLinkId || undefined,
+      tenantId: tenantId || undefined,
+      amountInCents: amountInCents > 0 ? amountInCents : undefined,
+      currency: currency || undefined,
+      actorEmail: session.email || undefined
+    });
+    revalidatePath("/logs");
+    revalidatePath("/payments");
+  } catch (err: any) {
+    reconcileError = String(err?.message || err || "reconcile_failed");
+  }
+  if (reconcileError) {
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}reconcile=fail&reconcileError=${encodeURIComponent(reconcileError)}`);
+  }
+  const refLabel = wompiTransactionId || reference || paymentId || wompiPaymentLinkId;
+  redirect(
+    `${returnTo}${returnTo.includes("?") ? "&" : "?"}reconcile=ok${refLabel ? `&reconcileRef=${encodeURIComponent(refLabel)}` : ""}`
+  );
 }
 
 async function associatePayment(formData: FormData) {
@@ -142,20 +157,23 @@ async function reconcilePendingPayments(formData: FormData) {
   const days = Number.isFinite(daysRaw) ? Math.min(Math.max(Math.trunc(daysRaw), 1), 30) : 7;
   const minutes = Number.isFinite(minutesRaw) ? Math.min(Math.max(Math.trunc(minutesRaw), 10), 60 * 24 * 30) : 720;
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 100;
+  let recollectError: string | null = null;
   try {
     await recollectPayments({ days, take: Math.max(200, take) });
     await reconcilePendingPaymentsAction({ minutes, take, ...(tenantId ? { tenantId } : {}) });
     revalidatePath("/logs");
     revalidatePath("/payments");
-    redirect(
-      `${returnTo}${returnTo.includes("?") ? "&" : "?"}recollect=ok&days=${days}&minutes=${minutes}&take=${take}`
-    );
   } catch (err: any) {
-    const message = String(err?.message || err || "recollect_failed");
+    recollectError = String(err?.message || err || "recollect_failed");
+  }
+  if (recollectError) {
     redirect(
-      `${returnTo}${returnTo.includes("?") ? "&" : "?"}recollect=fail&recollectError=${encodeURIComponent(message)}`
+      `${returnTo}${returnTo.includes("?") ? "&" : "?"}recollect=fail&recollectError=${encodeURIComponent(recollectError)}`
     );
   }
+  redirect(
+    `${returnTo}${returnTo.includes("?") ? "&" : "?"}recollect=ok&days=${days}&minutes=${minutes}&take=${take}`
+  );
 }
 
 async function autoAssociatePayments(formData: FormData) {
@@ -169,6 +187,10 @@ async function autoAssociatePayments(formData: FormData) {
   const to = String(formData.get("to") || "").trim();
   const takeRaw = Number(String(formData.get("take") || "300"));
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 50), 2000) : 300;
+  let assocAllError: string | null = null;
+  let assocAllCount = 0;
+  let assocAllSkipped = 0;
+  let assocAllFailed = 0;
   try {
     const res = await autoAssociateUnlinkedPayments({
       tenantId: tenantId || undefined,
@@ -177,17 +199,22 @@ async function autoAssociatePayments(formData: FormData) {
       take,
       actorEmail: session.email || undefined
     });
+    assocAllCount = Number(res.associated || 0);
+    assocAllSkipped = Number(res.skipped || 0);
+    assocAllFailed = Number(res.failed || 0);
     revalidatePath("/logs");
     revalidatePath("/payments");
-    redirect(
-      `${returnTo}${returnTo.includes("?") ? "&" : "?"}assocAll=ok&assocAllCount=${res.associated}&assocAllSkipped=${res.skipped}&assocAllFailed=${res.failed}`
-    );
   } catch (err: any) {
-    const message = String(err?.message || err || "assoc_all_failed");
+    assocAllError = String(err?.message || err || "assoc_all_failed");
+  }
+  if (assocAllError) {
     redirect(
-      `${returnTo}${returnTo.includes("?") ? "&" : "?"}assocAll=fail&assocAllError=${encodeURIComponent(message)}`
+      `${returnTo}${returnTo.includes("?") ? "&" : "?"}assocAll=fail&assocAllError=${encodeURIComponent(assocAllError)}`
     );
   }
+  redirect(
+    `${returnTo}${returnTo.includes("?") ? "&" : "?"}assocAll=ok&assocAllCount=${assocAllCount}&assocAllSkipped=${assocAllSkipped}&assocAllFailed=${assocAllFailed}`
+  );
 }
 
 function safeReturnToLogs(formData: FormData) {
@@ -387,6 +414,9 @@ export default async function LogsPage({
   const shopifyError = typeof sp.shopifyError === "string" ? sp.shopifyError : "";
   const recollectStatus = typeof sp.recollect === "string" ? sp.recollect : "";
   const recollectError = typeof sp.recollectError === "string" ? sp.recollectError : "";
+  const reconcileStatus = typeof sp.reconcile === "string" ? sp.reconcile : "";
+  const reconcileError = typeof sp.reconcileError === "string" ? sp.reconcileError : "";
+  const reconcileRef = typeof sp.reconcileRef === "string" ? sp.reconcileRef : "";
   const assocStatus = typeof sp.assoc === "string" ? sp.assoc : "";
   const assocError = typeof sp.assocError === "string" ? sp.assocError : "";
   const assocAllStatus = typeof sp.assocAll === "string" ? sp.assocAll : "";
@@ -815,7 +845,7 @@ export default async function LogsPage({
           <input type="hidden" name="to" value={to} />
           <input type="hidden" name="take" value="500" />
           {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-          <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Asociando..." title="Asociar pagos no vinculados a suscripciones">
+          <PendingButton className="ghost btn-compact btn-noicon payments-action-btn" type="submit" pendingText="Asociando..." title="Asociar pagos no vinculados a suscripciones">
             Asociar pagos
           </PendingButton>
         </form>
@@ -826,11 +856,16 @@ export default async function LogsPage({
           <input type="hidden" name="minutes" value="720" />
           <input type="hidden" name="take" value="150" />
           {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-          <PendingButton className="primary btn-compact" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">
+          <PendingButton className="primary btn-compact payments-action-btn" type="submit" pendingText="Conciliando..." title="Reintenta conciliación de pagos pendientes">
             Recolectar
           </PendingButton>
         </form>
-        <ReconcilePaymentModal csrfToken={csrfToken} action={reconcilePayment} className="primary btn-compact btn-noicon btn-reconcile" />
+        <ReconcilePaymentModal
+          csrfToken={csrfToken}
+          action={reconcilePayment}
+          returnTo={returnTo}
+          className="primary btn-compact btn-noicon btn-reconcile payments-action-btn"
+        />
       </div>
     ) : null;
 
@@ -906,8 +941,20 @@ export default async function LogsPage({
       {/* Mensajes de notificación */}
       {shopifyResent ? <div className="card cardPad">Reenvío a Shopify encolado.</div> : null}
       {shopifyError ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error Shopify: {shopifyError}</div> : null}
-      {recollectStatus === "ok" ? <div className="card cardPad">Recolectar pagos ejecutado.</div> : null}
+      {recollectStatus === "ok" ? (
+        <div className="card cardPad">
+          Recolectar pagos ejecutado.
+          {from || to ? <span className="muted"> · Rango: {from} → {to}</span> : null}
+        </div>
+      ) : null}
       {recollectStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error recolectando pagos: {recollectError || "unknown_error"}</div> : null}
+      {reconcileStatus === "ok" ? (
+        <div className="card cardPad">
+          Reconciliación enviada correctamente.
+          {reconcileRef ? <span className="muted"> · Ref: {reconcileRef}</span> : null}
+        </div>
+      ) : null}
+      {reconcileStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error conciliando pago: {reconcileError || "unknown_error"}</div> : null}
       {assocStatus === "ok" ? <div className="card cardPad">Pago asociado manualmente a la suscripción.</div> : null}
       {assocStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error asociando pago: {assocError || "unknown_error"}</div> : null}
       {assocAllStatus === "ok" ? (
@@ -1309,6 +1356,7 @@ export default async function LogsPage({
                             {String(p.status || "").toUpperCase() === "PENDING" ? (
                               <form action={reconcilePayment}>
                                 <input type="hidden" name="csrf" value={csrfToken} />
+                                <input type="hidden" name="returnTo" value={returnTo} />
                                 <input type="hidden" name="paymentId" value={String(p.id || "")} />
                                 <input type="hidden" name="reference" value={String(p.reference || "")} />
                                 <input type="hidden" name="wompiTransactionId" value={String(p.wompiTransactionId || "")} />
