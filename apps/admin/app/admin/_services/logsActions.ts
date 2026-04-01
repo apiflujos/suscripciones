@@ -6,6 +6,70 @@ import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyRe
 import { reconcileWompiByReference, reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { attachPaymentToCycle, ensureBillingCyclesForSubscriptions } from "@suscripciones/core/services/billingCycles";
+import { getSubscriptionPricingTotal } from "@suscripciones/core/lib/metadataSchemas";
+
+function normalizePhoneDigits(value: unknown): string {
+  const digits = String(value || "").replace(/\D+/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("57") && digits.length > 10) return digits.slice(-10);
+  return digits;
+}
+
+function phonesMatch(a: unknown, b: unknown): boolean {
+  const da = normalizePhoneDigits(a);
+  const db = normalizePhoneDigits(b);
+  if (!da || !db) return false;
+  if (da === db) return true;
+  return da.length >= 8 && db.length >= 8 && (da.endsWith(db) || db.endsWith(da));
+}
+
+function normalizeNameForMatch(value: unknown): string {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function parseDateStart(value?: string | null) {
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function parseDateEnd(value?: string | null) {
+  if (!value) return null;
+  const d = new Date(`${value}T23:59:59.999Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function estimateCyclesBack(args: {
+  currentPeriodStartAt: Date;
+  intervalUnit: string;
+  intervalCount: number;
+  paymentAt: Date;
+}) {
+  const start = args.currentPeriodStartAt;
+  const paymentAt = args.paymentAt;
+  if (paymentAt.getTime() >= start.getTime()) return 12;
+  const count = Math.max(1, Math.trunc(args.intervalCount || 1));
+  const msDiff = start.getTime() - paymentAt.getTime();
+  const daysDiff = Math.ceil(msDiff / (24 * 60 * 60 * 1000));
+  if (args.intervalUnit === "MONTH") {
+    const startMonth = start.getUTCFullYear() * 12 + start.getUTCMonth();
+    const payMonth = paymentAt.getUTCFullYear() * 12 + paymentAt.getUTCMonth();
+    const monthsDiff = Math.max(0, startMonth - payMonth);
+    const cycles = Math.ceil(monthsDiff / count) + 2;
+    return Math.max(12, cycles);
+  }
+  if (args.intervalUnit === "WEEK") {
+    const cycles = Math.ceil(daysDiff / (count * 7)) + 2;
+    return Math.max(12, cycles);
+  }
+  const cycles = Math.ceil(daysDiff / count) + 2;
+  return Math.max(12, cycles);
+}
 
 export async function retryJobById(id: string) {
   const jobId = String(id || "").trim();
@@ -360,6 +424,380 @@ export async function associatePaymentToSubscription(args: {
   ).catch(() => {});
 
   return { ok: true as const, updated: true as const };
+}
+
+export async function autoAssociateUnlinkedPayments(args: {
+  tenantId?: string;
+  from?: string;
+  to?: string;
+  take?: number;
+  actorEmail?: string;
+  minScore?: number;
+}) {
+  const tenantId = String(args.tenantId || "").trim();
+  const from = parseDateStart(args.from || "");
+  const to = parseDateEnd(args.to || "");
+  const takeRaw = Number(args.take ?? 300);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 50), 2000) : 300;
+  const minScore = Number.isFinite(args.minScore) ? Math.max(0, Math.trunc(args.minScore!)) : 70;
+
+  const dateFilter =
+    from && to
+      ? {
+          OR: [
+            { paidAt: { gte: from, lte: to } },
+            { paidAt: null, createdAt: { gte: from, lte: to } }
+          ]
+        }
+      : null;
+
+  const payments = await prisma.payment.findMany({
+    where: {
+      subscriptionId: null,
+      status: PaymentStatus.APPROVED,
+      amountInCents: { gt: 0 },
+      ...(tenantId ? { tenantId } : {}),
+      ...(dateFilter ? { AND: [dateFilter] } : {})
+    },
+    include: {
+      customer: true
+    },
+    orderBy: [{ paidAt: "asc" }, { createdAt: "asc" }],
+    take
+  });
+
+  let associated = 0;
+  let skipped = 0;
+  let failed = 0;
+  const errors: Array<{ paymentId: string; reason: string }> = [];
+
+  for (const payment of payments) {
+    try {
+      if (payment.subscriptionId) {
+        skipped += 1;
+        continue;
+      }
+      const paymentAt = payment.paidAt || payment.createdAt;
+      const amountInCents = Number(payment.amountInCents || 0);
+      const currency = String(payment.currency || "").trim().toUpperCase();
+      if (!amountInCents) {
+        skipped += 1;
+        continue;
+      }
+
+      const reference = String(payment.reference || "").trim();
+      const refClass = reference ? classifyReference(reference) : null;
+
+      const resolveMatchCycle = async (subscriptionId: string, cycleNumber?: number | null) => {
+        if (cycleNumber != null) {
+          const direct = await prisma.subscriptionBillingCycle.findUnique({
+            where: { subscriptionId_cycleNumber: { subscriptionId, cycleNumber } }
+          });
+          if (direct && !direct.paymentId && direct.status !== "PAID") return direct;
+        }
+        const toleranceDays = 7;
+        const toleranceMs = toleranceDays * 24 * 60 * 60 * 1000;
+        const cycles = await prisma.subscriptionBillingCycle.findMany({
+          where: {
+            subscriptionId,
+            paymentId: null,
+            status: { not: "PAID" }
+          },
+          orderBy: [{ periodStartAt: "desc" }, { cycleNumber: "desc" }]
+        });
+        return (
+          cycles.find((c) => {
+            const start = new Date(c.periodStartAt).getTime() - toleranceMs;
+            const end = new Date(c.periodEndAt).getTime() + toleranceMs;
+            const ts = paymentAt.getTime();
+            return ts >= start && ts <= end;
+          }) || null
+        );
+      };
+
+      if (refClass && refClass.kind === "subscription" && refClass.subscriptionId) {
+        const subscription = await prisma.subscription.findUnique({
+          where: { id: refClass.subscriptionId },
+          include: { plan: true, customer: true }
+        });
+        if (!subscription) {
+          skipped += 1;
+          continue;
+        }
+        if (!["ACTIVE", "PAST_DUE"].includes(String(subscription.status || "").toUpperCase())) {
+          skipped += 1;
+          continue;
+        }
+        const planAmount = getSubscriptionPricingTotal(subscription.metadata, subscription.plan?.priceInCents || 0);
+        const planCurrency = String(subscription.plan?.currency || "").trim().toUpperCase();
+        if (planAmount !== amountInCents || (currency && planCurrency && currency !== planCurrency)) {
+          skipped += 1;
+          continue;
+        }
+
+        const cyclesBack = estimateCyclesBack({
+          currentPeriodStartAt: subscription.currentPeriodStartAt,
+          intervalUnit: subscription.plan.intervalUnit,
+          intervalCount: subscription.plan.intervalCount,
+          paymentAt
+        });
+        await ensureBillingCyclesForSubscriptions(
+          [
+            {
+              id: subscription.id,
+              currentCycle: subscription.currentCycle,
+              currentPeriodStartAt: subscription.currentPeriodStartAt,
+              currentPeriodEndAt: subscription.currentPeriodEndAt,
+              cycleStartDay: subscription.cycleStartDay,
+              paymentDay: subscription.paymentDay,
+              paymentTiming: (subscription.paymentTiming as any) || "EN_CURSO",
+              graceDays: subscription.graceDays,
+              plan: { intervalUnit: subscription.plan.intervalUnit, intervalCount: subscription.plan.intervalCount }
+            }
+          ],
+          cyclesBack,
+          2
+        ).catch(() => {});
+
+        const cycle = await resolveMatchCycle(subscription.id, refClass.cycle ?? null);
+        if (!cycle) {
+          skipped += 1;
+          continue;
+        }
+
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            subscriptionId: subscription.id,
+            customerId: subscription.customerId,
+            associationReason: "SUB_REF" as any,
+            associatedBy: args.actorEmail ? String(args.actorEmail) : "system",
+            matchScore: 100,
+            matchCriteria: {
+              method: "reference",
+              amountInCents,
+              currency: currency || null,
+              cycleNumber: cycle.cycleNumber
+            } as any,
+            cycleNumber: cycle.cycleNumber,
+            subscriptionCycleKey: `${subscription.id}:${cycle.cycleNumber}`
+          }
+        });
+
+        await attachPaymentToCycle({
+          paymentId: payment.id,
+          subscriptionId: subscription.id,
+          cycleId: cycle.id,
+          paymentAt,
+          origin: payment.origin,
+          associationReason: "SUB_REF" as any,
+          associatedBy: args.actorEmail ? String(args.actorEmail) : "system"
+        }).catch(() => {});
+
+        associated += 1;
+        continue;
+      }
+
+      const customerIds = new Set<string>();
+      let identitySource: "email" | "phone" | "name" | "email_phone" | null = null;
+      const email = String(payment.customer?.email || "").trim().toLowerCase();
+      const phone = String(payment.customer?.phone || "").trim();
+      const name = String(payment.customer?.name || "").trim();
+
+      if (email) {
+        const byEmail = await prisma.customer.findMany({
+          where: {
+            email,
+            ...(tenantId
+              ? {
+                  OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }]
+                }
+              : {})
+          },
+          select: { id: true }
+        });
+        if (byEmail.length) identitySource = "email";
+        byEmail.forEach((c) => customerIds.add(c.id));
+      }
+
+      if (phone) {
+        const byPhone = await prisma.customer.findMany({
+          where: {
+            phone: { not: null },
+            ...(tenantId
+              ? {
+                  OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }]
+                }
+              : {})
+          },
+          select: { id: true, phone: true },
+          take: 500
+        });
+        const matched = byPhone.filter((c) => phonesMatch(c.phone, phone));
+        if (matched.length) identitySource = identitySource ? "email_phone" : "phone";
+        matched.forEach((c) => customerIds.add(c.id));
+      }
+
+      if (!customerIds.size) {
+        const nameNorm = normalizeNameForMatch(name);
+        if (nameNorm.length >= 4) {
+          const byName = await prisma.customer.findMany({
+            where: {
+              name: { contains: name, mode: "insensitive" },
+              ...(tenantId
+                ? {
+                    OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }]
+                  }
+                : {})
+            },
+            select: { id: true, name: true },
+            orderBy: { updatedAt: "desc" },
+            take: 100
+          });
+          const matched = byName.filter((c) => normalizeNameForMatch(c.name) === nameNorm);
+          if (matched.length) identitySource = "name";
+          matched.forEach((c) => customerIds.add(c.id));
+        }
+      }
+
+      if (!customerIds.size || !identitySource) {
+        skipped += 1;
+        continue;
+      }
+
+      const candidates = await prisma.subscription.findMany({
+        where: {
+          customerId: { in: Array.from(customerIds) },
+          ...(tenantId
+            ? {
+                OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }]
+              }
+            : {})
+        },
+        include: { plan: true }
+      });
+
+      const amountMatches = candidates.filter((sub) => {
+        const planAmount = getSubscriptionPricingTotal(sub.metadata, sub.plan?.priceInCents || 0);
+        const planCurrency = String(sub.plan?.currency || "").trim().toUpperCase();
+        if (planAmount !== amountInCents) return false;
+        if (currency && planCurrency && currency !== planCurrency) return false;
+        return true;
+      });
+
+      if (!amountMatches.length) {
+        skipped += 1;
+        continue;
+      }
+
+      const withActive = amountMatches.filter((sub) =>
+        ["ACTIVE", "PAST_DUE"].includes(String(sub.status || "").toUpperCase())
+      );
+      const usableSubs = withActive.length ? withActive : amountMatches;
+
+      let selected = usableSubs[0];
+      let selectedCycle: any = null;
+
+      for (const sub of usableSubs) {
+        const cyclesBack = estimateCyclesBack({
+          currentPeriodStartAt: sub.currentPeriodStartAt,
+          intervalUnit: sub.plan.intervalUnit,
+          intervalCount: sub.plan.intervalCount,
+          paymentAt
+        });
+        await ensureBillingCyclesForSubscriptions(
+          [
+            {
+              id: sub.id,
+              currentCycle: sub.currentCycle,
+              currentPeriodStartAt: sub.currentPeriodStartAt,
+              currentPeriodEndAt: sub.currentPeriodEndAt,
+              cycleStartDay: sub.cycleStartDay,
+              paymentDay: sub.paymentDay,
+              paymentTiming: (sub.paymentTiming as any) || "EN_CURSO",
+              graceDays: sub.graceDays,
+              plan: { intervalUnit: sub.plan.intervalUnit, intervalCount: sub.plan.intervalCount }
+            }
+          ],
+          cyclesBack,
+          2
+        ).catch(() => {});
+      }
+
+      if (usableSubs.length > 1) {
+        let oldest: { sub: any; cycle: any } | null = null;
+        for (const sub of usableSubs) {
+          const cycle = await prisma.subscriptionBillingCycle.findFirst({
+            where: {
+              subscriptionId: sub.id,
+              paymentId: null,
+              status: { not: "PAID" }
+            },
+            orderBy: [{ dueAt: "asc" }, { periodStartAt: "asc" }, { cycleNumber: "asc" }]
+          });
+          if (!cycle) continue;
+          if (!oldest) {
+            oldest = { sub, cycle };
+          } else if (cycle.dueAt.getTime() < oldest.cycle.dueAt.getTime()) {
+            oldest = { sub, cycle };
+          }
+        }
+        if (oldest) {
+          selected = oldest.sub;
+        }
+      }
+
+      selectedCycle = await resolveMatchCycle(selected.id, null);
+      if (!selectedCycle) {
+        skipped += 1;
+        continue;
+      }
+
+      const score = identitySource === "name" ? 70 : 80;
+      if (score < minScore) {
+        skipped += 1;
+        continue;
+      }
+
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          subscriptionId: selected.id,
+          customerId: selected.customerId,
+          associationReason: "IDENTITY_MATCH" as any,
+          associatedBy: args.actorEmail ? String(args.actorEmail) : "system",
+          matchScore: score,
+          matchCriteria: {
+            method: "identity",
+            source: identitySource,
+            amountInCents,
+            currency: currency || null,
+            cycleNumber: selectedCycle.cycleNumber,
+            tieBreak: usableSubs.length > 1 ? "oldest_unpaid_cycle" : undefined
+          } as any,
+          cycleNumber: selectedCycle.cycleNumber,
+          subscriptionCycleKey: `${selected.id}:${selectedCycle.cycleNumber}`
+        }
+      });
+
+      await attachPaymentToCycle({
+        paymentId: payment.id,
+        subscriptionId: selected.id,
+        cycleId: selectedCycle.id,
+        paymentAt,
+        origin: payment.origin,
+        associationReason: "IDENTITY_MATCH" as any,
+        associatedBy: args.actorEmail ? String(args.actorEmail) : "system"
+      }).catch(() => {});
+
+      associated += 1;
+    } catch (err: any) {
+      failed += 1;
+      errors.push({ paymentId: payment.id, reason: String(err?.message || "unknown_error") });
+    }
+  }
+
+  return { ok: true as const, associated, skipped, failed, errors: errors.slice(0, 50) };
 }
 
 export async function reconcilePendingPayments(args: { minutes?: number; take?: number; tenantId?: string }) {

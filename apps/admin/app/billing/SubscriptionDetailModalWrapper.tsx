@@ -29,6 +29,7 @@ type SubscriptionDetail = {
   periodoInicioAt: string | null;
   periodoFinAt?: string | null;
   tipoTx?: string | null;
+  mode?: string | null;
   cycleStartDay: number;
   status: string;
   inGrace?: boolean;
@@ -42,6 +43,8 @@ type SubscriptionDetail = {
   duplicateCount?: number;
   canManualCharge?: boolean;
   canManualMarkPaid?: boolean;
+  manualChargeEnabled?: boolean;
+  manualMarkPaidEnabled?: boolean;
   chargeDue?: boolean;
   lastPaidInCurrentPeriod?: boolean;
 };

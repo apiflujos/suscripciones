@@ -20,6 +20,7 @@ import { getAdminSettings } from "../admin/_services/settings";
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
 import {
   recollectPayments,
+  autoAssociateUnlinkedPayments,
   associatePaymentToSubscription,
   reconcilePayment as reconcilePaymentAction,
   reconcilePendingPayments as reconcilePendingPaymentsAction,
@@ -153,6 +154,38 @@ async function reconcilePendingPayments(formData: FormData) {
     const message = String(err?.message || err || "recollect_failed");
     redirect(
       `${returnTo}${returnTo.includes("?") ? "&" : "?"}recollect=fail&recollectError=${encodeURIComponent(message)}`
+    );
+  }
+}
+
+async function autoAssociatePayments(formData: FormData) {
+  "use server";
+  await assertCsrfToken(formData);
+  const session = await getSuperAdminSession();
+  if (!session) return;
+  const returnTo = safeReturnToLogs(formData);
+  const tenantId = String(formData.get("tenantId") || "").trim();
+  const from = String(formData.get("from") || "").trim();
+  const to = String(formData.get("to") || "").trim();
+  const takeRaw = Number(String(formData.get("take") || "300"));
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 50), 2000) : 300;
+  try {
+    const res = await autoAssociateUnlinkedPayments({
+      tenantId: tenantId || undefined,
+      from: from || undefined,
+      to: to || undefined,
+      take,
+      actorEmail: session.email || undefined
+    });
+    revalidatePath("/logs");
+    revalidatePath("/payments");
+    redirect(
+      `${returnTo}${returnTo.includes("?") ? "&" : "?"}assocAll=ok&assocAllCount=${res.associated}&assocAllSkipped=${res.skipped}&assocAllFailed=${res.failed}`
+    );
+  } catch (err: any) {
+    const message = String(err?.message || err || "assoc_all_failed");
+    redirect(
+      `${returnTo}${returnTo.includes("?") ? "&" : "?"}assocAll=fail&assocAllError=${encodeURIComponent(message)}`
     );
   }
 }
@@ -356,6 +389,11 @@ export default async function LogsPage({
   const recollectError = typeof sp.recollectError === "string" ? sp.recollectError : "";
   const assocStatus = typeof sp.assoc === "string" ? sp.assoc : "";
   const assocError = typeof sp.assocError === "string" ? sp.assocError : "";
+  const assocAllStatus = typeof sp.assocAll === "string" ? sp.assocAll : "";
+  const assocAllError = typeof sp.assocAllError === "string" ? sp.assocAllError : "";
+  const assocAllCount = typeof sp.assocAllCount === "string" ? sp.assocAllCount : "";
+  const assocAllSkipped = typeof sp.assocAllSkipped === "string" ? sp.assocAllSkipped : "";
+  const assocAllFailed = typeof sp.assocAllFailed === "string" ? sp.assocAllFailed : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
@@ -764,6 +802,17 @@ export default async function LogsPage({
           }).toString()}`}
           defaultEntity="payments"
         />
+        <form action={autoAssociatePayments} className="filtersForm">
+          <input type="hidden" name="returnTo" value={returnTo} />
+          <input type="hidden" name="csrf" value={csrfToken} />
+          <input type="hidden" name="from" value={from} />
+          <input type="hidden" name="to" value={to} />
+          <input type="hidden" name="take" value="500" />
+          {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+          <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Asociando..." title="Asociar pagos no vinculados a suscripciones">
+            Asociar pagos
+          </PendingButton>
+        </form>
         <form action={reconcilePendingPayments} className="filtersForm">
           <input type="hidden" name="returnTo" value={returnTo} />
           <input type="hidden" name="csrf" value={csrfToken} />
@@ -855,6 +904,16 @@ export default async function LogsPage({
       {recollectStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error recolectando pagos: {recollectError || "unknown_error"}</div> : null}
       {assocStatus === "ok" ? <div className="card cardPad">Pago asociado manualmente a la suscripción.</div> : null}
       {assocStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error asociando pago: {assocError || "unknown_error"}</div> : null}
+      {assocAllStatus === "ok" ? (
+        <div className="card cardPad">
+          Asociaciones automáticas completadas. Asociados: {assocAllCount || "0"} · Omitidos: {assocAllSkipped || "0"} · Fallidos: {assocAllFailed || "0"}
+        </div>
+      ) : null}
+      {assocAllStatus === "fail" ? (
+        <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
+          Error asociando pagos: {assocAllError || "unknown_error"}
+        </div>
+      ) : null}
 
       <section className="settings-group">
         <PageToolbar

@@ -39,6 +39,7 @@ type SubscriptionDetail = {
   periodoInicioAt: string | null;
   periodoFinAt?: string | null;
   tipoTx?: string | null;
+  mode?: string | null;
   cycleStartDay: number;
   status: string;
   inGrace?: boolean;
@@ -52,6 +53,8 @@ type SubscriptionDetail = {
   duplicateCount?: number;
   canManualCharge?: boolean;
   canManualMarkPaid?: boolean;
+  manualChargeEnabled?: boolean;
+  manualMarkPaidEnabled?: boolean;
   chargeDue?: boolean;
   lastPaidInCurrentPeriod?: boolean;
 };
@@ -122,8 +125,11 @@ export function SubscriptionDetailModal({
     class: subscription.status === "ACTIVE" ? "pill-ok" : subscription.status === "PAST_DUE" ? "pill-bad" : "pill-muted"
   };
 
-  const showChargeButton = !subscription.status.includes("CANCELED");
-  const showMarkPaidButton = !subscription.status.includes("CANCELED");
+  const modeValue = String(subscription.mode || "").trim().toUpperCase();
+  const tipoLabel = String(subscription.tipoTx || "").toLowerCase();
+  const isAutoDebit = modeValue === "AUTO_DEBIT" || tipoLabel.includes("débito") || tipoLabel.includes("debito");
+  const showChargeButton = isAutoDebit && !subscription.status.includes("CANCELED");
+  const showMarkPaidButton = !subscription.status.includes("CANCELED") && !alreadyPaidCurrentPeriod;
   const alreadyPaidCurrentPeriod = Boolean(subscription.lastPaidInCurrentPeriod);
   const showResume = subscription.status === "SUSPENDED";
   const showActivate = subscription.status === "CANCELED";
@@ -350,7 +356,7 @@ export function SubscriptionDetailModal({
                     returnTo={returnTo}
                     warnNotDue={!subscription.chargeDue}
                     warnAlreadyPaid={alreadyPaidCurrentPeriod}
-                    manualChargeEnabled={subscription.canManualCharge}
+                    manualChargeEnabled={subscription.manualChargeEnabled}
                   />
                 ) : null}
                 {showMarkPaidButton ? (
@@ -361,7 +367,7 @@ export function SubscriptionDetailModal({
                     tenantId={tenantId}
                     returnTo={returnTo}
                     warnAlreadyPaid={alreadyPaidCurrentPeriod}
-                    manualMarkPaidEnabled={subscription.canManualMarkPaid}
+                    manualMarkPaidEnabled={subscription.manualMarkPaidEnabled}
                   />
                 ) : null}
                 {alreadyPaidCurrentPeriod ? (
@@ -417,27 +423,31 @@ export function SubscriptionDetailModal({
             </div>
 
             <div className="module-footer">
-              <PaymentLinkModalButton
-                subscriptionId={subscription.id}
-                customerId={subscription.customerId}
-                tenantId={tenantId}
-                csrfToken={csrfToken}
-                returnTo={returnTo}
-                defaultAmountPesos={Math.trunc(subscription.totalInCents / 100)}
-                notificationTemplates={notificationsTemplates}
-                notificationRules={notificationsRules}
-                action={sendCentralComPaymentLink}
-              />
-              <TokenizationLinkModalButton
-                customerId={subscription.customerId}
-                planId={subscription.planId}
-                tenantId={tenantId}
-                csrfToken={csrfToken}
-                returnTo={returnTo}
-                notificationTemplates={notificationsTemplates}
-                notificationRules={notificationsRules}
-                action={sendCentralComTokenizationLink}
-              />
+              {!isAutoDebit ? (
+                <PaymentLinkModalButton
+                  subscriptionId={subscription.id}
+                  customerId={subscription.customerId}
+                  tenantId={tenantId}
+                  csrfToken={csrfToken}
+                  returnTo={returnTo}
+                  defaultAmountPesos={Math.trunc(subscription.totalInCents / 100)}
+                  notificationTemplates={notificationsTemplates}
+                  notificationRules={notificationsRules}
+                  action={sendCentralComPaymentLink}
+                />
+              ) : null}
+              {isAutoDebit ? (
+                <TokenizationLinkModalButton
+                  customerId={subscription.customerId}
+                  planId={subscription.planId}
+                  tenantId={tenantId}
+                  csrfToken={csrfToken}
+                  returnTo={returnTo}
+                  notificationTemplates={notificationsTemplates}
+                  notificationRules={notificationsRules}
+                  action={sendCentralComTokenizationLink}
+                />
+              ) : null}
             </div>
           </div>
         </div>

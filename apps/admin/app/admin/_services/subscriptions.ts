@@ -455,13 +455,10 @@ export async function listSubscriptions(args: {
     const canManualCharge =
       allowManualCharge &&
       resolvedMode === "AUTO_DEBIT" &&
-      chargeDue &&
       !isInactive &&
-      customerTokenized &&
-      !lastPaidInCurrentPeriod;
+      customerTokenized;
     const canManualMarkPaid =
       allowManualCharge &&
-      resolvedMode === "AUTO_DEBIT" &&
       !isInactive;
 
     return {
@@ -475,6 +472,8 @@ export async function listSubscriptions(args: {
       chargeDue,
       canManualCharge,
       canManualMarkPaid,
+      manualChargeEnabled: allowManualCharge,
+      manualMarkPaidEnabled: allowManualCharge,
       lastPaidInCurrentPeriod
     };
   });

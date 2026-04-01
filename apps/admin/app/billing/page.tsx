@@ -455,6 +455,8 @@ export default async function BillingPage({
         mode: collectionMode,
         canManualCharge: typeof s?.canManualCharge === "boolean" ? s.canManualCharge : undefined,
         canManualMarkPaid: typeof s?.canManualMarkPaid === "boolean" ? s.canManualMarkPaid : undefined,
+        manualChargeEnabled: typeof s?.manualChargeEnabled === "boolean" ? s.manualChargeEnabled : undefined,
+        manualMarkPaidEnabled: typeof s?.manualMarkPaidEnabled === "boolean" ? s.manualMarkPaidEnabled : undefined,
         chargeDue: typeof s?.chargeDue === "boolean" ? s.chargeDue : undefined,
         lastPaidInCurrentPeriod: typeof s?.lastPaidInCurrentPeriod === "boolean" ? s.lastPaidInCurrentPeriod : false,
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
@@ -575,10 +577,10 @@ export default async function BillingPage({
     const showChargeButton = isAutoDebit && !isInactive;
     
     // Botón de marcar pagada: solo si no está cancelada
-    const showMarkPaidButton = r.status !== "CANCELED";
+    const showMarkPaidButton = r.status !== "CANCELED" && !alreadyPaidCurrentPeriod;
     
     // Botón de enviar link de pago: visible siempre que la suscripción esté activa
-    const showPaymentLinkButton = !isInactive;
+    const showPaymentLinkButton = !isInactive && !isAutoDebit;
     
     // Botón de tokenización: visible para débito automático mientras esté activa
     const showTokenizationLink = isAutoDebit && !isInactive;
@@ -797,7 +799,7 @@ export default async function BillingPage({
                 returnTo={returnTo}
                 warnNotDue={!chargeDue}
                 warnAlreadyPaid={alreadyPaidCurrentPeriod}
-                manualChargeEnabled={r.canManualCharge}
+                manualChargeEnabled={r.manualChargeEnabled}
               />
             ) : null}
             {showMarkPaidButton ? (
@@ -808,7 +810,7 @@ export default async function BillingPage({
                 tenantId={r.tenantId}
                 returnTo={returnTo}
                 warnAlreadyPaid={alreadyPaidCurrentPeriod}
-                manualMarkPaidEnabled={r.canManualMarkPaid}
+                manualMarkPaidEnabled={r.manualMarkPaidEnabled}
               />
             ) : null}
             {alreadyPaidCurrentPeriod ? (
@@ -1133,7 +1135,7 @@ export default async function BillingPage({
                           resumeSubscription={resumeSubscription}
                           activateSubscription={activateSubscription}
                         />
-                        {!isInactive ? (
+                        {!isInactive && !isAutoDebit ? (
                           <PaymentLinkModalButton
                             subscriptionId={r.id}
                             customerId={r.customerId}
@@ -1260,7 +1262,7 @@ export default async function BillingPage({
                                 </div>
                               </SubscriptionDetailModalWrapper>
                               <div className="billing-kanban-card-actions">
-                                {!isInactive ? (
+                                {!isInactive && !isAutoDebit ? (
                                   <PaymentLinkModalButton
                                     subscriptionId={r.id}
                                     customerId={r.customerId}

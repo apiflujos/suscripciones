@@ -19,7 +19,7 @@ export function ManualUnmarkPaidButton({
     <form
       action={action}
       onSubmit={(e) => {
-        const ok = confirm("Vas a desmarcar el pago manual y devolver la suscripción al ciclo anterior. ¿Continuar?");
+        const ok = confirm("Vas a desmarcar el cobro manual y devolver la suscripción al ciclo anterior. ¿Continuar?");
         if (!ok) e.preventDefault();
       }}
     >
@@ -27,8 +27,8 @@ export function ManualUnmarkPaidButton({
       <input type="hidden" name="subscriptionId" value={subscriptionId} />
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-      <button className="ghost btn-compact btn-red btn-noicon" type="submit" title="Desmarcar pago manual">
-        Desmarcar pago
+      <button className="ghost btn-compact btn-red btn-noicon" type="submit" title="Desmarcar cobro manual">
+        Desmarcar cobro
       </button>
     </form>
   );

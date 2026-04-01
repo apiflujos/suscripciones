@@ -111,29 +111,7 @@ export function SubscriptionEditModal({
     return new Intl.DateTimeFormat("es-CO", { dateStyle: "short" }).format(normalized);
   };
 
-  const handleSave = async () => {
-    const formData = new FormData();
-    formData.set("csrf", csrfToken);
-    formData.set("subscriptionId", subscriptionId);
-    formData.set("subscriptionType", subscriptionType);
-    formData.set("intervalCount", intervalCount.toString());
-    formData.set("intervalUnit", intervalUnit);
-    formData.set("cycleStartDay", localCycleStartDay.toString());
-    formData.set("paymentDay", localPaymentDay.toString());
-    formData.set("paymentTiming", localPaymentTiming);
-    formData.set("useGlobalConfig", useGlobalConfig ? "1" : "0");
-    if (!useGlobalConfig) {
-      formData.set("graceDays", localGraceDays.toString());
-      formData.set("suspendDays", localSuspendDays.toString());
-      formData.set("cancelDays", localCancelDays.toString());
-    }
-    formData.set("shippingPesos", freeShipping ? "0" : shippingCop);
-    formData.set("freeShipping", freeShipping ? "1" : "0");
-    if (returnTo) formData.set("returnTo", returnTo);
-
-    await updateSubscriptionBillingSettings(formData);
-    setOpen(false);
-  };
+  const effectiveGraceDays = useGlobalConfig ? (globalConfig?.graceDays ?? graceDays) : localGraceDays;
 
   const searchProducts = useCallback(async (query: string) => {
     if (!query.trim()) {
@@ -193,48 +171,53 @@ export function SubscriptionEditModal({
 
       {open ? (
         <div className="modal-backdrop">
-          <div className="modal-panel subscription-edit-modal" style={{ width: "min(900px, 96vw)" }}>
-            <div className="panel-header" style={{ justifyContent: "space-between" }}>
+          <div className="modal-panel subscription-edit-modal">
+            <div className="panel-header">
               <h3 style={{ margin: 0 }}>Editar suscripción</h3>
               <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
             </div>
 
-            <div className="modal-body" style={{ display: "grid", gap: 16 }}>
+            <form action={updateSubscriptionBillingSettings} className="modal-body">
+              <input type="hidden" name="csrf" value={csrfToken} />
+              <input type="hidden" name="subscriptionId" value={subscriptionId} />
+              {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+              {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+              <input type="hidden" name="graceDays" value={String(effectiveGraceDays)} />
               {/* 1. Tipo de suscripción */}
-              <section className="card cardPad" style={{ padding: "12px" }}>
-                <div style={{ display: "flex", gap: 16 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                    <input
-                      type="radio"
-                      name="subscriptionType"
-                      checked={subscriptionType === "AUTO_DEBIT"}
-                      onChange={() => setSubscriptionType("AUTO_DEBIT")}
+              <section className="card cardPad">
+                <div style={{ display: "flex", gap: "var(--space-4)" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="subscriptionType"
+                        checked={subscriptionType === "AUTO_DEBIT"}
+                        onChange={() => setSubscriptionType("AUTO_DEBIT")}
                     />
                     <span>Débito automático</span>
                   </label>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                    <input
-                      type="radio"
-                      name="subscriptionType"
-                      checked={subscriptionType === "LINK_PAYMENT"}
-                      onChange={() => setSubscriptionType("LINK_PAYMENT")}
+                  <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="subscriptionType"
+                        checked={subscriptionType === "LINK_PAYMENT"}
+                        onChange={() => setSubscriptionType("LINK_PAYMENT")}
                     />
                     <span>Link de pago</span>
                   </label>
                 </div>
-                <div className="field-hint" style={{ marginTop: 8 }}>
+                <div className="field-hint" style={{ marginTop: "var(--space-2)" }}>
                   Débito automático requiere tarjeta tokenizada
                 </div>
               </section>
 
               {/* 2. Productos */}
-              <section className="card cardPad" style={{ padding: "12px" }}>
-                <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
+              <section className="card cardPad">
+                <div style={{ display: "grid", gap: "var(--space-2)", marginBottom: "var(--space-3)" }}>
                   {products.map((product) => (
-                    <div key={product.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px", border: "1px solid var(--stroke)", borderRadius: 8 }}>
+                    <div key={product.id} className="customer-search-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
                         <strong>{product.name}</strong>
-                        <div className="muted" style={{ fontSize: 11 }}>{new Intl.NumberFormat("es-CO", { style: "currency", currency: product.currency, maximumFractionDigits: 0 }).format(product.priceInCents / 100)}</div>
+                        <div className="muted">{new Intl.NumberFormat("es-CO", { style: "currency", currency: product.currency, maximumFractionDigits: 0 }).format(product.priceInCents / 100)}</div>
                       </div>
                       <button
                         className="ghost btn-compact btn-icon-only btn-cancel"
@@ -246,13 +229,13 @@ export function SubscriptionEditModal({
                     </div>
                   ))}
                   {products.length === 0 && (
-                    <div className="muted" style={{ fontSize: 12, padding: "8px" }}>No hay productos adicionales</div>
+                    <div className="field-hint">No hay productos adicionales</div>
                   )}
                 </div>
                 
                 {productSearchOpen ? (
-                  <div style={{ display: "grid", gap: 8 }}>
-                    <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ display: "grid", gap: "var(--space-2)" }}>
+                  <div style={{ display: "flex", gap: "var(--space-2)" }}>
                       <input
                         className="input"
                         type="search"
@@ -262,20 +245,17 @@ export function SubscriptionEditModal({
                         autoFocus
                         style={{ flex: 1 }}
                       />
-                      <button className="ghost btn-compact" type="button" onClick={() => setProductSearchOpen(false)}>
-                        Cerrar
-                      </button>
+                      <button className="ghost btn-compact btn-icon-only btn-cancel" type="button" onClick={() => setProductSearchOpen(false)} aria-label="Cerrar búsqueda" title="Cerrar búsqueda" />
                     </div>
                     {productSearchLoading && <div className="muted">Buscando...</div>}
                     {productSearchResults.length > 0 && (
-                      <div style={{ display: "grid", gap: 4, maxHeight: 200, overflow: "auto" }}>
+                      <div className="plan-option-list">
                         {productSearchResults.map((product) => (
                           <button
                             key={product.id}
-                            className="ghost btn-compact"
+                            className="ghost btn-compact btn-noicon plan-option-item"
                             type="button"
                             onClick={() => addProduct(product)}
-                            style={{ justifyContent: "space-between", textAlign: "left" }}
                           >
                             <span>{product.name}</span>
                             <span className="muted">{new Intl.NumberFormat("es-CO", { style: "currency", currency: product.currency || "COP", maximumFractionDigits: 0 }).format(Number(product.priceInCents || 0) / 100)}</span>
@@ -285,24 +265,24 @@ export function SubscriptionEditModal({
                     )}
                   </div>
                 ) : (
-                  <button className="primary btn-compact" type="button" onClick={() => setProductSearchOpen(true)} style={{ whiteSpace: "nowrap", width: "fit-content" }}>
+                  <button className="primary btn-compact" type="button" onClick={() => setProductSearchOpen(true)}>
                     Agregar producto
                   </button>
                 )}
               </section>
 
               {/* 3. Periodicidad */}
-              <section className="card cardPad" style={{ padding: "12px" }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <section className="card cardPad">
+                <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
                   <span>
                     Cobrar cada
                     <HelpTip text="Define la periodicidad del ciclo (ej. cada 1 mes, cada 2 semanas)." />
                   </span>
                   <select
                     className="select select-compact"
+                    name="intervalCount"
                     value={intervalCount}
                     onChange={(e) => setIntervalCount(Number(e.target.value))}
-                    style={{ width: 80 }}
                   >
                     <option value="1">1</option>
                     <option value="2">2</option>
@@ -312,9 +292,9 @@ export function SubscriptionEditModal({
                   </select>
                   <select
                     className="select select-compact"
+                    name="intervalUnit"
                     value={intervalUnit}
                     onChange={(e) => setIntervalUnit(e.target.value)}
-                    style={{ width: 100 }}
                   >
                     <option value="DAY">día(s)</option>
                     <option value="WEEK">semana(s)</option>
@@ -325,9 +305,9 @@ export function SubscriptionEditModal({
               </section>
 
               {/* 4. Configuración de ciclo */}
-              <section className="card cardPad" style={{ padding: "12px" }}>
-                <div style={{ display: "grid", gap: 12 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <section className="card cardPad">
+                <div style={{ display: "grid", gap: "var(--space-3)" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
                     <div className="field">
                       <label className="field-label">
                         Día inicio ciclo
@@ -335,6 +315,7 @@ export function SubscriptionEditModal({
                       </label>
                       <select
                         className="select"
+                        name="cycleStartDay"
                         value={localCycleStartDay}
                         onChange={(e) => setLocalCycleStartDay(Number(e.target.value))}
                       >
@@ -350,6 +331,7 @@ export function SubscriptionEditModal({
                       </label>
                       <select
                         className="select"
+                        name="paymentDay"
                         value={localPaymentDay}
                         onChange={(e) => setLocalPaymentDay(Number(e.target.value))}
                       >
@@ -367,6 +349,7 @@ export function SubscriptionEditModal({
                     </label>
                     <select
                       className="select"
+                      name="paymentTiming"
                       value={localPaymentTiming}
                       onChange={(e) => setLocalPaymentTiming(e.target.value)}
                     >
@@ -375,7 +358,7 @@ export function SubscriptionEditModal({
                     </select>
                   </div>
 
-                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
                     <input
                       type="checkbox"
                       checked={useGlobalConfig}
@@ -385,7 +368,7 @@ export function SubscriptionEditModal({
                   </label>
 
                   {!useGlobalConfig && (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, padding: 12, background: "var(--panel-soft)", borderRadius: 8 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-3)", padding: "var(--space-3)", background: "var(--panel-soft)", borderRadius: "var(--radius-3)" }}>
                       <div className="field">
                         <label className="field-label">Días de gracia</label>
                         <select
@@ -426,11 +409,11 @@ export function SubscriptionEditModal({
                   )}
 
                   {nextChargeDate && (
-                    <div style={{ padding: 12, background: "var(--primary-soft)", borderRadius: 8 }}>
-                      <div style={{ fontSize: 12, color: "var(--text-soft)", marginBottom: 4 }}>Próximo cobro</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: "var(--primary)" }}>{fmtDate(nextChargeDate)}</div>
+                    <div style={{ padding: "var(--space-3)", background: "var(--primary-soft)", borderRadius: "var(--radius-3)" }}>
+                      <div style={{ color: "var(--text-soft)", marginBottom: "var(--space-1)" }}>Próximo cobro</div>
+                      <div style={{ fontWeight: 700, color: "var(--primary)" }}>{fmtDate(nextChargeDate)}</div>
                       {periodStartAt && (
-                        <div style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>
+                        <div style={{ color: "var(--text-faint)", marginTop: "var(--space-1)" }}>
                           Ciclo: {fmtDate(toLocalDate(periodStartAt))} → {fmtDate(nextChargeDate)}
                         </div>
                       )}
@@ -447,23 +430,20 @@ export function SubscriptionEditModal({
                   onClick={() => setOpen(false)}
                   title="Cerrar sin guardar"
                   aria-label="Cancelar"
-                  style={{ whiteSpace: "nowrap", width: "fit-content" }}
                 >
                   Cancelar
                 </button>
                 <PendingButton
                   className="primary btn-compact btn-save"
-                  type="button"
+                  type="submit"
                   pendingText="Guardando..."
-                  onClick={handleSave}
                   title="Guardar cambios en la suscripción"
                   aria-label="Guardar cambios"
-                  style={{ whiteSpace: "nowrap", width: "fit-content" }}
                 >
                   Guardar
                 </PendingButton>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       ) : null}
