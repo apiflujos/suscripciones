@@ -575,6 +575,18 @@ export function CustomersTable({
                     {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
                     <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar contacto" title="Eliminar contacto" />
                   </form>
+                  <Link className="ghost btn-compact btn-noicon btn-blue contact-action-btn" href={`/customers/${c.id}/payment-method`}>
+                    {hasToken(c) ? "Actualizar tarjeta" : "Guardar tarjeta"}
+                  </Link>
+                  <button className="ghost btn-compact btn-send btn-pay contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openPayModal(c)}>
+                    Enviar link de pago
+                  </button>
+                  <button className="ghost btn-compact btn-send btn-token contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openTokenModal(c)}>
+                    Enviar débito automático
+                  </button>
+                  <button className="ghost btn-compact btn-send btn-open contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openCartModal(c)}>
+                    Enviar catálogo
+                  </button>
                   <details className="inline-detail">
                     <summary className="ghost btn-compact btn-icon-only btn-view" aria-label="Ver más" title="Ver más" />
                     <div className="inline-detail-body">
