@@ -361,6 +361,8 @@ model Payment {
   origin             PaymentOrigin @default(WEBHOOK)
   associationReason  PaymentAssociationReason?
   associatedBy       String?
+  matchScore         Int?
+  matchCriteria      Json?
   providerResponse   Json?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt

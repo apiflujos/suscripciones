@@ -1,7 +1,7 @@
 import { prisma } from "../../db/prisma";
 import { logger } from "../../lib/logger";
 import { systemLog } from "../../services/systemLog";
-import { GamificationEntityType, LogLevel, Prisma, type Subscription } from "@prisma/client";
+import { BillingCycleStatus, GamificationEntityType, LogLevel, PaymentAssociationReason, Prisma, type Subscription } from "@prisma/client";
 import { classifyReference } from "../../webhooks/wompi/classifyReference";
 import { postJson } from "../../lib/http";
 import { PaymentLinkStatus, PaymentStatus, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
@@ -16,7 +16,7 @@ import { GAMIFICATION_WEIGHTS, moneyToPoints } from "../../services/gamification
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 import { publishRealtime } from "../../services/realtimePublisher";
 import { ensurePaymentRetryJob } from "../../services/retryJobScheduler";
-import { attachPaymentToMatchingCycle } from "../../services/billingCycles";
+import { attachPaymentToCycle, attachPaymentToMatchingCycle, ensureBillingCyclesForSubscriptions } from "../../services/billingCycles";
 import { getSubscriptionPricingTotal, getPlanCollectionMode } from "../../lib/metadataSchemas";
 
 type WompiCustomerData = {
@@ -238,6 +238,183 @@ function readSubscriptionPricingTotalInCents(subscriptionMeta: unknown, fallback
   return getSubscriptionPricingTotal(subscriptionMeta, fallback);
 }
 
+type AssociationDecision = {
+  subscriptionId: string;
+  customerId?: string;
+  score: number;
+  reason: PaymentAssociationReason;
+  criteria: Record<string, unknown>;
+  cycleNumber?: number | null;
+};
+
+async function resolveAssociationByScore(args: {
+  db: typeof prisma;
+  tenantId?: string | null;
+  amountInCents?: number | null;
+  currency?: string | null;
+  matchReason?: PaymentAssociationReason | null;
+  paymentMatched?: { subscriptionId?: string | null; customerId?: string | null; cycleNumber?: number | null } | null;
+  paymentLinkRecord?: { subscriptionId?: string | null } | null;
+  referenceClassification: ReturnType<typeof classifyReference>;
+  email?: string | null;
+  phone?: string | null;
+  name?: string | null;
+}): Promise<AssociationDecision | null> {
+  const directSubscriptionId =
+    args.paymentMatched?.subscriptionId ||
+    args.paymentLinkRecord?.subscriptionId ||
+    (args.referenceClassification.kind === "subscription" ? args.referenceClassification.subscriptionId : "");
+  if (directSubscriptionId) {
+    if (args.referenceClassification.kind === "subscription" && args.referenceClassification.subscriptionId) {
+      const exists = await args.db.subscription.findUnique({
+        where: { id: args.referenceClassification.subscriptionId },
+        select: { id: true, customerId: true }
+      });
+      if (!exists) return null;
+      return {
+        subscriptionId: exists.id,
+        customerId: exists.customerId ?? undefined,
+        score: 100,
+        reason: (args.matchReason || "SUB_REF") as any,
+        criteria: {
+          method: args.matchReason || "SUB_REF",
+          referenceKind: args.referenceClassification.kind
+        },
+        cycleNumber: args.referenceClassification.cycle ?? args.paymentMatched?.cycleNumber ?? null
+      };
+    }
+    return {
+      subscriptionId: directSubscriptionId,
+      customerId: args.paymentMatched?.customerId ?? undefined,
+      score: 100,
+      reason: (args.matchReason || "UNKNOWN") as any,
+      criteria: {
+        method: args.matchReason || "UNKNOWN"
+      },
+      cycleNumber: args.paymentMatched?.cycleNumber ?? null
+    };
+  }
+
+  const incomingAmount = Number(args.amountInCents || 0);
+  if (!incomingAmount) return null;
+  const incomingCurrency = String(args.currency || "").trim().toUpperCase();
+
+  const tenantScope = args.tenantId ? { tenantId: args.tenantId } : {};
+  const customerIds = new Set<string>();
+  let identitySource: "email" | "phone" | "name" | "email_phone" | null = null;
+
+  if (args.email) {
+    const byEmail = await args.db.customer.findMany({
+      where: { email: args.email, ...tenantScope },
+      select: { id: true }
+    });
+    if (byEmail.length) identitySource = "email";
+    byEmail.forEach((c) => customerIds.add(c.id));
+  }
+
+  if (args.phone) {
+    const byPhone = await args.db.customer.findMany({
+      where: { phone: { not: null }, ...tenantScope },
+      select: { id: true, phone: true },
+      orderBy: { updatedAt: "desc" },
+      take: 500
+    });
+    const matched = byPhone.filter((c) => phonesMatch(c.phone, args.phone));
+    if (matched.length) identitySource = identitySource ? "email_phone" : "phone";
+    matched.forEach((c) => customerIds.add(c.id));
+  }
+
+  if (!customerIds.size) {
+    const nameNorm = normalizeNameForMatch(args.name);
+    if (nameNorm.length >= 4) {
+      const byName = await args.db.customer.findMany({
+        where: { name: { contains: String(args.name || "").trim(), mode: "insensitive" }, ...tenantScope },
+        select: { id: true, name: true },
+        orderBy: { updatedAt: "desc" },
+        take: 100
+      });
+      const matched = byName.filter((c) => normalizeNameForMatch(c.name) === nameNorm);
+      if (matched.length) identitySource = "name";
+      matched.forEach((c) => customerIds.add(c.id));
+    }
+  }
+
+  if (!customerIds.size || !identitySource) return null;
+
+  const candidates = await args.db.subscription.findMany({
+    where: {
+      customerId: { in: Array.from(customerIds) },
+      ...(args.tenantId ? { tenantId: args.tenantId } : {})
+    },
+    include: {
+      plan: {
+        select: { priceInCents: true, currency: true, metadata: true, intervalUnit: true, intervalCount: true }
+      }
+    },
+    orderBy: [{ updatedAt: "desc" }]
+  });
+
+  const withExactAmount = candidates.filter((s: any) => {
+    const planAmount = readSubscriptionPricingTotalInCents(s?.metadata, s?.plan?.priceInCents || 0);
+    const planCurrency = String(s?.plan?.currency || "").trim().toUpperCase();
+    if (!incomingAmount) return false;
+    if (incomingCurrency && planCurrency && incomingCurrency !== planCurrency) return false;
+    return planAmount === incomingAmount;
+  });
+
+  if (withExactAmount.length !== 1) return null;
+
+  const winner = withExactAmount[0];
+  const score = identitySource === "name" ? 70 : 80;
+
+  return {
+    subscriptionId: winner.id,
+    customerId: winner.customerId ?? undefined,
+    score,
+    reason: "IDENTITY_MATCH" as any,
+    criteria: {
+      method: "identity",
+      source: identitySource,
+      amountInCents: incomingAmount,
+      currency: incomingCurrency || null
+    }
+  };
+}
+
+async function findOldestUnpaidCycle(args: {
+  db: typeof prisma;
+  subscription: Subscription & { plan: { intervalUnit: string; intervalCount: number } };
+}) {
+  if (args.db === prisma) {
+    await ensureBillingCyclesForSubscriptions([
+      {
+        id: args.subscription.id,
+        currentCycle: args.subscription.currentCycle,
+        currentPeriodStartAt: args.subscription.currentPeriodStartAt,
+        currentPeriodEndAt: args.subscription.currentPeriodEndAt,
+        cycleStartDay: args.subscription.cycleStartDay,
+        paymentDay: args.subscription.paymentDay,
+        paymentTiming: (args.subscription.paymentTiming as any) || "EN_CURSO",
+        graceDays: args.subscription.graceDays,
+        plan: {
+          intervalUnit: args.subscription.plan.intervalUnit as any,
+          intervalCount: args.subscription.plan.intervalCount
+        }
+      }
+    ]).catch(() => {});
+  }
+
+  const cycles = await args.db.subscriptionBillingCycle.findMany({
+    where: {
+      subscriptionId: args.subscription.id,
+      paymentId: null,
+      status: { not: BillingCycleStatus.PAID }
+    },
+    orderBy: [{ cycleNumber: "asc" }]
+  });
+  return cycles[0] ?? null;
+}
+
 function getPaidAtFromPayload(payload: WompiPayload): Date | null {
   const tx = getTransactionFromPayload(payload);
   const raw =
@@ -397,6 +574,15 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     (referenceClassification.kind === "subscription" ? referenceClassification.subscriptionId : "");
 
   let inferredSubscription: Subscription | null = null;
+
+  const email = getCustomerEmailFromPayload(payload);
+  const phone = getCustomerPhoneFromPayload(payload);
+  const name = getCustomerNameFromPayload(payload);
+  let associationScore: number | null = null;
+  let associationCriteria: Record<string, unknown> | null = null;
+  let associationReasonFromScore: PaymentAssociationReason | null = null;
+  let associationCycleNumber: number | null = null;
+  let associationCycleId: string | null = null;
   
   const missingPaymentLinkRecord = Boolean(paymentLinkId && !paymentByLink && !paymentLinkRecord);
   const likelyExternalRefOnly = !paymentMatched && !paymentLinkRecord && referenceClassification.kind === "unknown" && !isInternalReference(reference);
@@ -410,7 +596,6 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }).catch(() => {});
   }
 
-  let missingReferenceSubscriptionId = "";
   // FIX: Si la referencia viene de un cobro manual (SUB_xxx_cycle), usar ese subscriptionId directamente
   // La inferencia por identidad solo debe usarse cuando NO hay referencia estructurada
   if (referenceClassification.kind === "subscription" && referenceClassification.subscriptionId && !paymentMatched) {
@@ -418,111 +603,46 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       where: { id: referenceClassification.subscriptionId },
       select: { id: true }
     });
-    if (!exists) {
-      missingReferenceSubscriptionId = referenceClassification.subscriptionId;
-    } else {
+    if (exists) {
       inferredSubscriptionId = referenceClassification.subscriptionId;
     }
   }
 
-  const inferSubscriptionByCustomerIdentity = async () => {
-    const tenantScope = event.tenantId ? { tenantId: event.tenantId } : {};
-    const email = getCustomerEmailFromPayload(payload);
-    const phone = getCustomerPhoneFromPayload(payload);
-    const name = getCustomerNameFromPayload(payload);
-    const nameNorm = normalizeNameForMatch(name);
-    const customerIds = new Set<string>();
-
-    if (email) {
-      const byEmail = await db.customer.findMany({
-        where: { email, ...tenantScope },
-        select: { id: true }
-      });
-      byEmail.forEach((c) => customerIds.add(c.id));
-    }
-
-    if (phone) {
-      const byPhone = await db.customer.findMany({
-        where: { phone: { not: null }, ...tenantScope },
-        select: { id: true, phone: true },
-        orderBy: { updatedAt: "desc" },
-        take: 500
-      });
-      byPhone.filter((c) => phonesMatch(c.phone, phone)).forEach((c) => customerIds.add(c.id));
-    }
-
-    if (customerIds.size === 0 && nameNorm.length >= 4) {
-      const byName = await db.customer.findMany({
-        where: { name: { contains: String(name || "").trim(), mode: "insensitive" }, ...tenantScope },
-        select: { id: true, name: true },
-        orderBy: { updatedAt: "desc" },
-        take: 100
-      });
-      byName.filter((c) => normalizeNameForMatch(c.name) === nameNorm).forEach((c) => customerIds.add(c.id));
-    }
-
-    if (!customerIds.size) return { subscriptionId: "", reason: "identity_not_found" };
-    const candidates = await db.subscription.findMany({
-      where: {
-        customerId: { in: Array.from(customerIds) },
-        status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED] },
-        ...(event.tenantId ? { tenantId: event.tenantId } : {})
-      },
-      include: {
-        plan: {
-          select: {
-            priceInCents: true,
-            currency: true,
-            metadata: true
-          }
-        }
-      },
-      orderBy: [{ updatedAt: "desc" }]
-    });
-
-    if (candidates.length === 1) return { subscriptionId: candidates[0].id, reason: "identity_unique" };
-    if (!candidates.length) return { subscriptionId: "", reason: "subscription_not_found_for_identity" };
-
-    const incomingAmount = Number(amountInCents || 0);
-    const incomingCurrency = String(currency || "").trim().toUpperCase();
-    const withExactAmount = candidates.filter((s: any) => {
-      const planAmount = readSubscriptionPricingTotalInCents(s?.metadata, s?.plan?.priceInCents || 0);
-      const planCurrency = String(s?.plan?.currency || "").trim().toUpperCase();
-      if (!incomingAmount || !incomingCurrency) return false;
-      return planAmount === incomingAmount && (!planCurrency || planCurrency === incomingCurrency);
-    });
-    if (withExactAmount.length === 1) {
-      return { subscriptionId: withExactAmount[0].id, reason: "identity_amount_unique" };
-    }
-
-    if (withExactAmount.length > 1) {
-      return { subscriptionId: "", reason: "subscription_ambiguous_for_identity", count: withExactAmount.length };
-    }
-
-    return { subscriptionId: "", reason: "subscription_not_found_for_identity", count: candidates.length };
-  };
-
   // FIX: Si la referencia es SUB_xxx_cycle y no hay payment matched, usar el subscriptionId de la referencia
   // La inferencia por identidad SOLO debe usarse para referencias desconocidas
   const hasStructuredReference = referenceClassification.kind === "subscription" && referenceClassification.subscriptionId;
-  
-  let identityMatchReason: string | null = null;
-  if (paymentsCfg.autoReconcileUnlinkedPayments && !paymentMatched && !inferredSubscriptionId) {
-    // Solo intentar inferir por identidad si NO hay una referencia estructurada
-    if (!hasStructuredReference) {
-      const inferred = await inferSubscriptionByCustomerIdentity();
-      if (inferred.subscriptionId) {
-        inferredSubscriptionId = inferred.subscriptionId;
-        identityMatchReason = "IDENTITY_MATCH";
-        await systemLog(LogLevel.INFO, "processWompiEvent", "subscription_inferred_by_customer_identity", {
+
+  const canTryIdentity = paymentsCfg.autoReconcileUnlinkedPayments && !inferredSubscriptionId && !hasStructuredReference;
+  const shouldResolveScore = Boolean(matchReason || hasStructuredReference || canTryIdentity);
+  if (shouldResolveScore) {
+    const decision = await resolveAssociationByScore({
+      db,
+      tenantId: event.tenantId,
+      amountInCents,
+      currency,
+      matchReason: matchReason as any,
+      paymentMatched,
+      paymentLinkRecord,
+      referenceClassification,
+      email,
+      phone,
+      name
+    });
+    if (decision?.subscriptionId) {
+      inferredSubscriptionId = decision.subscriptionId;
+      associationScore = decision.score;
+      associationCriteria = decision.criteria;
+      associationReasonFromScore = decision.reason;
+      associationCycleNumber = decision.cycleNumber ?? null;
+      if (decision.reason === "IDENTITY_MATCH") {
+        await systemLog(LogLevel.INFO, "processWompiEvent", "subscription_inferred_by_scoring", {
           reference,
-          subscriptionId: inferred.subscriptionId,
-          reason: inferred.reason
+          subscriptionId: decision.subscriptionId,
+          score: decision.score,
+          criteria: decision.criteria
         }, "webhook:wompi").catch(() => {});
       }
-    } else {
-      // Hay referencia estructurada (SUB_xxx) pero no se encontró el payment
-      // El fallback creará el pago con el subscriptionId de la referencia
+    } else if (hasStructuredReference) {
       await systemLog(LogLevel.INFO, "processWompiEvent", "Payment no encontrado, se usará referencia estructurada", {
         reference,
         subscriptionIdFromRef: referenceClassification.subscriptionId,
@@ -537,13 +657,47 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   // Registrar pago y, si está aprobado, renovar ciclo (solo para suscripciones).
   const subscription =
     inferredSubscription ??
-    (isSubscription ? await db.subscription.findUnique({ where: { id: subscriptionId } }) : null);
+    (isSubscription
+      ? await db.subscription.findUnique({ where: { id: subscriptionId }, include: { plan: true } })
+      : null);
   if (isSubscription && !subscription) {
     await db.webhookEvent.update({
       where: { id: webhookEventId },
       data: { processStatus: WebhookProcessStatus.FAILED, errorMessage: "subscription not found", processedAt: new Date() }
     });
     return;
+  }
+
+  if (subscription && associationReasonFromScore === "IDENTITY_MATCH" && !associationCycleNumber) {
+    const oldest = await findOldestUnpaidCycle({ db, subscription });
+    if (oldest) {
+      associationCycleId = oldest.id;
+      associationCycleNumber = oldest.cycleNumber;
+    }
+  }
+  if (subscription && associationCycleNumber != null && !associationCycleId) {
+    if (db === prisma) {
+      await ensureBillingCyclesForSubscriptions([
+        {
+          id: subscription.id,
+          currentCycle: subscription.currentCycle,
+          currentPeriodStartAt: subscription.currentPeriodStartAt,
+          currentPeriodEndAt: subscription.currentPeriodEndAt,
+          cycleStartDay: subscription.cycleStartDay,
+          paymentDay: subscription.paymentDay,
+          paymentTiming: (subscription.paymentTiming as any) || "EN_CURSO",
+          graceDays: subscription.graceDays,
+          plan: {
+            intervalUnit: subscription.plan.intervalUnit as any,
+            intervalCount: subscription.plan.intervalCount
+          }
+        }
+      ]).catch(() => {});
+    }
+    const cycleByNumber = await db.subscriptionBillingCycle.findUnique({
+      where: { subscriptionId_cycleNumber: { subscriptionId: subscription.id, cycleNumber: associationCycleNumber } }
+    });
+    if (cycleByNumber) associationCycleId = cycleByNumber.id;
   }
 
   const normalizedStatus = String(status || "").toUpperCase();
@@ -565,7 +719,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   const nextStatus = resolvePersistedPaymentStatus(prevStatus, paymentStatus);
 
   const cycleFromRef = referenceClassification.kind === "subscription" ? referenceClassification.cycle ?? null : null;
-  const cycle = paymentMatched?.cycleNumber ?? cycleFromRef ?? (subscription?.currentCycle ?? 1);
+  const cycle = paymentMatched?.cycleNumber ?? cycleFromRef ?? associationCycleNumber ?? (subscription?.currentCycle ?? 1);
   const subscriptionCycleKey = subscription ? `${subscription.id}:${cycle}` : null;
   const wasApproved = prevStatus === PaymentStatus.APPROVED;
   const wasFailed = prevStatus === PaymentStatus.DECLINED || prevStatus === PaymentStatus.ERROR || prevStatus === PaymentStatus.VOIDED;
@@ -586,8 +740,8 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
 
   const associationReason =
     (paymentMatched?.associationReason as any) ||
+    (associationReasonFromScore as any) ||
     (matchReason as any) ||
-    (identityMatchReason as any) ||
     (shouldIgnoreUnlinked ? "UNLINKED" : null) ||
     "UNKNOWN";
 
@@ -597,6 +751,14 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     (paymentByTxId as any)?.origin ||
     (paymentByReference as any)?.origin ||
     "WEBHOOK";
+
+  const matchMetaData =
+    associationScore != null
+      ? ({
+          matchScore: associationScore,
+          matchCriteria: associationCriteria as Prisma.InputJsonValue
+        } as const)
+      : {};
 
   let paymentResolved = paymentMatched;
   if (!paymentResolved && !subscription) {
@@ -722,6 +884,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           origin,
           associationReason: associationReason as any,
           associatedBy: "system",
+          ...matchMetaData,
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         },
         update: {
@@ -743,6 +906,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           origin: (paymentResolved as any)?.origin ?? origin,
           associationReason: (paymentResolved as any)?.associationReason ?? (associationReason as any),
           associatedBy: (paymentResolved as any)?.associatedBy ?? "system",
+          ...matchMetaData,
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         }
       });
@@ -766,6 +930,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           origin,
           associationReason: associationReason as any,
           associatedBy: "system",
+          ...matchMetaData,
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         },
         update: {
@@ -786,6 +951,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           origin: (paymentResolved as any)?.origin ?? origin,
           associationReason: (paymentResolved as any)?.associationReason ?? (associationReason as any),
           associatedBy: (paymentResolved as any)?.associatedBy ?? "system",
+          ...matchMetaData,
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         }
       });
@@ -807,6 +973,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           origin,
           associationReason: associationReason as any,
           associatedBy: "system",
+          ...matchMetaData,
           providerResponse: { webhook: payload, ...(reconciliationForUnlinked ? { reconciliation: reconciliationForUnlinked } : {}) } as Prisma.InputJsonValue
         }
       });
@@ -866,6 +1033,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           origin: (paymentResolved as any)?.origin ?? origin,
           associationReason: (paymentResolved as any)?.associationReason ?? (associationReason as any),
           associatedBy: (paymentResolved as any)?.associatedBy ?? "system",
+          ...matchMetaData,
           providerResponse:
             paymentResolved.providerResponse && typeof paymentResolved.providerResponse === "object"
               ? ({
@@ -910,6 +1078,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           origin,
           associationReason: associationReason as any,
           associatedBy: "system",
+          ...matchMetaData,
           providerResponse: { webhook: payload } as Prisma.InputJsonValue,
           subscriptionCycleKey: subscriptionCycleKey as string
         },
@@ -927,6 +1096,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           origin: (prevByTx as any)?.origin ?? origin,
           associationReason: (prevByTx as any)?.associationReason ?? (associationReason as any),
           associatedBy: (prevByTx as any)?.associatedBy ?? "system",
+          ...matchMetaData,
           providerResponse: { webhook: payload } as Prisma.InputJsonValue,
           reference: reference ?? undefined,
           ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
@@ -935,14 +1105,26 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       });
 
   if (paymentRecord.subscriptionId && paymentRecord.paidAt) {
-    await attachPaymentToMatchingCycle({
-      subscriptionId: paymentRecord.subscriptionId,
-      paymentId: paymentRecord.id,
-      paymentAt: paymentRecord.paidAt,
-      origin: paymentRecord.origin,
-      associationReason: paymentRecord.associationReason as any,
-      associatedBy: paymentRecord.associatedBy || "system"
-    }).catch(() => {});
+    if (associationCycleId) {
+      await attachPaymentToCycle({
+        subscriptionId: paymentRecord.subscriptionId,
+        paymentId: paymentRecord.id,
+        cycleId: associationCycleId,
+        paymentAt: paymentRecord.paidAt,
+        origin: paymentRecord.origin,
+        associationReason: paymentRecord.associationReason as any,
+        associatedBy: paymentRecord.associatedBy || "system"
+      }).catch(() => {});
+    } else {
+      await attachPaymentToMatchingCycle({
+        subscriptionId: paymentRecord.subscriptionId,
+        paymentId: paymentRecord.id,
+        paymentAt: paymentRecord.paidAt,
+        origin: paymentRecord.origin,
+        associationReason: paymentRecord.associationReason as any,
+        associatedBy: paymentRecord.associatedBy || "system"
+      }).catch(() => {});
+    }
   }
 
   if (paymentRecord.subscriptionId && paymentRecord.wompiPaymentLinkId && paymentRecord.checkoutUrl) {

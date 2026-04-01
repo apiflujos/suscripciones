@@ -150,6 +150,11 @@ function createMockPrisma() {
         findUnique: async ({ where }: any) => store.subscription[where.id] || null,
         findMany: async () => []
     },
+    subscriptionBillingCycle: {
+        findMany: async () => [],
+        findUnique: async () => null,
+        upsert: async () => null
+    },
     paymentLink: {
         findUnique: async () => null,
         upsert: async () => {} 
