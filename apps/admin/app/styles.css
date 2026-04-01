@@ -15574,7 +15574,7 @@ html[data-contrast="high"] .toggle::after {
 
 .customersPage .page-header-standard .filtersSearch,
 .productsPage .page-header-standard .filtersSearch {
-  padding: 4px;
+  padding: var(--space-2);
 }
 
 .page-header-standard-controls {
