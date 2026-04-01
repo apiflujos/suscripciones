@@ -4659,7 +4659,7 @@ textarea.input {
 }
 
 .btn-view {
-  --btn-icon: var(--icon-next);
+  --btn-icon: var(--icon-eye);
 }
 
 .btn-next {
