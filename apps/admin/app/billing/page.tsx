@@ -577,12 +577,11 @@ export default async function BillingPage({
     // Botón de marcar pagada: solo si no está cancelada
     const showMarkPaidButton = r.status !== "CANCELED";
     
-    // Botón de enviar link de pago: visible para link de pago manual
-    const showPaymentLinkButton = !isAutoDebit && !isInactive;
+    // Botón de enviar link de pago: visible siempre que la suscripción esté activa
+    const showPaymentLinkButton = !isInactive;
     
-    // Botón de tokenización: siempre visible para débito automático si no está tokenizado
-    const needsTokenization = isAutoDebit && !r.customerTokenized;
-    const showTokenizationLink = needsTokenization && !isInactive;
+    // Botón de tokenización: visible para débito automático mientras esté activa
+    const showTokenizationLink = isAutoDebit && !isInactive;
     const duplicateKey = `${r.customerId}:${r.planId}`;
     const duplicateCount = duplicateCountByKey.get(duplicateKey) || 1;
     const keepRowId = duplicateKeepByKey.get(duplicateKey)?.id || r.id;
@@ -1071,6 +1070,10 @@ export default async function BillingPage({
                   periodEndAt: r.periodoFinAt
                 });
                 const estadoSimple = getEstadoSimple(r.status);
+                const isAutoDebit = r.mode === "AUTO_DEBIT";
+                const isCanceled = r.status === "CANCELED";
+                const isSuspended = r.status === "SUSPENDED";
+                const isInactive = isCanceled || isSuspended;
                 const contactHref = `/customers?${new URLSearchParams({
                   tx: r.customerId,
                   ...(r.tenantId ? { tenantId: r.tenantId } : {})
@@ -1130,7 +1133,7 @@ export default async function BillingPage({
                           resumeSubscription={resumeSubscription}
                           activateSubscription={activateSubscription}
                         />
-                        {(!isAutoDebit && !isInactive) ? (
+                        {!isInactive ? (
                           <PaymentLinkModalButton
                             subscriptionId={r.id}
                             customerId={r.customerId}
@@ -1143,7 +1146,7 @@ export default async function BillingPage({
                             action={sendCentralComPaymentLink}
                           />
                         ) : null}
-                        {isAutoDebit && !r.customerTokenized && !isInactive ? (
+                        {isAutoDebit && !isInactive ? (
                           (() => {
                             const rowTokenUrl = resolveRowTokenUrl(r);
                             return rowTokenUrl ? (
@@ -1257,7 +1260,7 @@ export default async function BillingPage({
                                 </div>
                               </SubscriptionDetailModalWrapper>
                               <div className="billing-kanban-card-actions">
-                                {(!isAutoDebit && !isInactive) ? (
+                                {!isInactive ? (
                                   <PaymentLinkModalButton
                                     subscriptionId={r.id}
                                     customerId={r.customerId}
@@ -1270,7 +1273,7 @@ export default async function BillingPage({
                                     action={sendCentralComPaymentLink}
                                   />
                                 ) : null}
-                                {isAutoDebit && !r.customerTokenized && !isInactive ? (
+                                {isAutoDebit && !isInactive ? (
                                   (() => {
                                     const rowTokenUrl = resolveRowTokenUrl(r);
                                     return rowTokenUrl ? (
