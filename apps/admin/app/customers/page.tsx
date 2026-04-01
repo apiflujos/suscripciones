@@ -308,83 +308,84 @@ export default async function CustomersPage({
       {paymentSource ? <div className="card cardPad">Método de pago guardado.</div> : null}
       {paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
 
-      <PageToolbar
-        className="compact"
-        search={(
-          <form action="/customers" method="GET" className="filtersForm filtersSearch">
-            {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-            {vista ? <input type="hidden" name="vista" value={vista} /> : null}
-            {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
-            {filters ? <input type="hidden" name="filters" value={filters} /> : null}
-            <input
-              className="input"
-              type="search"
-              name="q"
-              defaultValue={q}
-              placeholder="Buscar por nombre, email, teléfono o identificación..."
-              aria-label="Buscar contactos"
-              title="Busca por nombre, email, teléfono o identificación"
+      <section className="settings-group">
+        <PageToolbar
+          className="compact"
+          search={(
+            <form action="/customers" method="GET" className="filtersForm filtersSearch">
+              {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+              {vista ? <input type="hidden" name="vista" value={vista} /> : null}
+              {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+              {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+              <input
+                className="input"
+                type="search"
+                name="q"
+                defaultValue={q}
+                placeholder="Buscar por nombre, email, teléfono o identificación..."
+                aria-label="Buscar contactos"
+                title="Busca por nombre, email, teléfono o identificación"
+              />
+              <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+            </form>
+          )}
+          searchActions={(
+            <FilterButton
+              scope="customers"
+              baseParams={{
+                ...(q ? { q } : {}),
+                ...(tenantId ? { tenantId } : {}),
+                ...(viewId ? { viewId } : {}),
+                ...(filters ? { filters } : {})
+              }}
+              initialFields={getSmartViewFields("customers")}
             />
-            <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-          </form>
-        )}
-        searchActions={(
-          <FilterButton
-            scope="customers"
-            baseParams={{
-              ...(q ? { q } : {}),
-              ...(tenantId ? { tenantId } : {}),
-              ...(viewId ? { viewId } : {}),
-              ...(filters ? { filters } : {})
-            }}
-            initialFields={getSmartViewFields("customers")}
-          />
-        )}
-        views={(
-          <ViewModeToggles
-            currentMode={vistaTyped}
-            baseParams={{
-              ...(q ? { q } : {}),
-              ...(tenantId ? { tenantId } : {}),
-              ...(viewId ? { viewId } : {}),
-              ...(filters ? { filters } : {})
-            }}
-          />
-        )}
-        smartViews={(
-          <SmartViewsBar
-            scope="customers"
-            initialViewId={viewId}
-            initialFilters={filters}
-            baseParams={{
-              ...(q ? { q } : {}),
-              ...(tenantId ? { tenantId } : {})
-            }}
-            initialFields={getSmartViewFields("customers")}
-            compactInline
-            hideFilterButton
-          />
-        )}
-        summary={(
-          <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
-        )}
-      />
+          )}
+          views={(
+            <ViewModeToggles
+              currentMode={vistaTyped}
+              baseParams={{
+                ...(q ? { q } : {}),
+                ...(tenantId ? { tenantId } : {}),
+                ...(viewId ? { viewId } : {}),
+                ...(filters ? { filters } : {})
+              }}
+            />
+          )}
+          smartViews={(
+            <SmartViewsBar
+              scope="customers"
+              initialViewId={viewId}
+              initialFilters={filters}
+              baseParams={{
+                ...(q ? { q } : {}),
+                ...(tenantId ? { tenantId } : {})
+              }}
+              initialFields={getSmartViewFields("customers")}
+              compactInline
+              hideFilterButton
+            />
+          )}
+          summary={(
+            <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
+          )}
+        />
 
-      <CustomersModals
-        actionsClassName="customers-actions-right"
-        showPlanButton={false}
-        customers={items}
-        empresas={empresas}
-        products={productsRes?.items ?? []}
-        csrfToken={csrfToken}
-        tenants={tenants}
-        tenantId={tenantId}
-        createCustomer={createCustomer}
-        createPlanAndSubscription={createPlanAndSubscription}
-        returnTo={returnTo}
-      />
+        <CustomersModals
+          actionsClassName="customers-actions-right"
+          showPlanButton={false}
+          customers={items}
+          empresas={empresas}
+          products={productsRes?.items ?? []}
+          csrfToken={csrfToken}
+          tenants={tenants}
+          tenantId={tenantId}
+          createCustomer={createCustomer}
+          createPlanAndSubscription={createPlanAndSubscription}
+          returnTo={returnTo}
+        />
 
-      <div className="settings-group-body">
+        <div className="settings-group-body">
 
           <CustomersTable
             items={items.map((c) => ({ ...c, tenantName: tenantById.get(String(c.tenantId || "")) || "—" }))}
@@ -407,6 +408,7 @@ export default async function CustomersPage({
 
           {renderPagination(total)}
         </div>
+      </section>
     </main>
   );
 }

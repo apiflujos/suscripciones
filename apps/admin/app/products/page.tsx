@@ -112,84 +112,85 @@ export default async function ProductsPage({
       {tenantCreated ? <div className="card cardPad">Canal creado.</div> : null}
       {sent ? <div className="card cardPad">Mensaje enviado.</div> : null}
 
-      <PageToolbar
-        className="compact"
-        search={(
-          <form action="/products" method="GET" className="filtersForm filtersSearch">
-            {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-            {vista ? <input type="hidden" name="vista" value={vista} /> : null}
-            {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
-            {filters ? <input type="hidden" name="filters" value={filters} /> : null}
-            <input
-              className="input"
-              type="search"
-              name="q"
-              defaultValue={q}
-              placeholder="Buscar producto o servicio..."
-              aria-label="Buscar productos"
-              title="Busca por nombre, SKU o tipo de producto"
+      <section className="settings-group">
+        <PageToolbar
+          className="compact"
+          search={(
+            <form action="/products" method="GET" className="filtersForm filtersSearch">
+              {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+              {vista ? <input type="hidden" name="vista" value={vista} /> : null}
+              {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+              {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+              <input
+                className="input"
+                type="search"
+                name="q"
+                defaultValue={q}
+                placeholder="Buscar producto o servicio..."
+                aria-label="Buscar productos"
+                title="Busca por nombre, SKU o tipo de producto"
+              />
+              <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+            </form>
+          )}
+          searchActions={(
+            <FilterButton
+              scope="products"
+              baseParams={{
+                ...(tenantId ? { tenantId } : {}),
+                ...(q ? { q } : {}),
+                ...(viewId ? { viewId } : {}),
+                ...(filters ? { filters } : {})
+              }}
+              initialFields={getSmartViewFields("products")}
             />
-            <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-          </form>
-        )}
-        searchActions={(
-          <FilterButton
-            scope="products"
-            baseParams={{
-              ...(tenantId ? { tenantId } : {}),
-              ...(q ? { q } : {}),
-              ...(viewId ? { viewId } : {}),
-              ...(filters ? { filters } : {})
-            }}
-            initialFields={getSmartViewFields("products")}
-          />
-        )}
-        views={(
-          <ViewModeToggles
-            currentMode={vistaTyped}
-            baseParams={{
-              ...(tenantId ? { tenantId } : {}),
-              ...(q ? { q } : {}),
-              ...(viewId ? { viewId } : {}),
-              ...(filters ? { filters } : {})
-            }}
-          />
-        )}
-        smartViews={(
-          <SmartViewsBar
-            scope="products"
-            initialViewId={viewId}
-            initialFilters={filters}
-            baseParams={{
-              ...(tenantId ? { tenantId } : {}),
-              ...(q ? { q } : {})
-            }}
-            initialFields={getSmartViewFields("products")}
-            compactInline
-            hideFilterButton
-          />
-        )}
-        summary={(
-          <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
-        )}
-      />
+          )}
+          views={(
+            <ViewModeToggles
+              currentMode={vistaTyped}
+              baseParams={{
+                ...(tenantId ? { tenantId } : {}),
+                ...(q ? { q } : {}),
+                ...(viewId ? { viewId } : {}),
+                ...(filters ? { filters } : {})
+              }}
+            />
+          )}
+          smartViews={(
+            <SmartViewsBar
+              scope="products"
+              initialViewId={viewId}
+              initialFilters={filters}
+              baseParams={{
+                ...(tenantId ? { tenantId } : {}),
+                ...(q ? { q } : {})
+              }}
+              initialFields={getSmartViewFields("products")}
+              compactInline
+              hideFilterButton
+            />
+          )}
+          summary={(
+            <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
+          )}
+        />
 
-      <ProductsModals
-        actionsClassName="customers-actions-right"
-        showPlanButton={false}
-        customers={filteredCustomers}
-        empresas={empresas}
-        products={productItems}
-        csrfToken={csrfToken}
-        tenants={tenantsFiltered}
-        tenantId={tenantId}
-        createProduct={createProduct}
-        createCustomer={createCustomerFromBilling}
-        createPlanAndSubscription={createPlanAndSubscription}
-        returnTo={returnTo}
-      />
+        <ProductsModals
+          actionsClassName="customers-actions-right"
+          showPlanButton={false}
+          customers={filteredCustomers}
+          empresas={empresas}
+          products={productItems}
+          csrfToken={csrfToken}
+          tenants={tenantsFiltered}
+          tenantId={tenantId}
+          createProduct={createProduct}
+          createCustomer={createCustomerFromBilling}
+          createPlanAndSubscription={createPlanAndSubscription}
+          returnTo={returnTo}
+        />
 
-      <div className="settings-group-body">
+        <div className="settings-group-body">
           <div style={{ display: "grid", gap: 14 }}>
             <ProductsTable
               items={productItems.map((p) => {
@@ -271,6 +272,7 @@ export default async function ProductsPage({
             })()}
           </div>
         </div>
+      </section>
     </main>
   );
 }

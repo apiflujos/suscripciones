@@ -62,75 +62,77 @@ export default async function CampaignsPage({
       {sp.created ? <div className="panel module">Campaña guardada.</div> : null}
       {sp.running ? <div className="panel module">Campaña en cola.</div> : null}
 
-      <PageToolbar
-        className="compact"
-        search={(
-          <form action="/campaigns" method="GET" className="filtersForm filtersSearch">
-            {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
-            {filters ? <input type="hidden" name="filters" value={filters} /> : null}
-            <input
-              className="input"
-              type="search"
-              name="q"
-              defaultValue={q}
-              placeholder="Buscar por nombre o contenido..."
-              aria-label="Buscar campañas"
+      <section className="settings-group">
+        <PageToolbar
+          className="compact"
+          search={(
+            <form action="/campaigns" method="GET" className="filtersForm filtersSearch">
+              {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
+              {filters ? <input type="hidden" name="filters" value={filters} /> : null}
+              <input
+                className="input"
+                type="search"
+                name="q"
+                defaultValue={q}
+                placeholder="Buscar por nombre o contenido..."
+                aria-label="Buscar campañas"
+              />
+              <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+            </form>
+          )}
+          searchActions={(
+            <FilterButton
+              scope="customers"
+              baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }}
+              initialFields={getSmartViewFields("customers")}
             />
-            <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-          </form>
-        )}
-        searchActions={(
-          <FilterButton
-            scope="customers"
-            baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }}
-            initialFields={getSmartViewFields("customers")}
-          />
-        )}
-        views={(
-          <ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />
-        )}
-        smartViews={(
-          <SmartViewsBar
-            scope="customers"
-            initialViewId={viewId}
-            initialFilters={filters}
-            baseParams={{
-              ...(q ? { q } : {})
-            }}
-            initialFields={getSmartViewFields("customers")}
-            compactInline
-            hideFilterButton
-          />
-        )}
-        summary={<span className="muted">Total {total}</span>}
-      />
-
-      <div className="campaigns-actions-right" style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-        <NewMassMessageModal
-          csrfToken={csrfToken}
-          returnTo={returnTo}
-          views={lists
-            .filter((v: any) => {
-              const name = String(v?.name || "").toLowerCase();
-              if (name.startsWith("gamificación")) return false;
-              if (name.startsWith("ranking")) return false;
-              if (name.startsWith("estado")) return false;
-              return true;
-            })
-            .map((v: any) => ({
-              id: String(v.id),
-              name: String(v.name),
-              visibility: v.visibility,
-              type: v.type
-            }))}
-          tenantId={tenantId}
-          action={createCampaign}
+          )}
+          views={(
+            <ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />
+          )}
+          smartViews={(
+            <SmartViewsBar
+              scope="customers"
+              initialViewId={viewId}
+              initialFilters={filters}
+              baseParams={{
+                ...(q ? { q } : {})
+              }}
+              initialFields={getSmartViewFields("customers")}
+              compactInline
+              hideFilterButton
+            />
+          )}
+          summary={<span className="muted">Total {total}</span>}
         />
-      </div>
 
-      <div className="panel module">
-        <h3 style={{ marginTop: 0 }}>Campañas guardadas</h3>
-        <div style={{ display: "grid", gap: 10 }}>
+        <div className="customers-actions-right">
+          <NewMassMessageModal
+            csrfToken={csrfToken}
+            returnTo={returnTo}
+            views={lists
+              .filter((v: any) => {
+                const name = String(v?.name || "").toLowerCase();
+                if (name.startsWith("gamificación")) return false;
+                if (name.startsWith("ranking")) return false;
+                if (name.startsWith("estado")) return false;
+                return true;
+              })
+              .map((v: any) => ({
+                id: String(v.id),
+                name: String(v.name),
+                visibility: v.visibility,
+                type: v.type
+              }))}
+            tenantId={tenantId}
+            action={createCampaign}
+          />
+        </div>
+
+        <div className="settings-group-body">
+          <div className="panel module">
+            <h3 style={{ marginTop: 0 }}>Campañas guardadas</h3>
+            <div style={{ display: "grid", gap: 10 }}>
           {items.length === 0 ? <div className="muted">No hay campañas aún.</div> : null}
           {items.map((c: any) => (
             <div key={c.id} className="panel" style={{ padding: 12 }}>
@@ -180,8 +182,9 @@ export default async function CampaignsPage({
               })() : null}
             </div>
           ))}
-        </div>
-        {(() => {
+            </div>
+          </div>
+          {(() => {
           const currentPage = Math.max(1, Number(page) || 1);
           const hasNext = total > 0 ? currentPage < Math.max(1, Math.ceil(total / take)) : items.length >= take;
           const totalPages = total > 0 ? Math.max(1, Math.ceil(total / take)) : currentPage + (hasNext ? 1 : 0);
@@ -213,7 +216,8 @@ export default async function CampaignsPage({
             </div>
           );
         })()}
-      </div>
+        </div>
+      </section>
     </div>
   );
 }

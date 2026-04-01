@@ -856,23 +856,24 @@ export default async function LogsPage({
       {assocStatus === "ok" ? <div className="card cardPad">Pago asociado manualmente a la suscripción.</div> : null}
       {assocStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error asociando pago: {assocError || "unknown_error"}</div> : null}
 
-      <PageToolbar
-        className="compact"
-        search={headerSearch}
-        searchActions={headerFilterButton || undefined}
-        filters={headerFilters}
-        views={headerViews}
-        smartViews={headerSmartViews ?? <div />}
-        actions={paymentsActions || undefined}
-        summary={tab === "payments" ? undefined : headerSummary}
-      />
+      <section className="settings-group">
+        <PageToolbar
+          className="compact"
+          search={headerSearch}
+          searchActions={headerFilterButton || undefined}
+          filters={headerFilters}
+          views={headerViews}
+          smartViews={headerSmartViews ?? <div />}
+          actions={paymentsActions || undefined}
+          summary={tab === "payments" ? undefined : headerSummary}
+        />
 
-      {/* Panel de salud del sistema (solo non-payments) */}
-      {tab !== "payments" && (
-        <div className="filtersPanel payments-health-panel" style={{ marginBottom: 16 }}>
-          {(() => {
-            if (tab === "payments") return null;
-            const banners: Array<{ tone: "warn" | "danger" | "info"; text: React.ReactNode; action?: React.ReactNode }> = [];
+        {/* Panel de salud del sistema (solo non-payments) */}
+        {tab !== "payments" && (
+          <div className="filtersPanel payments-health-panel" style={{ marginBottom: 16 }}>
+            {(() => {
+              if (tab === "payments") return null;
+              const banners: Array<{ tone: "warn" | "danger" | "info"; text: React.ReactNode; action?: React.ReactNode }> = [];
 
             // Configuración crítica
             if (paymentsHealthInfo && !paymentsHealthInfo.wompiEventsSecretConfigured) {
@@ -990,11 +991,11 @@ export default async function LogsPage({
                 ))}
               </div>
             ) : null;
-          })()}
-        </div>
-      )}
+            })()}
+          </div>
+        )}
 
-      <div className="settings-group-body">
+        <div className="settings-group-body">
           {aiEnabled ? (
             <div className="logs-ai-wrapper">
               <AiAssistant from={from} to={to} tenantId={tenantId || undefined} scope="logs" />
@@ -1454,6 +1455,7 @@ export default async function LogsPage({
 
           {pagination}
         </div>
+      </section>
     </main>
   );
 }

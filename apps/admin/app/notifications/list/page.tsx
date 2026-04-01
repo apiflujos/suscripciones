@@ -61,58 +61,59 @@ export default async function WhatsappNotificationsListPage({
   return (
     <main className="page notificationsPage">
       <LogsFiltersAutoSubmit />
-      <PageToolbar
-        className="compact"
-        search={(
-          <form action="/notifications/list" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
-            <input
-              className="input"
-              name="q"
-              defaultValue={q}
-              placeholder="Buscar contacto, teléfono o contenido..."
-              aria-label="Buscar notificaciones"
-              title="Buscar por contacto, teléfono o contenido"
+      <section className="settings-group">
+        <PageToolbar
+          className="compact"
+          search={(
+            <form action="/notifications/list" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
+              <input
+                className="input"
+                name="q"
+                defaultValue={q}
+                placeholder="Buscar contacto, teléfono o contenido..."
+                aria-label="Buscar notificaciones"
+                title="Buscar por contacto, teléfono o contenido"
+              />
+              <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+            </form>
+          )}
+          searchActions={<FiltersFocusButton />}
+          actions={(
+            <a className="ghost btn-compact" href="/notifications/list">Limpiar</a>
+          )}
+          filters={(
+            <form action="/notifications/list" method="GET" className="filtersForm page-header-standard-filters-group" data-debounce-form="true">
+              {q ? <input type="hidden" name="q" value={q} /> : null}
+              <select className="select" name="status" defaultValue={status} style={{ minWidth: 140 }} data-auto-submit="true">
+                <option value="">Estado: Todos</option>
+                <option value="SENT">Enviado</option>
+                <option value="PENDING">Pendiente</option>
+                <option value="FAILED">Fallido</option>
+              </select>
+              <select className="select" name="type" defaultValue={type} style={{ minWidth: 140 }} data-auto-submit="true">
+                <option value="">Tipo: Todos</option>
+                <option value="PAYMENT_LINK">Link de pago</option>
+                <option value="PAYMENT_CONFIRMED">Pago confirmado</option>
+                <option value="EXPIRY_WARNING">Vencimiento</option>
+                <option value="PAYMENT_FAILED">Pago fallido</option>
+              </select>
+              <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 130 }} data-auto-submit="true" />
+              <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 130 }} data-auto-submit="true" />
+            </form>
+          )}
+          smartViews={<div />}
+          configHref="http://localhost:3002/settings?tab=notificaciones-whatsapp"
+          summary={(
+            <ListCsvActions
+              exportHref={`/api/list-csv?${new URLSearchParams({ scope: "notifications", ...baseParams }).toString()}`}
+              allowImport={false}
             />
-            <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-          </form>
-        )}
-        searchActions={<FiltersFocusButton />}
-        actions={(
-          <a className="ghost btn-compact" href="/notifications/list">Limpiar</a>
-        )}
-        filters={(
-          <form action="/notifications/list" method="GET" className="filtersForm page-header-standard-filters-group" data-debounce-form="true">
-            {q ? <input type="hidden" name="q" value={q} /> : null}
-            <select className="select" name="status" defaultValue={status} style={{ minWidth: 140 }} data-auto-submit="true">
-              <option value="">Estado: Todos</option>
-              <option value="SENT">Enviado</option>
-              <option value="PENDING">Pendiente</option>
-              <option value="FAILED">Fallido</option>
-            </select>
-            <select className="select" name="type" defaultValue={type} style={{ minWidth: 140 }} data-auto-submit="true">
-              <option value="">Tipo: Todos</option>
-              <option value="PAYMENT_LINK">Link de pago</option>
-              <option value="PAYMENT_CONFIRMED">Pago confirmado</option>
-              <option value="EXPIRY_WARNING">Vencimiento</option>
-              <option value="PAYMENT_FAILED">Pago fallido</option>
-            </select>
-            <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 130 }} data-auto-submit="true" />
-            <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 130 }} data-auto-submit="true" />
-          </form>
-        )}
-        smartViews={<div />}
-        configHref="http://localhost:3002/settings?tab=notificaciones-whatsapp"
-        summary={(
-          <ListCsvActions
-            exportHref={`/api/list-csv?${new URLSearchParams({ scope: "notifications", ...baseParams }).toString()}`}
-            allowImport={false}
-          />
-        )}
-      />
+          )}
+        />
 
-      <div className="settings-group-body" style={{ marginTop: 8 }}>
-        <div className="panel module" style={{ padding: 0 }}>
-          <table className="table logs-table logs-table-messages" aria-label="Tabla de mensajes">
+        <div className="settings-group-body">
+          <div className="panel module" style={{ padding: 0 }}>
+            <table className="table logs-table logs-table-messages" aria-label="Tabla de mensajes">
             <colgroup>
               <col style={{ width: "12%" }} />
               <col style={{ width: "22%" }} />
@@ -190,8 +191,9 @@ export default async function WhatsappNotificationsListPage({
           >
             Siguiente
           </a>
+          </div>
         </div>
-      </div>
+      </section>
     </main>
   );
 }
