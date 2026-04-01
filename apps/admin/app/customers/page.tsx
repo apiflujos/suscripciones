@@ -376,7 +376,6 @@ export default async function CustomersPage({
         customers={items}
         empresas={empresas}
         products={productsRes?.items ?? []}
-        checkoutTemplates={templatesRes?.items ?? []}
         csrfToken={csrfToken}
         tenants={tenants}
         tenantId={tenantId}

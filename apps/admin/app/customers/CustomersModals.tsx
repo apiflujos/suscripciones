@@ -8,7 +8,6 @@ export function CustomersModals({
   customers,
   empresas,
   products,
-  checkoutTemplates,
   csrfToken,
   tenants,
   tenantId,
@@ -21,7 +20,6 @@ export function CustomersModals({
   customers: any[];
   empresas: any[];
   products: any[];
-  checkoutTemplates: any[];
   csrfToken: string;
   tenants: Array<{ id: string; name: string }>;
   tenantId?: string;
@@ -98,7 +96,6 @@ export function CustomersModals({
               customers={customers}
               empresas={empresas}
               catalogItems={products}
-              checkoutTemplates={checkoutTemplates}
               csrfToken={csrfToken}
               tenantId={tenantId}
               tenants={tenants}
