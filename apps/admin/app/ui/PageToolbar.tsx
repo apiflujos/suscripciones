@@ -24,8 +24,8 @@ export function PageToolbar({
   return (
     <div className={`page-toolbar${className ? ` ${className}` : ""}`}>
       <div className="page-toolbar-row page-toolbar-row-1">
-        <div className="page-toolbar-search">
-          <div className="page-toolbar-search-row">
+        <div className="page-toolbar-search page-header-standard-search">
+          <div className="page-toolbar-search-row page-header-standard-search-row">
             {search}
             {searchActions ? <div className="page-toolbar-search-actions">{searchActions}</div> : null}
           </div>
