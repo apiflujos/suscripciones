@@ -7,7 +7,6 @@ export function BillingModals({
   customers,
   empresas,
   catalogItems,
-  checkoutTemplates,
   csrfToken,
   tenantId,
   tenants,
@@ -20,7 +19,6 @@ export function BillingModals({
   customers: any[];
   empresas: any[];
   catalogItems: any[];
-  checkoutTemplates: any[];
   csrfToken: string;
   tenantId?: string;
   tenants: Array<{ id: string; name: string }>;
@@ -53,7 +51,6 @@ export function BillingModals({
               customers={customers}
               empresas={empresas}
               catalogItems={catalogItems}
-              checkoutTemplates={checkoutTemplates}
               csrfToken={csrfToken}
               tenantId={tenantId}
               tenants={tenants}

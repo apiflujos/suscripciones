@@ -9,7 +9,6 @@ import { BillingModals } from "./BillingModals";
 import { listSubscriptions } from "../admin/_services/subscriptions";
 import { listCustomers } from "../admin/_services/customers";
 import { listCatalogProducts } from "../admin/_services/products";
-import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
 import { listEmpresas } from "../admin/_services/companies";
 import { listTenants } from "../admin/_services/tenants";
 import { getAdminSettings } from "../admin/_services/settings";
@@ -321,7 +320,7 @@ export default async function BillingPage({
   const ids = usingSmartFilters && resolvedIds && resolvedIds.length === 0 ? ["__none__"] : resolvedIds || [];
   if (ids.length) subParams.set("ids", ids.join(","));
 
-  const [subs, customers, products, templates, empresasRes, tenantsRes, settings, notificationsConfig] = await Promise.all([
+  const [subs, customers, products, empresasRes, tenantsRes, settings, notificationsConfig] = await Promise.all([
     listSubscriptions({
       tenantId: resolvedTenantId || undefined,
       take: Number(subParams.get("take") || 50),
@@ -334,7 +333,6 @@ export default async function BillingPage({
     }),
     listCustomers({ tenantId: resolvedTenantId || undefined, take: 200 }),
     listCatalogProducts({ tenantId: resolvedTenantId || undefined, take: 200 }),
-    listCheckoutTemplates({ tenantId: resolvedTenantId || undefined }),
     listEmpresas({ tenantId: resolvedTenantId || undefined, take: 200 }),
     listTenants(),
     getAdminSettings(),
@@ -347,7 +345,6 @@ export default async function BillingPage({
   const productItems = (products.items ?? []) as any[];
   const empresas = (empresasRes?.items ?? []) as any[];
   const productById = new Map(productItems.map((p: any) => [String(p.id), p]));
-  const checkoutTemplates = (templates ?? []) as any[];
   const tenants = (tenantsRes ?? []) as Array<{ id: string; name: string }>;
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const autoDebitSettings = settings?.autoDebit || {};
@@ -1038,7 +1035,6 @@ export default async function BillingPage({
             customers={customerItems}
             empresas={empresas}
             catalogItems={productItems}
-            checkoutTemplates={checkoutTemplates}
             csrfToken={csrfToken}
             tenantId={tenantId}
             tenants={tenants}
