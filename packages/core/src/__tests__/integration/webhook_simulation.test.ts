@@ -9,6 +9,7 @@
 import { test, expect, vi } from "vitest";
 import { processWompiEventLogic } from "../../jobs/handlers/processWompiEvent";
 import { PaymentStatus, WebhookProcessStatus } from "@prisma/client";
+import { attachPaymentToCycle } from "../../services/billingCycles";
 
 vi.mock("../../services/runtimeConfig", () => ({
   getPaymentsConfig: vi.fn(() =>
@@ -70,6 +71,12 @@ vi.mock("../../lib/http", () => ({
   postJson: vi.fn(() => Promise.resolve({ ok: true }))
 }));
 
+vi.mock("../../services/billingCycles", () => ({
+  attachPaymentToCycle: vi.fn(() => Promise.resolve({ ok: true })),
+  attachPaymentToMatchingCycle: vi.fn(() => Promise.resolve({ ok: true })),
+  ensureBillingCyclesForSubscriptions: vi.fn(() => Promise.resolve())
+}));
+
 // Mock mínimo de Prisma
 function createMockPrisma() {
   const store: any = {
@@ -110,14 +117,25 @@ function createMockPrisma() {
         store.payment[id] = { id, ...data };
         return store.payment[id];
       },
-      upsert: async ({ create }: any) => {
+      upsert: async ({ where, create, update }: any) => {
+        const existing = Object.values(store.payment).find((p: any) => {
+          if (where.wompiTransactionId) return p.wompiTransactionId === where.wompiTransactionId;
+          if (where.wompiPaymentLinkId) return p.wompiPaymentLinkId === where.wompiPaymentLinkId;
+          if (where.subscriptionCycleKey) return p.subscriptionCycleKey === where.subscriptionCycleKey;
+          return false;
+        }) as any;
+        if (existing) {
+          store.payment[existing.id] = { ...existing, ...update };
+          return store.payment[existing.id];
+        }
         const id = "pay-" + Math.random();
         store.payment[id] = { id, ...create };
         return store.payment[id];
       },
       update: async ({ where, data }: any) => {
-          // Simplificado
-          return { id: where.id, ...data };
+        const existing = store.payment[where.id] || { id: where.id };
+        store.payment[where.id] = { ...existing, ...data };
+        return store.payment[where.id];
       }
     },
     subscriptionPlan: {
@@ -130,30 +148,94 @@ function createMockPrisma() {
       }
     },
     customer: {
-        findUnique: async ({ where }: any) => Object.values(store.customer).find((c: any) => c.email === where.email) || null,
-        findMany: async () => [],
-        create: async ({ data }: any) => {
-            const id = "cust-" + Math.random();
-            store.customer[id] = { id, ...data };
-            return store.customer[id];
+      findUnique: async ({ where }: any) => {
+        if (where.email) return Object.values(store.customer).find((c: any) => c.email === where.email) || null;
+        if (where.id) return store.customer[where.id] || null;
+        return null;
+      },
+      findMany: async ({ where }: any = {}) => {
+        let rows = Object.values(store.customer);
+        if (where?.email) rows = rows.filter((c: any) => c.email === where.email);
+        if (where?.tenantId) rows = rows.filter((c: any) => c.tenantId === where.tenantId);
+        if (where?.phone?.not === null) rows = rows.filter((c: any) => c.phone != null);
+        if (where?.name?.contains) {
+          const needle = String(where.name.contains || "").toLowerCase();
+          rows = rows.filter((c: any) => String(c.name || "").toLowerCase().includes(needle));
         }
+        return rows;
+      },
+      create: async ({ data }: any) => {
+        const id = "cust-" + Math.random();
+        store.customer[id] = { id, ...data };
+        return store.customer[id];
+      }
     },
     customerTenant: {
         findFirst: async () => null
     },
     subscription: {
-        create: async ({ data }: any) => {
-            const id = "sub-" + Math.random();
-            store.subscription[id] = { id, ...data };
-            return store.subscription[id];
-        },
-        findUnique: async ({ where }: any) => store.subscription[where.id] || null,
-        findMany: async () => []
+      create: async ({ data }: any) => {
+        const id = "sub-" + Math.random();
+        store.subscription[id] = { id, ...data };
+        return store.subscription[id];
+      },
+      findUnique: async ({ where }: any) => store.subscription[where.id] || null,
+      findMany: async ({ where }: any = {}) => {
+        let rows = Object.values(store.subscription);
+        if (where?.customerId?.in) {
+          rows = rows.filter((s: any) => where.customerId.in.includes(s.customerId));
+        }
+        if (where?.tenantId) rows = rows.filter((s: any) => s.tenantId === where.tenantId);
+        return rows;
+      }
     },
     subscriptionBillingCycle: {
-        findMany: async () => [],
-        findUnique: async () => null,
-        upsert: async () => null
+      findMany: async ({ where, orderBy, take }: any = {}) => {
+        let rows = Object.values(store.subscriptionBillingCycle || {}) as any[];
+        if (where?.subscriptionId) {
+          if (typeof where.subscriptionId === "string") {
+            rows = rows.filter((c: any) => c.subscriptionId === where.subscriptionId);
+          } else if (Array.isArray(where.subscriptionId?.in)) {
+            rows = rows.filter((c: any) => where.subscriptionId.in.includes(c.subscriptionId));
+          }
+        }
+        if (where?.paymentId === null) rows = rows.filter((c: any) => !c.paymentId);
+        if (where?.status?.not) rows = rows.filter((c: any) => c.status !== where.status.not);
+        if (Array.isArray(orderBy)) {
+          rows = rows.sort((a, b) => {
+            for (const rule of orderBy) {
+              const key = Object.keys(rule || {})[0];
+              const dir = (rule as any)[key];
+              if (!key) continue;
+              const av = a[key];
+              const bv = b[key];
+              if (av == null && bv == null) continue;
+              if (av == null) return dir === "asc" ? 1 : -1;
+              if (bv == null) return dir === "asc" ? -1 : 1;
+              if (av < bv) return dir === "asc" ? -1 : 1;
+              if (av > bv) return dir === "asc" ? 1 : -1;
+            }
+            return 0;
+          });
+        } else if (orderBy?.cycleNumber === "asc") {
+          rows = rows.sort((a, b) => (a.cycleNumber || 0) - (b.cycleNumber || 0));
+        }
+        if (typeof take === "number") rows = rows.slice(0, Math.max(0, take));
+        return rows;
+      },
+      findUnique: async ({ where }: any) => {
+        const key = where?.subscriptionId_cycleNumber;
+        if (!key) return null;
+        return Object.values(store.subscriptionBillingCycle || {}).find(
+          (c: any) => c.subscriptionId === key.subscriptionId && c.cycleNumber === key.cycleNumber
+        ) || null;
+      },
+      upsert: async ({ create }: any) => {
+        const id = create.id || `cycle-${Math.random()}`;
+        store.subscriptionBillingCycle = store.subscriptionBillingCycle || {};
+        store.subscriptionBillingCycle[id] = { id, ...create };
+        return store.subscriptionBillingCycle[id];
+      }
     },
     paymentLink: {
         findUnique: async () => null,
@@ -249,4 +331,116 @@ test("processWompiEventLogic: procesa sin suscripción cuando el plan es ambiguo
     expect(subs.length).toBe(0);
     const payments = Object.values(store.payment);
     expect(payments.length).toBe(1);
+});
+
+test("processWompiEventLogic: match por nombre y monto guarda matchScore", async () => {
+  const { db, store } = createMockPrisma();
+  const customerId = "cust-1";
+  store.customer[customerId] = { id: customerId, tenantId: "tenant-1", name: "Diana Velez" };
+  store.subscription["sub-1"] = {
+    id: "sub-1",
+    tenantId: "tenant-1",
+    customerId,
+    currentCycle: 1,
+    currentPeriodStartAt: new Date(),
+    currentPeriodEndAt: new Date(),
+    cycleStartDay: 1,
+    paymentDay: 1,
+    paymentTiming: "EN_CURSO",
+    graceDays: 1,
+    plan: { priceInCents: 12000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 }
+  };
+
+  store.webhookEvent["evt-name"] = { id: "evt-name", tenantId: "tenant-1", payload: {}, processStatus: "RECEIVED" };
+  store.webhookEvent["evt-name"].payload = {
+    data: {
+      transaction: {
+        status: "PENDING",
+        amount_in_cents: 12000,
+        currency: "COP",
+        customer_data: { full_name: "Diana Velez" }
+      }
+    }
+  };
+
+  await processWompiEventLogic("evt-name", db);
+  const payments = Object.values(store.payment);
+  expect(payments.length).toBe(1);
+  expect((payments[0] as any).matchScore).toBe(70);
+});
+
+test("processWompiEventLogic: match por email/phone guarda matchScore", async () => {
+  const { db, store } = createMockPrisma();
+  const customerId = "cust-2";
+  store.customer[customerId] = { id: customerId, tenantId: "tenant-1", name: "Cliente", email: "a@b.com", phone: "+57 3000000000" };
+  store.subscription["sub-2"] = {
+    id: "sub-2",
+    tenantId: "tenant-1",
+    customerId,
+    currentCycle: 1,
+    currentPeriodStartAt: new Date(),
+    currentPeriodEndAt: new Date(),
+    cycleStartDay: 1,
+    paymentDay: 1,
+    paymentTiming: "EN_CURSO",
+    graceDays: 1,
+    plan: { priceInCents: 9000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 }
+  };
+
+  store.webhookEvent["evt-email"] = { id: "evt-email", tenantId: "tenant-1", payload: {}, processStatus: "RECEIVED" };
+  store.webhookEvent["evt-email"].payload = {
+    data: {
+      transaction: {
+        status: "PENDING",
+        amount_in_cents: 9000,
+        currency: "COP",
+        customer_email: "a@b.com"
+      }
+    }
+  };
+
+  await processWompiEventLogic("evt-email", db);
+  const payments = Object.values(store.payment);
+  expect(payments.length).toBe(1);
+  expect((payments[0] as any).matchScore).toBe(80);
+});
+
+test("processWompiEventLogic: asocia al ciclo más antiguo sin pago", async () => {
+  const { db, store } = createMockPrisma();
+  const customerId = "cust-3";
+  store.customer[customerId] = { id: customerId, tenantId: "tenant-1", name: "Cliente", email: "old@pay.com" };
+  store.subscription["sub-3"] = {
+    id: "sub-3",
+    tenantId: "tenant-1",
+    customerId,
+    currentCycle: 2,
+    currentPeriodStartAt: new Date(),
+    currentPeriodEndAt: new Date(),
+    cycleStartDay: 1,
+    paymentDay: 1,
+    paymentTiming: "EN_CURSO",
+    graceDays: 1,
+    plan: { priceInCents: 15000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 }
+  };
+  store.subscriptionBillingCycle = {
+    c1: { id: "c1", subscriptionId: "sub-3", cycleNumber: 1, paymentId: null },
+    c2: { id: "c2", subscriptionId: "sub-3", cycleNumber: 2, paymentId: null }
+  };
+
+  store.webhookEvent["evt-oldest"] = { id: "evt-oldest", tenantId: "tenant-1", payload: {}, processStatus: "RECEIVED" };
+  store.webhookEvent["evt-oldest"].payload = {
+    data: {
+      transaction: {
+        status: "APPROVED",
+        amount_in_cents: 15000,
+        currency: "COP",
+        customer_email: "old@pay.com"
+      }
+    }
+  };
+
+  await processWompiEventLogic("evt-oldest", db);
+  expect((attachPaymentToCycle as any).mock.calls.length).toBeGreaterThan(0);
+  const call = (attachPaymentToCycle as any).mock.calls[0]?.[0];
+  expect(call.cycleId).toBe("c1");
 });

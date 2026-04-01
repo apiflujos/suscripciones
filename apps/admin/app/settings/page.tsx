@@ -983,57 +983,6 @@ export default async function SettingsPage({
                 defaults: createCheckoutTemplateDefaults
               }}
             />
-            <form action={updateCheckoutConfig} className="panel module" style={{ display: "grid", gap: 12 }}>
-              <input type="hidden" name="csrf" value={csrfToken} />
-              <input type="hidden" name="returnTo" value={`/settings?${new URLSearchParams({ tab: "checkout-publico" }).toString()}`} />
-              <div className="panel-header">
-                <strong>Plantillas predeterminadas</strong>
-                <div className="field-hint">Se usarán automáticamente al enviar mensajes.</div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                <div className="field">
-                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    Link de pago
-                    <HelpTip text="Se usa cuando envías un link de pago manual o automático." />
-                  </label>
-                  <select className="select" name="defaultPlanTemplateId" defaultValue={String(settings?.checkoutConfig?.defaultPlanTemplateId || "")}>
-                    <option value="">Sin predeterminada</option>
-                    {templates.filter((t: any) => String(t?.kind || "") === "PLAN").map((t: any) => (
-                      <option key={`default-plan-${t.id}`} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field">
-                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    Débito automático
-                    <HelpTip text="Se usa al enviar cobros recurrentes de suscripción." />
-                  </label>
-                  <select className="select" name="defaultSubscriptionTemplateId" defaultValue={String(settings?.checkoutConfig?.defaultSubscriptionTemplateId || "")}>
-                    <option value="">Sin predeterminada</option>
-                    {templates.filter((t: any) => String(t?.kind || "") === "SUBSCRIPTION").map((t: any) => (
-                      <option key={`default-sub-${t.id}`} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field">
-                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    Catálogo
-                    <HelpTip text="Se usa al enviar catálogo con selección de productos." />
-                  </label>
-                  <select className="select" name="defaultCartTemplateId" defaultValue={String(settings?.checkoutConfig?.defaultCartTemplateId || "")}>
-                    <option value="">Sin predeterminada</option>
-                    {templates.filter((t: any) => String(t?.kind || "") === "CART").map((t: any) => (
-                      <option key={`default-cart-${t.id}`} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
-                <PendingButton className="primary btn-compact" type="submit" pendingText="Guardando...">
-                  Guardar predeterminadas
-                </PendingButton>
-              </div>
-            </form>
           </div>
         </section>
       ) : null}

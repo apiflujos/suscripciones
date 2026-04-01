@@ -61,7 +61,6 @@ export function ProductsTable({
   tenants,
   customers,
   empresas,
-  checkoutTemplates,
   notificationTemplates,
   notificationRules,
   createCustomer,
@@ -75,7 +74,6 @@ export function ProductsTable({
   tenants: Array<{ id: string; name: string }>;
   customers: any[];
   empresas: any[];
-  checkoutTemplates: any[];
   notificationTemplates?: any[];
   notificationRules?: any[];
   createCustomer: (formData: FormData) => Promise<void>;
@@ -651,7 +649,6 @@ export function ProductsTable({
               customers={customers}
               empresas={empresas}
               catalogItems={items}
-              checkoutTemplates={checkoutTemplates}
               csrfToken={csrfToken}
               tenantId={planModalProduct?.tenantId || ""}
               tenants={tenants}

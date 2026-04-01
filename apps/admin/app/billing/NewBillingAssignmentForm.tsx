@@ -51,12 +51,6 @@ type CatalogItem = {
 
 type BillingType = "PLAN" | "SUBSCRIPCION";
 
-type CheckoutTemplate = {
-  id: string;
-  name: string;
-  kind: "PLAN" | "SUBSCRIPTION";
-  active: boolean;
-};
 
 function fmtMoneyFromCents(cents: number, currency = "COP") {
   const major = Math.trunc(Number(cents || 0) / 100);
@@ -76,7 +70,6 @@ export function NewBillingAssignmentForm({
   customers,
   empresas,
   catalogItems,
-  checkoutTemplates,
   csrfToken,
   tenantId,
   tenants,
@@ -92,7 +85,6 @@ export function NewBillingAssignmentForm({
   customers: Customer[];
   empresas: Empresa[];
   catalogItems: CatalogItem[];
-  checkoutTemplates: CheckoutTemplate[];
   csrfToken: string;
   tenantId?: string;
   tenants: Array<{ id: string; name: string }>;
@@ -125,7 +117,6 @@ export function NewBillingAssignmentForm({
   const [billingType, setBillingType] = useState<BillingType>("SUBSCRIPCION");
   const option1Value = "";
   const option2Value = "";
-  const [templateId, setTemplateId] = useState("");
   const [shippingCop, setShippingCop] = useState("");
   const [allowDuplicate, setAllowDuplicate] = useState(false);
   const [duplicateCount, setDuplicateCount] = useState(0);
@@ -193,17 +184,7 @@ export function NewBillingAssignmentForm({
 
   // Variantes y fechas simplificadas en este flujo.
 
-  const templatesForType = useMemo(() => {
-    const targetKind = billingType === "PLAN" ? "PLAN" : "SUBSCRIPTION";
-    return checkoutTemplates.filter((t) => t.kind === targetKind);
-  }, [billingType, checkoutTemplates]);
 
-  useEffect(() => {
-    if (!templateId) return;
-    if (!templatesForType.some((t) => String(t.id) === String(templateId))) {
-      setTemplateId("");
-    }
-  }, [templateId, templatesForType]);
 
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>(tenantId ? [tenantId] : []);
 
@@ -718,22 +699,8 @@ export function NewBillingAssignmentForm({
               </div>
 
               <div className="field">
-                <label>Plantilla de checkout</label>
-                <select
-                  className="select"
-                  name="templateId"
-                  value={templateId}
-                  onChange={(e) => setTemplateId(e.target.value)}
-                  disabled={!productId || !(customerId || selectedEmpresaId)}
-                >
-                  <option value="">Usar configuración global</option>
-                  {templatesForType.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}{t.active ? "" : " (inactiva)"}
-                    </option>
-                  ))}
-                </select>
-                {!templatesForType.length ? <div className="field-hint">No hay plantillas {billingType === "PLAN" ? "de plan" : "de suscripción"}.</div> : null}
+                <label>Checkout asociado</label>
+                <div className="field-hint">Se usa el checkout público asociado al producto seleccionado.</div>
               </div>
 
               {tenants.length > 0 ? (

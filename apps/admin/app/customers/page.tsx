@@ -104,7 +104,7 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
   const items = Array.isArray(res.items) ? res.items : [];
   const map: Record<
     string,
-    { hasPlan: boolean; planName?: string; status?: string; collectionMode?: string; subscriptionId?: string }
+    { hasPlan: boolean; planName?: string; status?: string; collectionMode?: string; subscriptionId?: string; productId?: string; planId?: string }
   > = {};
   for (const item of items) {
     const customerId = String(item?.customerId || item?.customer?.id || "");
@@ -114,7 +114,8 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
     if (map[customerId]) continue;
     const planName = formatSubscriptionPlanName(item?.plan);
     const collectionMode = String(item?.plan?.metadata?.collectionMode || "");
-    map[customerId] = { hasPlan: true, planName, status, collectionMode, subscriptionId: item?.id };
+    const productId = String(item?.plan?.metadata?.catalog?.itemId || "");
+    map[customerId] = { hasPlan: true, planName, status, collectionMode, subscriptionId: item?.id, productId, planId: item?.planId };
   }
   return map;
 }

@@ -3,6 +3,31 @@ import "server-only";
 import { prisma } from "@suscripciones/database";
 import { PublicCheckoutKind } from "@prisma/client";
 
+function extractProductId(entry: any): string {
+  if (!entry) return "";
+  if (typeof entry === "string") return String(entry).trim();
+  if (typeof entry === "object") return String(entry?.id || "").trim();
+  return "";
+}
+
+function templateMatchesProduct(template: any, productId: string) {
+  const list = Array.isArray(template?.productIds) ? template.productIds : [];
+  return list.some((entry: any) => String(extractProductId(entry)) === String(productId));
+}
+
+export async function findCheckoutTemplateForProduct(args: {
+  tenantId?: string | null;
+  kind: PublicCheckoutKind;
+  productId: string;
+}) {
+  const productId = String(args.productId || "").trim();
+  if (!productId) return null;
+  const where: any = { active: true, kind: args.kind };
+  if (args.tenantId) where.tenantId = args.tenantId;
+  const items = await prisma.publicCheckoutTemplate.findMany({ where, orderBy: { updatedAt: "desc" } });
+  return items.find((t: any) => templateMatchesProduct(t, productId)) || null;
+}
+
 export async function getActiveCheckoutTemplates(args: { tenantId?: string | null; kind?: PublicCheckoutKind }) {
   const where: any = {};
   if (args.tenantId) where.tenantId = args.tenantId;
@@ -59,6 +84,12 @@ export async function createCheckoutTemplate(args: {
 
   const tenantId = String(args.tenantId || "").trim();
   if (!tenantId) return { ok: false, status: 400, error: "invalid_body" as const };
+  if (!Array.isArray(args.productIds) || args.productIds.length === 0) {
+    return { ok: false, status: 400, error: "product_required" as const };
+  }
+  if (args.productIds.length > 1) {
+    return { ok: false, status: 400, error: "max_one_product" as const };
+  }
 
   const item = await prisma.publicCheckoutTemplate.create({
     data: {
@@ -107,6 +138,12 @@ export async function updateCheckoutTemplate(args: {
 
   const name = String(args.name || "").trim();
   if (!name) return { ok: false, status: 400, error: "invalid_body" as const };
+  if (!Array.isArray(args.productIds) || args.productIds.length === 0) {
+    return { ok: false, status: 400, error: "product_required" as const };
+  }
+  if (args.productIds.length > 1) {
+    return { ok: false, status: 400, error: "max_one_product" as const };
+  }
 
   const updated = await prisma.publicCheckoutTemplate.update({
     where: { id },

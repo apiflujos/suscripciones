@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiSession } from "../../_lib/requireApiSession";
 import { getCheckoutConfig } from "../../../admin/_services/settings";
-import { getActiveCheckoutTemplates } from "../../../admin/_services/checkoutTemplates";
+import { findCheckoutTemplateForProduct } from "../../../admin/_services/checkoutTemplates";
 import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
 import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { signPublicToken } from "../../../../lib/publicTokens";
@@ -19,8 +19,9 @@ export async function POST(req: Request) {
   }
 
   const customerId = String(body?.customerId || "").trim();
-  const templateId = String(body?.templateId || "").trim();
+  const productId = String(body?.productId || "").trim();
   if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
+  if (!productId) return NextResponse.json({ ok: false, error: "missing_product_for_customer" }, { status: 400 });
 
   const notificationsConfig = await getNotificationsConfig().catch(() => null);
   if (notificationsConfig) {
@@ -37,17 +38,13 @@ export async function POST(req: Request) {
   }
 
   const checkoutConfig = await getCheckoutConfig();
-  const defaultTemplateId = String((checkoutConfig as any)?.defaultSubscriptionTemplateId || "").trim();
-  let resolvedTemplateId = templateId;
-  if (!resolvedTemplateId) {
-    const items = await getActiveCheckoutTemplates({ tenantId: String(body?.tenantId || "").trim() || null, kind: "SUBSCRIPTION" as any });
-    const selected =
-      (defaultTemplateId ? items?.find((t: any) => String(t?.id || "") === defaultTemplateId) : null) ||
-      items?.[0] ||
-      null;
-    resolvedTemplateId = selected ? String((selected as any).id || "") : "";
-  }
-  if (!resolvedTemplateId) return NextResponse.json({ ok: false, error: "missing_subscription_template" }, { status: 400 });
+  const selected = await findCheckoutTemplateForProduct({
+    tenantId: String(body?.tenantId || "").trim() || null,
+    kind: "SUBSCRIPTION" as any,
+    productId
+  });
+  const resolvedTemplateId = selected ? String((selected as any).id || "") : "";
+  if (!resolvedTemplateId) return NextResponse.json({ ok: false, error: "missing_checkout_for_product" }, { status: 400 });
   const baseFromSettings = String(checkoutConfig.subscriptionBaseUrl || "").trim();
   const base = baseFromSettings.replace(/\/$/, "");
   if (!base) return NextResponse.json({ ok: false, error: "missing_subscription_base_url" }, { status: 400 });

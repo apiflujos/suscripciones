@@ -126,7 +126,7 @@ export function CheckoutTemplatesPanel({
 
   function normalizeSelections(raw: any): ProductSelection[] {
     if (!Array.isArray(raw)) return [];
-    return raw
+    const parsed = raw
       .map((entry: any) => {
         if (typeof entry === "string") return { id: entry, mode: "AUTO_LINK" as const };
         const id = String(entry?.id || "").trim();
@@ -136,6 +136,7 @@ export function CheckoutTemplatesPanel({
         return { id, mode };
       })
       .filter(Boolean) as ProductSelection[];
+    return parsed.length ? [parsed[0]] : [];
   }
 
   function resetWizard() {
@@ -226,7 +227,7 @@ export function CheckoutTemplatesPanel({
   const formAction = editing ? actions.update : actions.create;
   const selectedKind = (editing ? editing.kind : kind) || "";
   const isCart = selectedKind === "CART";
-  const isProductsValid = isCart ? productIds.length > 0 : true;
+  const isProductsValid = productIds.length === 1;
   const missingKind = !selectedKind;
   const missingName = !name.trim();
   const requireTenant = Array.isArray(tenants) && tenants.length > 0;
@@ -313,7 +314,7 @@ export function CheckoutTemplatesPanel({
     }
     if (!isProductsValid) {
       setStepIndex(3);
-      setLocalError("Debes seleccionar productos para el catálogo.");
+      setLocalError("Debes seleccionar un producto.");
       setTimeout(() => productsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
       return false;
     }
@@ -347,7 +348,7 @@ export function CheckoutTemplatesPanel({
                     if (blockKind) setLocalError("Selecciona el tipo de plantilla.");
                     else if (blockName) setLocalError("Debes ingresar el nombre interno.");
                     else if (blockTenant) setLocalError("Selecciona el canal de ventas.");
-                    else if (blockProducts) setLocalError("Debes seleccionar productos o permitir el selector.");
+                    else if (blockProducts) setLocalError("Debes seleccionar un producto.");
                     return;
                   }
                   setLocalError("");
@@ -463,7 +464,7 @@ export function CheckoutTemplatesPanel({
             <input type="hidden" name="expiryHours" value={expiryHours} />
             <input type="hidden" name="allowProductSelect" value={isCart && allowSelect ? "on" : ""} />
             <input type="hidden" name="logoUrl" value={logoUrl} />
-            <input type="hidden" name="productIds" value={isCart ? JSON.stringify(productIds) : ""} />
+            <input type="hidden" name="productIds" value={JSON.stringify(productIds)} />
             <input type="hidden" name="layout" value={JSON.stringify(layoutPayload)} />
             <input type="hidden" name="publicTitle" value={wompiTitle || publicTitle} />
             <input type="hidden" name="publicDescription" value={wompiDescription || publicDescription} />
@@ -599,34 +600,34 @@ export function CheckoutTemplatesPanel({
 
             {stepIndex === 3 ? (
               <div style={{ display: "grid", gap: 10 }}>
-                {selectedKind === "CART" ? (
-                  <div className="field" ref={productsRef}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      Productos del catálogo
-                      <HelpTip text="El catálogo puede mezclar productos, pero todos deben ser del mismo tipo de cobro por producto (link o débito). Define el modo en cada ítem." />
-                    </label>
-                    <div style={{ display: "grid", gap: 8 }}>
-                      {filteredProducts.map((p) => {
-                        const selection = productIds.find((item) => item.id === p.id);
-                        const activeItem = Boolean(selection);
-                        const mode = selection?.mode || "AUTO_LINK";
-                        return (
-                          <div
-                            key={p.id}
-                            className={`card cardPad ${activeItem ? "is-active" : ""}`}
-                            style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 10, alignItems: "center", padding: "8px 10px", ...(missingProducts && stepIndex === 3 ? { borderColor: "var(--danger)" } : {}) }}
-                          >
-                            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                              <input
-                                type="checkbox"
-                                checked={activeItem}
-                                onChange={(e) => {
-                                  if (e.target.checked) setProductIds([...productIds, { id: p.id, mode: "AUTO_LINK" }]);
-                                  else setProductIds(productIds.filter((item) => item.id !== p.id));
-                                }}
-                              />
-                              <span>{p.name}</span>
-                            </label>
+                <div className="field" ref={productsRef}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    Producto asociado
+                    <HelpTip text="Cada checkout público solo puede asociarse a un producto." />
+                  </label>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {filteredProducts.map((p) => {
+                      const selection = productIds[0];
+                      const activeItem = String(selection?.id || "") === String(p.id);
+                      const mode = selection?.mode || "AUTO_LINK";
+                      return (
+                        <div
+                          key={p.id}
+                          className={`card cardPad ${activeItem ? "is-active" : ""}`}
+                          style={{ display: "grid", gridTemplateColumns: isCart ? "1fr 180px" : "1fr", gap: 10, alignItems: "center", padding: "8px 10px", ...(missingProducts && stepIndex === 3 ? { borderColor: "var(--danger)" } : {}) }}
+                        >
+                          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                            <input
+                              type="radio"
+                              name="templateProduct"
+                              checked={activeItem}
+                              onChange={() => {
+                                setProductIds([{ id: p.id, mode: activeItem ? mode : "AUTO_LINK" }]);
+                              }}
+                            />
+                            <span>{p.name}</span>
+                          </label>
+                          {isCart ? (
                             <div style={{ display: "grid", gap: 6 }}>
                               <label className="field-hint" style={{ margin: 0 }}>
                                 Tipo de cobro
@@ -637,26 +638,24 @@ export function CheckoutTemplatesPanel({
                                 disabled={!activeItem}
                                 onChange={(e) => {
                                   const nextMode = String(e.target.value || "AUTO_LINK").toUpperCase() === "AUTO_DEBIT" ? "AUTO_DEBIT" : "AUTO_LINK";
-                                  setProductIds(productIds.map((item) => (item.id === p.id ? { ...item, mode: nextMode } : item)));
+                                  setProductIds([{ id: p.id, mode: nextMode }]);
                                 }}
                               >
                                 <option value="AUTO_LINK">Link de pago</option>
                                 <option value="AUTO_DEBIT">Débito automático</option>
                               </select>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {!isProductsValid ? (
-                      <div className="field-hint" style={{ color: "var(--danger)" }}>
-                        Debes seleccionar al menos un producto.
-                      </div>
-                    ) : null}
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <div className="field-hint">Este checkout es global y no requiere seleccionar productos.</div>
-                )}
+                  {!isProductsValid ? (
+                    <div className="field-hint" style={{ color: "var(--danger)" }}>
+                      Debes seleccionar un producto.
+                    </div>
+                  ) : null}
+                </div>
                 <div className="field">
                   <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     Expiración
@@ -708,7 +707,7 @@ export function CheckoutTemplatesPanel({
                       {missingKind ? <li>Selecciona tipo (Link de pago o Débito automático).</li> : null}
                       {missingName ? <li>Nombre interno.</li> : null}
                       {missingTenant ? <li>Canal de ventas.</li> : null}
-                      {missingProducts ? <li>Selecciona productos para el catálogo.</li> : null}
+                      {missingProducts ? <li>Selecciona un producto.</li> : null}
                     </ul>
                   </div>
                 ) : null}
@@ -719,9 +718,9 @@ export function CheckoutTemplatesPanel({
                     <div><strong>Activa:</strong> {active ? "Sí" : "No"}</div>
                     <div>
                       <strong>Productos:</strong>{" "}
-                      {isCart
-                        ? productIds.map((item) => `${productById.get(item.id)?.name || "—"} (${item.mode === "AUTO_DEBIT" ? "Débito automático" : "Link de pago"})`).join(", ") || "—"
-                        : "Global (sin productos)"}
+                      {productIds.length
+                        ? `${productById.get(productIds[0].id)?.name || "—"}${isCart ? ` (${productIds[0].mode === "AUTO_DEBIT" ? "Débito automático" : "Link de pago"})` : ""}`
+                        : "—"}
                     </div>
                     <div><strong>Expiración:</strong> {expiryHours ? `${expiryHours}h` : "Nunca"}</div>
                     <div><strong>Soporte:</strong> {supportEmail || supportUrl || "—"}</div>
@@ -730,7 +729,7 @@ export function CheckoutTemplatesPanel({
                 </div>
                 {!isProductsValid ? (
                   <div className="field-hint" style={{ color: "var(--danger)" }}>
-                    Debes seleccionar productos o permitir el selector.
+                    Debes seleccionar un producto.
                   </div>
                 ) : null}
               </div>
@@ -766,7 +765,7 @@ export function CheckoutTemplatesPanel({
                       return;
                     }
                     if (stepIndex === 3 && !isProductsValid) {
-                      setLocalError("Debes seleccionar productos para el catálogo.");
+                      setLocalError("Debes seleccionar un producto.");
                       return;
                     }
                     setLocalError("");
@@ -871,12 +870,6 @@ export function CheckoutTemplatesPanel({
                 </form>
                 <div className="template-card-statuses">
                   <span className={`pill ${t.active ? "pill-green" : ""}`}>{t.active ? "Activa" : "Inactiva"}</span>
-                  {(() => {
-                    const hasProducts = t.kind === "CART" ? (Array.isArray(t.productIds) ? t.productIds.length > 0 : false) : true;
-                    const hasWompi = Boolean(t.wompiTitle || t.publicTitle) && Boolean(t.wompiDescription || t.publicDescription);
-                    const ready = hasProducts && hasWompi;
-                    return ready ? <span className="pill pill-ok pill-sm">Listo</span> : null;
-                  })()}
                 </div>
               </div>
             </div>
@@ -884,16 +877,15 @@ export function CheckoutTemplatesPanel({
               <div>
                 <div className="field-hint">Productos</div>
                 <div className="template-meta-value">
-                  {t.kind !== "CART"
-                    ? "Global (sin productos)"
-                    : (Array.isArray(t.productIds) ? t.productIds : [])
-                        .map((entry: any) => {
-                          if (typeof entry === "string") return productById.get(String(entry))?.name || "—";
-                          const id = String(entry?.id || "");
-                          const mode = String(entry?.mode || "AUTO_LINK").toUpperCase() === "AUTO_DEBIT" ? "Débito automático" : "Link de pago";
-                          return `${productById.get(id)?.name || "—"} (${mode})`;
-                        })
-                        .join(", ") || "—"}
+                  {(Array.isArray(t.productIds) ? t.productIds : [])
+                    .map((entry: any) => {
+                      if (typeof entry === "string") return productById.get(String(entry))?.name || "—";
+                      const id = String(entry?.id || "");
+                      const mode = String(entry?.mode || "AUTO_LINK").toUpperCase() === "AUTO_DEBIT" ? "Débito automático" : "Link de pago";
+                      return `${productById.get(id)?.name || "—"}${t.kind === "CART" ? ` (${mode})` : ""}`;
+                    })
+                    .slice(0, 1)
+                    .join(", ") || "—"}
                 </div>
               </div>
               <div>

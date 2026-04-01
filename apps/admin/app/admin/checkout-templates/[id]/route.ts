@@ -89,8 +89,11 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
   const data = parsed.data;
 
   const hasProducts = Array.isArray(data.productIds) && data.productIds.length > 0;
-  if (String(data.kind) === "CART" && !hasProducts) {
+  if (!hasProducts) {
     return Response.json({ error: "product_required" }, { status: 400 });
+  }
+  if (Array.isArray(data.productIds) && data.productIds.length > 1) {
+    return Response.json({ error: "max_one_product" }, { status: 400 });
   }
 
   const compatReq = reqToCompat(req, body);

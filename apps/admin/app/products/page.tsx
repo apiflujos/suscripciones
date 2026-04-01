@@ -212,7 +212,6 @@ export default async function ProductsPage({
               tenants={tenantsFiltered}
               customers={filteredCustomers}
               empresas={empresas}
-              checkoutTemplates={templatesRes ?? []}
               notificationTemplates={notificationsTemplates}
               notificationRules={notificationsRules}
               createCustomer={createCustomerFromBilling}

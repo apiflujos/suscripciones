@@ -86,8 +86,9 @@ async function resolveAutoCheckoutTemplateId(args: {
   trigger: string;
   paymentType: string;
   planId?: string | null;
+  productId?: string | null;
 }): Promise<string | null> {
-  const { tenantId, trigger, paymentType, planId } = args;
+  const { tenantId, trigger, paymentType, planId, productId } = args;
   if (!tenantId) return null;
   const templates = await prisma.publicCheckoutTemplate.findMany({
     where: { tenantId, active: true },
@@ -101,13 +102,25 @@ async function resolveAutoCheckoutTemplateId(args: {
   else desired = PublicCheckoutKind.PLAN;
 
   const byKind = templates.filter((t) => t.kind === desired);
-  if (desired === PublicCheckoutKind.CART) {
-    const pick = byKind[0] || null;
-    return pick?.id ? String(pick.id) : null;
+  const extractProductId = (entry: any) => {
+    if (!entry) return "";
+    if (typeof entry === "string") return String(entry).trim();
+    if (typeof entry === "object") return String(entry?.id || "").trim();
+    return "";
+  };
+  let resolvedProductId = String(productId || "").trim();
+  if (!resolvedProductId && planId) {
+    const plan = await prisma.subscriptionPlan.findUnique({
+      where: { id: planId },
+      select: { metadata: true }
+    });
+    resolvedProductId = String((plan?.metadata as any)?.catalog?.itemId || "");
   }
-
-  if (!planId) return null;
-  const match = byKind.find((t) => Array.isArray(t.productIds) && t.productIds.length === 1 && String(t.productIds[0]) === String(planId));
+  if (!resolvedProductId) return null;
+  const match = byKind.find((t) => {
+    const list = Array.isArray(t.productIds) ? t.productIds : [];
+    return list.some((entry: any) => String(extractProductId(entry)) === String(resolvedProductId));
+  });
   return match?.id ? String(match.id) : null;
 }
 
@@ -402,13 +415,17 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
   if (checkoutIds.length) {
     for (const id of checkoutIds) {
       const planId = subscription?.planId || payment?.subscription?.planId || null;
+      const productId =
+        String((subscription as any)?.plan?.metadata?.catalog?.itemId || "") ||
+        String((payment as any)?.subscription?.plan?.metadata?.catalog?.itemId || "");
       const targetId =
         id === "AUTO"
           ? await resolveAutoCheckoutTemplateId({
               tenantId: subscription?.tenantId || payment?.tenantId || "",
               trigger: parsed.data.trigger,
               paymentType,
-              planId
+              planId,
+              productId
             })
           : id;
       if (!targetId) {

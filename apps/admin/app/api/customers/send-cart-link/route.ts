@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiSession } from "../../_lib/requireApiSession";
 import { getCheckoutConfig } from "../../../admin/_services/settings";
-import { getActiveCheckoutTemplates } from "../../../admin/_services/checkoutTemplates";
+import { findCheckoutTemplateForProduct } from "../../../admin/_services/checkoutTemplates";
 import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
 import { scheduleCatalogLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { signPublicToken } from "../../../../lib/publicTokens";
@@ -33,10 +33,11 @@ export async function POST(req: Request) {
 
   const customerId = String(body?.customerId || "").trim();
   const tenantId = String(body?.tenantId || "").trim();
-  const templateIdInput = String(body?.templateId || "").trim();
+  const productId = String(body?.productId || "").trim();
   const catalogTypeRaw = String(body?.catalogType || "").trim().toUpperCase();
   const catalogType = catalogTypeRaw === "SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN";
   if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
+  if (!productId) return NextResponse.json({ ok: false, error: "missing_product_for_customer" }, { status: 400 });
 
   const notificationsConfig = await getNotificationsConfig().catch(() => null);
   if (notificationsConfig) {
@@ -64,16 +65,9 @@ export async function POST(req: Request) {
   const base = baseFromSettings.replace(/\/$/, "");
   if (!base) return NextResponse.json({ ok: false, error: "missing_public_base_url" }, { status: 400 });
 
-  const templates = await getActiveCheckoutTemplates({ tenantId: tenantId || null, kind: "CART" as any });
-  const cartTemplates = templates.filter((t: any) => String(t?.kind || "") === "CART" && Boolean(t?.active));
-  const defaultTemplateId = String((checkoutConfig as any)?.defaultCartTemplateId || "").trim();
-  const selectedTemplate =
-    (templateIdInput ? cartTemplates.find((t: any) => String(t?.id || "") === templateIdInput) : null) ||
-    (defaultTemplateId ? cartTemplates.find((t: any) => String(t?.id || "") === defaultTemplateId) : null) ||
-    cartTemplates[0] ||
-    null;
+  const selectedTemplate = await findCheckoutTemplateForProduct({ tenantId: tenantId || null, kind: "CART" as any, productId });
   if (!selectedTemplate) {
-    return NextResponse.json({ ok: false, error: "missing_cart_template" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "missing_checkout_for_product" }, { status: 400 });
   }
 
   const expiryHours = Number((selectedTemplate as any)?.expiryHours || 0);

@@ -362,10 +362,59 @@ async function resolveAssociationByScore(args: {
     return planAmount === incomingAmount;
   });
 
-  if (withExactAmount.length !== 1) return null;
+  if (!withExactAmount.length) return null;
 
-  const winner = withExactAmount[0];
   const score = identitySource === "name" ? 70 : 80;
+
+  if (withExactAmount.length === 1) {
+    const winner = withExactAmount[0];
+    return {
+      subscriptionId: winner.id,
+      customerId: winner.customerId ?? undefined,
+      score,
+      reason: "IDENTITY_MATCH" as any,
+      criteria: {
+        method: "identity",
+        source: identitySource,
+        amountInCents: incomingAmount,
+        currency: incomingCurrency || null
+      }
+    };
+  }
+
+  if (args.db === prisma) {
+    await ensureBillingCyclesForSubscriptions(
+      withExactAmount.map((sub: any) => ({
+        id: sub.id,
+        currentCycle: sub.currentCycle,
+        currentPeriodStartAt: sub.currentPeriodStartAt,
+        currentPeriodEndAt: sub.currentPeriodEndAt,
+        cycleStartDay: sub.cycleStartDay,
+        paymentDay: sub.paymentDay,
+        paymentTiming: (sub.paymentTiming as any) || "EN_CURSO",
+        graceDays: sub.graceDays,
+        plan: {
+          intervalUnit: sub.plan?.intervalUnit as any,
+          intervalCount: sub.plan?.intervalCount
+        }
+      }))
+    ).catch(() => {});
+  }
+
+  const oldestCycles = await args.db.subscriptionBillingCycle.findMany({
+    where: {
+      subscriptionId: { in: withExactAmount.map((sub: any) => sub.id) },
+      paymentId: null,
+      status: { not: BillingCycleStatus.PAID }
+    },
+    orderBy: [{ dueAt: "asc" }, { periodStartAt: "asc" }, { cycleNumber: "asc" }],
+    take: 1
+  });
+  const oldest = oldestCycles[0];
+  if (!oldest) return null;
+
+  const winner = withExactAmount.find((sub: any) => sub.id === oldest.subscriptionId);
+  if (!winner) return null;
 
   return {
     subscriptionId: winner.id,
@@ -376,8 +425,10 @@ async function resolveAssociationByScore(args: {
       method: "identity",
       source: identitySource,
       amountInCents: incomingAmount,
-      currency: incomingCurrency || null
-    }
+      currency: incomingCurrency || null,
+      tieBreak: "oldest_unpaid_cycle"
+    },
+    cycleNumber: oldest.cycleNumber
   };
 }
 

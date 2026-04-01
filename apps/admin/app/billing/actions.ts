@@ -24,7 +24,7 @@ import {
   unmarkSubscriptionPaidManual as unmarkSubscriptionPaidManualService
 } from "../admin/_services/subscriptions";
 import { getAdminSettings } from "../admin/_services/settings";
-import { getCheckoutTemplateById } from "../admin/_services/checkoutTemplates";
+import { findCheckoutTemplateForProduct } from "../admin/_services/checkoutTemplates";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { signPublicToken } from "../../lib/publicTokens";
@@ -70,6 +70,7 @@ function humanizeCreateError(raw: string) {
   if (msg.includes("missing_shipping_amount")) return "Debes ingresar el valor del flete o activar envío gratis.";
   if (msg.includes("missing_subscription_base_url")) return "Falta configurar URL base de suscripción en Configuración.";
   if (msg.includes("missing_plan_base_url")) return "Falta configurar URL base de plan en Configuración.";
+  if (msg.includes("missing_checkout_for_product")) return "No hay un checkout público asociado al producto seleccionado.";
   if (msg.includes("duplicate_subscription_requires_approval")) return "Este cliente ya tiene una suscripción activa/en mora para el mismo producto. Debes confirmar creación duplicada.";
   if (msg.includes("create_plan_failed")) return "No se pudo crear el producto de cobro.";
   if (msg.includes("create_subscription_failed")) return "No se pudo crear la suscripción.";
@@ -683,7 +684,6 @@ export async function createPlanAndSubscription(formData: FormData) {
   const option2Value = String(formData.get("option2Value") || "").trim();
   const startAt = String(formData.get("startAt") || "").trim();
   const firstPeriodEndAt = String(formData.get("firstPeriodEndAt") || "").trim();
-  const templateIdRaw = String(formData.get("templateId") || "").trim();
   const submitActionRaw = String(formData.get("submitAction") || "").trim().toUpperCase();
   const submitAction = submitActionRaw === "LINK_NOW" ? "LINK_NOW" : "CREATE";
   const allowDuplicate = String(formData.get("allowDuplicate") || "").trim() === "1";
@@ -872,16 +872,20 @@ export async function createPlanAndSubscription(formData: FormData) {
 
     const collectionMode = billingType === "PLAN" ? "AUTO_LINK" : "AUTO_DEBIT";
 
-    const templateCandidate = templateIdRaw
-      ? await getCheckoutTemplateById({ id: templateIdRaw, tenantId: tenantId || null })
-          .then((r) => (r.ok ? r.item : null))
-          .catch(() => null)
-      : null;
-    const template =
-      templateCandidate &&
-      String(templateCandidate.kind || "").toUpperCase() === (billingType === "PLAN" ? "PLAN" : "SUBSCRIPTION")
-        ? templateCandidate
-        : null;
+    const template = await findCheckoutTemplateForProduct({
+      tenantId: tenantId || null,
+      kind: billingType === "PLAN" ? "PLAN" : "SUBSCRIPTION",
+      productId
+    });
+    if (!template) {
+      return redirect(
+        mergeQuery(returnTo, {
+          error: "missing_checkout_for_product",
+          customerId: resolvedCustomerId,
+          ...(tenantId ? { tenantId } : {})
+        })
+      );
+    }
 
     const nameSuffix = `${new Date().toISOString().slice(11, 19).replace(/:/g, "")}-${resolvedCustomerId.slice(0, 6)}`;
     const createdPlan = await createPlanService({

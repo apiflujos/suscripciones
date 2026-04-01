@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireApiSession } from "../../_lib/requireApiSession";
 import { createManualOrder } from "../../../admin/_services/orders";
 import { getCheckoutConfig } from "../../../admin/_services/settings";
-import { getActiveCheckoutTemplates } from "../../../admin/_services/checkoutTemplates";
+import { findCheckoutTemplateForProduct } from "../../../admin/_services/checkoutTemplates";
 import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
 import { signPublicToken } from "../../../../lib/publicTokens";
 import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
@@ -29,10 +29,13 @@ export async function POST(req: Request) {
   const customerId = String(body?.customerId || "").trim();
   const customerName = String(body?.customerName || "").trim() || "Cliente";
   const tenantId = String(body?.tenantId || "").trim();
-  const templateIdInput = String(body?.templateId || "").trim();
+  const productId = String(body?.productId || "").trim();
   const amountInCents = pesosToCents(String(body?.amount || ""));
   if (!customerId || amountInCents <= 0) {
     return NextResponse.json({ ok: false, error: "monto_invalido" }, { status: 400 });
+  }
+  if (!productId) {
+    return NextResponse.json({ ok: false, error: "missing_product_for_customer" }, { status: 400 });
   }
 
   const notificationsConfig = await getNotificationsConfig().catch(() => null);
@@ -74,7 +77,7 @@ export async function POST(req: Request) {
   const checkoutUrl = String(orderResult.checkoutUrl || "").trim();
   const rulesActive = Boolean(orderResult.notificationsRulesActive);
   let publicUrl: string | null = null;
-  let resolvedTemplateId = templateIdInput || "";
+  let resolvedTemplateId = "";
   try {
     const checkoutConfig = await getCheckoutConfig();
     const expiryHours = Number(checkoutConfig?.tokenExpiryHours || 24);
@@ -82,20 +85,9 @@ export async function POST(req: Request) {
     const baseFromSettings = String(checkoutConfig?.planBaseUrl || "").trim();
     if (baseFromSettings) {
       let templateName: string | null = null;
-      if (!resolvedTemplateId) {
-        const items = await getActiveCheckoutTemplates({ tenantId: tenantId || null, kind: "PLAN" as any });
-        const defaultTemplateId = String((checkoutConfig as any)?.defaultPlanTemplateId || "").trim();
-        const selected =
-          (defaultTemplateId ? items?.find((t: any) => String(t?.id || "") === defaultTemplateId) : null) ||
-          items?.[0] ||
-          null;
-        resolvedTemplateId = selected ? String((selected as any).id || "") : "";
-        templateName = selected ? String((selected as any).name || "") : null;
-      } else {
-        const items = await getActiveCheckoutTemplates({ tenantId: tenantId || null, kind: "PLAN" as any });
-        const selected = items?.find((t: any) => String(t?.id || "") === String(resolvedTemplateId)) || null;
-        templateName = selected ? String((selected as any).name || "") : null;
-      }
+      const selected = await findCheckoutTemplateForProduct({ tenantId: tenantId || null, kind: "PLAN" as any, productId });
+      resolvedTemplateId = selected ? String((selected as any).id || "") : "";
+      templateName = selected ? String((selected as any).name || "") : null;
 
       const tokenValue = await signPublicToken({ sub: customerId, scope: "payment", ttlSeconds: hours * 60 * 60 });
       const normalized = baseFromSettings.replace(/\/$/, "");
@@ -105,7 +97,7 @@ export async function POST(req: Request) {
       publicUrl = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
 
       if (!resolvedTemplateId) {
-        return NextResponse.json({ ok: false, error: "missing_plan_template" }, { status: 400 });
+        return NextResponse.json({ ok: false, error: "missing_checkout_for_product" }, { status: 400 });
       }
 
       const customer = await getCustomerById(customerId);

@@ -59,9 +59,12 @@ export async function createCheckoutTemplate(formData: FormData) {
     }
 
     const allowProductSelect = kind === "CART" ? String(formData.get("allowProductSelect") || "") === "on" : false;
-    const productIds = kind === "CART" ? parseProductIds(String(formData.get("productIds") || "")) : [];
-    if (kind === "CART" && !productIds.length) {
-      return redirectWith("checkout_template_create", "fail", "invalid_body");
+    const productIds = parseProductIds(String(formData.get("productIds") || ""));
+    if (!productIds.length) {
+      return redirectWith("checkout_template_create", "fail", "product_required");
+    }
+    if (productIds.length > 1) {
+      return redirectWith("checkout_template_create", "fail", "max_one_product");
     }
     const expiryHoursRaw = String(formData.get("expiryHours") || "").trim();
     const expiryHoursNum = expiryHoursRaw ? Number(expiryHoursRaw) : NaN;
@@ -108,9 +111,12 @@ export async function updateCheckoutTemplate(formData: FormData) {
       return redirectWith("checkout_template_update", "fail", "invalid_body");
     }
     const allowProductSelect = kind === "CART" ? String(formData.get("allowProductSelect") || "") === "on" : false;
-    const productIds = kind === "CART" ? parseProductIds(String(formData.get("productIds") || "")) : [];
-    if (kind === "CART" && !productIds.length) {
-      return redirectWith("checkout_template_update", "fail", "invalid_body");
+    const productIds = parseProductIds(String(formData.get("productIds") || ""));
+    if (!productIds.length) {
+      return redirectWith("checkout_template_update", "fail", "product_required");
+    }
+    if (productIds.length > 1) {
+      return redirectWith("checkout_template_update", "fail", "max_one_product");
     }
     const expiryHoursRaw = String(formData.get("expiryHours") || "").trim();
     const expiryHoursNum = expiryHoursRaw ? Number(expiryHoursRaw) : NaN;
@@ -168,7 +174,7 @@ export async function duplicateCheckoutTemplate(formData: FormData) {
       kind: template.kind,
       active: template.active,
       allowProductSelect: template.kind === "CART" ? template.allowProductSelect : false,
-      productIds: template.kind === "CART" ? template.productIds || [] : [],
+      productIds: template.productIds || [],
       tenantId: template.tenantId,
       expiryHours: template.expiryHours ?? undefined,
       logoUrl: template.logoUrl || "",
@@ -220,15 +226,19 @@ export async function createCheckoutTemplateDefaults(formData: FormData) {
       const hasCart = templates.some((t: any) => String(t?.kind || "") === "CART");
 
       if (!hasCart) {
+        const first = products[0];
+        if (!first) continue;
         await createCheckoutTemplateService({
-          name: "Catálogo",
+          name: `Catálogo - ${String(first?.name || "Producto")}`,
           kind: "CART",
           active: true,
           allowProductSelect: true,
-          productIds: products.map((p: any) => ({
-            id: p.id,
-            mode: String(p?.metadata?.collectionMode || "AUTO_LINK").toUpperCase()
-          })),
+          productIds: [
+            {
+              id: first.id,
+              mode: String(first?.metadata?.collectionMode || "AUTO_LINK").toUpperCase()
+            }
+          ],
           tenantId,
           logoUrl,
           publicTitle: planTitle,
