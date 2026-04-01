@@ -68,6 +68,7 @@ export default async function WhatsappNotificationsListPage({
             <form action="/notifications/list" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
               <input
                 className="input"
+                type="search"
                 name="q"
                 defaultValue={q}
                 placeholder="Buscar contacto, teléfono o contenido..."
@@ -79,7 +80,10 @@ export default async function WhatsappNotificationsListPage({
           )}
           searchActions={<FiltersFocusButton />}
           actions={(
-            <a className="ghost btn-compact" href="/notifications/list">Limpiar</a>
+            <ListCsvActions
+              exportHref={`/api/list-csv?${new URLSearchParams({ scope: "notifications", ...baseParams }).toString()}`}
+              allowImport={false}
+            />
           )}
           filters={(
             <form action="/notifications/list" method="GET" className="filtersForm page-header-standard-filters-group" data-debounce-form="true">
@@ -104,10 +108,7 @@ export default async function WhatsappNotificationsListPage({
           smartViews={<div />}
           configHref="http://localhost:3002/settings?tab=notificaciones-whatsapp"
           summary={(
-            <ListCsvActions
-              exportHref={`/api/list-csv?${new URLSearchParams({ scope: "notifications", ...baseParams }).toString()}`}
-              allowImport={false}
-            />
+            <a className="ghost btn-compact" href="/notifications/list">Limpiar</a>
           )}
         />
 

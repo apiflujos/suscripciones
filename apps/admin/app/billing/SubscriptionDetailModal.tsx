@@ -127,10 +127,10 @@ export function SubscriptionDetailModal({
 
   const modeValue = String(subscription.mode || "").trim().toUpperCase();
   const tipoLabel = String(subscription.tipoTx || "").toLowerCase();
+  const alreadyPaidCurrentPeriod = Boolean(subscription.lastPaidInCurrentPeriod);
   const isAutoDebit = modeValue === "AUTO_DEBIT" || tipoLabel.includes("débito") || tipoLabel.includes("debito");
   const showChargeButton = isAutoDebit && !subscription.status.includes("CANCELED");
   const showMarkPaidButton = !subscription.status.includes("CANCELED") && !alreadyPaidCurrentPeriod;
-  const alreadyPaidCurrentPeriod = Boolean(subscription.lastPaidInCurrentPeriod);
   const showResume = subscription.status === "SUSPENDED";
   const showActivate = subscription.status === "CANCELED";
   const showCancelSuspend = !showResume && !showActivate;

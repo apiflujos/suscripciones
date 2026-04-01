@@ -640,6 +640,7 @@ export default async function LogsPage({
         {filters ? <input type="hidden" name="filters" value={filters} /> : null}
         <input
           className="input"
+          type="search"
           name="q"
           defaultValue={q}
           placeholder="Buscar cliente, referencia o transacción..."
@@ -660,6 +661,7 @@ export default async function LogsPage({
         {filters ? <input type="hidden" name="filters" value={filters} /> : null}
         <input
           className="input"
+          type="search"
           name="q"
           defaultValue={q}
           placeholder="Buscar eventos, fuente o cliente..."
@@ -788,20 +790,24 @@ export default async function LogsPage({
 
   const headerViews = null;
 
-  const paymentsActions =
+  const paymentsCsvActions =
+    tab === "payments" ? (
+      <ListCsvActions
+        exportHref={`/api/list-csv?${new URLSearchParams({
+          scope: "payments",
+          ...(q ? { q } : {}),
+          ...(status ? { status } : {}),
+          ...(from ? { from } : {}),
+          ...(to ? { to } : {}),
+          ...(tenantId ? { tenantId } : {})
+        }).toString()}`}
+        defaultEntity="payments"
+      />
+    ) : null;
+
+  const paymentsPrimaryActions =
     tab === "payments" ? (
       <div className="payments-header-actions">
-        <ListCsvActions
-          exportHref={`/api/list-csv?${new URLSearchParams({
-            scope: "payments",
-            ...(q ? { q } : {}),
-            ...(status ? { status } : {}),
-            ...(from ? { from } : {}),
-            ...(to ? { to } : {}),
-            ...(tenantId ? { tenantId } : {})
-          }).toString()}`}
-          defaultEntity="payments"
-        />
         <form action={autoAssociatePayments} className="filtersForm">
           <input type="hidden" name="returnTo" value={returnTo} />
           <input type="hidden" name="csrf" value={csrfToken} />
@@ -829,7 +835,7 @@ export default async function LogsPage({
     ) : null;
 
   return (
-    <main className={`page${tab === "payments" ? " paymentsPage" : ""}`}>
+    <main className={`page logsPage${tab === "payments" ? " paymentsPage" : ""}`}>
       <LogsFiltersAutoSubmit />
 
       {/* Tabs de navegación superiores */}
@@ -923,8 +929,8 @@ export default async function LogsPage({
           filters={headerFilters}
           views={headerViews}
           smartViews={headerSmartViews ?? <div />}
-          actions={paymentsActions || undefined}
-          summary={tab === "payments" ? undefined : headerSummary}
+          actions={paymentsCsvActions || undefined}
+          summary={tab === "payments" ? paymentsPrimaryActions : headerSummary}
         />
 
         {/* Panel de salud del sistema (solo non-payments) */}
