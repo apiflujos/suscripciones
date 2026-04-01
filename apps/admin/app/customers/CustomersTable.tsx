@@ -330,12 +330,6 @@ export function CustomersTable({
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
-  const productById = useMemo(() => {
-    const map = new Map<string, any>();
-    (products || []).forEach((p: any) => map.set(String(p.id), p));
-    return map;
-  }, [products]);
-
   function inferTemplateMode(t: any): "PLAN" | "SUBSCRIPTION" | "MIXED" {
     const ids = Array.isArray(t?.productIds) ? t.productIds : [];
     let hasPlan = false;
