@@ -823,7 +823,7 @@ a {
   padding: 20px 24px 32px;
   display: grid;
   gap: 16px;
-  overflow-x: auto;
+  overflow-x: hidden;
 }
 
 .page {
@@ -832,11 +832,13 @@ a {
   width: 100%;
   max-width: none;
   border: none;
+  overflow-x: auto;
 }
 
 .pageWide {
   width: 100%;
   max-width: none;
+  overflow-x: auto;
 }
 
 .sidebar {
@@ -1320,15 +1322,6 @@ a {
   border-radius: 8px;
 }
 
-:is(.contact-footer, .product-footer-actions, .billing-actions, .module-footer) .btn-compact {
-  min-height: 24px;
-  border-radius: 8px;
-  font-size: 10px;
-}
-
-:is(.module-footer, .product-footer-actions, .billing-actions, .wizard-footer, .drawer-footer, .modal-footer, .send-product-actions) {
-  justify-content: flex-start !important;
-}
 
 :is(.contact-footer, .product-footer-actions, .billing-actions, .module-footer) :is(.btn-send, .btn-green) {
   border-color: #16a34a;
@@ -4384,14 +4377,25 @@ textarea.input {
 }
 
 .input[type="search"] {
-  --field-icon: none;
-  --field-padding-right: 12px;
+  --field-icon: var(--icon-search);
+  --field-padding-right: var(--control-padding-x);
+  background-position: var(--control-padding-x) 50%;
+  padding-left: calc(var(--control-padding-x) + var(--btn-icon-size) + var(--space-1));
 }
 
 .input[name="q"],
 .input[name*="search"] {
-  --field-icon: none;
-  --field-padding-right: 12px;
+  --field-icon: var(--icon-search);
+  --field-padding-right: var(--control-padding-x);
+  background-position: var(--control-padding-x) 50%;
+  padding-left: calc(var(--control-padding-x) + var(--btn-icon-size) + var(--space-1));
+}
+
+.filtersSearch .input {
+  --field-icon: var(--icon-search);
+  --field-padding-right: var(--control-padding-x);
+  background-position: var(--control-padding-x) 50%;
+  padding-left: calc(var(--control-padding-x) + var(--btn-icon-size) + var(--space-1));
 }
 
 .input[type="email"] {
@@ -15473,7 +15477,9 @@ html[data-contrast="high"] .toggle::after {
 
 .page-toolbar .filtersSearch .input {
   --field-icon: var(--icon-search);
-  --field-padding-right: calc(var(--control-padding-x) + var(--btn-icon-size) + var(--space-1));
+  --field-padding-right: var(--control-padding-x);
+  background-position: var(--control-padding-x) 50%;
+  padding-left: calc(var(--control-padding-x) + var(--btn-icon-size) + var(--space-1));
 }
 
 .page-toolbar .filtersSearch .btn-search {
@@ -15484,6 +15490,21 @@ html[data-contrast="high"] .toggle::after {
   flex-wrap: nowrap;
   gap: var(--toolbar-gap);
   align-items: center;
+}
+
+/* Toolbars: search left, filters right (logs/notifications/payments) */
+.page-toolbar.toolbar-search-left .page-toolbar-row-1 {
+  align-items: center;
+}
+
+.page-toolbar.toolbar-search-left .page-toolbar-search {
+  order: 1;
+}
+
+.page-toolbar.toolbar-search-left .page-toolbar-filters {
+  order: 2;
+  margin-left: auto;
+  justify-content: flex-end;
 }
 
 @media (max-width: 1200px) {

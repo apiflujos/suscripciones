@@ -923,14 +923,14 @@ export default async function LogsPage({
 
       <section className="settings-group">
         <PageToolbar
-          className="compact"
+          className="compact toolbar-search-left"
           search={headerSearch}
           searchActions={headerFilterButton || undefined}
           filters={headerFilters}
           views={headerViews}
           smartViews={headerSmartViews ?? <div />}
-          actions={paymentsCsvActions || undefined}
-          summary={tab === "payments" ? paymentsPrimaryActions : headerSummary}
+          actions={paymentsPrimaryActions || undefined}
+          summary={tab === "payments" ? paymentsCsvActions : headerSummary}
         />
 
         {/* Panel de salud del sistema (solo non-payments) */}
