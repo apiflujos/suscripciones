@@ -67,7 +67,7 @@ function readPlanPricing(meta: any) {
   return {};
 }
 
-function mapPlanFromApi(p: any): PlanOption {
+export function mapPlanFromApi(p: any): PlanOption {
   const metadata = p?.metadata && typeof p.metadata === "object" ? p.metadata : {};
   const catalog = metadata?.catalog && typeof metadata.catalog === "object" ? metadata.catalog : {};
   const pricing = readPlanPricing(metadata);

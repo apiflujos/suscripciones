@@ -938,6 +938,7 @@ export function CustomersTable({
                 const productName = productById.get(productId)?.name || "";
                 const missingProduct = !productId;
                 const missingCheckout = !checkoutTemplate;
+                const isSending = sendingPaymentId === payModalCustomer.id;
                 return (
                   <>
               <div className="field">
@@ -1005,13 +1006,14 @@ export function CustomersTable({
               ) : null}
               {sendOk[payModalCustomer.id] ? <div className="paylink-success">Mensaje enviado correctamente.</div> : null}
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost btn-cancel" type="button" onClick={closePayModal} data-modal-close="true" data-loader="off">
+                <button className="ghost btn-cancel" type="button" onClick={closePayModal} data-modal-close="true" data-loader="off" disabled={isSending}>
                   Cancelar
                 </button>
                 <button
                   className="primary btn-compact btn-send"
                   type="submit"
                   disabled={
+                    isSending ||
                     !payAmount ||
                     !canSendPay ||
                     missingProduct ||
@@ -1019,7 +1021,7 @@ export function CustomersTable({
                     missingPublicBase
                   }
                 >
-                  Enviar
+                  {isSending ? "Enviando..." : "Enviar"}
                 </button>
               </div>
                   </>
@@ -1103,6 +1105,10 @@ export function CustomersTable({
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
                   openNotify("ok", "El catálogo fue enviado correctamente.");
                   closeCartModal();
+                } catch (err: any) {
+                  const msg = String(err?.message || "send_failed");
+                  setSendError((prev) => ({ ...prev, [customer.id]: msg }));
+                  openNotify("fail", mapSendError(msg));
                 } finally {
                   setSendingCartId(null);
                 }
@@ -1119,6 +1125,7 @@ export function CustomersTable({
                 const productName = productById.get(productId)?.name || "";
                 const missingProduct = !productId;
                 const missingCheckout = !checkoutTemplate;
+                const isSending = sendingCartId === cartModalCustomer.id;
                 return (
                   <>
               <div className="field">
@@ -1176,20 +1183,21 @@ export function CustomersTable({
               {sendError[cartModalCustomer.id] ? <div className="paylink-error">{mapSendError(sendError[cartModalCustomer.id])}</div> : null}
               {sendOk[cartModalCustomer.id] ? <div className="paylink-success">Mensaje enviado correctamente.</div> : null}
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost btn-cancel" type="button" onClick={closeCartModal} data-modal-close="true" data-loader="off">
+                <button className="ghost btn-cancel" type="button" onClick={closeCartModal} data-modal-close="true" data-loader="off" disabled={isSending}>
                   Cancelar
                 </button>
                 <button
                   className="primary btn-compact btn-send"
                   type="submit"
                   disabled={
+                    isSending ||
                     missingPublicBase ||
                     !canSendNotif ||
                     missingProduct ||
                     missingCheckout
                   }
                 >
-                  Enviar
+                  {isSending ? "Enviando..." : "Enviar"}
                 </button>
               </div>
                   </>
@@ -1269,6 +1277,10 @@ export function CustomersTable({
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
                   openNotify("ok", "El link de débito automático fue enviado correctamente.");
                   closeTokenModal();
+                } catch (err: any) {
+                  const msg = String(err?.message || "send_failed");
+                  setSendError((prev) => ({ ...prev, [customer.id]: msg }));
+                  openNotify("fail", mapSendError(msg));
                 } finally {
                   setSendingTokenId(null);
                 }
@@ -1282,6 +1294,7 @@ export function CustomersTable({
                 const productName = productById.get(productId)?.name || "";
                 const missingProduct = !productId;
                 const missingCheckout = !checkoutTemplate;
+                const isSending = sendingTokenId === tokenModalCustomer.id;
                 return (
                   <>
               <div className="field">
@@ -1338,20 +1351,21 @@ export function CustomersTable({
               ) : null}
               {sendOk[tokenModalCustomer.id] ? <div className="paylink-success">Mensaje enviado correctamente.</div> : null}
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button className="ghost btn-cancel" type="button" onClick={closeTokenModal} data-modal-close="true" data-loader="off">
+                <button className="ghost btn-cancel" type="button" onClick={closeTokenModal} data-modal-close="true" data-loader="off" disabled={isSending}>
                   Cancelar
                 </button>
                 <button
                   className="primary btn-compact btn-send"
                   type="submit"
                   disabled={
+                    isSending ||
                     missingSubBase ||
                     !canSendNotif ||
                     missingProduct ||
                     missingCheckout
                   }
                 >
-                  Enviar
+                  {isSending ? "Enviando..." : "Enviar"}
                 </button>
               </div>
                   </>

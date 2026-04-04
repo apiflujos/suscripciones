@@ -108,6 +108,8 @@ export function SubscriptionDetailModal({
 }) {
   const tenantId = subscription.tenantId ?? undefined;
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [cyclesOpen, setCyclesOpen] = useState(false);
 
   const fmtMoney = (cents: number, currency: string) => {
     return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(cents / 100);
@@ -153,12 +155,19 @@ export function SubscriptionDetailModal({
                 title="Editar suscripción"
                 aria-label="Editar"
               />
-              <PaymentHistoryButton subscriptionId={subscription.id} tenantId={tenantId} />
-              <PaymentCyclesModal
-                subscriptionId={subscription.id}
-                csrfToken={csrfToken}
-                returnTo={returnTo}
-                tenantId={tenantId}
+              <button
+                className="ghost btn-compact btn-history btn-icon-only"
+                type="button"
+                onClick={() => setHistoryOpen(true)}
+                title="Historial de pagos"
+                aria-label="Historial de pagos"
+              />
+              <button
+                className="ghost btn-compact btn-calendar btn-icon-only"
+                type="button"
+                onClick={() => setCyclesOpen(true)}
+                title="Ver ciclos de pago"
+                aria-label="Ver ciclos de pago"
               />
               <DeleteSubscriptionButton
                 action={deleteSubscription}
@@ -482,6 +491,20 @@ export function SubscriptionDetailModal({
           globalConfig={{ graceDays: 5, suspendDays: 15, cancelDays: 30 }}
         />
       )}
+      <PaymentHistoryButton
+        subscriptionId={subscription.id}
+        tenantId={tenantId}
+        forceOpen={historyOpen}
+        onOpenChange={setHistoryOpen}
+      />
+      <PaymentCyclesModal
+        subscriptionId={subscription.id}
+        csrfToken={csrfToken}
+        returnTo={returnTo}
+        tenantId={tenantId}
+        forceOpen={cyclesOpen}
+        onOpenChange={setCyclesOpen}
+      />
     </>
   );
 }

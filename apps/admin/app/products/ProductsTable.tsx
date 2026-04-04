@@ -7,6 +7,7 @@ import { HelpTip } from "../ui/HelpTip";
 import { VariantsEditor } from "./VariantsEditor";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { DeleteProductButton } from "./DeleteProductButton";
+import { PendingButton } from "../ui/PendingButton";
 import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
 import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, normalizeSupportedCurrency } from "../lib/currencies";
 
@@ -808,13 +809,14 @@ export function ProductsTable({
                   <div className="field-hint">Se usa la plantilla configurada en Notificaciones (link de pago).</div>
                 </div>
                 <div className="send-product-actions">
-                  <button
+                  <PendingButton
                     className="primary btn-compact btn-send"
                     type="submit"
+                    pendingText="Enviando..."
                     disabled={!sendCustomerId || !canSendPaymentLink}
                   >
                     Enviar link de pago
-                  </button>
+                  </PendingButton>
                   {!sendCustomerId ? (
                     <div className="field-hint">Selecciona un contacto para habilitar el envío.</div>
                   ) : null}

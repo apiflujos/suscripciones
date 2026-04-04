@@ -274,7 +274,16 @@ export function ConnectionsPanel({
                 <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     {inlineMsg("wompi_delete", "Eliminado.", "Error eliminando", inlineState)}
-                    <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" formAction={actions.deleteWompiConnection} aria-label="Eliminar conexión Wompi" title="Eliminar conexión Wompi" />
+                    <PendingButton
+                      className="ghost btn-compact btn-red btn-delete-icon"
+                      type="submit"
+                      formAction={actions.deleteWompiConnection}
+                      pendingText="Eliminando..."
+                      aria-label="Eliminar conexión Wompi"
+                      title="Eliminar conexión Wompi"
+                    >
+                      Eliminar
+                    </PendingButton>
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     {inlineMsg("wompi_creds", "Guardado.", "Error guardando", inlineState)}
@@ -353,9 +362,9 @@ export function ConnectionsPanel({
                   <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       {inlineMsg("central_delete", "Eliminado.", "Error eliminando", inlineState)}
-                      <button className="ghost btn-compact btn-red" type="submit" formAction={actions.deleteCentralConnection}>
+                      <PendingButton className="ghost btn-compact btn-red" type="submit" formAction={actions.deleteCentralConnection} pendingText="Eliminando...">
                         Eliminar conexión
-                      </button>
+                      </PendingButton>
                     </div>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       {inlineMsg("central_save", "Guardado.", "Error guardando", inlineState)}
@@ -438,7 +447,16 @@ export function ConnectionsPanel({
               <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end" }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   {inlineMsg("shopify_delete", "Eliminado.", "Error eliminando", inlineState)}
-                  <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" formAction={actions.deleteShopifyConnection} aria-label="Eliminar conexión Shopify" title="Eliminar conexión Shopify" />
+                  <PendingButton
+                    className="ghost btn-compact btn-red btn-delete-icon"
+                    type="submit"
+                    formAction={actions.deleteShopifyConnection}
+                    pendingText="Eliminando..."
+                    aria-label="Eliminar conexión Shopify"
+                    title="Eliminar conexión Shopify"
+                  >
+                    Eliminar
+                  </PendingButton>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   {inlineMsg("shopify_save", "Guardado.", "Error guardando", inlineState)}

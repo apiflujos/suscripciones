@@ -31,6 +31,8 @@ type Props = {
   returnTo: string;
   tenantId?: string | null;
   trigger?: (onOpen: () => void) => React.ReactNode;
+  forceOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 function originLabel(origin?: string | null) {
@@ -84,11 +86,19 @@ function formatDateRange(start: string, end: string) {
   );
 }
 
-export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenantId, trigger }: Props) {
-  const [open, setOpen] = useState(false);
+export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenantId, trigger, forceOpen, onOpenChange }: Props) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<BillingCycleItem[]>([]);
   const [expandedCycle, setExpandedCycle] = useState<string | null>(null);
+  const open = forceOpen ?? internalOpen;
+
+  const setOpen = (next: boolean) => {
+    if (forceOpen === undefined) {
+      setInternalOpen(next);
+    }
+    onOpenChange?.(next);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -119,19 +129,21 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
 
   const handleOpen = () => setOpen(true);
   
-  const triggerButton = trigger ? (
-    trigger(handleOpen)
-  ) : (
-    <button
-      className="ghost btn-compact btn-icon-only btn-calendar"
-      type="button"
-      title="Ver ciclos de pago"
-      aria-label="Ver ciclos de pago"
-      onClick={handleOpen}
-    >
-      <span aria-hidden="true" />
-    </button>
-  );
+  const triggerButton = forceOpen !== undefined
+    ? null
+    : trigger ? (
+        trigger(handleOpen)
+      ) : (
+        <button
+          className="ghost btn-compact btn-icon-only btn-calendar"
+          type="button"
+          title="Ver ciclos de pago"
+          aria-label="Ver ciclos de pago"
+          onClick={handleOpen}
+        >
+          <span aria-hidden="true" />
+        </button>
+      );
 
   return (
     <>

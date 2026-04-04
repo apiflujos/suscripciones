@@ -561,8 +561,8 @@ export function NewBillingAssignmentForm({
             ) : null}
 
             {showNewCustomer ? (
-              <div className="modal-backdrop">
-                <div className="modal-panel ui-modal-panel-wide">
+              forceOpen ? (
+                <div className="card cardPad" style={{ marginTop: 8 }}>
                   <div className="panel-header ui-panel-header">
                     <strong>Crear contacto</strong>
                     <button className="ghost modal-close" type="button" onClick={() => setShowNewCustomer(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
@@ -581,7 +581,29 @@ export function NewBillingAssignmentForm({
                     tenants={tenants}
                   />
                 </div>
-              </div>
+              ) : (
+                <div className="modal-backdrop">
+                  <div className="modal-panel ui-modal-panel-wide">
+                    <div className="panel-header ui-panel-header">
+                      <strong>Crear contacto</strong>
+                      <button className="ghost modal-close" type="button" onClick={() => setShowNewCustomer(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
+                        X
+                      </button>
+                    </div>
+                    <NewCustomerForm
+                      createCustomer={createCustomer}
+                      defaultOpen
+                      mode="always_open"
+                      hidePanelHeader
+                      useModal={false}
+                      returnTo={`${returnTo}${returnTo.includes("?") ? "&" : "?"}crear=1`}
+                      csrfToken={csrfToken}
+                      tenantId={tenantId}
+                      tenants={tenants}
+                    />
+                  </div>
+                </div>
+              )
             ) : null}
           </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { PendingButton } from "../ui/PendingButton";
 
 type Env = "PRODUCTION" | "SANDBOX";
 
@@ -266,13 +267,23 @@ export function NotificationsManager({
                         <input type="hidden" name="environment" value={env} />
                         <input type="hidden" name="ruleId" value={rule.id} />
                         <input type="hidden" name="enabled" value={rule.enabled ? "0" : "1"} />
-                        <button className="ghost" type="submit">{rule.enabled ? "Desactivar" : "Activar"}</button>
+                        <PendingButton className="ghost" type="submit" pendingText={rule.enabled ? "Desactivando..." : "Activando..."}>
+                          {rule.enabled ? "Desactivar" : "Activar"}
+                        </PendingButton>
                       </form>
                       <form action={actions.deleteRule}>
                         <input type="hidden" name="csrf" value={csrfToken} />
                         <input type="hidden" name="environment" value={env} />
                         <input type="hidden" name="ruleId" value={rule.id} />
-                        <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar regla" title="Eliminar regla" />
+                        <PendingButton
+                          className="ghost btn-compact btn-red btn-delete-icon"
+                          type="submit"
+                          pendingText="Eliminando..."
+                          aria-label="Eliminar regla"
+                          title="Eliminar regla"
+                        >
+                          Eliminar
+                        </PendingButton>
                       </form>
                     </div>
                   </div>
@@ -314,7 +325,15 @@ export function NotificationsManager({
                       <input type="hidden" name="csrf" value={csrfToken} />
                       <input type="hidden" name="environment" value={env} />
                       <input type="hidden" name="templateId" value={tpl.id} />
-                      <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar plantilla" title="Eliminar plantilla" />
+                      <PendingButton
+                        className="ghost btn-compact btn-red btn-delete-icon"
+                        type="submit"
+                        pendingText="Eliminando..."
+                        aria-label="Eliminar plantilla"
+                        title="Eliminar plantilla"
+                      >
+                        Eliminar
+                      </PendingButton>
                     </form>
                   </div>
                 </div>
@@ -427,14 +446,15 @@ export function NotificationsManager({
                 >
                   Cancelar
                 </button>
-                <button 
+                <PendingButton 
                   className="primary btn-compact btn-save" 
                   type="submit"
+                  pendingText="Guardando..."
                   title="Guardar plantilla de notificación"
                   aria-label="Guardar cambios"
                 >
                   Guardar
-                </button>
+                </PendingButton>
               </div>
             </form>
           </div>
@@ -557,14 +577,15 @@ export function NotificationsManager({
                 >
                   Cancelar
                 </button>
-                <button 
+                <PendingButton 
                   className="primary btn-compact btn-save" 
                   type="submit"
+                  pendingText="Guardando..."
                   title="Guardar plantilla de notificación"
                   aria-label="Guardar cambios"
                 >
                   Guardar
-                </button>
+                </PendingButton>
               </div>
             </form>
           </div>

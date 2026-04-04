@@ -4501,12 +4501,13 @@ textarea.input {
 .modal-panel .ghost:not(.btn-icon-only),
 .modal-panel .btn:not(.btn-icon-only),
 .modal-panel .btnLink:not(.btn-icon-only) {
-  min-height: 28px;
-  height: 28px;
-  font-size: 11px;
-  padding: 0 10px;
-  line-height: 1;
+  min-height: 32px;
+  height: auto;
+  font-size: 12px;
+  padding: 0 12px;
+  line-height: 1.2;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .primary::before,
@@ -5601,12 +5602,13 @@ textarea.input {
 
 /* Footer de modales: botones siempre compactos y sin desborde */
 .module-footer :is(.btn, .ghost, .primary, .btn-compact) {
-  min-height: 28px;
-  height: 28px;
-  font-size: 11px;
-  line-height: 1;
-  padding: 0 10px;
+  min-height: 32px;
+  height: auto;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 0 12px;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 /* Compactar cards de contactos (igual altura que billing) */
@@ -5756,6 +5758,9 @@ textarea.input {
 .plan-option-item {
   text-align: left;
   justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .plan-option-item.is-selected {
@@ -7616,6 +7621,7 @@ textarea.input {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .subscription-detail-modal .modal-body {
@@ -7658,9 +7664,15 @@ textarea.input {
   white-space: nowrap;
 }
 
+.subscription-edit-modal :is(.primary, .ghost, .btn, .btn-compact):not(.btn-icon-only)::before {
+  content: none !important;
+  display: none !important;
+}
+
 .subscription-edit-modal .btn-compact:not(.btn-icon-only) {
   flex: 0 0 auto;
-  min-width: max-content;
+  min-width: fit-content;
+  max-width: 100%;
 }
 
 /* Override modal global button sizing for subscription edit */
@@ -7696,6 +7708,7 @@ textarea.input {
   gap: 14px;
   overflow: auto;
   padding-right: 6px;
+  min-width: 0;
 }
 
 .subscription-edit-type-row {
@@ -7722,17 +7735,50 @@ textarea.input {
 .subscription-edit-modal .subscription-product-search {
   display: grid;
   gap: var(--space-2);
+  min-width: 0;
 }
 
 .subscription-edit-modal .subscription-product-search-row {
   display: flex;
   gap: var(--space-2);
   align-items: center;
+  min-width: 0;
 }
 
 .subscription-edit-modal .subscription-product-search-input {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+.subscription-edit-products-list {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.subscription-edit-product-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.subscription-edit-product-meta {
+  min-width: 0;
+}
+
+.subscription-edit-product-meta strong,
+.subscription-edit-product-meta .muted {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.subscription-edit-modal .subscription-edit-add-product-btn {
+  align-self: flex-start;
+  min-width: 0 !important;
+  width: auto !important;
+  max-width: 100%;
 }
 
 .subscription-edit-modal .plan-option-item {
@@ -7745,6 +7791,22 @@ textarea.input {
   gap: 8px;
   font-size: 13px;
   min-width: 0;
+  width: 100%;
+}
+
+.subscription-edit-cycle-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.subscription-edit-global-config-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--panel-soft);
+  border-radius: var(--radius-3);
 }
 
 .subscription-edit-modal .btn-icon-only {
@@ -7768,21 +7830,28 @@ textarea.input {
   padding-top: 12px;
   border-top: 1px solid var(--stroke);
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   width: 100%;
   box-sizing: border-box;
   justify-content: flex-end;
   padding-right: 6px;
   flex-shrink: 0;
+  align-items: center;
+  min-width: 0;
 }
 
-.subscription-edit-modal .module-footer .btn-compact {
-  min-width: 124px;
-  padding: 0 16px;
-  line-height: 1;
+.subscription-edit-modal .subscription-edit-footer-btn {
+  flex: 0 0 auto;
+  min-width: 128px !important;
+  width: auto !important;
+  max-width: 100%;
+  padding: 0 18px !important;
+  line-height: 1.2 !important;
   box-sizing: border-box;
   text-align: center;
   justify-content: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .subscription-edit-footer > * {
@@ -7816,14 +7885,34 @@ textarea.input {
 }
 
 .subscription-edit-modal .plan-option-item span:first-child {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.subscription-edit-plan-price {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.subscription-edit-search-error {
+  color: rgba(217, 83, 79, 0.92);
+}
+
+@media (max-width: 880px) {
+  .subscription-edit-cycle-grid,
+  .subscription-edit-global-config-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 640px) {
+  .subscription-edit-modal .subscription-product-search-row,
+  .subscription-edit-modal .subscription-edit-frequency-row,
   .subscription-edit-modal .module-footer {
+    flex-wrap: wrap;
     justify-content: stretch;
   }
 
@@ -7837,6 +7926,10 @@ textarea.input {
   .subscription-edit-modal .module-footer .btn {
     width: 100%;
     min-width: 0;
+  }
+
+  .subscription-edit-modal .subscription-edit-add-product-btn {
+    width: 100% !important;
   }
 }
 
@@ -12973,6 +13066,7 @@ body.is-global-loading {
   padding: 16px;
   position: relative;
   z-index: 40060;
+  min-width: 0;
 }
 
 .modal-panel-fixed {
@@ -13448,9 +13542,14 @@ html[data-contrast="high"] .module-footer .ghost {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  flex-wrap: wrap;
   padding-bottom: var(--space-2);
   margin-bottom: var(--space-2);
   border-bottom: 1px solid var(--stroke);
+}
+
+.modal-panel .panel-header > * {
+  min-width: 0;
 }
 
 .modal-panel .panel-header .ghost {

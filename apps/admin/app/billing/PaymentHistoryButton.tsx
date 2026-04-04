@@ -30,6 +30,8 @@ type PaymentItem = {
 type Props = {
   subscriptionId: string;
   tenantId?: string | null;
+  forceOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 function statusClass(status?: string | null) {
@@ -83,8 +85,8 @@ function associationLabel(reason?: string | null) {
   return s || "—";
 }
 
-export function PaymentHistoryButton({ subscriptionId, tenantId }: Props) {
-  const [open, setOpen] = useState(false);
+export function PaymentHistoryButton({ subscriptionId, tenantId, forceOpen, onOpenChange }: Props) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<PaymentItem[]>([]);
   const [error, setError] = useState<string>("");
@@ -92,6 +94,14 @@ export function PaymentHistoryButton({ subscriptionId, tenantId }: Props) {
   const [total, setTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState("");
   const take = 10;
+  const open = forceOpen ?? internalOpen;
+
+  const setOpen = (next: boolean) => {
+    if (forceOpen === undefined) {
+      setInternalOpen(next);
+    }
+    onOpenChange?.(next);
+  };
 
   const url = useMemo(() => {
     const qs = new URLSearchParams({ subscriptionId, take: String(take), page: String(page) });
@@ -141,13 +151,15 @@ export function PaymentHistoryButton({ subscriptionId, tenantId }: Props) {
 
   return (
     <>
-      <button
-        type="button"
-        className="ghost btn-compact btn-history btn-icon-only"
-        aria-label="Historial de pagos"
-        title="Historial de pagos"
-        onClick={() => setOpen(true)}
-      />
+      {forceOpen === undefined ? (
+        <button
+          type="button"
+          className="ghost btn-compact btn-history btn-icon-only"
+          aria-label="Historial de pagos"
+          title="Historial de pagos"
+          onClick={() => setOpen(true)}
+        />
+      ) : null}
       {open ? (
         <div className="modal-backdrop">
           <div className="modal-panel" style={{ width: "min(760px, 96vw)" }}>

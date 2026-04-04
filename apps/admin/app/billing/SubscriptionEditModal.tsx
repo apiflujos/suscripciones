@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
-import type { PlanOption } from "./ChangePlanButton";
+import { mapPlanFromApi, type PlanOption } from "./ChangePlanButton";
 
 type SubscriptionProduct = {
   id: string;
@@ -88,6 +88,7 @@ export function SubscriptionEditModal({
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [productSearchResults, setProductSearchResults] = useState<PlanOption[]>([]);
   const [productSearchLoading, setProductSearchLoading] = useState(false);
+  const [productSearchError, setProductSearchError] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -113,32 +114,59 @@ export function SubscriptionEditModal({
 
   const effectiveGraceDays = useGlobalConfig ? (globalConfig?.graceDays ?? graceDays) : localGraceDays;
 
-  const searchProducts = useCallback(async (query: string) => {
-    if (!query.trim()) {
+  const searchProducts = useCallback(async (query: string, signal?: AbortSignal) => {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
       setProductSearchResults([]);
+      setProductSearchError("");
+      setProductSearchLoading(false);
       return;
     }
+
     setProductSearchLoading(true);
+    setProductSearchError("");
     try {
-      const res = await fetch(`/api/search/products?q=${encodeURIComponent(query)}&take=10`);
+      const qs = new URLSearchParams({ q: trimmed, take: "10" });
+      if (tenantId) qs.set("tenantId", tenantId);
+      const res = await fetch(`/api/search/products?${qs.toString()}`, { cache: "no-store", signal });
+      if (!res.ok) {
+        setProductSearchResults([]);
+        setProductSearchError(`Error buscando productos (${res.status}).`);
+        return;
+      }
       const json = await res.json().catch(() => ({ items: [] }));
-      setProductSearchResults(Array.isArray(json.items) ? json.items : []);
-    } catch {
+      const items = Array.isArray(json.items) ? json.items : [];
+      const existingProductIds = new Set(products.map((product) => String(product.productId)));
+      const mapped = items
+        .map((item) => mapPlanFromApi(item))
+        .filter((item) => item.id && !existingProductIds.has(String(item.id)));
+      setProductSearchResults(mapped);
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
       setProductSearchResults([]);
+      setProductSearchError("Error de red buscando productos.");
     } finally {
-      setProductSearchLoading(false);
+      if (!signal?.aborted) {
+        setProductSearchLoading(false);
+      }
     }
-  }, []);
+  }, [products, tenantId]);
 
   useEffect(() => {
+    const ac = new AbortController();
     const timer = setTimeout(() => {
-      if (productSearchQuery) {
-        searchProducts(productSearchQuery);
+      if (productSearchQuery.trim().length >= 2) {
+        void searchProducts(productSearchQuery, ac.signal);
       } else {
         setProductSearchResults([]);
+        setProductSearchError("");
+        setProductSearchLoading(false);
       }
     }, 300);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      ac.abort();
+    };
   }, [productSearchQuery, searchProducts]);
 
   const addProduct = (product: PlanOption) => {
@@ -212,10 +240,10 @@ export function SubscriptionEditModal({
 
               {/* 2. Productos */}
               <section className="card cardPad">
-                <div style={{ display: "grid", gap: "var(--space-2)", marginBottom: "var(--space-3)" }}>
+                <div className="subscription-edit-products-list">
                   {products.map((product) => (
-                    <div key={product.id} className="customer-search-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
+                    <div key={product.id} className="customer-search-item subscription-edit-product-row">
+                      <div className="subscription-edit-product-meta">
                         <strong>{product.name}</strong>
                         <div className="muted">{new Intl.NumberFormat("es-CO", { style: "currency", currency: product.currency, maximumFractionDigits: 0 }).format(product.priceInCents / 100)}</div>
                       </div>
@@ -246,7 +274,10 @@ export function SubscriptionEditModal({
                       />
                       <button className="ghost btn-compact btn-icon-only btn-cancel" type="button" onClick={() => setProductSearchOpen(false)} aria-label="Cerrar búsqueda" title="Cerrar búsqueda" />
                     </div>
-                    {productSearchLoading && <div className="muted">Buscando...</div>}
+                    <div aria-live="polite">
+                      {productSearchLoading ? <div className="muted">Buscando...</div> : null}
+                      {productSearchError ? <div className="field-hint subscription-edit-search-error">{productSearchError}</div> : null}
+                    </div>
                     {productSearchResults.length > 0 && (
                       <div className="plan-option-list">
                         {productSearchResults.map((product) => (
@@ -257,14 +288,17 @@ export function SubscriptionEditModal({
                             onClick={() => addProduct(product)}
                           >
                             <span>{product.name}</span>
-                            <span className="muted">{new Intl.NumberFormat("es-CO", { style: "currency", currency: product.currency || "COP", maximumFractionDigits: 0 }).format(Number(product.priceInCents || 0) / 100)}</span>
+                            <span className="muted subscription-edit-plan-price">{new Intl.NumberFormat("es-CO", { style: "currency", currency: product.currency || "COP", maximumFractionDigits: 0 }).format(Number(product.priceInCents || 0) / 100)}</span>
                           </button>
                         ))}
                       </div>
                     )}
+                    {!productSearchLoading && !productSearchError && productSearchQuery.trim().length >= 2 && productSearchResults.length === 0 ? (
+                      <div className="field-hint">Sin resultados. Prueba con otro término.</div>
+                    ) : null}
                   </div>
                 ) : (
-                  <button className="primary btn-compact" type="button" onClick={() => setProductSearchOpen(true)}>
+                  <button className="primary btn-compact subscription-edit-add-product-btn" type="button" onClick={() => setProductSearchOpen(true)}>
                     Agregar producto
                   </button>
                 )}
@@ -306,7 +340,7 @@ export function SubscriptionEditModal({
               {/* 4. Configuración de ciclo */}
               <section className="card cardPad">
                 <div style={{ display: "grid", gap: "var(--space-3)" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+                  <div className="subscription-edit-cycle-grid">
                     <div className="field">
                       <label className="field-label">
                         Día inicio ciclo
@@ -367,7 +401,7 @@ export function SubscriptionEditModal({
                   </label>
 
                   {!useGlobalConfig && (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-3)", padding: "var(--space-3)", background: "var(--panel-soft)", borderRadius: "var(--radius-3)" }}>
+                    <div className="subscription-edit-global-config-grid">
                       <div className="field">
                         <label className="field-label">Días de gracia</label>
                         <select
@@ -424,7 +458,7 @@ export function SubscriptionEditModal({
               {/* Acciones */}
               <div className="module-footer subscription-edit-footer">
                 <button
-                  className="ghost btn-compact btn-cancel"
+                  className="ghost btn-compact subscription-edit-footer-btn subscription-edit-cancel-btn"
                   type="button"
                   onClick={() => setOpen(false)}
                   title="Cerrar sin guardar"
@@ -433,7 +467,7 @@ export function SubscriptionEditModal({
                   Cancelar
                 </button>
                 <PendingButton
-                  className="primary btn-compact btn-save"
+                  className="primary btn-compact subscription-edit-footer-btn subscription-edit-submit-btn"
                   type="submit"
                   pendingText="Guardando..."
                   title="Guardar cambios en la suscripción"
