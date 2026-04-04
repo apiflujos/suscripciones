@@ -74,13 +74,13 @@ export function PaymentLinkModalButton({
   return (
     <>
       <button className="ghost btn-compact btn-send" type="button" onClick={() => setOpen(true)} data-modal="true" data-loader="off">
-        Crear link de pago
+        Enviar link de pago
       </button>
       {open ? (
         <div className="modal-backdrop">
           <div className="modal-panel" style={{ maxWidth: 520 }}>
             <div className="panel-header ui-panel-header">
-              <strong>Crear link de pago</strong>
+              <strong>Enviar link de pago</strong>
               <button className="ghost modal-close" type="button" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
                 X
               </button>
@@ -128,11 +128,11 @@ export function PaymentLinkModalButton({
                 <PendingButton 
                   className="primary btn-compact btn-save" 
                   type="submit" 
-                  pendingText="Creando..." 
-                  title="Crear link de pago"
-                  aria-label="Crear link"
+                  pendingText="Enviando..." 
+                  title="Enviar link de pago"
+                  aria-label="Enviar link"
                 >
-                  Crear link
+                  Enviar link
                 </PendingButton>
               </div>
               {!hasTemplate ? (

@@ -702,7 +702,7 @@ export default async function BillingPage({
             <div className="billing-body-section">
               <div className="billing-section-title">Contacto</div>
               <div className="billing-title">
-                <div className="billing-name billing-value">{r.customerName}</div>
+                <div className="billing-name">{r.customerName}</div>
                 <div className="billing-sub">
                   {r.customerEmail || "—"} {r.identificacion && r.identificacion !== "—" ? `· ${r.identificacion}` : ""}
                 </div>

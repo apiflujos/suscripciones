@@ -177,7 +177,7 @@ export function SubscriptionEditModal({
               <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
             </div>
 
-            <form action={updateSubscriptionBillingSettings} className="modal-body">
+            <form action={updateSubscriptionBillingSettings} className="modal-body subscription-edit-modal-body">
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="subscriptionId" value={subscriptionId} />
               {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
@@ -185,7 +185,7 @@ export function SubscriptionEditModal({
               <input type="hidden" name="graceDays" value={String(effectiveGraceDays)} />
               {/* 1. Tipo de suscripción */}
               <section className="card cardPad">
-                <div style={{ display: "flex", gap: "var(--space-4)" }}>
+                <div className="subscription-edit-type-row">
                   <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", cursor: "pointer" }}>
                       <input
                         type="radio"
@@ -234,16 +234,15 @@ export function SubscriptionEditModal({
                 </div>
                 
                 {productSearchOpen ? (
-                  <div style={{ display: "grid", gap: "var(--space-2)" }}>
-                  <div style={{ display: "flex", gap: "var(--space-2)" }}>
+                  <div className="subscription-product-search">
+                  <div className="subscription-product-search-row">
                       <input
-                        className="input"
+                        className="input subscription-product-search-input"
                         type="search"
                         placeholder="Buscar producto..."
                         value={productSearchQuery}
                         onChange={(e) => setProductSearchQuery(e.target.value)}
                         autoFocus
-                        style={{ flex: 1 }}
                       />
                       <button className="ghost btn-compact btn-icon-only btn-cancel" type="button" onClick={() => setProductSearchOpen(false)} aria-label="Cerrar búsqueda" title="Cerrar búsqueda" />
                     </div>
@@ -273,8 +272,8 @@ export function SubscriptionEditModal({
 
               {/* 3. Periodicidad */}
               <section className="card cardPad">
-                <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
-                  <span>
+                <div className="subscription-edit-frequency-row">
+                  <span className="subscription-edit-frequency-label">
                     Cobrar cada
                     <HelpTip text="Define la periodicidad del ciclo (ej. cada 1 mes, cada 2 semanas)." />
                   </span>
@@ -423,7 +422,7 @@ export function SubscriptionEditModal({
               </section>
 
               {/* Acciones */}
-              <div className="module-footer">
+              <div className="module-footer subscription-edit-footer">
                 <button
                   className="ghost btn-compact btn-cancel"
                   type="button"

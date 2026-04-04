@@ -58,7 +58,7 @@ export function TokenizationLinkModalButton({
   return (
     <>
       <button className="ghost btn-compact btn-send btn-highlight" type="button" onClick={() => setOpen(true)} data-modal="true" data-loader="off">
-        Enviar link
+        Enviar tokenización
       </button>
       {open ? (
         <div className="modal-backdrop">
@@ -99,7 +99,7 @@ export function TokenizationLinkModalButton({
                   aria-label="Enviar link"
                   disabled={!canSend}
                 >
-                  Enviar link
+                  Enviar tokenización
                 </PendingButton>
               </div>
               {!hasTemplate ? (

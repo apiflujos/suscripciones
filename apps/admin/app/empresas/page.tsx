@@ -202,7 +202,7 @@ export default async function EmpresasPage({
                             Contacto
                           </span>
                           <div className="billing-status-line" role="group" aria-label="Contacto">
-                            <span className={`pill pill-sm ${e.contactoPrincipal ? "pill-ok" : "pill-muted"}`} title={formatContactLabel(e.contactoPrincipal)}>
+                            <span className="billing-sub" title={formatContactLabel(e.contactoPrincipal)}>
                               {formatContactLabel(e.contactoPrincipal)}
                             </span>
                           </div>

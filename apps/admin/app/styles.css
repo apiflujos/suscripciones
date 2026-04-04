@@ -2975,9 +2975,12 @@ html[data-theme="dark"] .payments-health-banner code {
 .panel-tabs-top {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  align-items: flex-end;
   padding: 0 0 12px 0;
   border-bottom: 1px solid var(--stroke);
   margin-bottom: 12px;
+  overflow-x: hidden;
 }
 
 .panel-tab {
@@ -4008,6 +4011,8 @@ html[data-contrast="high"] .filtersPanel {
   display: grid;
   gap: var(--space-4);
   padding: 12px;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .settings-submodule-header {
@@ -7608,7 +7613,9 @@ textarea.input {
 .subscription-edit-modal {
   width: min(900px, 96vw);
   max-height: 90vh;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .subscription-detail-modal .modal-body {
@@ -7620,20 +7627,131 @@ textarea.input {
   background: color-mix(in srgb, var(--panel) 94%, var(--primary-soft) 6%);
 }
 
-.subscription-edit-modal .panel-header {
-  justify-content: space-between !important;
-}
-
-.subscription-edit-modal .btn-compact {
-  font-size: 11px;
-  padding: 0 12px;
+.subscription-detail-modal .subscription-action-btn {
   height: 30px;
   min-height: 30px;
+  padding: 0 12px;
+  font-size: 11px;
   line-height: 1.1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   white-space: nowrap;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  min-width: max-content;
+}
+
+.subscription-edit-modal .panel-header {
+  justify-content: space-between !important;
+}
+
+.subscription-edit-modal .btn-compact {
+  font-size: 13px;
+  padding: 0 14px;
+  height: 34px;
+  min-height: 34px;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.subscription-edit-modal .btn-compact:not(.btn-icon-only) {
+  flex: 0 0 auto;
+  min-width: max-content;
+}
+
+/* Override modal global button sizing for subscription edit */
+.subscription-edit-modal .module-footer .btn-compact,
+.subscription-edit-modal .module-footer .primary,
+.subscription-edit-modal .module-footer .ghost,
+.subscription-edit-modal .module-footer .btn {
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 18px !important;
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+}
+
+.subscription-edit-modal .card .btn-compact {
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 16px !important;
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+}
+
+.subscription-edit-modal .input,
+.subscription-edit-modal .select {
+  height: 34px;
+  min-height: 34px;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.subscription-edit-modal-body {
+  display: grid;
+  gap: 14px;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.subscription-edit-type-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.subscription-edit-frequency-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.subscription-edit-frequency-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.subscription-edit-modal .subscription-product-search {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.subscription-edit-modal .subscription-product-search-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.subscription-edit-modal .subscription-product-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.subscription-edit-modal .plan-option-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 12px;
+  gap: 8px;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.subscription-edit-modal .btn-icon-only {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
 }
 
 .subscription-edit-modal .primary.btn-compact {
@@ -7654,6 +7772,8 @@ textarea.input {
   width: 100%;
   box-sizing: border-box;
   justify-content: flex-end;
+  padding-right: 6px;
+  flex-shrink: 0;
 }
 
 .subscription-edit-modal .module-footer .btn-compact {
@@ -7665,8 +7785,12 @@ textarea.input {
   justify-content: center;
 }
 
+.subscription-edit-footer > * {
+  flex: 0 0 auto;
+}
+
 .subscription-edit-modal {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .subscription-edit-modal .modal-body {
@@ -7674,19 +7798,46 @@ textarea.input {
 }
 
 .subscription-edit-modal .card.cardPad {
-  padding: 8px !important;
+  padding: 12px !important;
 }
 
 .subscription-edit-modal .field-label,
 .subscription-edit-modal label,
 .subscription-edit-modal .field-hint {
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1.3;
+  flex-wrap: wrap;
 }
 
 .subscription-edit-modal .input,
 .subscription-edit-modal .select {
-  height: 30px;
-  font-size: 12px;
+  height: 34px;
+  font-size: 13px;
+}
+
+.subscription-edit-modal .plan-option-item span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .subscription-edit-modal .module-footer {
+    justify-content: stretch;
+  }
+
+  .subscription-edit-footer > * {
+    flex: 1 1 100%;
+  }
+
+  .subscription-edit-modal .module-footer .btn-compact,
+  .subscription-edit-modal .module-footer .primary,
+  .subscription-edit-modal .module-footer .ghost,
+  .subscription-edit-modal .module-footer .btn {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 .customer-edit-modal {
