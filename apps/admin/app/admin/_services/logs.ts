@@ -839,10 +839,14 @@ export async function getJobsHealth() {
   const lastSeenAt = heartbeat?.lastSeenAt || null;
   const ageMs = lastSeenAt ? now.getTime() - lastSeenAt.getTime() : null;
   const healthy = lastSeenAt ? ageMs != null && ageMs <= ttlSeconds * 1000 : false;
+  const stalled = !healthy && (pendingCount > 0 || runningCount > 0 || failedCount > 0);
+  const status = healthy ? "healthy" : stalled ? "stalled" : "idle";
   const nextJobAt = nextJob?.runAt ? nextJob.runAt.toISOString() : null;
   return {
     ok: !!lastSeenAt,
     healthy,
+    stalled,
+    status,
     key,
     lastSeenAt: lastSeenAt ? lastSeenAt.toISOString() : null,
     ageMs,
@@ -851,7 +855,8 @@ export async function getJobsHealth() {
     running: runningCount,
     failed: failedCount,
     nextJobType: nextJob?.type || null,
-    nextJobAt
+    nextJobAt,
+    workerType: typeof heartbeat?.meta === "object" && heartbeat?.meta && "type" in (heartbeat.meta as any) ? String((heartbeat.meta as any).type || "") || null : null
   };
 }
 

@@ -23,6 +23,8 @@ import { consumeApp } from "@suscripciones/core/services/superAdminApp";
 import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "@suscripciones/core/services/tenantContext";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import { validateWompiCurrency } from "@suscripciones/core/lib/wompiSignature";
+import { computeBillingCycleDueAt } from "@suscripciones/core/services/billingCycles";
+import { getPaymentsConfig } from "@suscripciones/core/services/runtimeConfig";
 import { listSubscriptions } from "../_services/subscriptions";
 
 export const runtime = "nodejs";
@@ -286,6 +288,22 @@ export async function POST(req: Request) {
   }
 
   const subscriptionMetaBase = parsed.data.metadata && typeof parsed.data.metadata === "object" ? (parsed.data.metadata as any) : {};
+  const paymentsConfig = await getPaymentsConfig().catch(() => null);
+  const cycleStartDay = Math.max(1, Math.min(31, Math.trunc(paymentsConfig?.defaultCycleStartDay || 1)));
+  const paymentDay = Math.max(1, Math.min(31, Math.trunc(paymentsConfig?.defaultPaymentDay || cycleStartDay)));
+  const paymentTiming = String(paymentsConfig?.defaultPaymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
+  const graceDays = Math.max(0, Math.trunc(paymentsConfig?.defaultGraceDays || 0));
+  const dueAt =
+    plan.intervalUnit === "MONTH"
+      ? computeBillingCycleDueAt({
+          periodStartAt: startAt,
+          periodEndAt: periodEnd,
+          cycleStartDay,
+          paymentDay,
+          paymentTiming
+        })
+      : periodEnd;
+  const dueWithGraceAt = new Date(dueAt.getTime() + graceDays * 24 * 60 * 60 * 1000);
 
   try {
     const subscription = await prisma.subscription.create({
@@ -293,21 +311,21 @@ export async function POST(req: Request) {
         tenantId,
         customerId: parsed.data.customerId,
         planId: plan.id,
-        status: SubscriptionStatus.PAST_DUE,
+        status: dueWithGraceAt.getTime() < Date.now() ? SubscriptionStatus.PAST_DUE : SubscriptionStatus.ACTIVE,
         startAt,
         currentPeriodStartAt: startAt,
         currentPeriodEndAt: periodEnd,
         currentCycle: 1,
+        cycleStartDay,
+        paymentDay,
+        paymentTiming,
+        graceDays,
         metadata: {
           ...subscriptionMetaBase,
           collectionMode
         } as any
       }
     });
-
-    if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
-      await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: periodEnd, maxAttempts: 1 }).catch(() => {});
-    }
     await prisma.subscriptionTenant.createMany({
       data: effectiveTenantIds.map((t) => ({ subscriptionId: subscription.id, tenantId: t })),
       skipDuplicates: true
@@ -324,7 +342,7 @@ export async function POST(req: Request) {
       });
     });
 
-    const runAt = periodEnd <= new Date(Date.now() + 5_000) ? new Date() : periodEnd;
+    const runAt = dueAt <= new Date(Date.now() + 5_000) ? new Date() : dueAt;
 
     if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
       await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt, maxAttempts: 1 }).catch((err) => {

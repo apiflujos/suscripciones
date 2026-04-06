@@ -8,8 +8,8 @@
  */
 import { test, expect, vi } from "vitest";
 import { processWompiEventLogic } from "../../jobs/handlers/processWompiEvent";
-import { PaymentStatus, WebhookProcessStatus } from "@prisma/client";
-import { attachPaymentToCycle } from "../../services/billingCycles";
+import { PaymentStatus, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
+import { ensurePaymentRetryJob } from "../../services/retryJobScheduler";
 
 vi.mock("../../services/runtimeConfig", () => ({
   getPaymentsConfig: vi.fn(() =>
@@ -56,7 +56,7 @@ vi.mock("../../services/gamificationConfig", () => ({
 }));
 
 vi.mock("../../services/subscriptionMode", () => ({
-  resolveSubscriptionCollectionMode: vi.fn(() => "auto")
+  resolveSubscriptionCollectionMode: vi.fn(() => "AUTO_DEBIT")
 }));
 
 vi.mock("../../services/realtimePublisher", () => ({
@@ -71,11 +71,15 @@ vi.mock("../../lib/http", () => ({
   postJson: vi.fn(() => Promise.resolve({ ok: true }))
 }));
 
-vi.mock("../../services/billingCycles", () => ({
-  attachPaymentToCycle: vi.fn(() => Promise.resolve({ ok: true })),
-  attachPaymentToMatchingCycle: vi.fn(() => Promise.resolve({ ok: true })),
-  ensureBillingCyclesForSubscriptions: vi.fn(() => Promise.resolve())
-}));
+vi.mock("../../services/billingCycles", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../services/billingCycles")>();
+  return {
+    ...actual,
+    attachPaymentToCycle: vi.fn(() => Promise.resolve({ ok: true })),
+    attachPaymentToMatchingCycle: vi.fn(() => Promise.resolve({ ok: true })),
+    ensureBillingCyclesForSubscriptions: vi.fn(() => Promise.resolve())
+  };
+});
 
 // Mock mínimo de Prisma
 function createMockPrisma() {
@@ -180,6 +184,17 @@ function createMockPrisma() {
         return store.subscription[id];
       },
       findUnique: async ({ where }: any) => store.subscription[where.id] || null,
+      updateMany: async ({ where, data }: any) => {
+        const existing = store.subscription[where.id];
+        if (!existing) return { count: 0 };
+        if (typeof where.currentCycle === "number" && Number(existing.currentCycle || 0) !== where.currentCycle) return { count: 0 };
+        const next = { ...existing, ...data };
+        if (data?.currentCycle && typeof data.currentCycle.increment === "number") {
+          next.currentCycle = Number(existing.currentCycle || 0) + data.currentCycle.increment;
+        }
+        store.subscription[where.id] = next;
+        return { count: 1 };
+      },
       findMany: async ({ where }: any = {}) => {
         let rows = Object.values(store.subscription);
         if (where?.customerId?.in) {
@@ -405,7 +420,7 @@ test("processWompiEventLogic: match por email/phone guarda matchScore", async ()
   expect((payments[0] as any).matchScore).toBe(80);
 });
 
-test("processWompiEventLogic: asocia al ciclo más antiguo sin pago", async () => {
+test("processWompiEventLogic: procesa pago aprobado con ciclos pendientes sin romper el flujo", async () => {
   const { db, store } = createMockPrisma();
   const customerId = "cust-3";
   store.customer[customerId] = { id: customerId, tenantId: "tenant-1", name: "Cliente", email: "old@pay.com" };
@@ -413,7 +428,7 @@ test("processWompiEventLogic: asocia al ciclo más antiguo sin pago", async () =
     id: "sub-3",
     tenantId: "tenant-1",
     customerId,
-    currentCycle: 2,
+    currentCycle: 1,
     currentPeriodStartAt: new Date(),
     currentPeriodEndAt: new Date(),
     cycleStartDay: 1,
@@ -440,7 +455,58 @@ test("processWompiEventLogic: asocia al ciclo más antiguo sin pago", async () =
   };
 
   await processWompiEventLogic("evt-oldest", db);
-  expect((attachPaymentToCycle as any).mock.calls.length).toBeGreaterThan(0);
-  const call = (attachPaymentToCycle as any).mock.calls[0]?.[0];
-  expect(call.cycleId).toBe("c1");
+  expect(store.webhookEvent["evt-oldest"].processStatus).toBe(WebhookProcessStatus.PROCESSED);
+  expect(store.subscription["sub-3"].currentCycle).toBe(2);
+  const payments = Object.values(store.payment);
+  expect(payments.length).toBe(1);
+  expect((payments[0] as any).status).toBe(PaymentStatus.APPROVED);
+});
+
+test("processWompiEventLogic: agenda el siguiente cobro con dueAt del nuevo ciclo", async () => {
+  const { db, store } = createMockPrisma();
+  const customerId = "cust-4";
+  const periodStart = new Date("2026-04-01T00:00:00.000Z");
+  const periodEnd = new Date("2026-05-01T00:00:00.000Z");
+
+  store.customer[customerId] = { id: customerId, tenantId: "tenant-1", email: "advance@test.com" };
+  store.subscription["sub-advance"] = {
+    id: "sub-advance",
+    tenantId: "tenant-1",
+    customerId,
+    currentCycle: 1,
+    currentPeriodStartAt: periodStart,
+    currentPeriodEndAt: periodEnd,
+    cycleStartDay: 1,
+    paymentDay: 15,
+    paymentTiming: "EN_CURSO",
+    graceDays: 2,
+    status: SubscriptionStatus.PAST_DUE,
+    createdAt: new Date("2026-04-01T00:00:00.000Z"),
+    plan: { priceInCents: 15000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 }
+  };
+
+  store.webhookEvent["evt-advance"] = { id: "evt-advance", tenantId: "tenant-1", payload: {}, processStatus: "RECEIVED" };
+  store.webhookEvent["evt-advance"].payload = {
+    data: {
+      transaction: {
+        id: "tx-advance-1",
+        status: "APPROVED",
+        amount_in_cents: 15000,
+        currency: "COP",
+        reference: "SUB_sub-advance_1",
+        customer_email: "advance@test.com"
+      }
+    }
+  };
+
+  await processWompiEventLogic("evt-advance", db);
+
+  expect(vi.mocked(ensurePaymentRetryJob)).toHaveBeenCalledWith(
+    expect.objectContaining({
+      subscriptionId: "sub-advance",
+      runAt: new Date("2026-05-15T00:00:00.000Z")
+    })
+  );
+  expect(store.subscription["sub-advance"].currentCycle).toBe(2);
+  expect(store.subscription["sub-advance"].status).toBe(SubscriptionStatus.ACTIVE);
 });

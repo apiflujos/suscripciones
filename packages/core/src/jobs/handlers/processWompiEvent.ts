@@ -16,7 +16,7 @@ import { GAMIFICATION_WEIGHTS, moneyToPoints } from "../../services/gamification
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 import { publishRealtime } from "../../services/realtimePublisher";
 import { ensurePaymentRetryJob } from "../../services/retryJobScheduler";
-import { attachPaymentToCycle, attachPaymentToMatchingCycle, ensureBillingCyclesForSubscriptions } from "../../services/billingCycles";
+import { attachPaymentToCycle, attachPaymentToMatchingCycle, computeBillingCycleDueAt, ensureBillingCyclesForSubscriptions } from "../../services/billingCycles";
 import { getSubscriptionPricingTotal, getPlanCollectionMode } from "../../lib/metadataSchemas";
 
 type WompiCustomerData = {
@@ -1362,6 +1362,16 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       // Anchor next cutoff to the current cutoff (not last payment).
       const nextStart = sub.currentPeriodEndAt || sub.currentPeriodStartAt || sub.createdAt || paidAt;
       const nextEnd = addIntervalUtc(nextStart, sub.plan.intervalUnit, sub.plan.intervalCount);
+      const nextRunAt =
+        sub.plan.intervalUnit === "MONTH"
+          ? computeBillingCycleDueAt({
+              periodStartAt: nextStart,
+              periodEndAt: nextEnd,
+              cycleStartDay: Math.max(1, Math.min(31, Math.trunc(sub.cycleStartDay || 1))),
+              paymentDay: Math.max(1, Math.min(31, Math.trunc(sub.paymentDay || 1))),
+              paymentTiming: sub.paymentTiming === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
+            })
+          : nextEnd;
 
       const updated = await tx.subscription.updateMany({
         where: { id: sub.id, currentCycle: sub.currentCycle },
@@ -1383,30 +1393,30 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
 
         // PROGRAMACIÓN AL EVENTO: Agendar el Job exactamente para la fecha del próximo corte.
         if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
-          await ensurePaymentRetryJob({ 
-            subscriptionId: sub.id, 
-            runAt: nextEnd, 
+          await ensurePaymentRetryJob({
+            subscriptionId: sub.id,
+            runAt: nextRunAt,
             maxAttempts: 1,
             db: tx
           }).catch((err) => {
             logger.warn({ err, subscriptionId: sub.id }, "Fallo agendando próximo cobro tras avance de periodo");
           });
         }
-        return nextEnd;
+        return { nextEnd, nextRunAt };
       }
 
     });
 
     // Notificaciones: la confirmación de pago se maneja por reglas (PAYMENT_APPROVED).
-          if (advancedTo) {
-          await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
-        }
-      }
-      } finally {
-        await db.$queryRaw`SELECT pg_advisory_unlock(hashtext(${lockKey}))`.catch(() => {});
-      }
+    if (advancedTo) {
+      await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
     }
-    export async function processWompiEvent(webhookEventId: string) {
+  }
+  } finally {
+    await db.$queryRaw`SELECT pg_advisory_unlock(hashtext(${lockKey}))`.catch(() => {});
+  }
+}
+export async function processWompiEvent(webhookEventId: string) {
   return processWompiEventLogic(webhookEventId, prisma);
 }
 

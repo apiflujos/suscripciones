@@ -20,9 +20,30 @@ import { getEffectiveTenantId } from "@suscripciones/core/services/tenantContext
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import { validateWompiCurrency } from "@suscripciones/core/lib/wompiSignature";
+import { computeBillingCycleDueAt } from "@suscripciones/core/services/billingCycles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function computeRunAtForSubscriptionPeriod(args: {
+  periodStartAt?: Date | null;
+  periodEndAt?: Date | null;
+  intervalUnit?: string | null;
+  cycleStartDay?: number | null;
+  paymentDay?: number | null;
+  paymentTiming?: string | null;
+}) {
+  if (!args.periodEndAt) return null;
+  if (!args.periodStartAt) return args.periodEndAt;
+  if (String(args.intervalUnit || "MONTH").toUpperCase() !== "MONTH") return args.periodEndAt;
+  return computeBillingCycleDueAt({
+    periodStartAt: args.periodStartAt,
+    periodEndAt: args.periodEndAt,
+    cycleStartDay: Math.max(1, Math.min(31, Math.trunc(args.cycleStartDay || 1))),
+    paymentDay: Math.max(1, Math.min(31, Math.trunc(args.paymentDay || 1))),
+    paymentTiming: String(args.paymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
+  });
+}
 
 const createPaymentLinkSchema = {
   safeParse: (body: any) => {
@@ -516,9 +537,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
 
+    const runAt =
+      computeRunAtForSubscriptionPeriod({
+        periodStartAt: subscription.currentPeriodStartAt,
+        periodEndAt: cutoffAt,
+        intervalUnit: subscription.plan?.intervalUnit,
+        cycleStartDay: subscription.cycleStartDay,
+        paymentDay: subscription.paymentDay,
+        paymentTiming: subscription.paymentTiming
+      }) || cutoffAt;
+
     await ensurePaymentRetryJob({
       subscriptionId,
-      runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
+      runAt: runAt <= new Date(Date.now() + 5_000) ? new Date() : runAt,
       maxAttempts: 1
     }).catch(() => {});
 
@@ -618,9 +649,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     const updatedMode = resolveSubscriptionCollectionMode({ metadata: nextSubscriptionMetadata, plan });
     if (updatedMode === "AUTO_LINK" || updatedMode === "AUTO_DEBIT") {
+      const runAt =
+        computeRunAtForSubscriptionPeriod({
+          periodStartAt: now,
+          periodEndAt: cutoffAt,
+          intervalUnit: plan.intervalUnit,
+          cycleStartDay: subscription.cycleStartDay,
+          paymentDay: subscription.paymentDay,
+          paymentTiming: subscription.paymentTiming
+        }) || cutoffAt;
       await ensurePaymentRetryJob({
         subscriptionId,
-        runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
+        runAt: runAt <= new Date(Date.now() + 5_000) ? new Date() : runAt,
         maxAttempts: 1
       }).catch(() => {});
     }

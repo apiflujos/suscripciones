@@ -6,6 +6,8 @@ import { scheduleSubscriptionDueNotifications } from "@suscripciones/core/servic
 import { getCredential } from "@suscripciones/core/services/credentials";
 import { getCheckoutBaseUrlsFromEnv } from "@suscripciones/core/services/publicBase";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
+import { getPaymentsConfig } from "@suscripciones/core/services/runtimeConfig";
+import { computeBillingCycleDueAt } from "@suscripciones/core/services/billingCycles";
 import { signPublicToken, verifyPublicToken } from "../../../../../lib/publicTokens";
 
 export const runtime = "nodejs";
@@ -165,22 +167,42 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
 
   const startAt = new Date();
   const periodEnd = addIntervalUtc(startAt, plan.intervalUnit, plan.intervalCount);
+  const paymentsConfig = await getPaymentsConfig().catch(() => null);
+  const cycleStartDay = Math.max(1, Math.min(31, Math.trunc(paymentsConfig?.defaultCycleStartDay || 1)));
+  const paymentDay = Math.max(1, Math.min(31, Math.trunc(paymentsConfig?.defaultPaymentDay || cycleStartDay)));
+  const paymentTiming = String(paymentsConfig?.defaultPaymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
+  const graceDays = Math.max(0, Math.trunc(paymentsConfig?.defaultGraceDays || 0));
+  const dueAt =
+    plan.intervalUnit === PlanIntervalUnit.MONTH
+      ? computeBillingCycleDueAt({
+          periodStartAt: startAt,
+          periodEndAt: periodEnd,
+          cycleStartDay,
+          paymentDay,
+          paymentTiming
+        })
+      : periodEnd;
+  const dueWithGraceAt = new Date(dueAt.getTime() + graceDays * 24 * 60 * 60 * 1000);
   const subscription = await prisma.subscription.create({
     data: {
       tenantId: template.tenantId,
       customerId: customer.id,
       planId: plan.id,
-      status: SubscriptionStatus.PAST_DUE,
+      status: dueWithGraceAt.getTime() < Date.now() ? SubscriptionStatus.PAST_DUE : SubscriptionStatus.ACTIVE,
       startAt,
       currentPeriodStartAt: startAt,
       currentPeriodEndAt: periodEnd,
       currentCycle: 1,
+      cycleStartDay,
+      paymentDay,
+      paymentTiming,
+      graceDays,
       metadata: { templateId: null }
     }
   });
 
   if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
-    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: periodEnd, maxAttempts: 1 }).catch(() => {});
+    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: dueAt, maxAttempts: 1 }).catch(() => {});
   }
 
   const tenantIds = Array.from(

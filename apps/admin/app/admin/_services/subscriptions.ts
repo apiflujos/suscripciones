@@ -135,7 +135,7 @@ function resolvePeriodStartFromAnchor(now: Date, anchor: Date, unit: string, cou
   return normalizedAnchor;
 }
 
-function computeDueAtForPeriod(args: {
+export function computeDueAtForPeriod(args: {
   periodStartAt?: Date | null;
   periodEndAt?: Date | null;
   cycleStartDay?: number;
