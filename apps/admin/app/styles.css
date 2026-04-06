@@ -5657,7 +5657,7 @@ textarea.input {
 }
 
 .customersPage .billing-card .contact-plan-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .customersPage .billing-card .contact-plan-grid .field-hint {
@@ -5676,14 +5676,17 @@ textarea.input {
 }
 
 .customersPage .billing-card .contact-plan-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
 }
 
 .customersPage .billing-card .contact-plan-row .pill {
   max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .customersPage .billing-card .contact-plan-row .contact-value,
@@ -5691,9 +5694,11 @@ textarea.input {
 .customersPage .billing-card .contact-plan-row a {
   display: block;
   max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  flex: 1 1 220px;
+  min-width: 0;
 }
 
 .customersPage .billing-card .contact-paylink {
