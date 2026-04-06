@@ -5738,6 +5738,9 @@ textarea.input {
 .customer-search-list {
   display: grid;
   gap: 6px;
+  max-height: 240px;
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .customer-search-item,

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@suscripciones/database";
+import { searchActiveProducts } from "./products";
 
 function normalize(input: unknown) {
   return String(input || "").trim();
@@ -9,55 +10,7 @@ function normalize(input: unknown) {
 export async function searchProducts(args: { q: string; take: number; tenantId?: string | null }) {
   const q = normalize(args.q);
   const take = Number.isFinite(args.take) ? Math.min(Math.max(Math.trunc(args.take), 1), 500) : 50;
-  const where: any = { metadata: { path: ["kind"], equals: "CATALOG_ITEM" } } as any;
-  if (args.tenantId) {
-    where.AND = [{ OR: [{ tenantId: args.tenantId }, { tenantLinks: { some: { tenantId: args.tenantId } } }] }];
-  }
-  if (q) {
-    where.OR = [
-      { name: { contains: q, mode: "insensitive" } },
-      { metadata: { path: ["displayName"], string_contains: q } } as any,
-      { metadata: { path: ["sku"], string_contains: q } } as any
-    ];
-  }
-
-  const items = await prisma.subscriptionPlan.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take,
-    include: { tenantLinks: true }
-  });
-
-  return items.map((p: any) => {
-    const meta = p.metadata && typeof p.metadata === "object" ? (p.metadata as any) : {};
-    return {
-      id: p.id,
-      tenantId: p.tenantId || null,
-      tenantIds: Array.from(new Set([p.tenantId, ...(p.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))),
-      name: meta.displayName || p.name,
-      sku: meta.sku || "",
-      kind: meta.itemKind || "PRODUCT",
-      description: meta.description || null,
-      vendor: meta.vendor || null,
-      productType: meta.productType || null,
-      tags: meta.tags || null,
-      unit: meta.unit || null,
-      taxable: meta.taxable ?? true,
-      requiresShipping: meta.requiresShipping ?? false,
-      currency: p.currency,
-      basePriceInCents: p.priceInCents,
-      intervalUnit: p.intervalUnit,
-      intervalCount: p.intervalCount,
-      taxPercent: meta.taxPercent ?? 0,
-      discountType: meta.discountType || "NONE",
-      discountValueInCents: meta.discountValueInCents || 0,
-      discountPercent: meta.discountPercent || 0,
-      option1Name: meta.option1Name || null,
-      option2Name: meta.option2Name || null,
-      variants: Array.isArray(meta.variants) ? meta.variants : [],
-      imageUrl: meta.imageUrl || null
-    };
-  });
+  return searchActiveProducts({ q, take, tenantId: args.tenantId || null });
 }
 
 export async function searchCustomers(args: { q: string; take: number; tenantId?: string | null }) {

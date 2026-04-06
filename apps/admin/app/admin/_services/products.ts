@@ -186,6 +186,7 @@ export async function getCatalogProductById(args: { productId: string; tenantId?
   const plan = await prisma.subscriptionPlan.findUnique({ where: { id }, include: { tenantLinks: true } });
   if (!plan) return { ok: false, status: 404, error: "not_found" as const };
   if ((plan.metadata as any)?.kind !== "CATALOG_ITEM") return { ok: false, status: 404, error: "not_found" as const };
+  if (plan.active === false) return { ok: false, status: 404, error: "not_found" as const };
   if (args.tenantId) {
     const allowed = plan.tenantId === args.tenantId || (plan.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
     if (!allowed) return { ok: false, status: 404, error: "not_found" as const };
@@ -596,4 +597,30 @@ export async function listCatalogProducts(args: {
     items: mappedItems,
     total
   };
+}
+
+export async function getActiveProducts(args: {
+  tenantId?: string | null;
+  take?: number;
+  skip?: number;
+  q?: string;
+  ids?: string[];
+}) {
+  return listCatalogProducts({
+    tenantId: args.tenantId || null,
+    take: args.take,
+    skip: args.skip,
+    q: args.q,
+    ids: args.ids,
+    includeInactive: false
+  });
+}
+
+export async function searchActiveProducts(args: { q: string; take: number; tenantId?: string | null }) {
+  const result = await getActiveProducts({
+    tenantId: args.tenantId || null,
+    q: args.q,
+    take: args.take
+  });
+  return result.items;
 }

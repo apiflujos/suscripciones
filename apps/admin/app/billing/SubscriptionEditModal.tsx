@@ -116,12 +116,6 @@ export function SubscriptionEditModal({
 
   const searchProducts = useCallback(async (query: string, signal?: AbortSignal) => {
     const trimmed = query.trim();
-    if (trimmed.length < 2) {
-      setProductSearchResults([]);
-      setProductSearchError("");
-      setProductSearchLoading(false);
-      return;
-    }
 
     setProductSearchLoading(true);
     setProductSearchError("");
@@ -155,19 +149,15 @@ export function SubscriptionEditModal({
   useEffect(() => {
     const ac = new AbortController();
     const timer = setTimeout(() => {
-      if (productSearchQuery.trim().length >= 2) {
+      if (productSearchOpen) {
         void searchProducts(productSearchQuery, ac.signal);
-      } else {
-        setProductSearchResults([]);
-        setProductSearchError("");
-        setProductSearchLoading(false);
       }
     }, 300);
     return () => {
       clearTimeout(timer);
       ac.abort();
     };
-  }, [productSearchQuery, searchProducts]);
+  }, [productSearchOpen, productSearchQuery, searchProducts]);
 
   const addProduct = (product: PlanOption) => {
     setProducts((prev) => [...prev, {
@@ -293,8 +283,8 @@ export function SubscriptionEditModal({
                         ))}
                       </div>
                     )}
-                    {!productSearchLoading && !productSearchError && productSearchQuery.trim().length >= 2 && productSearchResults.length === 0 ? (
-                      <div className="field-hint">Sin resultados. Prueba con otro término.</div>
+                    {!productSearchLoading && !productSearchError && productSearchResults.length === 0 ? (
+                      <div className="field-hint">{productSearchQuery.trim() ? "Sin resultados. Prueba con otro término." : "No hay productos activos disponibles."}</div>
                     ) : null}
                   </div>
                 ) : (

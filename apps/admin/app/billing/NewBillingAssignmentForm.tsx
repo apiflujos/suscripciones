@@ -403,8 +403,8 @@ export function NewBillingAssignmentForm({
                   {productSearching ? <div className="field-hint">Buscando…</div> : null}
                   {productSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{productSearchError}</div> : null}
                 </div>
-                {productQ.trim().length >= 2 && filteredProducts.length > 0 ? (
-                  <div style={{ display: "grid", gap: 6 }}>
+                {filteredProducts.length > 0 ? (
+                  <div className="customer-search-list">
                     {filteredProducts.slice(0, 8).map((p) => (
                       <button
                         key={p.id}
@@ -422,7 +422,7 @@ export function NewBillingAssignmentForm({
                 ) : null}
                 {!productSearching && filteredProducts.length === 0 ? (
                   <div className="field-hint">
-                    {productQ.trim().length >= 2 ? "Sin resultados. Prueba con otro término." : "No se encontraron productos."}
+                    {productQ.trim().length >= 2 ? "Sin resultados. Prueba con otro término." : "No hay productos activos disponibles."}
                   </div>
                 ) : null}
               </div>
@@ -502,7 +502,7 @@ export function NewBillingAssignmentForm({
                   {customerSearching ? <div className="field-hint">Buscando…</div> : null}
                   {customerSearchError ? <div className="field-hint" style={{ color: "rgba(217, 83, 79, 0.92)" }}>{customerSearchError}</div> : null}
                 </div>
-                {customerQ.trim().length >= 2 && (filteredCustomers.length > 0 || filteredEmpresas.length > 0) ? (
+                {filteredCustomers.length > 0 || filteredEmpresas.length > 0 ? (
                   <div className="customer-search-list">
                     {filteredCustomers.slice(0, 6).map((c) => (
                       <button
@@ -546,9 +546,9 @@ export function NewBillingAssignmentForm({
                     ))}
                   </div>
                 ) : null}
-                {!customerSearching && filteredCustomers.length === 0 ? (
+                {!customerSearching && filteredCustomers.length === 0 && filteredEmpresas.length === 0 ? (
                   <div className="field-hint">
-                    {customerQ.trim().length >= 2 ? "Sin resultados. Prueba con otro término." : "No se encontraron contactos ni empresas."}
+                    {customerQ.trim().length >= 2 ? "Sin resultados. Prueba con otro término." : "No hay contactos ni empresas disponibles."}
                   </div>
                 ) : null}
               </div>

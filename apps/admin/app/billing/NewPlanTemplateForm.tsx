@@ -331,8 +331,8 @@ export function NewPlanTemplateForm({
                 </option>
               ))}
             </select>
-            {!catalogSearching && catalogQ.trim().length >= 1 && filteredCatalogItems.length === 0 ? (
-              <div className="field-hint">Sin resultados. Prueba con otro término.</div>
+            {!catalogSearching && filteredCatalogItems.length === 0 ? (
+              <div className="field-hint">{catalogQ.trim() ? "Sin resultados. Prueba con otro término." : "No hay productos activos disponibles."}</div>
             ) : null}
           </div>
         ) : (
