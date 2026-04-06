@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
+import { AppModal } from "../ui/AppModal";
 
 type Env = "PRODUCTION" | "SANDBOX";
 
@@ -640,6 +641,14 @@ export function NotificationsSimple({
           templateId: getReminderTemplateId(activeModal.kind, activeModal.paymentType)
         }
       : null;
+  const activeModalTitle = (() => {
+    if (!activeModal) return "";
+    if (activeModal.type === "realtime") {
+      const rt = REALTIME_TYPES.find((r) => r.key === activeModal.key);
+      return rt ? `Notificación: ${rt.label}` : "Configurar notificación";
+    }
+    return activeModal.kind === "DUE" ? "Recordatorio: Fecha de pago" : "Recordatorio: Mora";
+  })();
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -651,29 +660,26 @@ export function NotificationsSimple({
           </div>
         </div>
       </div>
-      {pickerOpen ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 640 }}>
-            <div className="panel-header">
-              <h3 style={{ margin: 0 }}>{pickerOpen === "vars" ? "Variables" : "Emojis"}</h3>
-              <button type="button" className="ghost modal-close" onClick={() => setPickerOpen(null)} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
-            </div>
-            <div className="panel module" style={{ display: "grid", gap: 6 }}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {[...MESSAGE_VARIABLES, ...autoCheckoutVars].map((item) => {
-                  const label = typeof item === "string" ? item : item.label;
-                  const value = typeof item === "string" ? item : item.value;
-                  return (
-                    <button key={value} type="button" className="ghost" onClick={() => onPickValue(value)} style={{ minHeight: 32 }} data-loader="off">
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+      <AppModal
+        open={Boolean(pickerOpen)}
+        onClose={() => setPickerOpen(null)}
+        title={pickerOpen === "vars" ? "Variables" : "Emojis"}
+        maxWidth={640}
+      >
+        <div className="panel module" style={{ display: "grid", gap: 6 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {[...MESSAGE_VARIABLES, ...autoCheckoutVars].map((item) => {
+              const label = typeof item === "string" ? item : item.label;
+              const value = typeof item === "string" ? item : item.value;
+              return (
+                <button key={value} type="button" className="ghost" onClick={() => onPickValue(value)} style={{ minHeight: 32 }} data-loader="off">
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
-      ) : null}
+      </AppModal>
       <section className="settings-group notifications-templates-section">
         <div className="settings-group-header">
           <div className="settings-group-header-main">
@@ -774,150 +780,135 @@ export function NotificationsSimple({
           </form>
         </div>
       </section>
-      {activeModal ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 900 }}>
-            <div className="panel-header ui-panel-header">
-              <strong>
-                {(() => {
-                  if (activeModal.type === "realtime") {
-                    const rt = REALTIME_TYPES.find((r) => r.key === activeModal.key);
-                    return rt ? `Notificación: ${rt.label}` : "Configurar notificación";
-                  }
-                  return activeModal.kind === "DUE" ? "Recordatorio: Fecha de pago" : "Recordatorio: Mora";
-                })()}
-              </strong>
-              <button className="ghost modal-close" type="button" onClick={() => setActiveModal(null)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
+      <AppModal
+        open={Boolean(activeModal)}
+        onClose={() => setActiveModal(null)}
+        title={activeModalTitle}
+        maxWidth={900}
+      >
+        {activeModal?.type === "realtime" ? (
+          (() => {
+            const rt = REALTIME_TYPES.find((r) => r.key === activeModal.key);
+            if (!rt) return null;
+            const tpl = templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
+            const rule = rulesByKey.get(rt.key);
+            const waName = tpl?.chatwootTemplate?.name || "";
+            const waLang = tpl?.chatwootTemplate?.language || "es";
+            const waBodyParams = tpl?.chatwootTemplate?.processed_params?.body || [];
+            const waHeaderParams = tpl?.chatwootTemplate?.processed_params?.header || [];
+            const waButtonParams = tpl?.chatwootTemplate?.processed_params?.buttons || [];
+            return (
+              <form action={actions.saveRealtime} className="notification-form" style={{ display: "grid", gap: 10 }}>
+                <input type="hidden" name="csrf" value={csrfToken} />
+                <input type="hidden" name="environment" value={env} />
+                <input type="hidden" name="key" value={rt.key} />
+                <input type="hidden" name="chatwootType" value={rt.chatwootType || ""} />
+                <input type="hidden" name="paymentType" value={rt.paymentType || ""} />
+                <input type="hidden" name="templateKind" value="WHATSAPP_TEMPLATE" />
+                <input type="hidden" name="enabled" value={(rule?.enabled ?? true) ? "on" : ""} />
+                <div className="field row" style={{ justifyContent: "space-between" }}>
+                  <div className="muted">Tipo: Plantilla (WhatsApp)</div>
+                </div>
+                <WaTemplateFields
+                  templates={waTemplates}
+                  defaultName={waName}
+                  defaultLang={waLang}
+                  defaultParams={waBodyParams.map((p) => p.value).join("|")}
+                  defaultHeaderParams={waHeaderParams.map((p) => p.value).join("|")}
+                  defaultButtonParams={waButtonParams.map((p) => p.value).join("|")}
+                  variables={bodyVars}
+                  buttonVariables={buttonVars}
+                />
+                <div className="module-footer">
+                  <button
+                    className="ghost btn-compact btn-cancel"
+                    type="button"
+                    onClick={() => setActiveModal(null)}
+                    data-modal-close="true"
+                    data-loader="off"
+                    title="Cerrar sin guardar"
+                    aria-label="Cancelar"
+                  >
+                    Cancelar
+                  </button>
+                  <PendingButton
+                    className="primary btn-compact btn-save"
+                    type="submit"
+                    pendingText="Guardando..."
+                    title="Guardar plantilla de recordatorio"
+                    aria-label="Guardar cambios"
+                  >
+                    Guardar
+                  </PendingButton>
+                </div>
+              </form>
+            );
+          })()
+        ) : null}
+        {activeModal?.type === "reminder" ? (
+          <form action={actions.saveReminder} className="notification-form" style={{ display: "grid", gap: 10 }}>
+            <input type="hidden" name="csrf" value={csrfToken} />
+            <input type="hidden" name="environment" value={env} />
+            <input type="hidden" name="kind" value={activeModal.kind} />
+            <input type="hidden" name="paymentType" value={activeModal.paymentType} />
+            <input type="hidden" name="templateId" value={activeReminder?.templateId || ""} />
+            <input type="hidden" name="templateKind" value="WHATSAPP_TEMPLATE" />
+            <input
+              type="hidden"
+              name="enabled"
+              value={(activeReminder?.rule?.enabled ?? true) ? "on" : ""}
+            />
+            <div className="field row" style={{ justifyContent: "space-between" }}>
+              <div className="muted">Tipo: Plantilla (WhatsApp)</div>
+            </div>
+            <WaTemplateFields
+              templates={waTemplates}
+              defaultName={activeReminder?.template?.chatwootTemplate?.name || ""}
+              defaultLang={activeReminder?.template?.chatwootTemplate?.language || "es"}
+              defaultParams={
+                (activeReminder?.template?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")
+              }
+              defaultHeaderParams={
+                (activeReminder?.template?.chatwootTemplate?.processed_params?.header || []).map((p) => p.value).join("|")
+              }
+              defaultButtonParams={
+                (activeReminder?.template?.chatwootTemplate?.processed_params?.buttons || []).map((p) => p.value).join("|")
+              }
+              variables={bodyVars}
+              buttonVariables={buttonVars}
+            />
+            <input
+              type="hidden"
+              name="offsetsSeconds"
+              value={reminderOffsets
+                .map((o) => secondsFromOffset(o, activeModal.kind === "DUE" ? -1 : 1))
+                .join(",")}
+            />
+            <div className="module-footer">
+              <button
+                className="ghost btn-compact btn-cancel"
+                type="button"
+                onClick={() => setActiveModal(null)}
+                data-modal-close="true"
+                data-loader="off"
+                title="Cerrar sin guardar"
+                aria-label="Cancelar"
+              >
+                Cancelar
               </button>
+              <PendingButton
+                className="primary btn-compact btn-save"
+                type="submit"
+                pendingText="Guardando..."
+                title="Guardar configuración de recordatorio"
+                aria-label="Guardar cambios"
+              >
+                Guardar
+              </PendingButton>
             </div>
-            <div className="modal-body">
-              {activeModal.type === "realtime" ? (
-                (() => {
-                  const rt = REALTIME_TYPES.find((r) => r.key === activeModal.key);
-                  if (!rt) return null;
-                  const tpl = templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
-                  const rule = rulesByKey.get(rt.key);
-                  const waName = tpl?.chatwootTemplate?.name || "";
-                  const waLang = tpl?.chatwootTemplate?.language || "es";
-                  const waBodyParams = tpl?.chatwootTemplate?.processed_params?.body || [];
-                  const waHeaderParams = tpl?.chatwootTemplate?.processed_params?.header || [];
-                  const waButtonParams = tpl?.chatwootTemplate?.processed_params?.buttons || [];
-                  return (
-                    <form action={actions.saveRealtime} className="notification-form" style={{ display: "grid", gap: 10 }}>
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="environment" value={env} />
-                      <input type="hidden" name="key" value={rt.key} />
-                      <input type="hidden" name="chatwootType" value={rt.chatwootType || ""} />
-                      <input type="hidden" name="paymentType" value={rt.paymentType || ""} />
-                      <input type="hidden" name="templateKind" value="WHATSAPP_TEMPLATE" />
-                      <input type="hidden" name="enabled" value={(rule?.enabled ?? true) ? "on" : ""} />
-                      <div className="field row" style={{ justifyContent: "space-between" }}>
-                        <div className="muted">Tipo: Plantilla (WhatsApp)</div>
-                      </div>
-                      <WaTemplateFields
-                        templates={waTemplates}
-                        defaultName={waName}
-                        defaultLang={waLang}
-                        defaultParams={waBodyParams.map((p) => p.value).join("|")}
-                        defaultHeaderParams={waHeaderParams.map((p) => p.value).join("|")}
-                        defaultButtonParams={waButtonParams.map((p) => p.value).join("|")}
-                        variables={bodyVars}
-                        buttonVariables={buttonVars}
-                      />
-                      <div className="module-footer">
-                        <button 
-                          className="ghost btn-compact btn-cancel" 
-                          type="button"
-                          onClick={() => setActiveModal(null)}
-                          data-modal-close="true"
-                          data-loader="off"
-                          title="Cerrar sin guardar"
-                          aria-label="Cancelar"
-                        >
-                          Cancelar
-                        </button>
-                        <PendingButton 
-                          className="primary btn-compact btn-save" 
-                          type="submit" 
-                          pendingText="Guardando..."
-                          title="Guardar plantilla de recordatorio"
-                          aria-label="Guardar cambios"
-                        >
-                          Guardar
-                        </PendingButton>
-                      </div>
-                    </form>
-                  );
-                })()
-              ) : null}
-              {activeModal.type === "reminder" ? (
-                <form action={actions.saveReminder} className="notification-form" style={{ display: "grid", gap: 10 }}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="environment" value={env} />
-                  <input type="hidden" name="kind" value={activeModal.kind} />
-                  <input type="hidden" name="paymentType" value={activeModal.paymentType} />
-                  <input type="hidden" name="templateId" value={activeReminder?.templateId || ""} />
-                  <input type="hidden" name="templateKind" value="WHATSAPP_TEMPLATE" />
-                  <input
-                    type="hidden"
-                    name="enabled"
-                    value={(activeReminder?.rule?.enabled ?? true) ? "on" : ""}
-                  />
-                  <div className="field row" style={{ justifyContent: "space-between" }}>
-                    <div className="muted">Tipo: Plantilla (WhatsApp)</div>
-                  </div>
-                  <WaTemplateFields
-                    templates={waTemplates}
-                    defaultName={activeReminder?.template?.chatwootTemplate?.name || ""}
-                    defaultLang={activeReminder?.template?.chatwootTemplate?.language || "es"}
-                    defaultParams={
-                      (activeReminder?.template?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")
-                    }
-                    defaultHeaderParams={
-                      (activeReminder?.template?.chatwootTemplate?.processed_params?.header || []).map((p) => p.value).join("|")
-                    }
-                    defaultButtonParams={
-                      (activeReminder?.template?.chatwootTemplate?.processed_params?.buttons || []).map((p) => p.value).join("|")
-                    }
-                    variables={bodyVars}
-                    buttonVariables={buttonVars}
-                  />
-                  <input
-                    type="hidden"
-                    name="offsetsSeconds"
-                    value={reminderOffsets
-                      .map((o) => secondsFromOffset(o, activeModal.kind === "DUE" ? -1 : 1))
-                      .join(",")}
-                  />
-                  <div className="module-footer">
-                    <button
-                      className="ghost btn-compact btn-cancel"
-                      type="button"
-                      onClick={() => setActiveModal(null)}
-                      data-modal-close="true"
-                      data-loader="off"
-                      title="Cerrar sin guardar"
-                      aria-label="Cancelar"
-                    >
-                      Cancelar
-                    </button>
-                    <PendingButton
-                      className="primary btn-compact btn-save"
-                      type="submit"
-                      pendingText="Guardando..."
-                      title="Guardar configuración de recordatorio"
-                      aria-label="Guardar cambios"
-                    >
-                      Guardar
-                    </PendingButton>
-                  </div>
-                </form>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
+          </form>
+        ) : null}
+      </AppModal>
     </div>
   );
 }

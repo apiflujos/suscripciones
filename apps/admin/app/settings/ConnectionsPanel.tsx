@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 import { DualActionButtons } from "../ui/DualActionButtons";
+import { AppModal } from "../ui/AppModal";
 
 type InlineMsgProps = { action: string; status: string; errorText: string };
 
@@ -233,15 +234,12 @@ export function ConnectionsPanel({
         ) : null}
       </div>
 
-      {open === "wompi_prod" || open === "wompi_sandbox" ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel modal-panel-fixed">
-            <div className="panel-header">
-              <h3 style={{ margin: 0 }}>{open === "wompi_prod" ? "Wompi · Producción" : "Wompi · Sandbox"}</h3>
-              <button type="button" className="ghost modal-close" onClick={() => setOpen(null)} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
-            </div>
-
-            <div className="modal-body">
+      <AppModal
+        open={open === "wompi_prod" || open === "wompi_sandbox"}
+        onClose={() => setOpen(null)}
+        title={open === "wompi_prod" ? "Wompi · Producción" : "Wompi · Sandbox"}
+        panelClassName="modal-panel-fixed"
+      >
             <div className="panel module">
               <div className="panelHeaderRow">
                 <strong>Conexión ({open === "wompi_prod" ? "Producción" : "Sandbox"})</strong>
@@ -318,100 +316,87 @@ export function ConnectionsPanel({
                 </div>
               </form>
             </div>
-            </div>
+      </AppModal>
+
+      <AppModal
+        open={open === "central"}
+        onClose={() => setOpen(null)}
+        title="CentralCom"
+        panelClassName="modal-panel-fixed"
+      >
+        <div className="panel module">
+          <div className="panelHeaderRow">
+            <strong>CentralCom · Chatwoot</strong>
           </div>
-        </div>
-      ) : null}
-
-      {open === "central" ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel modal-panel-fixed">
-            <div className="panel-header">
-              <h3 style={{ margin: 0 }}>CentralCom</h3>
-              <button type="button" className="ghost modal-close" onClick={() => setOpen(null)} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
+          <form action={actions.updateChatwoot} style={{ display: "grid", gap: 10 }}>
+            <input type="hidden" name="csrf" value={csrfToken} />
+            {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+            <input type="hidden" name="environment" value="PRODUCTION" />
+            <div className="field">
+              <label>URL base</label>
+              <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={commsProduction?.baseUrl || ""} />
             </div>
-
-            <div className="modal-body">
-              <div className="panel module">
-                <div className="panelHeaderRow">
-                  <strong>CentralCom · Chatwoot</strong>
-                </div>
-                <form action={actions.updateChatwoot} style={{ display: "grid", gap: 10 }}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-                  <input type="hidden" name="environment" value="PRODUCTION" />
-                  <div className="field">
-                    <label>URL base</label>
-                    <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={commsProduction?.baseUrl || ""} />
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                    <div className="field">
-                      <label>ID de cuenta</label>
-                      <input className="input" name="accountId" defaultValue={commsProduction?.accountId || ""} />
-                    </div>
-                    <div className="field">
-                      <label>ID de bandeja</label>
-                      <input className="input" name="inboxId" defaultValue={commsProduction?.inboxId || ""} />
-                    </div>
-                    <div className="field">
-                      <label>Token API</label>
-                      <input className="input" name="apiAccessToken" type="password" placeholder="••••••••" />
-                      <div className="field-hint">Requerido la primera vez. Luego puedes dejarlo vacío para conservar el token actual.</div>
-                    </div>
-                  </div>
-                  <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      {inlineMsg("central_delete", "Eliminado.", "Error eliminando", inlineState)}
-                      <PendingButton className="ghost btn-compact btn-red" type="submit" formAction={actions.deleteCentralConnection} pendingText="Eliminando...">
-                        Eliminar conexión
-                      </PendingButton>
-                    </div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      {inlineMsg("central_save", "Guardado.", "Error guardando", inlineState)}
-                      {centralTestStatus === "ok" ? (
-                        <div className="field-hint is-success" style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
-                          Conexión exitosa
-                        </div>
-                      ) : centralTestStatus === "fail" ? (
-                        <div className="field-hint" style={{ color: "var(--danger)" }}>Error conectando</div>
-                      ) : null}
-                      <DualActionButtons
-                        primaryLabel="Guardar"
-                        primaryPendingLabel="Guardando..."
-                        primaryClassName="primary"
-                        secondaryLabel="Probar conexión"
-                        secondaryPendingLabel="Conectando..."
-                        secondaryClassName="ghost"
-                        secondaryFormAction={async (formData: FormData) => {
-                          try {
-                            await actions.testCentralConnection(formData);
-                            setCentralTestStatus("ok");
-                          } catch (err: any) {
-                            setCentralTestStatus("fail");
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                </form>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              <div className="field">
+                <label>ID de cuenta</label>
+                <input className="input" name="accountId" defaultValue={commsProduction?.accountId || ""} />
               </div>
-
+              <div className="field">
+                <label>ID de bandeja</label>
+                <input className="input" name="inboxId" defaultValue={commsProduction?.inboxId || ""} />
+              </div>
+              <div className="field">
+                <label>Token API</label>
+                <input className="input" name="apiAccessToken" type="password" placeholder="••••••••" />
+                <div className="field-hint">Requerido la primera vez. Luego puedes dejarlo vacío para conservar el token actual.</div>
+              </div>
             </div>
-          </div>
+            <div className="module-footer" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {inlineMsg("central_delete", "Eliminado.", "Error eliminando", inlineState)}
+                <PendingButton className="ghost btn-compact btn-red" type="submit" formAction={actions.deleteCentralConnection} pendingText="Eliminando...">
+                  Eliminar conexión
+                </PendingButton>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {inlineMsg("central_save", "Guardado.", "Error guardando", inlineState)}
+                {centralTestStatus === "ok" ? (
+                  <div className="field-hint is-success" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+                    Conexión exitosa
+                  </div>
+                ) : centralTestStatus === "fail" ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>Error conectando</div>
+                ) : null}
+                <DualActionButtons
+                  primaryLabel="Guardar"
+                  primaryPendingLabel="Guardando..."
+                  primaryClassName="primary"
+                  secondaryLabel="Probar conexión"
+                  secondaryPendingLabel="Conectando..."
+                  secondaryClassName="ghost"
+                  secondaryFormAction={async (formData: FormData) => {
+                    try {
+                      await actions.testCentralConnection(formData);
+                      setCentralTestStatus("ok");
+                    } catch (err: any) {
+                      setCentralTestStatus("fail");
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </form>
         </div>
-      ) : null}
+      </AppModal>
 
-      {open === "shopify" ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel modal-panel-fixed">
-            <div className="panel-header">
-              <h3 style={{ margin: 0 }}>Shopify</h3>
-              <button type="button" className="ghost modal-close" onClick={() => setOpen(null)} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
-            </div>
-
-            <div className="modal-body">
-            <form ref={shopifyFormRef} action={actions.updateShopify} className="panel module" style={{ display: "grid", gap: 10 }}>
+      <AppModal
+        open={open === "shopify"}
+        onClose={() => setOpen(null)}
+        title="Shopify"
+        panelClassName="modal-panel-fixed"
+      >
+        <form ref={shopifyFormRef} action={actions.updateShopify} className="panel module" style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
               <div className="field">
@@ -475,11 +460,8 @@ export function ConnectionsPanel({
                   </PendingButton>
                 </div>
               </div>
-            </form>
-            </div>
-          </div>
-        </div>
-      ) : null}
+        </form>
+      </AppModal>
     </>
   );
 }

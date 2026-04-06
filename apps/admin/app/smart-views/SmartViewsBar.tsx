@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AppModal } from "../ui/AppModal";
 
 type SmartField = {
   key: string;
@@ -905,79 +906,68 @@ export function SmartViewsBar({
         </div>
       ) : null}
 
-      {pinModalIndex !== null ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ width: "min(520px, 94vw)" }}>
-            <div className="panel-header" style={{ justifyContent: "space-between" }}>
-              <strong>Seleccionar lista inteligente</strong>
-              <button
-                className="ghost modal-close"
-                type="button"
-                onClick={() => setPinModalIndex(null)}
-                aria-label="Cerrar"
-                data-modal-close="true"
-                data-loader="off"
-              >
-                ×
-              </button>
+      <AppModal
+        open={pinModalIndex !== null}
+        onClose={() => setPinModalIndex(null)}
+        title="Seleccionar lista inteligente"
+        width="min(520px, 94vw)"
+        bodyClassName=""
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          {mergedViews.length === 0 ? (
+            <div className="muted" style={{ fontSize: 12 }}>
+              No hay listas creadas todavía.
             </div>
-            <div className="modal-body" style={{ display: "grid", gap: 12 }}>
-              {mergedViews.length === 0 ? (
-                <div className="muted" style={{ fontSize: 12 }}>
-                  No hay listas creadas todavía.
-                </div>
-              ) : (
-                <select
-                  className="select"
-                  value={pinSelectValue}
-                  onChange={(e) => setPinSelectValue(e.target.value)}
-                >
-                  <option value="">Selecciona una lista…</option>
-                  {mergedViews.map((view) => (
-                    <option key={`pin-modal-${view.id}`} value={view.id}>
-                      {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                <button
-                  className="ghost btn-compact"
-                  type="button"
-                  onClick={() => {
-                    setPinModalIndex(null);
-                    setMode("filters");
-                    setActiveViewId("");
-                    setEditingId("");
-                    setNotice(null);
-                    ensureFieldsLoaded().catch(() => null);
-                  }}
-                >
-                  Crear nueva
-                </button>
-                <button className="ghost btn-compact" type="button" onClick={() => setPinModalIndex(null)}>
-                  Cancelar
-                </button>
-                <button
-                  className="primary btn-compact"
-                  type="button"
-                  disabled={!pinSelectValue}
-                  onClick={() => {
-                    if (!pinSelectValue) return;
-                    const next = pinnedIds.slice();
-                    next[pinModalIndex] = pinSelectValue;
-                    savePins(next);
-                    setPinModalIndex(null);
-                    setPinSelectValue("");
-                  }}
-                >
-                  Agregar
-                </button>
-              </div>
-            </div>
+          ) : (
+            <select
+              className="select"
+              value={pinSelectValue}
+              onChange={(e) => setPinSelectValue(e.target.value)}
+            >
+              <option value="">Selecciona una lista…</option>
+              {mergedViews.map((view) => (
+                <option key={`pin-modal-${view.id}`} value={view.id}>
+                  {view.name} {view.visibility === "PRIVATE" ? "(Privada)" : ""}
+                </option>
+              ))}
+            </select>
+          )}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <button
+              className="ghost btn-compact"
+              type="button"
+              onClick={() => {
+                setPinModalIndex(null);
+                setMode("filters");
+                setActiveViewId("");
+                setEditingId("");
+                setNotice(null);
+                ensureFieldsLoaded().catch(() => null);
+              }}
+            >
+              Crear nueva
+            </button>
+            <button className="ghost btn-compact" type="button" onClick={() => setPinModalIndex(null)}>
+              Cancelar
+            </button>
+            <button
+              className="primary btn-compact"
+              type="button"
+              disabled={!pinSelectValue}
+              onClick={() => {
+                if (!pinSelectValue) return;
+                const next = pinnedIds.slice();
+                next[pinModalIndex] = pinSelectValue;
+                savePins(next);
+                setPinModalIndex(null);
+                setPinSelectValue("");
+              }}
+            >
+              Agregar
+            </button>
           </div>
         </div>
-      ) : null}
+      </AppModal>
     </div>
   );
 }
