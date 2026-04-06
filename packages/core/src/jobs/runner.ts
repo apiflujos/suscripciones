@@ -20,6 +20,7 @@ import { ensurePaymentRetryJob } from "../services/retryJobScheduler";
 import { handleSubscriptionPaymentFailure, ensureExpiredSubscriptions } from "../services/subscriptionBilling";
 import { runWithActor } from "../services/actorStore";
 import { publishRealtime } from "../services/realtimePublisher";
+import { computeBillingCycleDueAt } from "../services/billingCycles";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
@@ -327,8 +328,12 @@ async function ensureDueCutoffRetries() {
       id: true,
       status: true,
       currentPeriodEndAt: true,
+      currentPeriodStartAt: true,
+      cycleStartDay: true,
+      paymentDay: true,
+      paymentTiming: true,
       metadata: true,
-      plan: { select: { metadata: true } }
+      plan: { select: { metadata: true, intervalUnit: true } }
     },
     take: 1000
   });
@@ -343,8 +348,20 @@ async function ensureDueCutoffRetries() {
     // Si es AUTO_DEBIT y el cobro en corte está apagado, omitir creación de Job.
     if (mode === "AUTO_DEBIT" && !chargeAtCutoffEnabled) continue;
 
-    const cutoffMs = sub.currentPeriodEndAt?.getTime?.() ?? 0;
-    const runAt = cutoffMs > now + futureToleranceMs ? new Date(cutoffMs) : nowDate;
+    const dueAt =
+      String(sub.plan?.intervalUnit || "MONTH").toUpperCase() === "MONTH" &&
+      sub.currentPeriodStartAt &&
+      sub.currentPeriodEndAt
+        ? computeBillingCycleDueAt({
+            periodStartAt: sub.currentPeriodStartAt,
+            periodEndAt: sub.currentPeriodEndAt,
+            cycleStartDay: sub.cycleStartDay,
+            paymentDay: sub.paymentDay,
+            paymentTiming: (sub.paymentTiming as any) === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
+          })
+        : sub.currentPeriodEndAt;
+    const runAtMs = dueAt?.getTime?.() ?? 0;
+    const runAt = runAtMs > now + futureToleranceMs ? new Date(runAtMs) : nowDate;
 
     // ensurePaymentRetryJob internamente revisa si ya existe uno pendiente.
     const job = await ensurePaymentRetryJob({ subscriptionId: sub.id, runAt, maxAttempts: 1 }).catch((err) => {

@@ -7,7 +7,7 @@ import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/
 import { getAutoDebitConfig, getPaymentsConfig } from "@suscripciones/core/services/runtimeConfig";
 import { addIntervalUtc, toUtc } from "@suscripciones/core/lib/dates";
 import { systemLog } from "@suscripciones/core/services/systemLog";
-import { attachPaymentToCycle, ensureBillingCyclesForSubscriptions } from "@suscripciones/core/services/billingCycles";
+import { attachPaymentToCycle, computeBillingCycleDueAt, ensureBillingCyclesForSubscriptions } from "@suscripciones/core/services/billingCycles";
 import {
   createAutoDebitTransactionForSubscription,
   createPaymentLinkForSubscription,
@@ -147,23 +147,13 @@ function computeDueAtForPeriod(args: {
   if (!periodStartAt || !periodEndAt) return periodEndAt || null;
   const intervalUnit = String(args.intervalUnit || "MONTH").toUpperCase();
   if (intervalUnit !== "MONTH") return periodEndAt;
-  const timing = String(args.paymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
-  const cycleStartDay = Math.max(1, Math.min(31, Math.trunc(args.cycleStartDay || 1)));
-  const paymentDay = Math.max(1, Math.min(31, Math.trunc(args.paymentDay || 1)));
-  const start = toUtc(periodStartAt);
-  const startYear = start.getUTCFullYear();
-  const startMonth = start.getUTCMonth();
-
-  if (timing === "ANTICIPADO") {
-    const prev = shiftMonths(startYear, startMonth, -1);
-    return dateForDayInMonthUtc(prev.year, prev.month0, paymentDay);
-  }
-
-  if (paymentDay >= cycleStartDay) {
-    return dateForDayInMonthUtc(startYear, startMonth, paymentDay);
-  }
-  const next = shiftMonths(startYear, startMonth, 1);
-  return dateForDayInMonthUtc(next.year, next.month0, paymentDay);
+  return computeBillingCycleDueAt({
+    periodStartAt: toUtc(periodStartAt),
+    periodEndAt: toUtc(periodEndAt),
+    cycleStartDay: Math.max(1, Math.min(31, Math.trunc(args.cycleStartDay || 1))),
+    paymentDay: Math.max(1, Math.min(31, Math.trunc(args.paymentDay || 1))),
+    paymentTiming: String(args.paymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
+  });
 }
 
 function computePlanTotalInCents(args: {
@@ -581,8 +571,17 @@ export async function createSubscription(args: {
     }
   });
 
+  const dueAt = computeDueAtForPeriod({
+    periodStartAt: startAt,
+    periodEndAt: periodEnd,
+    cycleStartDay: Number.isFinite(defaultCycleStartDay) ? Math.max(1, Math.min(31, Math.trunc(defaultCycleStartDay))) : 1,
+    paymentDay: Number.isFinite(defaultPaymentDay) ? Math.max(1, Math.min(31, Math.trunc(defaultPaymentDay))) : 1,
+    paymentTiming: defaultPaymentTiming,
+    intervalUnit: plan.intervalUnit
+  }) || periodEnd;
+
   if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
-    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: periodEnd, maxAttempts: 1 }).catch(() => {});
+    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: dueAt, maxAttempts: 1 }).catch(() => {});
   }
   await prisma.subscriptionTenant.createMany({
     data: effectiveTenantIds.map((t) => ({ subscriptionId: subscription.id, tenantId: t })),
@@ -599,7 +598,7 @@ export async function createSubscription(args: {
   });
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
 
-  const runAt = periodEnd <= new Date(Date.now() + 5_000) ? new Date() : periodEnd;
+  const runAt = dueAt <= new Date(Date.now() + 5_000) ? new Date() : dueAt;
 
   if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
     await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt, maxAttempts: 1 }).catch(() => {});
@@ -656,15 +655,6 @@ export async function createSubscriptionPaymentLink(args: { subscriptionId: stri
     const link = await createPaymentLinkForSubscription({
       subscriptionId,
       amountInCentsOverride: args.amountInCents
-    });
-    
-    // Programar notificaciones automáticas para el link de pago
-    await schedulePaymentLinkNotifications({
-      paymentId: link.paymentId,
-      forceNow: false,
-      actor: "system"
-    }).catch((err) => {
-      console.error("[subscriptions.payment_link] Fallo al programar notificaciones", err);
     });
     
     return { ok: true, ...link };

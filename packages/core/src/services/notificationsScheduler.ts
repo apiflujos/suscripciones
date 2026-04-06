@@ -6,6 +6,7 @@ import { getPaymentsConfig } from "./runtimeConfig";
 import { systemLog, SystemActor } from "./systemLog";
 import { subscriptionReminder } from "../jobs/handlers/subscriptionReminder";
 import { classifyReference } from "../webhooks/wompi/classifyReference";
+import { computeBillingCycleDueAt } from "./billingCycles";
 
 type NotificationRule = {
   id: string;
@@ -64,7 +65,12 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
       id: true,
       customerId: true,
       currentCycle: true,
-      currentPeriodEndAt: true
+      currentPeriodStartAt: true,
+      currentPeriodEndAt: true,
+      cycleStartDay: true,
+      paymentDay: true,
+      paymentTiming: true,
+      plan: { select: { intervalUnit: true } }
     }
   });
   if (!sub) return { scheduled: 0 };
@@ -76,7 +82,16 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
   }
 
   const now = new Date();
-  const anchorAt = sub.currentPeriodEndAt;
+  const anchorAt =
+    String(sub.plan?.intervalUnit || "MONTH").toUpperCase() === "MONTH"
+      ? computeBillingCycleDueAt({
+          periodStartAt: sub.currentPeriodStartAt,
+          periodEndAt: sub.currentPeriodEndAt,
+          cycleStartDay: sub.cycleStartDay,
+          paymentDay: sub.paymentDay,
+          paymentTiming: (sub.paymentTiming as any) === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
+        })
+      : sub.currentPeriodEndAt;
   const anchorIso = anchorAt.toISOString();
 
   let scheduled = 0;
@@ -199,7 +214,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {
-            type: RetryJobType.SEND_CHATWOOT_MESSAGE,
+            type: RetryJobType.SUBSCRIPTION_REMINDER,
             runAt,
             payload: jobPayload
           }
@@ -274,7 +289,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {
-            type: RetryJobType.SEND_CHATWOOT_MESSAGE,
+            type: RetryJobType.SUBSCRIPTION_REMINDER,
             runAt,
             payload: jobPayload
           }
@@ -349,7 +364,7 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {
-            type: RetryJobType.SEND_CHATWOOT_MESSAGE,
+            type: RetryJobType.SUBSCRIPTION_REMINDER,
             runAt,
             payload: jobPayload
           }
@@ -418,7 +433,7 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await prisma.retryJob.create({
           data: {
-            type: RetryJobType.SEND_CHATWOOT_MESSAGE,
+            type: RetryJobType.SUBSCRIPTION_REMINDER,
             runAt,
             payload: jobPayload
           }

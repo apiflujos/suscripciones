@@ -82,7 +82,7 @@ function resolveCycleStartAnchor(sub: SubscriptionSeed) {
   return prev;
 }
 
-function computeDueAt(params: {
+export function computeBillingCycleDueAt(params: {
   periodStartAt: Date;
   periodEndAt: Date;
   cycleStartDay: number;
@@ -126,7 +126,7 @@ export function buildBillingCyclesForSubscription(sub: SubscriptionSeed, cyclesB
     const periodEndAt = shiftIntervalUtc(periodStartAt, unit, count);
     const dueAt =
       unit === PlanIntervalUnit.MONTH
-        ? computeDueAt({
+        ? computeBillingCycleDueAt({
             periodStartAt,
             periodEndAt,
             cycleStartDay: sub.cycleStartDay,
