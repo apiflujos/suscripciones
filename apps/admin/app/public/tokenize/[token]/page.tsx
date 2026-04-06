@@ -6,6 +6,7 @@ import { PublicAlert } from "../../_components/PublicAlert";
 import { PublicErrorPage } from "../../_components/PublicErrorPage";
 import { PUBLIC_COPY } from "../../_components/publicCopy";
 import { headers } from "next/headers";
+import { getPublicBaseUrlFromEnv } from "@suscripciones/core/services/publicBase";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +72,8 @@ export default async function PublicTokenizePage({
   const { token } = await params;
   const sp = (await searchParams) ?? {};
   const requestBase = await getRequestBase();
-  const apiBases = [requestBase, process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "", process.env.NEXT_PUBLIC_API_BASE_URL || ""];
+  const publicBase = getPublicBaseUrlFromEnv();
+  const apiBases = [requestBase, publicBase, process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "", process.env.NEXT_PUBLIC_API_BASE_URL || ""];
   const tokenRes = await fetchPublicToken(token, apiBases);
   const configRes = await fetchCheckoutConfig(apiBases);
   const config = configRes.ok ? configRes.json?.config || {} : {};

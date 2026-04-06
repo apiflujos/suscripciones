@@ -135,9 +135,9 @@ export async function POST(req: Request) {
   const tokenFromHeader = req.headers.get("x-auth-token") || "";
   const token = normalizeBearer(tokenFromAuth || tokenFromHeader || "");
   const claims: any = token ? await verifyJwt(token) : null;
-  if (!claims || !Array.isArray(claims.permissions) || !claims.permissions.includes("webhook:receive")) {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const hasInternalWebhookPermission = Boolean(
+    claims && Array.isArray(claims.permissions) && claims.permissions.includes("webhook:receive")
+  );
 
   const body = await req.json().catch(() => null);
   const parsed = chatwootWebhookSchema.safeParse(body);
@@ -149,7 +149,7 @@ export async function POST(req: Request) {
   if (!requiredToken && process.env.NODE_ENV === "production") {
     return Response.json({ error: "chatwoot_webhook_token_not_configured" }, { status: 503 });
   }
-  if (requiredToken) {
+  if (!hasInternalWebhookPermission && requiredToken) {
     const headerToken = String(req.headers.get("x-chatwoot-token") || "").trim();
     const auth = String(req.headers.get("authorization") || "");
     const bearer = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
@@ -166,6 +166,8 @@ export async function POST(req: Request) {
     if (!headerToken && !bearer && queryToken) {
       logger.warn({ source: "query" }, "chatwoot webhook: token provided via query string");
     }
+  } else if (!hasInternalWebhookPermission && !requiredToken) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const payload = parsed.data as ChatwootPayload;

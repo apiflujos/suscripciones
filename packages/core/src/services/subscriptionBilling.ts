@@ -21,6 +21,7 @@ import { publishRealtime } from "./realtimePublisher";
 import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
 import { reconcileWompiTransaction } from "./wompiReconcile";
 import { getSubscriptionPricingTotal, getPlanCollectionMode } from "../lib/metadataSchemas";
+import { computeBillingCycleDueAt } from "./billingCycles";
 
 const PAYMENT_LINK_LOCK_PREFIX = "payment-link";
 const AUTO_DEBIT_LOCK_PREFIX = "auto-debit";
@@ -110,40 +111,97 @@ export function readSubscriptionTotalInCents(subscriptionMeta: unknown, fallback
   return getSubscriptionPricingTotal(subscriptionMeta, fallback);
 }
 
+function computeSubscriptionDueWithGrace(subscription: {
+  currentPeriodStartAt: Date;
+  currentPeriodEndAt: Date;
+  cycleStartDay: number;
+  paymentDay: number;
+  paymentTiming: "EN_CURSO" | "ANTICIPADO";
+  graceDays: number;
+  plan?: { intervalUnit?: string | null } | null;
+}) {
+  const intervalUnit = String(subscription.plan?.intervalUnit || "").toUpperCase();
+  const dueAt =
+    intervalUnit === "MONTH"
+      ? computeBillingCycleDueAt({
+          periodStartAt: subscription.currentPeriodStartAt,
+          periodEndAt: subscription.currentPeriodEndAt,
+          cycleStartDay: subscription.cycleStartDay,
+          paymentDay: subscription.paymentDay,
+          paymentTiming: subscription.paymentTiming === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
+        })
+      : subscription.currentPeriodEndAt;
+  const graceDays = Number.isFinite(subscription.graceDays as any) ? Math.max(0, Math.trunc(subscription.graceDays || 0)) : 0;
+  const dueWithGraceAt = new Date(dueAt.getTime() + graceDays * 24 * 60 * 60 * 1000);
+  return { dueAt, dueWithGraceAt };
+}
+
 export async function ensureExpiredSubscriptions() {
   const now = new Date();
-  const pastDueCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24h grace
-  const expiredCutoff = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000); // 15 days total
-
-  // De ACTIVE a PAST_DUE si no hay pago reciente.
-  const toPastDue = await prisma.subscription.updateMany({
+  const candidates = await prisma.subscription.findMany({
     where: {
-      status: SubscriptionStatus.ACTIVE,
-      currentPeriodEndAt: { lt: pastDueCutoff }
+      status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE] }
     },
-    data: { status: SubscriptionStatus.PAST_DUE }
+    select: {
+      id: true,
+      status: true,
+      currentPeriodStartAt: true,
+      currentPeriodEndAt: true,
+      cycleStartDay: true,
+      paymentDay: true,
+      paymentTiming: true,
+      graceDays: true,
+      plan: { select: { intervalUnit: true } }
+    }
   });
+  let toPastDue = 0;
+  let toExpired = 0;
+  for (const sub of candidates) {
+    const { dueWithGraceAt } = computeSubscriptionDueWithGrace(sub);
+    if (sub.status === SubscriptionStatus.ACTIVE && dueWithGraceAt.getTime() < now.getTime()) {
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: SubscriptionStatus.PAST_DUE }
+      });
+      toPastDue += 1;
+      continue;
+    }
+    const expiredCutoff = new Date(dueWithGraceAt.getTime() + 15 * 24 * 60 * 60 * 1000);
+    if (sub.status === SubscriptionStatus.PAST_DUE && expiredCutoff.getTime() < now.getTime()) {
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: SubscriptionStatus.EXPIRED }
+      });
+      toExpired += 1;
+    }
+  }
 
-  // De PAST_DUE a EXPIRED tras 15 días de mora.
-  const toExpired = await prisma.subscription.updateMany({
-    where: {
-      status: SubscriptionStatus.PAST_DUE,
-      currentPeriodEndAt: { lt: expiredCutoff }
-    },
-    data: { status: SubscriptionStatus.EXPIRED }
-  });
-
-  if (toPastDue.count > 0 || toExpired.count > 0) {
+  if (toPastDue > 0 || toExpired > 0) {
     await systemLog(LogLevel.INFO, "subscriptions.lifecycle", "Limpieza de estados de suscripciones", {
-      markedPastDue: toPastDue.count,
-      markedExpired: toExpired.count
+      markedPastDue: toPastDue,
+      markedExpired: toExpired
     }).catch(() => {});
   }
 }
 
 export async function handleSubscriptionPaymentFailure(subscriptionId: string, error: string) {
-  const sub = await prisma.subscription.findUnique({ where: { id: subscriptionId } });
+  const sub = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { plan: { select: { intervalUnit: true } } }
+  });
   if (!sub || sub.status === SubscriptionStatus.CANCELED || sub.status === SubscriptionStatus.EXPIRED) return;
+
+  const { dueAt, dueWithGraceAt } = computeSubscriptionDueWithGrace(sub);
+  if (dueWithGraceAt.getTime() >= Date.now()) {
+    await systemLog(LogLevel.WARN, "subscriptions.lifecycle", "Cobro falló pero la suscripción sigue dentro de gracia", {
+      subscriptionId,
+      error,
+      dueAt: dueAt.toISOString(),
+      dueWithGraceAt: dueWithGraceAt.toISOString(),
+      currentStatus: sub.status
+    }).catch(() => {});
+    return;
+  }
 
   await prisma.subscription.update({
     where: { id: subscriptionId },
@@ -153,6 +211,8 @@ export async function handleSubscriptionPaymentFailure(subscriptionId: string, e
   await systemLog(LogLevel.ERROR, "subscriptions.lifecycle", "Suscripción marcada como PAST_DUE tras fallo de cobro", {
     subscriptionId,
     error,
+    dueAt: dueAt.toISOString(),
+    dueWithGraceAt: dueWithGraceAt.toISOString(),
     previousStatus: sub.status
   }).catch(() => {});
 }
