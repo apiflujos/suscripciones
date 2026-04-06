@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
+import { AppModal } from "../ui/AppModal";
 
 export type PlanOption = {
   id: string;
@@ -289,17 +290,14 @@ export function ChangePlanButton({
         {iconOnly ? null : "Cambiar producto"}
       </button>
 
-      {open ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ width: "min(560px, 96vw)" }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0 }}>Cambiar producto del contacto</h3>
-              <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-
-            <form action={action} style={{ display: "grid", gap: 10 }}>
+      <AppModal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Cambiar producto del contacto"
+        width="min(560px, 96vw)"
+        bodyClassName=""
+      >
+        <form action={action} style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="subscriptionId" value={subscriptionId} />
               <input type="hidden" name="returnTo" value={returnTo} />
@@ -432,10 +430,8 @@ export function ChangePlanButton({
                   Guardar
                 </PendingButton>
               </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
+        </form>
+      </AppModal>
     </>
   );
 }

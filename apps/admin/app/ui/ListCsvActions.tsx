@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AppModal } from "./AppModal";
 
 type EntityType = "customers" | "products" | "companies" | "payments";
 
@@ -86,17 +87,14 @@ export function ListCsvActions({
         </a>
       </div>
 
-      {open ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ width: "min(640px, 96vw)" }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Importar datos en CSV</strong>
-              <button className="ghost modal-close" type="button" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-
-            <form onSubmit={onUpload} className="import-modal-grid">
+      <AppModal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Importar datos en CSV"
+        width="min(640px, 96vw)"
+        bodyClassName=""
+      >
+        <form onSubmit={onUpload} className="import-modal-grid">
               <div className="field">
                 <label>Tipo de importación</label>
                 <select className="select" value={entity} onChange={(e) => setEntity(e.target.value as EntityType)}>
@@ -145,10 +143,8 @@ export function ListCsvActions({
                   {uploading ? "Importando..." : "Importar CSV"}
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
+        </form>
+      </AppModal>
     </>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
+import { AppModal } from "../ui/AppModal";
 
 export function ManualMarkPaidButton({
   action,
@@ -62,76 +63,72 @@ export function ManualMarkPaidButton({
         </button>
       </form>
 
-      {showConfigAlert && (
-        <div className="modal-backdrop" onClick={() => setShowConfigAlert(false)}>
-          <div className="modal-panel" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0 }}>Marcado manual deshabilitado</h3>
-              <button className="ghost modal-close" type="button" onClick={() => setShowConfigAlert(false)}>X</button>
-            </div>
-            <div className="modal-body">
-              <p>El marcado manual de pagos está desactivado en la configuración. Para habilitarlo:</p>
-              <ol style={{ margin: 0, paddingLeft: 20 }}>
-                <li>Andá a <strong>Configuración</strong></li>
-                <li>Seleccioná la pestaña <strong>Cobros</strong></li>
-                <li>Activá la opción <strong>"Permitir marcado manual de pagos"</strong></li>
-              </ol>
-              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                <a className="primary btn-compact btn-noicon" href="/settings?tab=cobros">
-                  Ir a Configuración
-                </a>
-                <button className="ghost btn-compact btn-noicon" type="button" onClick={() => setShowConfigAlert(false)}>
-                  Cancelar
-                </button>
-              </div>
-            </div>
+      <AppModal
+        open={showConfigAlert}
+        onClose={() => setShowConfigAlert(false)}
+        title="Marcado manual deshabilitado"
+        maxWidth={520}
+        bodyClassName=""
+      >
+        <div>
+          <p>El marcado manual de pagos está desactivado en la configuración. Para habilitarlo:</p>
+          <ol style={{ margin: 0, paddingLeft: 20 }}>
+            <li>Andá a <strong>Configuración</strong></li>
+            <li>Seleccioná la pestaña <strong>Cobros</strong></li>
+            <li>Activá la opción <strong>"Permitir marcado manual de pagos"</strong></li>
+          </ol>
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <a className="primary btn-compact btn-noicon" href="/settings?tab=cobros">
+              Ir a Configuración
+            </a>
+            <button className="ghost btn-compact btn-noicon" type="button" onClick={() => setShowConfigAlert(false)}>
+              Cancelar
+            </button>
           </div>
         </div>
-      )}
+      </AppModal>
 
-      {showMethodModal && (
-        <div className="modal-backdrop" onClick={() => setShowMethodModal(false)}>
-          <div className="modal-panel" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0 }}>Método de pago</h3>
-              <button className="ghost modal-close" type="button" onClick={() => setShowMethodModal(false)}>X</button>
-            </div>
-            <div className="modal-body">
-              <p>Seleccioná cómo se pagó esta suscripción:</p>
-              <div style={{ display: "grid", gap: 8 }}>
-                <select
-                  className="select"
-                  value={selectedMethod}
-                  onChange={(e) => {
-                    const next = String(e.target.value || "TRANSFERENCIA") as "TRANSFERENCIA" | "BREB" | "EFECTIVO";
-                    setSelectedMethod(next);
-                  }}
-                >
-                  <option value="TRANSFERENCIA">Transferencia</option>
-                  <option value="BREB">Bre-B</option>
-                  <option value="EFECTIVO">Efectivo</option>
-                </select>
-              </div>
-              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                <button
-                  className="primary btn-compact btn-noicon"
-                  type="button"
-                  onClick={() => {
-                    if (methodRef.current) methodRef.current.value = selectedMethod;
-                    setShowMethodModal(false);
-                    formRef.current?.requestSubmit();
-                  }}
-                >
-                  Confirmar
-                </button>
-                <button className="ghost btn-compact btn-noicon" type="button" onClick={() => setShowMethodModal(false)}>
-                  Cancelar
-                </button>
-              </div>
-            </div>
+      <AppModal
+        open={showMethodModal}
+        onClose={() => setShowMethodModal(false)}
+        title="Método de pago"
+        maxWidth={520}
+        bodyClassName=""
+      >
+        <div>
+          <p>Seleccioná cómo se pagó esta suscripción:</p>
+          <div style={{ display: "grid", gap: 8 }}>
+            <select
+              className="select"
+              value={selectedMethod}
+              onChange={(e) => {
+                const next = String(e.target.value || "TRANSFERENCIA") as "TRANSFERENCIA" | "BREB" | "EFECTIVO";
+                setSelectedMethod(next);
+              }}
+            >
+              <option value="TRANSFERENCIA">Transferencia</option>
+              <option value="BREB">Bre-B</option>
+              <option value="EFECTIVO">Efectivo</option>
+            </select>
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button
+              className="primary btn-compact btn-noicon"
+              type="button"
+              onClick={() => {
+                if (methodRef.current) methodRef.current.value = selectedMethod;
+                setShowMethodModal(false);
+                formRef.current?.requestSubmit();
+              }}
+            >
+              Confirmar
+            </button>
+            <button className="ghost btn-compact btn-noicon" type="button" onClick={() => setShowMethodModal(false)}>
+              Cancelar
+            </button>
           </div>
         </div>
-      )}
+      </AppModal>
     </>
   );
 }

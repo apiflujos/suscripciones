@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { HelpTip } from "../ui/HelpTip";
+import { AppModal } from "../ui/AppModal";
 
 type Props = {
   subscriptionId: string;
@@ -95,26 +96,14 @@ export function EditBillingDateModal({
         Editar
       </button>
 
-      {open && (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ width: "min(560px, 96vw)" }}>
-            <div
-              className="panel-header"
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
-            >
-              <h3 style={{ margin: 0 }}>Editar fecha de cobro</h3>
-              <button
-                type="button"
-                className="ghost modal-close"
-                onClick={handleClose}
-                aria-label="Cerrar"
-                disabled={pending}
-              >
-                X
-              </button>
-            </div>
-
-            <div style={{ padding: "16px 0" }}>
+      <AppModal
+        open={open}
+        onClose={handleClose}
+        title="Editar fecha de cobro"
+        width="min(560px, 96vw)"
+        bodyClassName=""
+      >
+        <div style={{ padding: "16px 0" }}>
               <div className="field">
                 <label>
                   Fecha de cobro
@@ -184,33 +173,31 @@ export function EditBillingDateModal({
                   {error}
                 </div>
               )}
-            </div>
-
-            <div className="module-footer">
-              <button
-                className="ghost btn-compact btn-cancel"
-                type="button"
-                onClick={handleClose}
-                disabled={pending}
-                title="Cerrar sin guardar"
-                aria-label="Cancelar"
-              >
-                Cancelar
-              </button>
-              <button
-                className="primary btn-compact btn-save"
-                type="button"
-                onClick={handleSave}
-                disabled={pending}
-                title="Guardar fecha de cobro"
-                aria-label="Guardar cambios"
-              >
-                {pending ? "Guardando..." : "Guardar"}
-              </button>
-            </div>
-          </div>
         </div>
-      )}
+
+        <div className="module-footer">
+          <button
+            className="ghost btn-compact btn-cancel"
+            type="button"
+            onClick={handleClose}
+            disabled={pending}
+            title="Cerrar sin guardar"
+            aria-label="Cancelar"
+          >
+            Cancelar
+          </button>
+          <button
+            className="primary btn-compact btn-save"
+            type="button"
+            onClick={handleSave}
+            disabled={pending}
+            title="Guardar fecha de cobro"
+            aria-label="Guardar cambios"
+          >
+            {pending ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      </AppModal>
     </>
   );
 }

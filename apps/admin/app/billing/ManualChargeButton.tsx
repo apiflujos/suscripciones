@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { AppModal } from "../ui/AppModal";
 
 export function ManualChargeButton({
   action,
@@ -60,32 +61,30 @@ export function ManualChargeButton({
         </button>
       </form>
 
-      {showConfigAlert && (
-        <div className="modal-backdrop" onClick={() => setShowConfigAlert(false)}>
-          <div className="modal-panel" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0 }}>Cobro manual deshabilitado</h3>
-              <button className="ghost modal-close" type="button" onClick={() => setShowConfigAlert(false)}>X</button>
-            </div>
-            <div className="modal-body">
-              <p>El cobro manual está desactivado en la configuración. Para habilitarlo:</p>
-              <ol style={{ margin: 0, paddingLeft: 20 }}>
-                <li>Andá a <strong>Configuración</strong></li>
-                <li>Seleccioná la pestaña <strong>Cobros</strong></li>
-                <li>Activá la opción <strong>"Permitir cobro manual"</strong></li>
-              </ol>
-              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                <a className="primary btn-compact btn-noicon" href="/settings?tab=cobros">
-                  Ir a Configuración
-                </a>
-                <button className="ghost btn-compact btn-noicon" type="button" onClick={() => setShowConfigAlert(false)}>
-                  Cancelar
-                </button>
-              </div>
-            </div>
+      <AppModal
+        open={showConfigAlert}
+        onClose={() => setShowConfigAlert(false)}
+        title="Cobro manual deshabilitado"
+        maxWidth={520}
+        bodyClassName=""
+      >
+        <div>
+          <p>El cobro manual está desactivado en la configuración. Para habilitarlo:</p>
+          <ol style={{ margin: 0, paddingLeft: 20 }}>
+            <li>Andá a <strong>Configuración</strong></li>
+            <li>Seleccioná la pestaña <strong>Cobros</strong></li>
+            <li>Activá la opción <strong>"Permitir cobro manual"</strong></li>
+          </ol>
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <a className="primary btn-compact btn-noicon" href="/settings?tab=cobros">
+              Ir a Configuración
+            </a>
+            <button className="ghost btn-compact btn-noicon" type="button" onClick={() => setShowConfigAlert(false)}>
+              Cancelar
+            </button>
           </div>
         </div>
-      )}
+      </AppModal>
     </>
   );
 }
