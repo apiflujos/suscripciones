@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
+import { AppModal } from "../ui/AppModal";
 
 type CheckoutConfig = {
   planBaseUrl?: string | null;
@@ -139,16 +140,13 @@ export function RedirectConfigPanel({
         </div>
       </div>
 
-      {open ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 900 }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Editar redirecciones y mensajes</strong>
-              <button className="ghost modal-close" type="button" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <form action={onSave} className="panel module" style={{ display: "grid", gap: 12 }}>
+      <AppModal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Editar redirecciones y mensajes"
+        maxWidth={900}
+      >
+        <form action={onSave} className="panel module" style={{ display: "grid", gap: 12 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="returnTo" value={returnTo} />
               {publicBaseNormalized ? (
@@ -248,10 +246,8 @@ export function RedirectConfigPanel({
                   Guardar
                 </PendingButton>
               </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
+        </form>
+      </AppModal>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { NewCustomerForm } from "./NewCustomerForm";
 import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
+import { AppModal } from "../ui/AppModal";
 
 export function CustomersModals({
   customers,
@@ -59,56 +60,46 @@ export function CustomersModals({
         ) : null}
       </div>
 
-      {openCustomer ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 860 }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Crear contacto</strong>
-              <button className="ghost modal-close" type="button" onClick={() => setOpenCustomer(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <NewCustomerForm
-              createCustomer={createCustomer}
-              csrfToken={csrfToken}
-              tenantId={tenantId}
-              tenants={tenants}
-              returnTo={returnTo}
-              defaultOpen
-              hidePanelHeader
-              mode="always_open"
-              useModal={false}
-            />
-          </div>
-        </div>
-      ) : null}
+      <AppModal
+        open={openCustomer}
+        onClose={() => setOpenCustomer(false)}
+        title="Crear contacto"
+        maxWidth={860}
+      >
+        <NewCustomerForm
+          createCustomer={createCustomer}
+          csrfToken={csrfToken}
+          tenantId={tenantId}
+          tenants={tenants}
+          returnTo={returnTo}
+          defaultOpen
+          hidePanelHeader
+          mode="always_open"
+          useModal={false}
+        />
+      </AppModal>
 
-      {openPlan ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 980 }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Crear plan o suscripción</strong>
-              <button className="ghost modal-close" type="button" onClick={() => setOpenPlan(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <NewBillingAssignmentForm
-              customers={customers}
-              empresas={empresas}
-              catalogItems={products}
-              csrfToken={csrfToken}
-              tenantId={tenantId}
-              tenants={tenants}
-              defaultOpen
-              forceOpen
-              hideHeader
-              returnTo={returnTo}
-              createCustomer={createCustomer}
-              createPlanAndSubscription={createPlanAndSubscription}
-            />
-          </div>
-        </div>
-      ) : null}
+      <AppModal
+        open={openPlan}
+        onClose={() => setOpenPlan(false)}
+        title="Crear plan o suscripción"
+        maxWidth={980}
+      >
+        <NewBillingAssignmentForm
+          customers={customers}
+          empresas={empresas}
+          catalogItems={products}
+          csrfToken={csrfToken}
+          tenantId={tenantId}
+          tenants={tenants}
+          defaultOpen
+          forceOpen
+          hideHeader
+          returnTo={returnTo}
+          createCustomer={createCustomer}
+          createPlanAndSubscription={createPlanAndSubscription}
+        />
+      </AppModal>
     </>
   );
 }
