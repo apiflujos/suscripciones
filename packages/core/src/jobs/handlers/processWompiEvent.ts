@@ -1409,7 +1409,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
 
     // Notificaciones: la confirmación de pago se maneja por reglas (PAYMENT_APPROVED).
     if (advancedTo) {
-      await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+      await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err) => {
+        logger.warn({ err, subscriptionId: subscription.id }, "Fallo reprogramando recordatorios tras pago aprobado");
+      });
     }
   }
   } finally {

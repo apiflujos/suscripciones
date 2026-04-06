@@ -5,6 +5,8 @@ import { systemLog, SystemActor } from "../../services/systemLog";
 import { getAutoDebitConfig } from "../../services/runtimeConfig";
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 import { publishRealtime } from "../../services/realtimePublisher";
+import { computeBillingCycleDueAt } from "../../services/billingCycles";
+import { logger } from "../../lib/logger";
 
 function shouldCreateFallbackLinkWhenAutoDebitDisabled() {
   const raw = String(process.env.AUTO_DEBIT_DISABLED_FALLBACK_LINK || "").trim().toLowerCase();
@@ -21,6 +23,26 @@ function asResultMode(raw: string): "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK" {
   if (mode === "AUTO_DEBIT") return "AUTO_DEBIT";
   if (mode === "AUTO_LINK") return "AUTO_LINK";
   return "MANUAL_LINK";
+}
+
+function computeSubscriptionDueAt(sub: {
+  currentPeriodStartAt: Date;
+  currentPeriodEndAt: Date;
+  cycleStartDay: number;
+  paymentDay: number;
+  paymentTiming: string;
+  plan?: { intervalUnit?: string | null } | null;
+}) {
+  const intervalUnit = String(sub.plan?.intervalUnit || "").toUpperCase();
+  return intervalUnit === "MONTH"
+    ? computeBillingCycleDueAt({
+        periodStartAt: sub.currentPeriodStartAt,
+        periodEndAt: sub.currentPeriodEndAt,
+        cycleStartDay: sub.cycleStartDay,
+        paymentDay: sub.paymentDay,
+        paymentTiming: String(sub.paymentTiming || "").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
+      })
+    : sub.currentPeriodEndAt;
 }
 
 export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
@@ -68,7 +90,9 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
           updatedAt: new Date().toISOString()
         });
         // Fallback: crear link de pago en vez de fallar
-        await createPaymentLinkForSubscription({ subscriptionId }).catch(() => {});
+        await createPaymentLinkForSubscription({ subscriptionId }).catch((err: any) => {
+          logger.warn({ err, subscriptionId }, "Fallback a link de pago falló tras detectar cliente sin token");
+        });
         return {
           status: "processed",
           mode: collectionMode,
@@ -125,7 +149,7 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
       }
 
       const dueByCutoff = sub.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
-      const dueAt = dueByCutoff;
+      const dueAt = sub.currentPeriodEndAt ? computeSubscriptionDueAt(sub) : null;
 
       if (dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
         await systemLog(LogLevel.INFO, "jobs.payment_retry", "Cobro automático omitido: aún no es fecha de cobro", {
@@ -166,7 +190,9 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
             customerId: sub.customerId,
             updatedAt: new Date().toISOString()
           });
-          await createPaymentLinkForSubscription({ subscriptionId }).catch(() => {});
+          await createPaymentLinkForSubscription({ subscriptionId }).catch((err: any) => {
+            logger.warn({ err, subscriptionId }, "Fallback a link de pago falló con débito automático deshabilitado");
+          });
           return {
             status: "processed",
             mode,

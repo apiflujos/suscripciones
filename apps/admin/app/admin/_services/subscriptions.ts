@@ -17,6 +17,7 @@ import { reconcileWompiTransaction } from "@suscripciones/core/services/wompiRec
 import { scheduleSubscriptionDueNotifications, schedulePaymentLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { consumeApp } from "@suscripciones/core/services/superAdminApp";
 import { validateWompiCurrency } from "@suscripciones/core/lib/wompiSignature";
+import { logger } from "@suscripciones/core/lib/logger";
 
 function hasUsablePaymentSource(metadata: any) {
   const candidates = [
@@ -587,7 +588,9 @@ export async function createSubscription(args: {
   });
 
   if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
-    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: dueAt, maxAttempts: 1 }).catch(() => {});
+    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: dueAt, maxAttempts: 1 }).catch((err) => {
+      logger.warn({ err, subscriptionId: subscription.id }, "Fallo agendando cobro inicial de suscripción");
+    });
   }
   await prisma.subscriptionTenant.createMany({
     data: effectiveTenantIds.map((t) => ({ subscriptionId: subscription.id, tenantId: t })),
@@ -595,19 +598,25 @@ export async function createSubscription(args: {
   });
   await prisma.customerTenant
     .createMany({ data: effectiveTenantIds.map((t) => ({ customerId: customer.id, tenantId: t })), skipDuplicates: true })
-    .catch(() => {});
+    .catch((err) => {
+      logger.warn({ err, customerId: customer.id, subscriptionId: subscription.id }, "Fallo asociando customerTenant al crear suscripción");
+    });
 
   await consumeApp("subscriptions_created", {
     amount: 1,
     source: "admin:subscriptions.create",
     meta: { subscriptionId: subscription.id, planId: plan.id }
   });
-  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err) => {
+    logger.warn({ err, subscriptionId: subscription.id }, "Fallo agendando recordatorios de suscripción");
+  });
 
   const runAt = dueAt <= new Date(Date.now() + 5_000) ? new Date() : dueAt;
 
   if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
-    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt, maxAttempts: 1 }).catch(() => {});
+    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt, maxAttempts: 1 }).catch((err) => {
+      logger.warn({ err, subscriptionId: subscription.id }, "Fallo agendando retry inmediato de suscripción");
+    });
     const isDueNow = runAt.getTime() <= Date.now() + 5_000;
     const shouldCreateLinkNow = collectionMode === "AUTO_LINK" ? Boolean(args.createPaymentLink) && isDueNow : false;
 

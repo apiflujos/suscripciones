@@ -440,7 +440,9 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
         });
         scheduled++;
       } else {
-        await subscriptionReminder(jobPayload).catch(() => {});
+        await subscriptionReminder(jobPayload).catch((err) => {
+          logger.warn({ err, customerId, trigger: "TOKENIZATION_LINK_CREATED" }, "[Notifications/Schedule] Fallo en envío inline de tokenización");
+        });
         sentNow++;
       }
     }
@@ -457,7 +459,9 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
       scheduled
     },
     args.actor || SystemActor.SYSTEM
-  ).catch(() => {});
+  ).catch((err) => {
+    logger.warn({ err, customerId }, "[Notifications/Schedule] Fallo creando systemLog de tokenización");
+  });
 
   return { scheduled, sentNow, rulesActive: true };
 }
