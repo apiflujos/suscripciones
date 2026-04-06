@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AppModal } from "./AppModal";
 
 type SmartField = {
   key: string;
@@ -244,24 +245,14 @@ export function FilterButton({
         />
       )}
 
-      {open && (
-        <div className="modal-backdrop">
-          <div className="modal-panel smartFilterModalPanel" style={{ width: "min(900px, 96vw)", maxHeight: "90vh", overflow: "auto" }}>
-            <div className="panel-header" style={{ justifyContent: "space-between" }}>
-              <strong>Filtros inteligentes</strong>
-              <button
-                className="ghost modal-close"
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Cerrar"
-                data-modal-close="true"
-                data-loader="off"
-              >
-                X
-              </button>
-            </div>
-
-            <div className="modal-body" style={{ display: "grid", gap: 16 }}>
+      <AppModal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Filtros inteligentes"
+        width="min(900px, 96vw)"
+        panelClassName="smartFilterModalPanel"
+      >
+        <div style={{ display: "grid", gap: 16, maxHeight: "90vh", overflow: "auto" }}>
               {/* Condiciones */}
               <div style={{ display: "grid", gap: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -457,10 +448,8 @@ export function FilterButton({
                   Cerrar
                 </button>
               </div>
-            </div>
-          </div>
         </div>
-      )}
+      </AppModal>
     </>
   );
 }

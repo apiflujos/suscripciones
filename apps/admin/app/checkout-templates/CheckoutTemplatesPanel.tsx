@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AppModal } from "../ui/AppModal";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
 
@@ -324,7 +325,7 @@ export function CheckoutTemplatesPanel({
 
   const wizardBody = (
     <div className="panel module" style={{ marginTop: 12 }}>
-      {!(editing && editModalOpen) ? (
+      {!editModalOpen && !createModalOpen ? (
         <div className="panel-header">
           <strong>{editing ? "Editar plantilla" : "Nueva plantilla"}</strong>
         </div>
@@ -814,33 +815,13 @@ export function CheckoutTemplatesPanel({
         </div>
       </div>
 
-      {editing && editModalOpen ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 900 }}>
-            <div className="panel-header">
-              <strong>Editar plantilla</strong>
-              <button className="ghost modal-close" type="button" onClick={resetWizard} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            {wizardBody}
-          </div>
-        </div>
-      ) : null}
+      <AppModal open={Boolean(editing && editModalOpen)} onClose={resetWizard} title="Editar plantilla" maxWidth={900}>
+        {wizardBody}
+      </AppModal>
 
-      {createModalOpen ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 900 }}>
-            <div className="panel-header">
-              <strong>Nueva plantilla</strong>
-              <button className="ghost modal-close" type="button" onClick={resetWizard} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            {wizardBody}
-          </div>
-        </div>
-      ) : null}
+      <AppModal open={createModalOpen} onClose={resetWizard} title="Nueva plantilla" maxWidth={900}>
+        {wizardBody}
+      </AppModal>
 
       {!templates.length ? <div className="field-hint">Aún no hay plantillas.</div> : null}
       <div className="template-grid">
