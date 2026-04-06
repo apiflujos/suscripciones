@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
+import { AppModal } from "../ui/AppModal";
 
 export function PaymentLinkModalButton({
   subscriptionId,
@@ -77,14 +78,8 @@ export function PaymentLinkModalButton({
         Enviar link de pago
       </button>
       {open ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 520 }}>
-            <div className="panel-header ui-panel-header">
-              <strong>Enviar link de pago</strong>
-              <button className="ghost modal-close" type="button" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
+        <AppModal open={open} onClose={() => setOpen(false)} title="Enviar link de pago" maxWidth={520}>
+          <>
             <form action={action} className="panel module" style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="subscriptionId" value={subscriptionId} />
@@ -146,8 +141,8 @@ export function PaymentLinkModalButton({
                 </div>
               ) : null}
             </form>
-          </div>
-        </div>
+          </>
+        </AppModal>
       ) : null}
     </>
   );

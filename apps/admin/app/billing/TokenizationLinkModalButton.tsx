@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
+import { AppModal } from "../ui/AppModal";
 
 export function TokenizationLinkModalButton({
   customerId,
@@ -61,14 +62,8 @@ export function TokenizationLinkModalButton({
         Enviar tokenización
       </button>
       {open ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 520 }}>
-            <div className="panel-header ui-panel-header">
-              <strong>Enviar link de tokenización</strong>
-              <button className="ghost modal-close" type="button" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
+        <AppModal open={open} onClose={() => setOpen(false)} title="Enviar link de tokenización" maxWidth={520}>
+          <>
             <form action={action} className="panel module" style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="customerId" value={customerId} />
@@ -113,8 +108,8 @@ export function TokenizationLinkModalButton({
                 </div>
               ) : null}
             </form>
-          </div>
-        </div>
+          </>
+        </AppModal>
       ) : null}
     </>
   );

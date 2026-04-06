@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
+import { AppModal } from "../ui/AppModal";
 
 function toLocalInput(value?: string | null) {
   if (!value) return "";
@@ -43,15 +44,8 @@ export function ScheduleCutoffButton({
       </button>
 
       {open ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ width: "min(520px, 96vw)" }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0 }}>Fecha de corte</h3>
-              <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-
+        <AppModal open={open} onClose={() => setOpen(false)} title="Fecha de corte" width="min(520px, 96vw)">
+          <>
             <form action={action} style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="subscriptionId" value={subscriptionId} />
@@ -95,8 +89,8 @@ export function ScheduleCutoffButton({
                 </PendingButton>
               </div>
             </form>
-          </div>
-        </div>
+          </>
+        </AppModal>
       ) : null}
     </>
   );

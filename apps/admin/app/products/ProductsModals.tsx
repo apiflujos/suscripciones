@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { NewProductForm } from "./NewProductForm";
 import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
+import { AppModal } from "../ui/AppModal";
 
 export function ProductsModals({
   customers,
@@ -62,28 +63,13 @@ export function ProductsModals({
       </div>
 
       {openProduct ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 980 }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Crear producto / servicio</strong>
-              <button className="ghost modal-close" type="button" onClick={() => setOpenProduct(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
+        <AppModal open={openProduct} onClose={() => setOpenProduct(false)} title="Crear producto / servicio" maxWidth={980}>
             <NewProductForm action={createProduct} csrfToken={csrfToken} tenantId={tenantId} tenants={tenants} returnTo={returnTo} />
-          </div>
-        </div>
+        </AppModal>
       ) : null}
 
       {openPlan ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 980 }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Crear plan o suscripción</strong>
-              <button className="ghost modal-close" type="button" onClick={() => setOpenPlan(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
+        <AppModal open={openPlan} onClose={() => setOpenPlan(false)} title="Crear plan o suscripción" maxWidth={980}>
             <NewBillingAssignmentForm
               customers={customers}
               empresas={empresas}
@@ -98,8 +84,7 @@ export function ProductsModals({
               createCustomer={createCustomer}
               createPlanAndSubscription={createPlanAndSubscription}
             />
-          </div>
-        </div>
+        </AppModal>
       ) : null}
     </>
   );
