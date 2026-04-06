@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AppModal } from "../ui/AppModal";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 import { FilterButton } from "../ui/FilterButton";
@@ -406,17 +407,8 @@ export function NewMassMessageModal({
       <button className="primary btn-compact" type="button" onClick={() => setOpen(true)} data-modal="true" data-loader="off">
         Nueva campaña
       </button>
-      {open ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel campaignsModal" style={{ maxWidth: 900 }}>
-            <div className="panel-header">
-              <strong>Nueva campaña</strong>
-              <button className="ghost modal-close" type="button" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <div className="modal-body">
-              <form action={action} className="panel module" style={{ display: "grid", gap: 12 }}>
+      <AppModal open={open} onClose={() => setOpen(false)} title="Nueva campaña" maxWidth={900} panelClassName="campaignsModal">
+        <form action={action} className="panel module" style={{ display: "grid", gap: 12 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="returnTo" value={returnTo} />
                 <input type="hidden" name="templateKind" value={templateKind} />
@@ -539,11 +531,8 @@ export function NewMassMessageModal({
                     Guardar campaña
                   </PendingButton>
                 </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      ) : null}
+        </form>
+      </AppModal>
     </>
   );
 }

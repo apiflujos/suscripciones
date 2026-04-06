@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AppModal } from "../ui/AppModal";
 
 type TemplateParams = {
   name?: string;
@@ -55,56 +56,53 @@ export function RunCampaignButton({
         {label}
       </button>
 
-      {open ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Enviar campaña</strong>
-              <button className="ghost modal-close" type="button" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <div className="modal-body" style={{ display: "grid", gap: 10 }}>
-              <div>
-                <div className="field-hint">Campaña</div>
-                <div style={{ fontWeight: 600 }}>{name || "—"}</div>
-              </div>
-              <div>
-                <div className="field-hint">Plantilla WhatsApp</div>
-                <div>{tplName ? `${tplName}${tplLang ? ` (${tplLang})` : ""}` : "—"}</div>
-              </div>
-              {content ? (
-                <div>
-                  <div className="field-hint">Contenido</div>
-                  <div className="muted" style={{ whiteSpace: "pre-wrap", fontSize: 13 }}>{content}</div>
-                </div>
-              ) : null}
-              {bodyParams.length || headerParams.length || buttonParams.length ? (
-                <div className="muted" style={{ fontSize: 12 }}>
-                  {bodyParams.length ? `Body: ${bodyParams.map((p) => p.value).join(" | ")}` : ""}
-                  {headerParams.length ? ` · Header: ${headerParams.map((p) => p.value).join(" | ")}` : ""}
-                  {buttonParams.length ? ` · Botones: ${buttonParams.map((p) => p.value).join(" | ")}` : ""}
-                </div>
-              ) : null}
-            </div>
-            <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button className="ghost btn-compact" type="button" onClick={() => setOpen(false)} data-loader="off">
-                Cancelar
-              </button>
-              <button
-                className="primary btn-compact"
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  formRef.current?.requestSubmit();
-                }}
-              >
-                Enviar campaña
-              </button>
-            </div>
+      <AppModal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Enviar campaña"
+        maxWidth={560}
+        footer={
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <button className="ghost btn-compact" type="button" onClick={() => setOpen(false)} data-loader="off">
+              Cancelar
+            </button>
+            <button
+              className="primary btn-compact"
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                formRef.current?.requestSubmit();
+              }}
+            >
+              Enviar campaña
+            </button>
           </div>
+        }
+      >
+        <div style={{ display: "grid", gap: 10 }}>
+          <div>
+            <div className="field-hint">Campaña</div>
+            <div style={{ fontWeight: 600 }}>{name || "—"}</div>
+          </div>
+          <div>
+            <div className="field-hint">Plantilla WhatsApp</div>
+            <div>{tplName ? `${tplName}${tplLang ? ` (${tplLang})` : ""}` : "—"}</div>
+          </div>
+          {content ? (
+            <div>
+              <div className="field-hint">Contenido</div>
+              <div className="muted" style={{ whiteSpace: "pre-wrap", fontSize: 13 }}>{content}</div>
+            </div>
+          ) : null}
+          {bodyParams.length || headerParams.length || buttonParams.length ? (
+            <div className="muted" style={{ fontSize: 12 }}>
+              {bodyParams.length ? `Body: ${bodyParams.map((p) => p.value).join(" | ")}` : ""}
+              {headerParams.length ? ` · Header: ${headerParams.map((p) => p.value).join(" | ")}` : ""}
+              {buttonParams.length ? ` · Botones: ${buttonParams.map((p) => p.value).join(" | ")}` : ""}
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      </AppModal>
     </>
   );
 }
