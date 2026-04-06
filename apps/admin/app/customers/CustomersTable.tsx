@@ -618,18 +618,20 @@ export function CustomersTable({
           const planName = formatPlanLabel(subInfo?.planName || "");
           const status = String(subInfo?.status || "");
           const collectionMode = String(subInfo?.collectionMode || "");
-          const kindLabel =
-            collectionMode === "AUTO_DEBIT"
+          const kindLabel = !hasPlan
+            ? ""
+            : collectionMode === "AUTO_DEBIT"
               ? "Débito automático"
               : collectionMode === "AUTO_LINK" || collectionMode === "MANUAL_LINK"
                 ? "Link de pago"
-                : "Débito automático";
-          const kindPillClass =
-            collectionMode === "AUTO_DEBIT"
+                : "";
+          const kindPillClass = !hasPlan
+            ? ""
+            : collectionMode === "AUTO_DEBIT"
               ? "pill-mode-debit"
               : collectionMode === "AUTO_LINK" || collectionMode === "MANUAL_LINK"
                 ? "pill-mode-link"
-                : "pill-mode-debit";
+                : "pill-muted";
           const statusLabel =
             status === "ACTIVE" ? "Activa" : status === "PAST_DUE" ? "En mora" : status ? "Inactiva" : "";
           const statusPillClass = status === "ACTIVE" ? "pill-ok" : status === "PAST_DUE" ? "pill-bad" : status ? "pill-muted" : "";
@@ -640,7 +642,7 @@ export function CustomersTable({
                   <div className="contact-title">{c.name || "—"}</div>
                   <div className="contact-tags">
                     {hasToken(c) ? <span className="pill pill-ok pill-sm">Tokenizada</span> : <span className="pill pill-bad pill-sm">Sin token</span>}
-                    {hasPlan ? <span className={`pill pill-sm ${kindPillClass}`}>{kindLabel}</span> : <span className="pill pill-muted pill-sm">Sin suscripción</span>}
+                    {hasPlan && kindLabel ? <span className={`pill pill-sm ${kindPillClass}`}>{kindLabel}</span> : <span className="pill pill-muted pill-sm">Sin suscripción</span>}
                     {statusLabel && statusPillClass ? <span className={`pill ${statusPillClass} pill-sm`}>{statusLabel}</span> : null}
                   </div>
                 </div>
@@ -737,7 +739,11 @@ export function CustomersTable({
                     <div>
                       <span>Tipo</span>
                       <div className="contact-plan-row">
-                        <span className={`pill pill-sm ${kindPillClass}`}>{kindLabel}</span>
+                        {hasPlan && kindLabel ? (
+                          <span className={`pill pill-sm ${kindPillClass}`}>{kindLabel}</span>
+                        ) : (
+                          <span className="pill pill-muted pill-sm">—</span>
+                        )}
                       </div>
                     </div>
                     {!hasToken(c) ? (

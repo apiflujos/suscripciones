@@ -31,7 +31,7 @@ import { signPublicToken } from "../../lib/publicTokens";
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
-  if (raw.startsWith("/billing") || raw.startsWith("/customers") || raw.startsWith("/products")) return raw;
+  if (raw.startsWith("/billing") || raw.startsWith("/customers") || raw.startsWith("/products") || raw.startsWith("/payments")) return raw;
   return "/billing";
 }
 
@@ -71,6 +71,7 @@ function humanizeCreateError(raw: string) {
   if (msg.includes("missing_subscription_base_url")) return "Falta configurar URL base de suscripción en Configuración.";
   if (msg.includes("missing_plan_base_url")) return "Falta configurar URL base de plan en Configuración.";
   if (msg.includes("missing_checkout_for_product")) return "No hay un checkout público asociado al producto seleccionado.";
+  if (msg.includes("payment_association_failed")) return "La suscripción se creó, pero no se pudo asociar automáticamente al pago recibido.";
   if (msg.includes("duplicate_subscription_requires_approval")) return "Este cliente ya tiene una suscripción activa/en mora para el mismo producto. Debes confirmar creación duplicada.";
   if (msg.includes("create_plan_failed")) return "No se pudo crear el producto de cobro.";
   if (msg.includes("create_subscription_failed")) return "No se pudo crear la suscripción.";
@@ -688,6 +689,7 @@ export async function createPlanAndSubscription(formData: FormData) {
   const submitAction = submitActionRaw === "LINK_NOW" ? "LINK_NOW" : "CREATE";
   const allowDuplicate = String(formData.get("allowDuplicate") || "").trim() === "1";
   const shippingInCentsInput = pesosToCents(String(formData.get("shippingPesos") || ""));
+  const paymentId = String(formData.get("paymentId") || "").trim();
 
   if ((!customerId && !empresaId && !contactoId) || !productId) {
     return redirect(mergeQuery(returnTo, { error: "missing_contact_or_company_or_product" }));
@@ -944,6 +946,21 @@ export async function createPlanAndSubscription(formData: FormData) {
     if (!sub.ok) throw new Error(sub.error);
     const subscriptionId = String((sub as any)?.subscription?.id || "").trim();
     if (!subscriptionId) throw new Error("create_subscription_failed");
+
+    if (paymentId) {
+      const cookieStore = await cookies();
+      const sessionToken = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+      const session = sessionToken ? await verifyAdminSessionToken(sessionToken) : null;
+      const paymentAssociation = await associatePaymentToSubscription({
+        paymentId,
+        subscriptionId,
+        tenantId: tenantId || undefined,
+        actorEmail: session?.email || undefined
+      });
+      if (!paymentAssociation.ok) {
+        throw new Error(`payment_association_failed:${paymentAssociation.error || "unknown"}`);
+      }
+    }
 
     const checkoutUrl = (sub as any)?.checkoutUrl ? String((sub as any).checkoutUrl) : "";
     const templateExpiryHours = template?.expiryHours ?? null;

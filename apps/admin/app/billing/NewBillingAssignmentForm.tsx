@@ -79,6 +79,8 @@ export function NewBillingAssignmentForm({
   returnTo = "/billing",
   defaultSelectedProductId = "",
   defaultSelectedCustomerId = "",
+  defaultBillingType = "SUBSCRIPCION",
+  defaultExistingPaymentId = "",
   createCustomer,
   createPlanAndSubscription
 }: {
@@ -94,6 +96,8 @@ export function NewBillingAssignmentForm({
   returnTo?: string;
   defaultSelectedProductId?: string;
   defaultSelectedCustomerId?: string;
+  defaultBillingType?: BillingType;
+  defaultExistingPaymentId?: string;
   createCustomer: (formData: FormData) => Promise<void>;
   createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
 }) {
@@ -114,7 +118,7 @@ export function NewBillingAssignmentForm({
   const [selectedCustomerOverride, setSelectedCustomerOverride] = useState<Customer | null>(null);
   const [selectedEmpresaId, setSelectedEmpresaId] = useState("");
 
-  const [billingType, setBillingType] = useState<BillingType>("SUBSCRIPCION");
+  const [billingType, setBillingType] = useState<BillingType>(defaultBillingType === "PLAN" ? "PLAN" : "SUBSCRIPCION");
   const option1Value = "";
   const option2Value = "";
   const [shippingCop, setShippingCop] = useState("");
@@ -148,6 +152,10 @@ export function NewBillingAssignmentForm({
     const found = catalogItems.find((p) => String(p.id) === String(defaultSelectedProductId));
     if (found) setProductQ(String(found.name || ""));
   }, [defaultSelectedProductId, catalogItems, productId]);
+
+  useEffect(() => {
+    setBillingType(defaultBillingType === "PLAN" ? "PLAN" : "SUBSCRIPCION");
+  }, [defaultBillingType]);
 
   const selectedCustomer = useMemo(() => {
     if (!customerId) return null;
@@ -645,6 +653,7 @@ export function NewBillingAssignmentForm({
               <input type="hidden" name="empresaId" value={selectedEmpresaId} />
               <input type="hidden" name="contactoId" value={selectedContactFromEmpresa?.id || ""} />
               <input type="hidden" name="productId" value={productId} />
+              <input type="hidden" name="paymentId" value={defaultExistingPaymentId} />
               <input type="hidden" name="billingType" value={billingType} />
               <input type="hidden" name="allowDuplicate" value={allowDuplicate ? "1" : "0"} />
               {selectedTenantIds.map((id) => (

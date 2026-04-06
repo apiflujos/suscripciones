@@ -17,7 +17,12 @@ import { FilterButton } from "../ui/FilterButton";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { getAdminSettings } from "../admin/_services/settings";
+import { listCustomers } from "../admin/_services/customers";
+import { listCatalogProducts } from "../admin/_services/products";
+import { listEmpresas } from "../admin/_services/companies";
+import { listTenants } from "../admin/_services/tenants";
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
+import { createCustomerFromBilling, createPlanAndSubscription } from "../billing/actions";
 import {
   recollectPayments,
   autoAssociateUnlinkedPayments,
@@ -29,6 +34,7 @@ import {
   retryWebhookById
 } from "../admin/_services/logsActions";
 import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyReference";
+import { PaymentCreateSubscriptionModal } from "./PaymentCreateSubscriptionModal";
 
 export const dynamic = "force-dynamic";
 
@@ -459,6 +465,19 @@ export default async function LogsPage({
       : emptyList;
   const paymentsHealth = tab === "payments" ? await getPaymentsHealth() : null;
   const settingsRes = await getAdminSettings();
+  const paymentCustomerIds =
+    tab === "payments"
+      ? Array.from(new Set((payments.items ?? []).map((item: any) => String(item?.customer?.id || item?.customerId || "").trim()).filter(Boolean)))
+      : [];
+  const [paymentCustomersRes, paymentProductsRes, paymentEmpresasRes, paymentTenantsRes] =
+    tab === "payments"
+      ? await Promise.all([
+          listCustomers({ tenantId: tenantId || undefined, take: Math.max(paymentCustomerIds.length || 0, 1), ids: paymentCustomerIds }),
+          listCatalogProducts({ tenantId: tenantId || undefined, take: 300 }),
+          listEmpresas({ tenantId: tenantId || undefined, take: 200 }),
+          listTenants()
+        ])
+      : [{ items: [] }, { items: [] }, { items: [] }, []];
   const aiConfig = settingsRes?.ai || null;
   const aiProviders = aiConfig?.providers || null;
   const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
@@ -482,6 +501,10 @@ export default async function LogsPage({
   const webhookItems = (webhooks.items ?? []) as any[];
   const messageItems = (messages.items ?? []) as any[];
   const paymentItems = (payments.items ?? []) as any[];
+  const paymentCustomers = ((paymentCustomersRes as any)?.items ?? []) as any[];
+  const paymentProducts = ((paymentProductsRes as any)?.items ?? []) as any[];
+  const paymentEmpresas = ((paymentEmpresasRes as any)?.items ?? []) as any[];
+  const paymentTenants = ((paymentTenantsRes as any) ?? []) as Array<{ id: string; name: string }>;
   const totals = {
     system: typeof system.total === "number" ? system.total : null,
     webhooks: typeof webhooks.total === "number" ? webhooks.total : null,
@@ -1379,6 +1402,23 @@ export default async function LogsPage({
                                 </PendingButton>
                               </form>
                             ) : null}
+                            {!p.subscriptionId && contactId ? (
+                              <PaymentCreateSubscriptionModal
+                                paymentId={String(p.id || "")}
+                                customerId={contactId}
+                                tenantId={String(tenantId || p.tenantId || "")}
+                                origin={String(p.origin || "")}
+                                customerName={String(p.customer?.name || p.subscription?.customer?.name || "")}
+                                customers={paymentCustomers}
+                                empresas={paymentEmpresas}
+                                products={paymentProducts}
+                                csrfToken={csrfToken}
+                                tenants={paymentTenants}
+                                returnTo={returnTo}
+                                createCustomer={createCustomerFromBilling}
+                                createPlanAndSubscription={createPlanAndSubscription}
+                              />
+                            ) : null}
                             {!p.subscriptionId && (contactId || contactQuery) ? (
                               <Link
                                 className="ghost btn-compact btn-noicon"
@@ -1387,7 +1427,7 @@ export default async function LogsPage({
                                   ...(!contactId && contactQuery ? { q: String(contactQuery) } : {})
                                 }).toString()}`}
                               >
-                                Asociar suscripción
+                                Buscar suscripción
                               </Link>
                             ) : null}
                             {!p.subscriptionId ? (
