@@ -547,6 +547,21 @@ export async function createSubscription(args: {
   const defaultPaymentDay = Number(paymentsCfg?.defaultPaymentDay || 1);
   const defaultPaymentTiming = String(paymentsCfg?.defaultPaymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
   const defaultGraceDays = Number(paymentsCfg?.defaultGraceDays || 1);
+  const graceDays = Number.isFinite(defaultGraceDays) ? Math.max(1, Math.min(5, Math.trunc(defaultGraceDays))) : 1;
+  const cycleStartDay = Number.isFinite(defaultCycleStartDay) ? Math.max(1, Math.min(31, Math.trunc(defaultCycleStartDay))) : 1;
+  const paymentDay = Number.isFinite(defaultPaymentDay) ? Math.max(1, Math.min(31, Math.trunc(defaultPaymentDay))) : 1;
+  const paymentTiming = defaultPaymentTiming === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
+
+  const dueAt = computeDueAtForPeriod({
+    periodStartAt: startAt,
+    periodEndAt: periodEnd,
+    cycleStartDay,
+    paymentDay,
+    paymentTiming,
+    intervalUnit: plan.intervalUnit
+  }) || periodEnd;
+  const dueWithGraceAt = new Date(dueAt.getTime() + graceDays * 24 * 60 * 60 * 1000);
+  const initialStatus = dueWithGraceAt.getTime() < Date.now() ? SubscriptionStatus.PAST_DUE : SubscriptionStatus.ACTIVE;
 
   const subscription = await prisma.subscription.create({
     data: {
@@ -555,30 +570,21 @@ export async function createSubscription(args: {
       empresaId: args.empresaId || null,
       contactoId: args.contactoId || null,
       planId: plan.id,
-      status: SubscriptionStatus.PAST_DUE,
+      status: initialStatus,
       startAt,
       currentPeriodStartAt: startAt,
       currentPeriodEndAt: periodEnd,
       currentCycle: 1,
-      cycleStartDay: Number.isFinite(defaultCycleStartDay) ? Math.max(1, Math.min(31, Math.trunc(defaultCycleStartDay))) : 1,
-      paymentDay: Number.isFinite(defaultPaymentDay) ? Math.max(1, Math.min(31, Math.trunc(defaultPaymentDay))) : 1,
-      paymentTiming: defaultPaymentTiming === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",
-      graceDays: Number.isFinite(defaultGraceDays) ? Math.max(1, Math.min(5, Math.trunc(defaultGraceDays))) : 1,
+      cycleStartDay,
+      paymentDay,
+      paymentTiming,
+      graceDays,
       metadata: {
         ...subscriptionMetaBase,
         collectionMode
       } as any
     }
   });
-
-  const dueAt = computeDueAtForPeriod({
-    periodStartAt: startAt,
-    periodEndAt: periodEnd,
-    cycleStartDay: Number.isFinite(defaultCycleStartDay) ? Math.max(1, Math.min(31, Math.trunc(defaultCycleStartDay))) : 1,
-    paymentDay: Number.isFinite(defaultPaymentDay) ? Math.max(1, Math.min(31, Math.trunc(defaultPaymentDay))) : 1,
-    paymentTiming: defaultPaymentTiming,
-    intervalUnit: plan.intervalUnit
-  }) || periodEnd;
 
   if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
     await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: dueAt, maxAttempts: 1 }).catch(() => {});

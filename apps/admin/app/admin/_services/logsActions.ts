@@ -5,7 +5,7 @@ import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, WebhookProcessSt
 import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyReference";
 import { reconcileWompiByReference, reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
-import { attachPaymentToCycle, ensureBillingCyclesForSubscriptions } from "@suscripciones/core/services/billingCycles";
+import { ensureBillingCyclesForSubscriptions } from "@suscripciones/core/services/billingCycles";
 import { getSubscriptionPricingTotal } from "@suscripciones/core/lib/metadataSchemas";
 
 function normalizePhoneDigits(value: unknown): string {
@@ -321,16 +321,6 @@ export async function associatePaymentToSubscription(args: {
     }
   ]).catch(() => {});
 
-  await prisma.payment.update({
-    where: { id: payment.id },
-    data: {
-      subscriptionId: subscription.id,
-      customerId: subscription.customerId,
-      associationReason: "MANUAL_RECONCILE" as any,
-      associatedBy: args.actorEmail ? String(args.actorEmail) : "system"
-    }
-  });
-
   const now = new Date();
   let cycleToAttach = cycle;
   if (!cycleToAttach) {
@@ -377,38 +367,66 @@ export async function associatePaymentToSubscription(args: {
       }
     };
   }
+  const actor = args.actorEmail ? String(args.actorEmail) : "system";
+  await prisma.$transaction(async (tx) => {
+    const existingCycle = await tx.subscriptionBillingCycle.findFirst({
+      where: { paymentId: payment.id }
+    });
+    if (existingCycle && cycleToAttach && existingCycle.id !== cycleToAttach.id) {
+      await tx.subscriptionBillingCycle.update({
+        where: { id: existingCycle.id },
+        data: {
+          status: "PENDING",
+          paidAt: null,
+          paymentId: null,
+          paidOnTime: null,
+          daysEarly: null,
+          daysLate: null,
+          origin: null,
+          associationReason: null,
+          associatedBy: null
+        }
+      });
+    }
 
-  const existingCycle = await prisma.subscriptionBillingCycle.findFirst({
-    where: { paymentId: payment.id }
-  });
-  if (existingCycle && cycleToAttach && existingCycle.id !== cycleToAttach.id) {
-    await prisma.subscriptionBillingCycle.update({
-      where: { id: existingCycle.id },
+    const cycleNumber = cycleToAttach?.cycleNumber ?? payment.cycleNumber ?? subscription.currentCycle;
+    await tx.payment.update({
+      where: { id: payment.id },
       data: {
-        status: "PENDING",
-        paidAt: null,
-        paymentId: null,
-        paidOnTime: null,
-        daysEarly: null,
-        daysLate: null,
-        origin: null,
-        associationReason: null,
-        associatedBy: null
+        subscriptionId: subscription.id,
+        customerId: subscription.customerId,
+        cycleNumber,
+        subscriptionCycleKey: cycleNumber ? `${subscription.id}:${cycleNumber}` : payment.subscriptionCycleKey,
+        associationReason: "MANUAL_RECONCILE" as any,
+        associatedBy: actor
       }
-    }).catch(() => {});
-  }
+    });
 
-  if (cycleToAttach) {
-    await attachPaymentToCycle({
-      paymentId: payment.id,
-      subscriptionId: subscription.id,
-      cycleId: cycleToAttach.id,
-      paymentAt,
-      origin: payment.origin,
-      associationReason: "MANUAL_RECONCILE",
-      associatedBy: args.actorEmail ? String(args.actorEmail) : "system"
-    }).catch(() => {});
-  }
+    if (cycleToAttach) {
+      const dueAt = cycleToAttach.dueAt || cycleToAttach.periodEndAt;
+      const graceDays = Number.isFinite(subscription.graceDays as any) ? Math.max(0, Number(subscription.graceDays || 0)) : 0;
+      const dueWithGrace = new Date(dueAt.getTime() + graceDays * 24 * 60 * 60 * 1000);
+      const msDiff = paymentAt.getTime() - dueWithGrace.getTime();
+      const daysLate = msDiff > 0 ? Math.ceil(msDiff / (24 * 60 * 60 * 1000)) : 0;
+      const daysEarly = msDiff < 0 ? Math.ceil(Math.abs(msDiff) / (24 * 60 * 60 * 1000)) : 0;
+      const paidOnTime = msDiff <= 0;
+
+      await tx.subscriptionBillingCycle.update({
+        where: { id: cycleToAttach.id },
+        data: {
+          paymentId: payment.id,
+          paidAt: paymentAt,
+          status: "PAID",
+          paidOnTime,
+          daysEarly,
+          daysLate,
+          origin: payment.origin,
+          associationReason: "MANUAL_RECONCILE",
+          associatedBy: actor
+        }
+      });
+    }
+  });
 
   await systemLog(
     LogLevel.INFO,
