@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
+import { AppModal } from "../ui/AppModal";
 
 type CustomerRow = {
   id: string;
@@ -99,14 +100,22 @@ export function CustomerEditModal({
   if (!open || !customer) return null;
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-panel customer-edit-modal" style={{ width: "min(900px, 96vw)" }}>
-        <div className="panel-header" style={{ justifyContent: "space-between" }}>
-          <h3 style={{ margin: 0 }}>Editar contacto</h3>
-          <button type="button" className="ghost modal-close" onClick={onClose} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
-        </div>
-
-        <div className="modal-body" style={{ display: "grid", gap: 16 }}>
+    <AppModal
+      open={open}
+      onClose={onClose}
+      title="Editar contacto"
+      width="min(900px, 96vw)"
+      panelClassName="customer-edit-modal"
+      footer={
+        <>
+          <button className="ghost btn-compact" type="button" onClick={onClose}>Cancelar</button>
+          <PendingButton className="primary btn-compact" type="button" pendingText="Guardando..." onClick={handleSave} disabled={saving}>
+            Guardar cambios
+          </PendingButton>
+        </>
+      }
+    >
+      <div style={{ display: "grid", gap: 16 }}>
           {/* 1. Información básica */}
           <section className="card cardPad" style={{ padding: "12px" }}>
             <h4 style={{ margin: "0 0 12px 0", fontSize: 13, fontWeight: 600 }}>Información básica</h4>
@@ -264,16 +273,7 @@ export function CustomerEditModal({
               )}
             </div>
           </section>
-
-          {/* Acciones */}
-          <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <button className="ghost btn-compact" type="button" onClick={onClose}>Cancelar</button>
-            <PendingButton className="primary btn-compact" type="button" pendingText="Guardando..." onClick={handleSave}>
-              Guardar cambios
-            </PendingButton>
-          </div>
-        </div>
       </div>
-    </div>
+    </AppModal>
   );
 }

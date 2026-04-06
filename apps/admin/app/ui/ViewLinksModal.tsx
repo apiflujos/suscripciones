@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CopyButton } from "../ui/CopyButton";
+import { AppModal } from "./AppModal";
 
 type LinkItem = {
   label: string;
@@ -24,14 +25,15 @@ export function ViewLinksModal({
   if (!links.length) return null;
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-panel" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
-        <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0 }}>Links generados</h3>
-          <button type="button" className="ghost modal-close" onClick={onClose} data-loader="off">X</button>
-        </div>
-
-        <div style={{ display: "grid", gap: 12, padding: "16px 0" }}>
+    <AppModal
+      open={links.length > 0}
+      onClose={onClose}
+      title="Links generados"
+      maxWidth={420}
+      closeLabel="Cerrar modal de links"
+      footer={<button className="primary btn-compact btn-noicon" type="button" onClick={onClose}>Cerrar</button>}
+    >
+      <div style={{ display: "grid", gap: 12, padding: "16px 0" }}>
           {links.map((link, idx) => (
             <div key={idx} style={{ display: "grid", gap: 8 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
@@ -92,12 +94,7 @@ export function ViewLinksModal({
               )}
             </div>
           ))}
-        </div>
-
-        <div className="module-footer" style={{ justifyContent: "flex-end" }}>
-          <button className="primary btn-compact btn-noicon" type="button" onClick={onClose}>Cerrar</button>
-        </div>
       </div>
-    </div>
+    </AppModal>
   );
 }

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@suscripciones/database";
+import { listEmpresas } from "./companies";
 import { searchActiveProducts } from "./products";
 
 function normalize(input: unknown) {
@@ -16,7 +17,6 @@ export async function searchProducts(args: { q: string; take: number; tenantId?:
 export async function searchCustomers(args: { q: string; take: number; tenantId?: string | null }) {
   const q = normalize(args.q);
   const take = Number.isFinite(args.take) ? Math.min(Math.max(Math.trunc(args.take), 1), 200) : 50;
-  if (!q) return [];
 
   const digits = q.replace(/[^\d]/g, "");
   const where: any = {};
@@ -27,17 +27,19 @@ export async function searchCustomers(args: { q: string; take: number; tenantId?
     { name: { contains: q, mode: "insensitive" } },
     { email: { contains: q, mode: "insensitive" } }
   ];
-  if (digits.length >= 4) {
-    or.push({ phone: { contains: digits } });
-  } else {
-    or.push({ phone: { contains: q, mode: "insensitive" } });
+  if (q) {
+    if (digits.length >= 4) {
+      or.push({ phone: { contains: digits } });
+    } else {
+      or.push({ phone: { contains: q, mode: "insensitive" } });
+    }
+    or.push({ metadata: { path: ["identificacion"], string_contains: q } } as any);
+    or.push({ metadata: { path: ["identificacionNumero"], string_contains: q } } as any);
+    or.push({ metadata: { path: ["identificationNumber"], string_contains: q } } as any);
+    or.push({ metadata: { path: ["documentNumber"], string_contains: q } } as any);
+    or.push({ metadata: { path: ["document"], string_contains: q } } as any);
+    where.OR = or;
   }
-  or.push({ metadata: { path: ["identificacion"], string_contains: q } } as any);
-  or.push({ metadata: { path: ["identificacionNumero"], string_contains: q } } as any);
-  or.push({ metadata: { path: ["identificationNumber"], string_contains: q } } as any);
-  or.push({ metadata: { path: ["documentNumber"], string_contains: q } } as any);
-  or.push({ metadata: { path: ["document"], string_contains: q } } as any);
-  where.OR = or;
 
   const items = await prisma.customer.findMany({
     where,
@@ -53,6 +55,21 @@ export async function searchCustomers(args: { q: string; take: number; tenantId?
     metadata: c.metadata,
     tenantId: c.tenantId || null,
     tenantIds: Array.from(new Set([c.tenantId, ...(c.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean)))
+  }));
+}
+
+export async function searchEmpresas(args: { q: string; take: number; tenantId?: string | null }) {
+  const q = normalize(args.q);
+  const take = Number.isFinite(args.take) ? Math.min(Math.max(Math.trunc(args.take), 1), 200) : 50;
+  const result = await listEmpresas({ q, take, tenantId: args.tenantId || null });
+  return (result.items || []).map((e: any) => ({
+    id: e.id,
+    nombre: e.nombre,
+    email: e.email,
+    telefono: e.telefono,
+    direccion: e.direccion,
+    sitioWeb: e.sitioWeb,
+    contactoPrincipalId: e.contactoPrincipalId || null
   }));
 }
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { requireApiSession } from "../../_lib/requireApiSession";
-import { listContactos } from "../../../admin/_services/companies";
+import { searchEmpresas } from "../../../admin/_services/search";
 
 export async function GET(req: NextRequest) {
   const auth = await requireApiSession(req);
@@ -13,15 +13,7 @@ export async function GET(req: NextRequest) {
   const takeRaw = Number(url.searchParams.get("take") || 50);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 200) : 50;
 
-  const res = await listContactos({ q, take, tenantId: tenantId || auth.session.tenantId || null });
-  const items = (res.items || []).map((c: any) => ({
-    id: c.id,
-    nombre: c.nombre,
-    cargo: c.cargo,
-    email: c.email,
-    telefono: c.telefono,
-    empresaId: c.empresaId,
-    empresaNombre: c.empresa?.nombre || null
-  }));
+  const effectiveTenantId = tenantId || (auth.session.role === "SUPER_ADMIN" ? null : auth.session.tenantId || null);
+  const items = await searchEmpresas({ q, take, tenantId: effectiveTenantId });
   return NextResponse.json({ items });
 }

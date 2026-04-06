@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
+import { AppModal } from "../ui/AppModal";
 
 export function ReconcilePaymentModal({
   csrfToken,
@@ -23,22 +24,8 @@ export function ReconcilePaymentModal({
       </button>
 
       {open ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ width: "min(520px, 96vw)" }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0 }}>Reconciliar pago Wompi</h3>
-              <button
-                type="button"
-                className="ghost modal-close"
-                onClick={() => setOpen(false)}
-                aria-label="Cerrar"
-                data-modal-close="true"
-                data-loader="off"
-              >
-                X
-              </button>
-            </div>
-
+        <AppModal open={open} onClose={() => setOpen(false)} title="Reconciliar pago Wompi" width="min(520px, 96vw)">
+          <>
             <form action={action} style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
@@ -86,8 +73,8 @@ export function ReconcilePaymentModal({
                 </PendingButton>
               </div>
             </form>
-          </div>
-        </div>
+          </>
+        </AppModal>
       ) : null}
     </>
   );

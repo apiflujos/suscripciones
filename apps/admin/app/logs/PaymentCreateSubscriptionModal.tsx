@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
+import { AppModal } from "../ui/AppModal";
 
 type BillingType = "PLAN" | "SUBSCRIPCION";
 
@@ -51,14 +52,8 @@ export function PaymentCreateSubscriptionModal({
         Crear suscripción
       </button>
       {open ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 980 }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-              <strong>Crear suscripción para asociar pago</strong>
-              <button className="ghost modal-close" type="button" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
+        <AppModal open={open} onClose={() => setOpen(false)} title="Crear suscripción para asociar pago" maxWidth={980}>
+          <>
             <div className="field-hint" style={{ marginBottom: 12 }}>
               {customerName ? `El pago se asociará al contacto ${customerName}.` : "El pago recibido se asociará automáticamente a la suscripción creada."}
             </div>
@@ -79,8 +74,8 @@ export function PaymentCreateSubscriptionModal({
               createCustomer={createCustomer}
               createPlanAndSubscription={createPlanAndSubscription}
             />
-          </div>
-        </div>
+          </>
+        </AppModal>
       ) : null}
     </>
   );

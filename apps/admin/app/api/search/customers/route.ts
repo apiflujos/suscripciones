@@ -13,8 +13,6 @@ export async function GET(req: NextRequest) {
   const takeRaw = Number(url.searchParams.get("take") || 50);
   const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 200) : 50;
 
-  if (!q) return NextResponse.json({ items: [] });
-
   const effectiveTenantId = tenantId || (auth.session.role === "SUPER_ADMIN" ? null : auth.session.tenantId || null);
   const items = await searchCustomers({ q, take, tenantId: effectiveTenantId });
   return NextResponse.json({ items });

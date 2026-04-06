@@ -74,16 +74,13 @@ export function EmpresaForm({
 
   useEffect(() => {
     const q = search.trim();
-    if (q.length < 2) {
-      setSearchResults([]);
-      setSearchError(null);
-      return;
-    }
     let cancelled = false;
     setSearching(true);
     setSearchError(null);
     const timer = setTimeout(() => {
-      const params = new URLSearchParams({ q });
+      const params = new URLSearchParams();
+      if (q) params.set("q", q);
+      params.set("take", q ? "50" : "12");
       if (tenantId) params.set("tenantId", tenantId);
       fetch(`/api/search/contactos?${params.toString()}`)
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error("search_failed"))))
@@ -218,7 +215,7 @@ export function EmpresaForm({
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Nombre, email, teléfono o cargo..."
             />
-            <div className="field-hint">Escribe 2+ caracteres para buscar en el tenant.</div>
+            <div className="field-hint">{search.trim() ? "Busca por nombre, email, teléfono o cargo." : "Mostrando contactos recientes del tenant."}</div>
           </div>
           {searching ? <div className="field-hint">Buscando...</div> : null}
           {searchError ? <div className="field-hint" style={{ color: "var(--bad)" }}>{searchError}</div> : null}
