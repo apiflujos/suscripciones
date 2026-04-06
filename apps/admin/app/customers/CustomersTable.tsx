@@ -961,13 +961,13 @@ export function CustomersTable({
                   </div>
                 ) : null}
                 {missingCheckout ? (
-                  <div className="field-hint" style={{ color: "var(--danger)" }}>
-                    No hay checkout público para ese producto.
+                  <div className="field-hint" style={{ color: "var(--status-warning)" }}>
+                    No hay checkout público para ese producto. Se enviará el checkout interno de pago.
                   </div>
                 ) : null}
                 {missingPublicBase ? (
-                  <div className="field-hint" style={{ color: "var(--danger)" }}>
-                    Falta configurar la URL base de checkout público.
+                  <div className="field-hint" style={{ color: "var(--status-warning)" }}>
+                    Falta configurar la URL base de checkout público. Se enviará el checkout interno de pago.
                   </div>
                 ) : null}
               </div>
@@ -1016,9 +1016,7 @@ export function CustomersTable({
                     isSending ||
                     !payAmount ||
                     !canSendPay ||
-                    missingProduct ||
-                    missingCheckout ||
-                    missingPublicBase
+                    missingProduct
                   }
                 >
                   {isSending ? "Enviando..." : "Enviar"}
@@ -1189,13 +1187,7 @@ export function CustomersTable({
                 <button
                   className="primary btn-compact btn-send"
                   type="submit"
-                  disabled={
-                    isSending ||
-                    missingPublicBase ||
-                    !canSendNotif ||
-                    missingProduct ||
-                    missingCheckout
-                  }
+                  disabled={isSending}
                 >
                   {isSending ? "Enviando..." : "Enviar"}
                 </button>
@@ -1357,13 +1349,7 @@ export function CustomersTable({
                 <button
                   className="primary btn-compact btn-send"
                   type="submit"
-                  disabled={
-                    isSending ||
-                    missingSubBase ||
-                    !canSendNotif ||
-                    missingProduct ||
-                    missingCheckout
-                  }
+                  disabled={isSending}
                 >
                   {isSending ? "Enviando..." : "Enviar"}
                 </button>

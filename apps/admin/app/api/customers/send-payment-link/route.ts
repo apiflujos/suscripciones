@@ -83,22 +83,17 @@ export async function POST(req: Request) {
     const expiryHours = Number(checkoutConfig?.tokenExpiryHours || 24);
     const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
     const baseFromSettings = String(checkoutConfig?.planBaseUrl || "").trim();
-    if (baseFromSettings) {
-      let templateName: string | null = null;
-      const selected = await findCheckoutTemplateForProduct({ tenantId: tenantId || null, kind: "PLAN" as any, productId });
-      resolvedTemplateId = selected ? String((selected as any).id || "") : "";
-      templateName = selected ? String((selected as any).name || "") : null;
+    const selected = await findCheckoutTemplateForProduct({ tenantId: tenantId || null, kind: "PLAN" as any, productId });
+    resolvedTemplateId = selected ? String((selected as any).id || "") : "";
+    const templateName = selected ? String((selected as any).name || "") : null;
 
+    if (baseFromSettings && resolvedTemplateId) {
       const tokenValue = await signPublicToken({ sub: customerId, scope: "payment", ttlSeconds: hours * 60 * 60 });
       const normalized = baseFromSettings.replace(/\/$/, "");
       const hasPlanPath = /\/public\/plan$/i.test(normalized);
       const baseUrl = `${normalized}${hasPlanPath ? "" : "/public/plan"}/${tokenValue}`;
       const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
       publicUrl = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
-
-      if (!resolvedTemplateId) {
-        return NextResponse.json({ ok: false, error: "missing_checkout_for_product" }, { status: 400 });
-      }
 
       const customer = await getCustomerById(customerId);
       if (!customer) return NextResponse.json({ ok: false, error: "customer_not_found" }, { status: 404 });
@@ -129,6 +124,8 @@ export async function POST(req: Request) {
     ok: true,
     checkoutUrl: checkoutUrl || null,
     publicUrl,
+    hasPublicCheckout: Boolean(publicUrl),
+    checkoutTemplateId: resolvedTemplateId || null,
     notificationsScheduled: typeof orderResult.notificationsScheduled === "number" ? orderResult.notificationsScheduled : null,
     notificationsSent: typeof orderResult.notificationsSent === "number" ? orderResult.notificationsSent : null,
     notificationsRulesActive: rulesActive,
