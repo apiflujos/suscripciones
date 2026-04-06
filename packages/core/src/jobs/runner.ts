@@ -24,6 +24,7 @@ import { computeBillingCycleDueAt } from "../services/billingCycles";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
+const workerHeartbeatKey = String(process.env.JOBS_HEARTBEAT_KEY || "wompi-subs-jobs").trim() || "wompi-subs-jobs";
 let lastShopifyForwardRetryAt = 0;
 let lastHeartbeatAtMs = 0;
 
@@ -216,11 +217,20 @@ async function ensureJobsHeartbeat() {
   if (now - lastHeartbeatAtMs < 60_000) return;
   lastHeartbeatAtMs = now;
 
-  await prisma.serviceHeartbeat.upsert({
-    where: { key: workerId },
-    create: { key: workerId, lastSeenAt: new Date(), meta: { type: "jobs_runner" } },
-    update: { lastSeenAt: new Date(), meta: { type: "jobs_runner" } }
-  }).catch(() => {});
+  const heartbeatAt = new Date();
+  const meta = { type: "jobs_runner", pid: process.pid };
+  await Promise.all([
+    prisma.serviceHeartbeat.upsert({
+      where: { key: workerId },
+      create: { key: workerId, lastSeenAt: heartbeatAt, meta },
+      update: { lastSeenAt: heartbeatAt, meta }
+    }),
+    prisma.serviceHeartbeat.upsert({
+      where: { key: workerHeartbeatKey },
+      create: { key: workerHeartbeatKey, lastSeenAt: heartbeatAt, meta },
+      update: { lastSeenAt: heartbeatAt, meta }
+    })
+  ]).catch(() => {});
 }
 
 async function ensurePendingPaymentsAutoReconcile() {

@@ -824,8 +824,12 @@ export async function getJobsHealth() {
   const key = String(process.env.JOBS_HEARTBEAT_KEY || "wompi-subs-jobs").trim() || "wompi-subs-jobs";
   const ttlSecondsRaw = Number(process.env.JOBS_HEALTH_TTL_SECONDS || 180);
   const ttlSeconds = Number.isFinite(ttlSecondsRaw) ? Math.max(30, Math.trunc(ttlSecondsRaw)) : 180;
-  const [heartbeat, pendingCount, runningCount, failedCount, nextJob] = await Promise.all([
+  const [heartbeat, latestWorkerHeartbeat, pendingCount, runningCount, failedCount, nextJob] = await Promise.all([
     prisma.serviceHeartbeat.findUnique({ where: { key } }),
+    prisma.serviceHeartbeat.findFirst({
+      where: { key: { startsWith: "jobs:" } },
+      orderBy: { lastSeenAt: "desc" }
+    }),
     prisma.retryJob.count({ where: { status: RetryJobStatus.PENDING } }),
     prisma.retryJob.count({ where: { status: RetryJobStatus.RUNNING } }),
     prisma.retryJob.count({ where: { status: RetryJobStatus.FAILED } }),
@@ -835,8 +839,9 @@ export async function getJobsHealth() {
       select: { type: true, runAt: true }
     })
   ]);
+  const effectiveHeartbeat = heartbeat || latestWorkerHeartbeat || null;
   const now = new Date();
-  const lastSeenAt = heartbeat?.lastSeenAt || null;
+  const lastSeenAt = effectiveHeartbeat?.lastSeenAt || null;
   const ageMs = lastSeenAt ? now.getTime() - lastSeenAt.getTime() : null;
   const healthy = lastSeenAt ? ageMs != null && ageMs <= ttlSeconds * 1000 : false;
   const stalled = !healthy && (pendingCount > 0 || runningCount > 0 || failedCount > 0);
@@ -856,7 +861,12 @@ export async function getJobsHealth() {
     failed: failedCount,
     nextJobType: nextJob?.type || null,
     nextJobAt,
-    workerType: typeof heartbeat?.meta === "object" && heartbeat?.meta && "type" in (heartbeat.meta as any) ? String((heartbeat.meta as any).type || "") || null : null
+    workerType:
+      typeof effectiveHeartbeat?.meta === "object" && effectiveHeartbeat?.meta && "type" in (effectiveHeartbeat.meta as any)
+        ? String((effectiveHeartbeat.meta as any).type || "") || null
+        : null,
+    heartbeatSource: heartbeat ? "stable" : latestWorkerHeartbeat ? "dynamic" : null,
+    heartbeatKey: effectiveHeartbeat?.key || null
   };
 }
 
