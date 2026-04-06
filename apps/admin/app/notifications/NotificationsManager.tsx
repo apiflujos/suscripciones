@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
+import { AppModal } from "../ui/AppModal";
 
 type Env = "PRODUCTION" | "SANDBOX";
 
@@ -344,12 +345,7 @@ export function NotificationsManager({
       </section>
 
       {editingTemplate ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 720 }}>
-            <div className="panel-header">
-              <h3 style={{ margin: 0 }}>Editar plantilla</h3>
-              <button type="button" className="ghost modal-close" onClick={closeModals} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
-            </div>
+        <AppModal open={Boolean(editingTemplate)} onClose={closeModals} title="Editar plantilla" maxWidth={720}>
             <form action={actions.updateTemplate} className="panel module" style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="environment" value={env} />
@@ -457,17 +453,11 @@ export function NotificationsManager({
                 </PendingButton>
               </div>
             </form>
-          </div>
-        </div>
+        </AppModal>
       ) : null}
 
       {editingRule ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 760 }}>
-            <div className="panel-header">
-              <h3 style={{ margin: 0 }}>Editar regla</h3>
-              <button type="button" className="ghost modal-close" onClick={closeModals} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
-            </div>
+        <AppModal open={Boolean(editingRule)} onClose={closeModals} title="Editar regla" maxWidth={760}>
             <form action={actions.updateRule} className="panel module" style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="environment" value={env} />
@@ -588,8 +578,7 @@ export function NotificationsManager({
                 </PendingButton>
               </div>
             </form>
-          </div>
-        </div>
+        </AppModal>
       ) : null}
     </>
   );

@@ -2,6 +2,7 @@ import { WebhookProvider } from "@prisma/client";
 import { CopyButton } from "../ui/CopyButton";
 import { generateWebhookSecret } from "@suscripciones/core/services/webhookSecrets";
 import { PendingButton } from "../ui/PendingButton";
+import { AppModal } from "../ui/AppModal";
 
 type WebhookEndpointRow = {
   id: string;
@@ -338,12 +339,14 @@ export function WebhooksPanel({
       </div>
 
       {isNew ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel modal-panel-fixed">
-            <div className="panel-header">
-              <h3 style={{ margin: 0 }}>Nuevo webhook</h3>
-              <a className="ghost modal-close" href="/settings?tab=integraciones" aria-label="Cerrar" data-modal-close="true">X</a>
-            </div>
+        <AppModal
+          open={isNew}
+          onClose={() => {}}
+          title="Nuevo webhook"
+          panelClassName="modal-panel-fixed"
+          headerActions={<a className="ghost btn-compact" href="/settings?tab=integraciones" data-loader="off">Volver</a>}
+          closeOnBackdrop={false}
+        >
             <div className="modal-body">
               <form action={actions.createWebhookEndpointAction} className="panel module" style={{ display: "grid", gap: 10 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
@@ -378,17 +381,18 @@ export function WebhooksPanel({
                 </div>
               </form>
             </div>
-          </div>
-        </div>
+        </AppModal>
       ) : null}
 
       {openEndpoint ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel modal-panel-fixed">
-            <div className="panel-header">
-              <h3 style={{ margin: 0 }}>Editar webhook</h3>
-              <a className="ghost modal-close" href="/settings?tab=integraciones" aria-label="Cerrar" data-modal-close="true">X</a>
-            </div>
+        <AppModal
+          open={Boolean(openEndpoint)}
+          onClose={() => {}}
+          title="Editar webhook"
+          panelClassName="modal-panel-fixed"
+          headerActions={<a className="ghost btn-compact" href="/settings?tab=integraciones" data-loader="off">Volver</a>}
+          closeOnBackdrop={false}
+        >
             <div className="modal-body">
               <form action={actions.updateWebhookEndpointAction} className="panel module" style={{ display: "grid", gap: 10 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
@@ -444,8 +448,7 @@ export function WebhooksPanel({
                 <PendingButton className="ghost btn-compact" type="submit" pendingText="Eliminando...">Eliminar</PendingButton>
               </form>
             </div>
-          </div>
-        </div>
+        </AppModal>
       ) : null}
     </section>
   );
