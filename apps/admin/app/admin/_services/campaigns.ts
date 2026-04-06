@@ -2,6 +2,8 @@ import "server-only";
 
 import { z } from "zod";
 import { prisma } from "@suscripciones/database";
+import { LogLevel, RetryJobStatus, RetryJobType } from "@prisma/client";
+import { systemLog } from "@suscripciones/core/services/systemLog";
 
 const campaignCreateSchema = z.object({
   name: z.string().min(1),
@@ -111,6 +113,17 @@ export async function runCampaign(id: string) {
   const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
   if (!campaign) return { ok: false as const, status: 404, error: "not_found" as const };
 
+  const existingJob = await prisma.retryJob.findFirst({
+    where: {
+      type: RetryJobType.SEND_CAMPAIGN,
+      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
+      payload: { path: ["campaignId"], equals: campaignId } as any
+    }
+  });
+  if (existingJob) {
+    return { ok: true as const, queued: false };
+  }
+
   await prisma.campaign.update({
     where: { id: campaignId },
     data: { status: "RUNNING", startedAt: campaign.startedAt ?? new Date(), lastError: null }
@@ -123,5 +136,10 @@ export async function runCampaign(id: string) {
     }
   });
 
-  return { ok: true as const };
+  await systemLog(LogLevel.INFO, "campaigns.run", "Campaña encolada", {
+    campaignId,
+    tenantId: campaign.tenantId
+  }).catch(() => {});
+
+  return { ok: true as const, queued: true };
 }
