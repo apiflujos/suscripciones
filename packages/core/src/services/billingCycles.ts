@@ -216,6 +216,64 @@ export async function attachPaymentToCycle(args: {
   return { ok: true as const };
 }
 
+export function findBestBillingCycleForPayment(args: {
+  cycles: Array<{
+    id: string;
+    cycleNumber: number;
+    periodStartAt: Date;
+    periodEndAt: Date;
+    dueAt: Date;
+    paymentId?: string | null;
+    status?: BillingCycleStatus | string | null;
+  }>;
+  paymentAt: Date;
+  cycleNumberHint?: number | null;
+  toleranceDays?: number;
+}) {
+  const toleranceDays = Number.isFinite(args.toleranceDays) ? Math.max(0, Math.trunc(args.toleranceDays!)) : 7;
+  const toleranceMs = toleranceDays * 24 * 60 * 60 * 1000;
+  const paymentTs = args.paymentAt.getTime();
+  const unpaidCycles = args.cycles
+    .filter((cycle) => !cycle.paymentId && String(cycle.status || "").toUpperCase() !== "PAID")
+    .map((cycle) => ({
+      ...cycle,
+      periodStartMs: new Date(cycle.periodStartAt).getTime(),
+      periodEndMs: new Date(cycle.periodEndAt).getTime(),
+      dueAtMs: new Date(cycle.dueAt || cycle.periodEndAt).getTime()
+    }));
+
+  if (!unpaidCycles.length) return null;
+
+  if (args.cycleNumberHint != null) {
+    const direct = unpaidCycles.find((cycle) => cycle.cycleNumber === args.cycleNumberHint);
+    if (direct) return direct;
+  }
+
+  const overdue = unpaidCycles.filter((cycle) => cycle.dueAtMs <= paymentTs);
+  if (overdue.length) {
+    overdue.sort((a, b) => a.dueAtMs - b.dueAtMs || a.cycleNumber - b.cycleNumber);
+    return overdue[0];
+  }
+
+  const withinWindow = unpaidCycles.filter((cycle) => {
+    const start = cycle.periodStartMs - toleranceMs;
+    const end = cycle.periodEndMs + toleranceMs;
+    return paymentTs >= start && paymentTs <= end;
+  });
+  if (withinWindow.length) {
+    withinWindow.sort((a, b) => a.dueAtMs - b.dueAtMs || a.cycleNumber - b.cycleNumber);
+    return withinWindow[0];
+  }
+
+  const nearestFuture = unpaidCycles
+    .filter((cycle) => cycle.dueAtMs > paymentTs)
+    .sort((a, b) => a.dueAtMs - b.dueAtMs || a.cycleNumber - b.cycleNumber);
+  if (nearestFuture.length) return nearestFuture[0];
+
+  unpaidCycles.sort((a, b) => a.dueAtMs - b.dueAtMs || a.cycleNumber - b.cycleNumber);
+  return unpaidCycles[0];
+}
+
 export async function attachPaymentToMatchingCycle(args: {
   subscriptionId: string;
   paymentId: string;
@@ -246,18 +304,19 @@ export async function attachPaymentToMatchingCycle(args: {
   ]).catch(() => {});
 
   const toleranceDays = Number.isFinite(args.toleranceDays) ? Math.max(0, Math.trunc(args.toleranceDays!)) : 7;
-  const toleranceMs = toleranceDays * 24 * 60 * 60 * 1000;
-  const paymentAt = args.paymentAt;
 
   const cycles = await prisma.subscriptionBillingCycle.findMany({
-    where: { subscriptionId: subscription.id },
-    orderBy: { periodStartAt: "desc" }
+    where: {
+      subscriptionId: subscription.id,
+      paymentId: null,
+      status: { not: BillingCycleStatus.PAID }
+    },
+    orderBy: [{ dueAt: "asc" }, { cycleNumber: "asc" }]
   });
-  const match = cycles.find((c) => {
-    const start = new Date(c.periodStartAt).getTime() - toleranceMs;
-    const end = new Date(c.periodEndAt).getTime() + toleranceMs;
-    const ts = paymentAt.getTime();
-    return ts >= start && ts <= end;
+  const match = findBestBillingCycleForPayment({
+    cycles,
+    paymentAt: args.paymentAt,
+    toleranceDays
   });
   if (!match) return { ok: false as const, error: "cycle_not_found" as const };
 
@@ -265,7 +324,7 @@ export async function attachPaymentToMatchingCycle(args: {
     paymentId: args.paymentId,
     subscriptionId: subscription.id,
     cycleId: match.id,
-    paymentAt,
+    paymentAt: args.paymentAt,
     origin: args.origin,
     associationReason: args.associationReason,
     associatedBy: args.associatedBy

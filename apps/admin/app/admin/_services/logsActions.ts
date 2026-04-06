@@ -5,7 +5,7 @@ import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, WebhookProcessSt
 import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyReference";
 import { reconcileWompiByReference, reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
-import { ensureBillingCyclesForSubscriptions } from "@suscripciones/core/services/billingCycles";
+import { ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment } from "@suscripciones/core/services/billingCycles";
 import { getSubscriptionPricingTotal } from "@suscripciones/core/lib/metadataSchemas";
 
 function normalizePhoneDigits(value: unknown): string {
@@ -507,30 +507,20 @@ export async function autoAssociateUnlinkedPayments(args: {
       const refClass = reference ? classifyReference(reference) : null;
 
       const resolveMatchCycle = async (subscriptionId: string, cycleNumber?: number | null) => {
-        if (cycleNumber != null) {
-          const direct = await prisma.subscriptionBillingCycle.findUnique({
-            where: { subscriptionId_cycleNumber: { subscriptionId, cycleNumber } }
-          });
-          if (direct && !direct.paymentId && direct.status !== "PAID") return direct;
-        }
-        const toleranceDays = 7;
-        const toleranceMs = toleranceDays * 24 * 60 * 60 * 1000;
         const cycles = await prisma.subscriptionBillingCycle.findMany({
           where: {
             subscriptionId,
             paymentId: null,
             status: { not: "PAID" }
           },
-          orderBy: [{ periodStartAt: "desc" }, { cycleNumber: "desc" }]
+          orderBy: [{ dueAt: "asc" }, { cycleNumber: "asc" }]
         });
-        return (
-          cycles.find((c) => {
-            const start = new Date(c.periodStartAt).getTime() - toleranceMs;
-            const end = new Date(c.periodEndAt).getTime() + toleranceMs;
-            const ts = paymentAt.getTime();
-            return ts >= start && ts <= end;
-          }) || null
-        );
+        return findBestBillingCycleForPayment({
+          cycles,
+          paymentAt,
+          cycleNumberHint: cycleNumber ?? null,
+          toleranceDays: 7
+        });
       };
 
       if (refClass && refClass.kind === "subscription" && refClass.subscriptionId) {
