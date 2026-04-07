@@ -940,7 +940,9 @@ export async function markSubscriptionPaidManual(args: {
         intervalCount: subscription.plan.intervalCount
       }
     }
-  ]).catch(() => {});
+  ]).catch((err: any) => {
+    logger.warn({ err, subscriptionId }, "Fallo asegurando ciclos de facturacion antes de marcar pago manual");
+  });
 
   const targetCycle =
     (await prisma.subscriptionBillingCycle.findFirst({
@@ -1031,7 +1033,9 @@ export async function markSubscriptionPaidManual(args: {
         origin: "MANUAL_USER" as any,
         associationReason: "MANUAL_RECONCILE",
         associatedBy: args.actor || "system"
-      }).catch(() => {});
+      }).catch((err: any) => {
+        logger.warn({ err, subscriptionId: subscription.id, paymentId, cycleId: targetCycle.id }, "Fallo asociando pago manual al ciclo");
+      });
     }
 
     if (cycleNumber === (subscription.currentCycle ?? 1)) {
@@ -1455,7 +1459,9 @@ export async function updateSubscriptionBillingSettings(args: {
     paymentDay: updated.paymentDay,
     paymentTiming: updated.paymentTiming,
     graceDays: updated.graceDays
-  }, args.actor || "Sistema").catch(() => {});
+  }, args.actor || "Sistema").catch((err: any) => {
+    logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al actualizar reglas de ciclo");
+  });
 
   return { ok: true as const };
 }
@@ -1550,7 +1556,9 @@ export async function changeSubscriptionPlan(args: {
     } as any
   });
 
-  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err: any) => {
+    logger.warn({ err, subscriptionId: subscription.id }, "Fallo reprogramando notificaciones al cambiar plan");
+  });
 
   const updatedMode = resolveSubscriptionCollectionMode({ metadata: nextSubscriptionMetadata, plan });
   if (updatedMode === "AUTO_LINK" || updatedMode === "AUTO_DEBIT") {
@@ -1558,7 +1566,9 @@ export async function changeSubscriptionPlan(args: {
       subscriptionId,
       runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
       maxAttempts: 1
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, subscriptionId, runAt: cutoffAt }, "Fallo reprogramando retry al cambiar plan");
+    });
   }
 
   return { ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString(), scheduled: true };
@@ -1586,7 +1596,9 @@ export async function updateSubscriptionStatus(args: {
       where: { id: subscriptionId },
       data: { status: SubscriptionStatus.SUSPENDED, suspendedAt: new Date() }
     });
-    await systemLog(LogLevel.INFO, "subscriptions.suspend", "Subscription suspended", { subscriptionId }).catch(() => {});
+    await systemLog(LogLevel.INFO, "subscriptions.suspend", "Subscription suspended", { subscriptionId }).catch((err: any) => {
+      logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al suspender suscripcion");
+    });
     return { ok: true, subscription: updated };
   }
 
@@ -1595,7 +1607,9 @@ export async function updateSubscriptionStatus(args: {
       where: { id: subscriptionId },
       data: { status: SubscriptionStatus.CANCELED, canceledAt: new Date(), suspendedAt: null }
     });
-    await systemLog(LogLevel.INFO, "subscriptions.cancel", "Subscription canceled", { subscriptionId }).catch(() => {});
+    await systemLog(LogLevel.INFO, "subscriptions.cancel", "Subscription canceled", { subscriptionId }).catch((err: any) => {
+      logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al cancelar suscripcion");
+    });
     return { ok: true, subscription: updated };
   }
 
@@ -1604,7 +1618,9 @@ export async function updateSubscriptionStatus(args: {
       where: { id: subscriptionId },
       data: { status: SubscriptionStatus.ACTIVE, suspendedAt: null }
     });
-    await systemLog(LogLevel.INFO, "subscriptions.resume", "Subscription resumed", { subscriptionId }).catch(() => {});
+    await systemLog(LogLevel.INFO, "subscriptions.resume", "Subscription resumed", { subscriptionId }).catch((err: any) => {
+      logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al reanudar suscripcion");
+    });
     return { ok: true, subscription: updated };
   }
 
@@ -1613,7 +1629,9 @@ export async function updateSubscriptionStatus(args: {
       where: { id: subscriptionId },
       data: { status: SubscriptionStatus.ACTIVE, canceledAt: null, suspendedAt: null }
     });
-    await systemLog(LogLevel.INFO, "subscriptions.activate", "Subscription activated", { subscriptionId }).catch(() => {});
+    await systemLog(LogLevel.INFO, "subscriptions.activate", "Subscription activated", { subscriptionId }).catch((err: any) => {
+      logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al activar suscripcion");
+    });
     return { ok: true, subscription: updated };
   }
 
