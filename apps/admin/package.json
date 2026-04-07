@@ -3,9 +3,9 @@
   "private": true,
   "packageManager": "npm@10.8.2",
   "scripts": {
-    "dev": "node scripts/run-next.cjs dev",
+    "dev": "next dev",
     "build": "prisma generate --schema ../../packages/database/prisma/schema.prisma && NEXT_IGNORE_INCORRECT_LOCKFILE=1 NEXT_DISABLE_TYPESCRIPT=1 next build",
-    "start": "node scripts/run-next.cjs start",
+    "start": "next start",
     "start:standalone": "node .next/standalone/apps/admin/server.js",
     "lint": "next lint",
     "typecheck": "tsc -p tsconfig.json --noEmit"
@@ -23,7 +23,6 @@
     "react-dom": "^19.2.1",
     "react-leaflet": "^5.0.0",
     "@suscripciones/core": "file:../../packages/core",
-    "ws": "^8.18.0",
     "typescript": "^5.6.3",
     "@types/node": "^20.11.30",
     "@types/react": "^19.0.10",

@@ -27,9 +27,9 @@ La aplicación **cumple parcialmente** con los requisitos de seguridad exigidos.
 - Evidencias: `apps/admin/app/webhooks/wompi/route.ts`, `apps/admin/app/webhooks/chatwoot/route.ts`, `apps/admin/lib/rbac.ts`.
 - Hallazgos: faltan validaciones adicionales de scope por tenant en el payload.
 
-### 4. WebSockets
+### 4. Realtime
 - **Cumple**.
-- Evidencias: servidor WS integrado en `apps/admin/scripts/run-next.cjs` (`/ws`), validación JWT + RBAC y auditoría. Publicador HTTP en `/api/realtime/publish`.
+- Evidencias: stream SSE en `apps/admin/app/api/realtime/route.ts`, validación RBAC por canal y publicador HTTP en `/api/realtime/publish`.
 
 ### 5. Logging y auditoría
 - **Cumple (parcial)**.
@@ -86,4 +86,4 @@ La aplicación **cumple parcialmente** con los requisitos de seguridad exigidos.
 
 ## Notas adicionales
 - Si el despliegue usa múltiples instancias, el rate limit actual es insuficiente.
-- No hay WebSockets implementados, por lo que ese requisito no aplica por ahora.
+- El realtime actual usa SSE con fallback a polling; no depende ya de un WebSocket custom.

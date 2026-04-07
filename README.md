@@ -1,13 +1,13 @@
 # Wompi Subs - Plataforma de Suscripciones (Next.js Fullstack)
 
-Plataforma de gestión de suscripciones y pagos con Wompi. **Frontend y backend están unificados en Next.js** (App Router) y un **worker** separado para jobs.
+Plataforma de gestión de suscripciones y pagos con Wompi. **Frontend y backend están unificados en Next.js** (App Router), con **SSE + fallback a polling** para realtime y un **worker** separado para jobs.
 
 ## 🏗️ Arquitectura (Actual)
 
 ```
 ┌──────────────────────────────┐
 │          Next.js             │
-│  UI + API + Webhooks + WS    │
+│ UI + API + Webhooks + SSE    │
 │           :3002              │
 └──────────────┬───────────────┘
                │
@@ -29,14 +29,13 @@ Plataforma de gestión de suscripciones y pagos con Wompi. **Frontend y backend 
 ```
 wompi_subs/
 ├── apps/
-│   ├── admin/                 ← Next.js (UI + API + Webhooks + WS)
+│   ├── admin/                 ← Next.js (UI + API + Webhooks + SSE)
 │   │   ├── app/
 │   │   │   ├── api/           ← API Routes
 │   │   │   ├── webhooks/      ← Webhooks
 │   │   │   └── ...            ← Páginas/Server Components
-│   │   ├── lib/               ← JWT, RBAC, rate limit, WS hub
+│   │   ├── lib/               ← JWT, RBAC, rate limit, realtime hub
 │   │   ├── middleware.ts
-│   │   └── scripts/run-next.cjs ← Runner (HTTP + WS)
 │   └── worker/                ← Jobs (Retry, scheduler, etc)
 │       └── src/runner.ts
 │
@@ -148,7 +147,8 @@ module.exports = {
     {
       name: "crm-sus-api-mdv",
       cwd: "/srv/apiflujos/mdv/suscripciones/apps/admin",
-      script: "node scripts/run-next.cjs start",
+      script: "npm",
+      args: "run start",
       env: {
         NODE_ENV: "production",
         PORT: 3002,
@@ -224,15 +224,10 @@ location / {
 curl -I http://localhost:3002/health
 ```
 
-## 9) Realtime (WebSocket)
-- WS endpoint: `ws://<host>:3002/ws`
-- Autenticación: `Authorization: Bearer <JWT>` o `?token=JWT`
-
-Ejemplo:
-```js
-const ws = new WebSocket("wss://mdv.sus.apiflujos.com/ws?token=JWT");
-ws.onopen = () => ws.send(JSON.stringify({ action: "subscribe", channel: "payments" }));
-```
+## 9) Realtime (SSE + fallback)
+- Endpoint SSE: `/api/realtime?channel=<canal>`
+- Canales soportados: `notifications`, `payments`, `logs`, `jobs`
+- El cliente del admin usa `EventSource` y cae a polling si el stream falla
 
 ## 10) Troubleshooting
 - **401 en /health:** revisar middleware. `/health` debe ser público.
@@ -255,7 +250,7 @@ pm2 restart crm-sus-jobs-mdv
 - React 19
 - Prisma
 - PostgreSQL
-- WS (ws)
+- SSE + polling fallback
 
 ---
 
