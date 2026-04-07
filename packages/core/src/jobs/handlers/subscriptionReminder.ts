@@ -162,7 +162,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     await systemLog(LogLevel.WARN, "notifications.dispatch", "Payload inválido para notificación", {
       errors: parsed.error.flatten(),
       rawPayload: payload
-    }, "job:subscriptionReminder").catch(() => {});
+    }, "job:subscriptionReminder").catch((err: any) => {
+      logger.warn({ err }, "subscriptionReminder: fallo escribiendo systemLog de payload inválido");
+    });
     return { ok: false, skipped: true, error: "invalid_payload" };
   }
 
@@ -173,7 +175,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
       ruleId: parsed.data.ruleId,
       trigger: parsed.data.trigger,
       jobId: (payload as any)?.jobId || null
-    }, "job:subscriptionReminder").catch(() => {});
+    }, "job:subscriptionReminder").catch((err: any) => {
+      logger.warn({ err, ruleId: parsed.data.ruleId }, "subscriptionReminder: fallo escribiendo systemLog de regla inactiva");
+    });
     return { ok: false, skipped: true, error: "rule_inactive" };
   }
   const template = cfg.templates.find((t) => t.id === rule.templateId);
@@ -182,7 +186,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
       ruleId: rule.id,
       templateId: rule.templateId,
       trigger: parsed.data.trigger
-    }, "job:subscriptionReminder").catch(() => {});
+    }, "job:subscriptionReminder").catch((err: any) => {
+      logger.warn({ err, ruleId: rule.id, templateId: rule.templateId }, "subscriptionReminder: fallo escribiendo systemLog de plantilla faltante");
+    });
     return { ok: false, skipped: true, error: "template_missing" };
   }
 
@@ -196,7 +202,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     offsetSeconds: parsed.data.offsetSeconds,
     anchorAt: parsed.data.anchorAt,
     cycleNumber: parsed.data.cycleNumber
-  }, "job:subscriptionReminder").catch(() => {});
+  }, "job:subscriptionReminder").catch((err: any) => {
+    logger.warn({ err, trigger: parsed.data.trigger, ruleId: parsed.data.ruleId }, "subscriptionReminder: fallo escribiendo systemLog de inicio");
+  });
 
   const subscriptionId = parsed.data.subscriptionId;
   const paymentId = parsed.data.paymentId;
@@ -221,20 +229,24 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
       customerId: parsed.data.customerId || null,
       subscriptionId: parsed.data.subscriptionId || null,
       paymentId: parsed.data.paymentId || null
-    }, "job:subscriptionReminder").catch(() => {});
+    }, "job:subscriptionReminder").catch((err: any) => {
+      logger.warn({ err, ruleId: rule.id }, "subscriptionReminder: fallo escribiendo systemLog de customer faltante");
+    });
     return { ok: false, skipped: true, error: "customer_missing" };
   }
 
   if (subscription && rule.conditions?.skipIfSubscriptionStatusIn?.includes(subscription.status as any)) {
-    await systemLog(LogLevel.WARN, "notifications.dispatch", "Suscripción omitida por estado", {
-      ruleId: rule.id,
-      templateId: template.id,
-      trigger: parsed.data.trigger,
-      subscriptionId: subscription.id,
-      status: subscription.status
-    }, "job:subscriptionReminder").catch(() => {});
-    return { ok: false, skipped: true, error: "subscription_status_skipped" };
-  }
+      await systemLog(LogLevel.WARN, "notifications.dispatch", "Suscripción omitida por estado", {
+        ruleId: rule.id,
+        templateId: template.id,
+        trigger: parsed.data.trigger,
+        subscriptionId: subscription.id,
+        status: subscription.status
+      }, "job:subscriptionReminder").catch((err: any) => {
+        logger.warn({ err, subscriptionId: subscription.id, status: subscription.status }, "subscriptionReminder: fallo escribiendo systemLog de suscripción omitida");
+      });
+      return { ok: false, skipped: true, error: "subscription_status_skipped" };
+    }
 
   if (payment) {
     if (rule.conditions?.skipIfPaymentStatusIn?.includes(payment.status as any)) {
@@ -244,7 +256,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
         trigger: parsed.data.trigger,
         paymentId: payment.id,
         status: payment.status
-      }, "job:subscriptionReminder").catch(() => {});
+      }, "job:subscriptionReminder").catch((err: any) => {
+        logger.warn({ err, paymentId: payment.id, status: payment.status }, "subscriptionReminder: fallo escribiendo systemLog de pago omitido");
+      });
       return { ok: false, skipped: true, error: "payment_status_skipped" };
     }
     if (rule.conditions?.requirePaymentStatusIn && !rule.conditions.requirePaymentStatusIn.includes(payment.status as any)) {

@@ -691,14 +691,18 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           subscriptionId: decision.subscriptionId,
           score: decision.score,
           criteria: decision.criteria
-        }, "webhook:wompi").catch(() => {});
+        }, "webhook:wompi").catch((err: any) => {
+          logger.warn({ err, reference, subscriptionId: decision.subscriptionId }, "processWompiEvent: fallo escribiendo systemLog de inferencia por scoring");
+        });
       }
     } else if (hasStructuredReference) {
       await systemLog(LogLevel.INFO, "processWompiEvent", "Payment no encontrado, se usará referencia estructurada", {
         reference,
         subscriptionIdFromRef: referenceClassification.subscriptionId,
         kind: referenceClassification.kind
-      }, "webhook:wompi").catch(() => {});
+      }, "webhook:wompi").catch((err: any) => {
+        logger.warn({ err, reference }, "processWompiEvent: fallo escribiendo systemLog de referencia estructurada");
+      });
     }
   }
 
@@ -1219,7 +1223,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     wompiPaymentLinkId: paymentRecord.wompiPaymentLinkId,
     reference: paymentRecord.reference,
     subscriptionId: paymentRecord.subscriptionId
-  }, "webhook:wompi").catch(() => {});
+  }, "webhook:wompi").catch((err: any) => {
+    logger.warn({ err, webhookEventId, paymentId: paymentRecord.id }, "processWompiEvent: fallo escribiendo systemLog de webhook conciliado");
+  });
   void publishRealtime("payments", {
     type: "payment_status",
     paymentId: paymentRecord.id,
@@ -1242,13 +1248,17 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     systemLog(LogLevel.ERROR, "notifications.payment_status", "Fallo al programar notificaciones de pago", {
       paymentId: paymentRecord.id,
       error: String(err?.message || err)
-    }, "webhook:wompi").catch(() => {});
+    }, "webhook:wompi").catch((logErr: any) => {
+      logger.warn({ err: logErr, paymentId: paymentRecord.id }, "processWompiEvent: fallo escribiendo systemLog de notificaciones de pago");
+    });
   });
   await syncChatwootAttributesForCustomer(paymentRecord.customerId).catch((err) => {
     systemLog(LogLevel.WARN, "chatwoot.sync", "Fallo al sincronizar atributos de Chatwoot", {
       customerId: paymentRecord.customerId,
       error: String(err?.message || err)
-    }, "webhook:wompi").catch(() => {});
+    }, "webhook:wompi").catch((logErr: any) => {
+      logger.warn({ err: logErr, customerId: paymentRecord.customerId }, "processWompiEvent: fallo escribiendo systemLog de sync Chatwoot");
+    });
   });
 
   const becameApproved = !wasApproved && nextStatus === PaymentStatus.APPROVED;
