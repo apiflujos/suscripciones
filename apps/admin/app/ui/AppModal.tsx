@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, KeyboardEventHandler, ReactNode, Ref } from "react";
 
 type AppModalProps = {
   open: boolean;
@@ -15,6 +15,10 @@ type AppModalProps = {
   headerActions?: ReactNode;
   closeLabel?: string;
   closeOnBackdrop?: boolean;
+  panelRef?: Ref<HTMLDivElement>;
+  panelOnKeyDown?: KeyboardEventHandler<HTMLDivElement>;
+  ariaLabelledBy?: string;
+  panelTabIndex?: number;
 };
 
 export function AppModal({
@@ -29,7 +33,11 @@ export function AppModal({
   bodyClassName,
   headerActions,
   closeLabel = "Cerrar",
-  closeOnBackdrop = true
+  closeOnBackdrop = true,
+  panelRef,
+  panelOnKeyDown,
+  ariaLabelledBy,
+  panelTabIndex
 }: AppModalProps) {
   if (!open) return null;
 
@@ -43,12 +51,16 @@ export function AppModal({
       className="modal-backdrop"
       role="dialog"
       aria-modal="true"
+      aria-labelledby={ariaLabelledBy}
       onClick={closeOnBackdrop ? onClose : undefined}
     >
       <div
+        ref={panelRef}
         className={panelClassName ? `modal-panel ${panelClassName}` : "modal-panel"}
         style={panelStyle}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={panelOnKeyDown}
+        tabIndex={panelTabIndex}
       >
         <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <h3 style={{ margin: 0 }}>{title}</h3>

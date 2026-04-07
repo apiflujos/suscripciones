@@ -822,24 +822,18 @@ export function ProductsTable({
         ) : null}
       </AppModal>
 
-      {open && editing ? (
-        <div className="modal-backdrop">
-          <div
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="product-edit-title"
-            className="modal-panel ui-modal-panel-wide"
-            onKeyDown={onModalKeyDown}
-          >
-            <div className="panel-header ui-panel-header">
-              <h3 id="product-edit-title" className="ui-title-reset">{modalTitle}</h3>
-              <button type="button" className="ghost modal-close" onClick={closeEditor} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-
-            <form action={updateProduct} className="ui-form-grid">
+      <AppModal
+        open={Boolean(open && editing)}
+        onClose={closeEditor}
+        title={<span id="product-edit-title" className="ui-title-reset">{modalTitle}</span>}
+        panelClassName="ui-modal-panel-wide"
+        panelRef={modalRef}
+        panelOnKeyDown={onModalKeyDown}
+        ariaLabelledBy="product-edit-title"
+        panelTabIndex={-1}
+      >
+        {editing ? (
+          <form action={updateProduct} className="ui-form-grid">
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="id" value={editing.id} />
               <input type="hidden" name="currency" value={currency} />
@@ -1121,10 +1115,9 @@ export function ProductsTable({
                   Guardar cambios
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
+          </form>
+        ) : null}
+      </AppModal>
 
       <AppModal
         open={Boolean(txOpen && txProduct)}
