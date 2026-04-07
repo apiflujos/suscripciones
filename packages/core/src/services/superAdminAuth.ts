@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { SaUserRole } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { sha256Hex, timingSafeEqualHex } from "../lib/crypto";
+import { logger } from "../lib/logger";
 import { getDefaultTenantId } from "./tenantContext";
 
 function normalize(v: unknown) {
@@ -155,7 +156,9 @@ export async function revokeSaSession(token: string) {
       where: { tokenHash },
       data: { revokedAt: new Date() }
     })
-    .catch(() => {});
+    .catch((err: any) => {
+      logger.warn({ err }, "superadmin: fallo revocando sesión");
+    });
 }
 
 export async function refreshSaSession(args: { refreshToken: string; ip?: string | null; userAgent?: string | null }) {
@@ -196,7 +199,9 @@ export async function refreshSaSession(args: { refreshToken: string; ip?: string
         ...(args.userAgent ? { userAgent: args.userAgent } : {})
       }
     })
-    .catch(() => {});
+    .catch((err: any) => {
+      logger.warn({ err, sessionId: session.id }, "superadmin: fallo actualizando sesión refrescada");
+    });
 
   return { token, refreshToken: newRefreshToken, expiresAt, refreshExpiresAt, email: user.email };
 }
@@ -218,11 +223,16 @@ export async function touchSaSession(token: string) {
         where: { tokenHash },
         data: { lastSeenAt: now }
       })
-      .catch(() => {});
+      .catch((err: any) => {
+        logger.warn({ err }, "superadmin: fallo tocando sesión sin rolling");
+      });
     return;
   }
 
-  const session = await prisma.saSession.findUnique({ where: { tokenHash } }).catch(() => null);
+  const session = await prisma.saSession.findUnique({ where: { tokenHash } }).catch((err: any) => {
+    logger.warn({ err }, "superadmin: fallo cargando sesión para touch rolling");
+    return null;
+  });
   if (!session) return;
 
   const maxExpiry = new Date(session.createdAt.getTime() + maxDays * 24 * 60 * 60 * 1000);
@@ -240,14 +250,18 @@ export async function touchSaSession(token: string) {
       where: { tokenHash },
       data: { lastSeenAt: now, ...(shouldExtend ? { expiresAt: nextExpires } : {}) }
     })
-    .catch(() => {});
+    .catch((err: any) => {
+      logger.warn({ err, shouldExtend }, "superadmin: fallo tocando sesión rolling");
+    });
 }
 
 export async function requireSaSession(req: any, res: any, next: any) {
   const token = normalizeSaToken(req.header("x-sa-session") || req.header("authorization") || "");
   const out = await getSaSessionByToken(token);
   if (!out) return res.status(401).json({ error: "unauthorized_sa" });
-  await touchSaSession(token).catch(() => {});
+  await touchSaSession(token).catch((err: any) => {
+    logger.warn({ err, sessionId: out.session.id }, "superadmin: fallo tocando sesión en middleware");
+  });
   (req as any).sa = { email: out.user.email, userId: out.user.id, role: out.user.role, sessionId: out.session.id };
   next();
 }

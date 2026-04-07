@@ -180,7 +180,9 @@ export async function ensureExpiredSubscriptions() {
     await systemLog(LogLevel.INFO, "subscriptions.lifecycle", "Limpieza de estados de suscripciones", {
       markedPastDue: toPastDue,
       markedExpired: toExpired
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logIgnored(err, "subscription lifecycle: failed to write cleanup log", { toPastDue, toExpired });
+    });
   }
 }
 
@@ -199,7 +201,9 @@ export async function handleSubscriptionPaymentFailure(subscriptionId: string, e
       dueAt: dueAt.toISOString(),
       dueWithGraceAt: dueWithGraceAt.toISOString(),
       currentStatus: sub.status
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logIgnored(err, "subscription lifecycle: failed to write grace-period failure log", { subscriptionId });
+    });
     return;
   }
 
@@ -214,7 +218,9 @@ export async function handleSubscriptionPaymentFailure(subscriptionId: string, e
     dueAt: dueAt.toISOString(),
     dueWithGraceAt: dueWithGraceAt.toISOString(),
     previousStatus: sub.status
-  }).catch(() => {});
+  }).catch((err: any) => {
+    logIgnored(err, "subscription lifecycle: failed to write past_due log", { subscriptionId });
+  });
 }
 
 export async function createPaymentLinkForSubscription(args: {
@@ -593,7 +599,9 @@ export async function createAutoDebitTransactionForSubscription(args: {
         wompiTransactionId: existingByCycle.wompiTransactionId,
         tenantId,
         checksumPrefix: "auto-debit-precheck"
-      }).catch(() => {});
+      }).catch((err: any) => {
+        logIgnored(err, "auto debit: failed reconcile precheck", { subscriptionId: sub.id, paymentId: existingByCycle.id });
+      });
       const refreshed = await prisma.payment.findUnique({
         where: { id: existingByCycle.id },
         select: { status: true, wompiTransactionId: true, reference: true }
@@ -718,7 +726,9 @@ export async function createAutoDebitTransactionForSubscription(args: {
     await systemLog(LogLevel.WARN, "subscriptions.auto_debit", "Auto debit already in progress", {
       subscriptionId: sub.id,
       paymentId: payment.id
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logIgnored(err, "auto debit: failed to write in-progress log", { subscriptionId: sub.id, paymentId: payment.id });
+    });
     throw new Error("auto_debit_in_progress");
   }
 
@@ -807,7 +817,9 @@ export async function createAutoDebitTransactionForSubscription(args: {
         paymentId: payment.id,
         previousReference: reference,
         nextReference: null
-      }).catch(() => {});
+      }).catch((err: any) => {
+        logIgnored(err, "auto debit: failed to write duplicate-reference log", { subscriptionId: sub.id, paymentId: payment.id });
+      });
       // Guard-rail anti-duplicado:
       // si Wompi indica referencia usada, no intentamos crear un nuevo cargo con otra referencia.
       // El runner de conciliación se encarga de recuperar el estado real por referencia/transacción.

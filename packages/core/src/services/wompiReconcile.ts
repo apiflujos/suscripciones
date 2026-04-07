@@ -4,6 +4,7 @@ import { getShopifyForward, getWompiApiBaseUrl, getWompiCheckoutLinkBaseUrl, get
 import { RetryJobType, WebhookProvider, WebhookProcessStatus } from "@prisma/client";
 import { randomUUID } from "crypto";
 import { processWompiEventLogic } from "../jobs/handlers/processWompiEvent";
+import { logger } from "../lib/logger";
 import { getDefaultTenantId } from "./tenantContext";
 
 const FINAL_WOMPI_STATUSES = new Set(["APPROVED", "DECLINED", "VOIDED", "ERROR"]);
@@ -101,7 +102,8 @@ export async function reconcileWompiTransaction(args: {
   const processNow = args.processNow !== false;
   const shopify = await getShopifyForward().catch(() => ({} as any));
   if (processNow) {
-    await processWompiEventLogic(event.id, prisma).catch(async () => {
+    await processWompiEventLogic(event.id, prisma).catch(async (err: any) => {
+      logger.warn({ err, webhookEventId: event.id }, "wompiReconcile: fallo procesamiento inline, se intentará encolar");
       await prisma.retryJob
         .create({
           data: {
@@ -109,7 +111,9 @@ export async function reconcileWompiTransaction(args: {
             payload: { webhookEventId: event.id }
           }
         })
-        .catch(() => {});
+        .catch((queueErr: any) => {
+          logger.warn({ err: queueErr, webhookEventId: event.id }, "wompiReconcile: fallo encolando PROCESS_WOMPI_EVENT");
+        });
     });
   } else {
     await prisma.retryJob
@@ -119,7 +123,9 @@ export async function reconcileWompiTransaction(args: {
           payload: { webhookEventId: event.id }
         }
       })
-      .catch(() => {});
+      .catch((err: any) => {
+        logger.warn({ err, webhookEventId: event.id }, "wompiReconcile: fallo encolando PROCESS_WOMPI_EVENT diferido");
+      });
   }
 
   if (shopify?.url) {
@@ -131,7 +137,9 @@ export async function reconcileWompiTransaction(args: {
           maxAttempts: 3
         }
       })
-      .catch(() => {});
+      .catch((err: any) => {
+        logger.warn({ err, webhookEventId: event.id }, "wompiReconcile: fallo encolando FORWARD_WOMPI_TO_SHOPIFY");
+      });
   }
 
   return { ok: true, webhookEventId: event.id, status: tx.status, reference: tx.reference };
