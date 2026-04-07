@@ -7,6 +7,7 @@ import { WompiClient } from "@suscripciones/core/providers/wompi/client";
 import { getGlobalModuleAccess } from "@suscripciones/core/services/moduleAccess";
 import { getShopifyForward } from "@suscripciones/core/services/runtimeConfig";
 import { postJson } from "@suscripciones/core/lib/http";
+import { logger } from "@suscripciones/core/lib/logger";
 import {
   envOnlySchema,
   wompiTestSchema,
@@ -47,7 +48,9 @@ export async function updateWompiSettings(input: unknown) {
     return { ok: false as const, status: 400, error: "credentials_error" as const, message: String(err?.message || err) };
   }
 
-  await systemLog(LogLevel.INFO, "configuracion.wompi", "Credenciales de Wompi actualizadas").catch(() => {});
+  await systemLog(LogLevel.INFO, "configuracion.wompi", "Credenciales de Wompi actualizadas").catch((err: any) => {
+    logger.warn({ err, env }, "Fallo escribiendo systemLog al actualizar credenciales de Wompi");
+  });
   return { ok: true as const };
 }
 
@@ -116,12 +119,20 @@ export async function deleteWompiSettings(input: unknown) {
   ];
 
   try {
-    await Promise.all(keys.map((key) => clearCredential(CredentialProvider.WOMPI, key).catch(() => {})));
+    await Promise.all(
+      keys.map((key) =>
+        clearCredential(CredentialProvider.WOMPI, key).catch((err: any) => {
+          logger.warn({ err, env, key }, "Fallo eliminando credencial de Wompi");
+        })
+      )
+    );
   } catch (err: any) {
     return { ok: false as const, status: 400, error: "credentials_error" as const, message: String(err?.message || err) };
   }
 
-  await systemLog(LogLevel.INFO, "configuracion.wompi", "Credenciales de Wompi eliminadas", { env }).catch(() => {});
+  await systemLog(LogLevel.INFO, "configuracion.wompi", "Credenciales de Wompi eliminadas", { env }).catch((err: any) => {
+    logger.warn({ err, env }, "Fallo escribiendo systemLog al eliminar credenciales de Wompi");
+  });
   return { ok: true as const };
 }
 
@@ -149,24 +160,38 @@ export async function updateShopifySettings(input: unknown) {
     return { ok: false as const, status: 400, error: "credentials_error" as const, message: String(err?.message || err) };
   }
 
-  await systemLog(LogLevel.INFO, "configuracion.reenvio", "Configuración de reenvío actualizada").catch(() => {});
+  await systemLog(LogLevel.INFO, "configuracion.reenvio", "Configuración de reenvío actualizada").catch((err: any) => {
+    logger.warn({ err }, "Fallo escribiendo systemLog al actualizar configuracion de reenvio");
+  });
   return { ok: true as const };
 }
 
 export async function deleteShopifySettings() {
   try {
     await Promise.all([
-      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_URL").catch(() => {}),
-      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_SECRET").catch(() => {}),
-      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_ORIGIN").catch(() => {}),
-      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_RETRY_ENABLED").catch(() => {}),
-      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_RETRY_MINUTES").catch(() => {})
+      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_URL").catch((err: any) => {
+        logger.warn({ err, key: "FORWARD_URL" }, "Fallo eliminando credencial de Shopify forward");
+      }),
+      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_SECRET").catch((err: any) => {
+        logger.warn({ err, key: "FORWARD_SECRET" }, "Fallo eliminando credencial de Shopify forward");
+      }),
+      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_ORIGIN").catch((err: any) => {
+        logger.warn({ err, key: "FORWARD_ORIGIN" }, "Fallo eliminando credencial de Shopify forward");
+      }),
+      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_RETRY_ENABLED").catch((err: any) => {
+        logger.warn({ err, key: "FORWARD_RETRY_ENABLED" }, "Fallo eliminando credencial de Shopify forward");
+      }),
+      clearCredential(CredentialProvider.SHOPIFY, "FORWARD_RETRY_MINUTES").catch((err: any) => {
+        logger.warn({ err, key: "FORWARD_RETRY_MINUTES" }, "Fallo eliminando credencial de Shopify forward");
+      })
     ]);
   } catch (err: any) {
     return { ok: false as const, status: 400, error: "credentials_error" as const, message: String(err?.message || err) };
   }
 
-  await systemLog(LogLevel.INFO, "configuracion.reenvio", "Configuración de reenvío eliminada").catch(() => {});
+  await systemLog(LogLevel.INFO, "configuracion.reenvio", "Configuración de reenvío eliminada").catch((err: any) => {
+    logger.warn({ err }, "Fallo escribiendo systemLog al eliminar configuracion de reenvio");
+  });
   return { ok: true as const };
 }
 

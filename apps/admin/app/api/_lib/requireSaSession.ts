@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { getSaSessionByToken, normalizeSaToken, touchSaSession } from "@suscripciones/core/services/superAdminAuth";
+import { logger } from "@suscripciones/core/lib/logger";
 import { SA_COOKIE } from "../../__sa/saApi";
 
 type Ok = { ok: true; sa: { email: string; userId: string; role: string; sessionId: string } };
@@ -13,7 +14,9 @@ export async function requireSaSessionFromCookie(): Promise<Ok | Fail> {
   if (!out) {
     return { ok: false, response: Response.json({ error: "unauthorized_sa" }, { status: 401 }) };
   }
-  await touchSaSession(token).catch(() => {});
+  await touchSaSession(token).catch((err: any) => {
+    logger.warn({ err, sessionId: out.session.id, userId: out.user.id }, "Fallo renovando sesion de superadmin");
+  });
   return {
     ok: true,
     sa: {
