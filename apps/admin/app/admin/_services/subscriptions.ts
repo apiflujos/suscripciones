@@ -2,12 +2,12 @@ import "server-only";
 
 import { prisma } from "@suscripciones/database";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
-import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { BillingCycleStatus, LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { getAutoDebitConfig, getPaymentsConfig } from "@suscripciones/core/services/runtimeConfig";
 import { addIntervalUtc, toUtc } from "@suscripciones/core/lib/dates";
 import { systemLog } from "@suscripciones/core/services/systemLog";
-import { attachPaymentToCycle, computeBillingCycleDueAt, ensureBillingCyclesForSubscriptions } from "@suscripciones/core/services/billingCycles";
+import { attachPaymentToCycle, buildSubscriptionBillingStateIndex, computeBillingCycleDueAt, ensureBillingCyclesForSubscription, ensureBillingCyclesForSubscriptions, resolveConfiguredCollectionCycle, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "@suscripciones/core/services/billingCycles";
 import {
   createAutoDebitTransactionForSubscription,
   createPaymentLinkForSubscription,
@@ -200,7 +200,8 @@ async function recordManualChargeFailure(args: {
   const tenantId = subscription?.tenantId || subscription?.plan?.tenantId;
   if (!subscription?.id || !subscription?.customerId || !tenantId) return null;
 
-  const cycle = Number(subscription.currentCycle || 1);
+  const billingState = await resolveSubscriptionBillingState({ subscriptionId: subscription.id }).catch(() => null);
+  const cycle = Number(billingState?.collectionCycle?.cycleNumber || billingState?.activeCycle?.cycleNumber || 1);
   const reference = `SUB_${subscription.id}_${cycle}`;
   const subscriptionCycleKey = `${subscription.id}:${cycle}`;
   const amountInCents = Math.trunc(args.amountInCentsOverride ?? readSubscriptionTotalInCents(subscription.metadata, subscription.plan?.priceInCents ?? 0));
@@ -422,27 +423,37 @@ export async function listSubscriptions(args: {
   }
 
   const autoDebitCfg = await getAutoDebitConfig();
+  const billingStateBySubscription = await buildSubscriptionBillingStateIndex({
+    subscriptions: items.map((s: any) => ({
+      id: s.id,
+      startAt: s.startAt,
+      cycleStartDay: s.cycleStartDay,
+      paymentDay: s.paymentDay,
+      paymentTiming: s.paymentTiming as any,
+      graceDays: s.graceDays,
+      plan: {
+        intervalUnit: s.plan.intervalUnit,
+        intervalCount: s.plan.intervalCount
+      }
+    }))
+  });
   const mapped = items.map((s: any) => {
     const lastPayment = lastPaymentBySub.get(String(s.id)) || null;
     const lastLink = lastLinkBySub.get(String(s.id)) || null;
     const nextRetry = nextRetryBySub.get(String(s.id)) || null;
     const resolvedMode = resolveSubscriptionCollectionMode(s);
     const customerTokenized = hasUsablePaymentSource(s.customer?.metadata);
-    const periodStartAt = s.currentPeriodStartAt ? new Date(s.currentPeriodStartAt) : null;
-    const periodEndAt = s.currentPeriodEndAt ? new Date(s.currentPeriodEndAt) : null;
+    const billingState = billingStateBySubscription.get(String(s.id)) || null;
+    const activeCycle = billingState?.activeCycle || null;
+    const collectionCycle = billingState?.collectionCycle || activeCycle;
+    const periodStartAt = activeCycle?.periodStartAt ? new Date(activeCycle.periodStartAt) : null;
+    const periodEndAt = activeCycle?.periodEndAt ? new Date(activeCycle.periodEndAt) : null;
     const lastPaidAt = lastPayment?.paidAt ? new Date(lastPayment.paidAt) : null;
     const lastPaidInCurrentPeriod =
       Boolean(lastPaidAt && periodStartAt && periodEndAt) &&
       lastPaidAt!.getTime() >= periodStartAt!.getTime() &&
       lastPaidAt!.getTime() <= periodEndAt!.getTime();
-    const dueAt = computeDueAtForPeriod({
-      periodStartAt,
-      periodEndAt,
-      cycleStartDay: s.cycleStartDay,
-      paymentDay: s.paymentDay,
-      paymentTiming: s.paymentTiming,
-      intervalUnit: s.plan?.intervalUnit
-    }) || periodEndAt;
+    const dueAt = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : periodEndAt;
     const chargeDue = dueAt ? dueAt.getTime() <= Date.now() + 5_000 : false;
     const isInactive =
       s.status === SubscriptionStatus.CANCELED || s.status === SubscriptionStatus.EXPIRED || s.status === SubscriptionStatus.SUSPENDED;
@@ -463,6 +474,11 @@ export async function listSubscriptions(args: {
       lastPaymentLink: lastLink || null,
       nextRetryJob: nextRetry || null,
       collectionModeResolved: resolvedMode,
+      activeCycleNumber: activeCycle?.cycleNumber ?? null,
+      activeCycleStartAt: periodStartAt,
+      activeCycleEndAt: periodEndAt,
+      collectionCycleNumber: collectionCycle?.cycleNumber ?? null,
+      nextBillingDate: dueAt,
       customerTokenized,
       chargeDue,
       canManualCharge,
@@ -577,9 +593,6 @@ export async function createSubscription(args: {
       planId: plan.id,
       status: initialStatus,
       startAt,
-      currentPeriodStartAt: startAt,
-      currentPeriodEndAt: periodEnd,
-      currentCycle: 1,
       cycleStartDay,
       paymentDay,
       paymentTiming,
@@ -589,6 +602,24 @@ export async function createSubscription(args: {
         collectionMode
       } as any
     }
+  });
+
+  await ensureBillingCyclesForSubscription({
+    id: subscription.id,
+    startAt: subscription.startAt,
+    currentCycle: 1,
+    currentPeriodStartAt: startAt,
+    currentPeriodEndAt: periodEnd,
+    cycleStartDay: subscription.cycleStartDay,
+    paymentDay: subscription.paymentDay,
+    paymentTiming: subscription.paymentTiming as any,
+    graceDays: subscription.graceDays,
+    plan: {
+      intervalUnit: plan.intervalUnit,
+      intervalCount: plan.intervalCount
+    }
+  }).catch((err: any) => {
+    logger.warn({ err, subscriptionId: subscription.id }, "Fallo generando ciclos iniciales de suscripción");
   });
 
   if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
@@ -738,9 +769,7 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
   await ensureBillingCyclesForSubscriptions([
     {
       id: subscription.id,
-      currentCycle: subscription.currentCycle,
-      currentPeriodStartAt: subscription.currentPeriodStartAt,
-      currentPeriodEndAt: subscription.currentPeriodEndAt,
+      startAt: subscription.startAt,
       cycleStartDay: subscription.cycleStartDay,
       paymentDay: subscription.paymentDay,
       paymentTiming: (subscription.paymentTiming as any) || "EN_CURSO",
@@ -754,15 +783,21 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
     logger.warn({ err, subscriptionId }, "Fallo asegurando ciclos de facturacion antes del cobro manual");
   });
   
-  const overdueCycle = await prisma.subscriptionBillingCycle.findFirst({
+  const openCycles = await prisma.subscriptionBillingCycle.findMany({
     where: {
       subscriptionId: subscription.id,
       paymentId: null,
-      status: { not: "PAID" },
-      dueAt: { lte: now }
+      status: { not: "PAID" }
     },
-    orderBy: { dueAt: "asc" }
+    orderBy: [{ cycleNumber: "asc" }]
   });
+  const targetCollectionCycle =
+    resolveConfiguredCollectionCycle({
+      cycles: openCycles,
+      asOf: now,
+      paymentTiming: ((subscription.paymentTiming as any) || "EN_CURSO") === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
+    }) || null;
+  const overdueCycle = openCycles.find((cycle) => new Date(cycle.dueAt).getTime() <= now.getTime()) || null;
   const latestApproved = await prisma.payment.findFirst({
     where: { subscriptionId, status: PaymentStatus.APPROVED },
     orderBy: [{ paidAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
@@ -770,15 +805,21 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
   });
   const lastApprovedAt = latestApproved?.paidAt || latestApproved?.updatedAt || latestApproved?.createdAt || null;
   const lastApprovedAtDate = lastApprovedAt ? new Date(lastApprovedAt) : null;
-  const periodStartAt = subscription.currentPeriodStartAt ? new Date(subscription.currentPeriodStartAt) : null;
-  const periodEndAt = subscription.currentPeriodEndAt ? new Date(subscription.currentPeriodEndAt) : null;
+  const activeCycle = targetCollectionCycle || overdueCycle || openCycles.find((cycle) => {
+    const startTs = new Date(cycle.periodStartAt).getTime();
+    const endTs = new Date(cycle.periodEndAt).getTime();
+    const nowTs = now.getTime();
+    return startTs <= nowTs && nowTs < endTs;
+  }) || null;
+  const periodStartAt = activeCycle ? new Date(activeCycle.periodStartAt) : null;
+  const periodEndAt = activeCycle ? new Date(activeCycle.periodEndAt) : null;
   const approvedAt = lastApprovedAtDate;
   const lastPaidInCurrentPeriod =
     lastApprovedAtDate && periodStartAt && periodEndAt
       ? lastApprovedAtDate.getTime() >= periodStartAt.getTime() &&
         lastApprovedAtDate.getTime() <= periodEndAt.getTime()
       : false;
-  const bypassPaidCheck = Boolean(overdueCycle && overdueCycle.cycleNumber !== (subscription.currentCycle ?? 1));
+  const bypassPaidCheck = Boolean(overdueCycle && overdueCycle.cycleNumber !== (activeCycle?.cycleNumber ?? 1));
   if (lastPaidInCurrentPeriod && !bypassPaidCheck) {
     const paymentId = await recordManualChargeFailure({
       subscription,
@@ -874,8 +915,8 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
     return { ok: false, status: 409, error: "customer_email_required", ...(paymentId ? { paymentId } : {}) };
   }
 
+  const cycleNumberOverride = targetCollectionCycle?.cycleNumber ?? overdueCycle?.cycleNumber ?? 1;
   try {
-    const cycleNumberOverride = overdueCycle?.cycleNumber;
 
     const result = await createAutoDebitTransactionForSubscription({
       subscriptionId,
@@ -889,7 +930,7 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
       (
         await prisma.payment
           .findUnique({
-            where: { subscriptionCycleKey: `${subscription.id}:${Number(subscription.currentCycle || 1)}` },
+            where: { subscriptionCycleKey: `${subscription.id}:${Number(cycleNumberOverride)}` },
             select: { id: true }
           })
           .catch(() => null)
@@ -928,9 +969,7 @@ export async function markSubscriptionPaidManual(args: {
   await ensureBillingCyclesForSubscriptions([
     {
       id: subscription.id,
-      currentCycle: subscription.currentCycle,
-      currentPeriodStartAt: subscription.currentPeriodStartAt,
-      currentPeriodEndAt: subscription.currentPeriodEndAt,
+      startAt: subscription.startAt,
       cycleStartDay: subscription.cycleStartDay,
       paymentDay: subscription.paymentDay,
       paymentTiming: (subscription.paymentTiming as any) || "EN_CURSO",
@@ -944,24 +983,33 @@ export async function markSubscriptionPaidManual(args: {
     logger.warn({ err, subscriptionId }, "Fallo asegurando ciclos de facturacion antes de marcar pago manual");
   });
 
+  const openCycles = await prisma.subscriptionBillingCycle.findMany({
+    where: {
+      subscriptionId: subscription.id,
+      paymentId: null,
+      status: { not: "PAID" }
+    },
+    orderBy: [{ cycleNumber: "asc" }]
+  });
+
   const targetCycle =
-    (await prisma.subscriptionBillingCycle.findFirst({
-      where: {
-        subscriptionId: subscription.id,
-        paymentId: null,
-        status: { not: "PAID" },
-        dueAt: { lte: now }
-      },
-      orderBy: { dueAt: "asc" }
-    })) ||
+    resolveConfiguredCollectionCycle({
+      cycles: openCycles,
+      asOf: now,
+      paymentTiming: ((subscription.paymentTiming as any) || "EN_CURSO") === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
+    }) ||
+    openCycles.find((cycle) => {
+      const startTs = new Date(cycle.periodStartAt).getTime();
+      const endTs = new Date(cycle.periodEndAt).getTime();
+      const nowTs = now.getTime();
+      return startTs <= nowTs && nowTs < endTs;
+    }) ||
     (await prisma.subscriptionBillingCycle.findUnique({
-      where: { subscriptionId_cycleNumber: { subscriptionId: subscription.id, cycleNumber: subscription.currentCycle ?? 1 } }
+      where: { subscriptionId_cycleNumber: { subscriptionId: subscription.id, cycleNumber: 1 } }
     }));
 
-  const cycleNumber = targetCycle?.cycleNumber ?? (subscription.currentCycle ?? 1);
+  const cycleNumber = targetCycle?.cycleNumber ?? 1;
   const subscriptionCycleKey = `${subscription.id}:${cycleNumber}`;
-  const baseStart = subscription.currentPeriodEndAt || subscription.currentPeriodStartAt || subscription.createdAt || now;
-  const nextEnd = addIntervalUtc(baseStart, subscription.plan.intervalUnit, subscription.plan.intervalCount);
 
   const existingByCycle = await prisma.payment.findUnique({
     where: { subscriptionCycleKey },
@@ -1038,22 +1086,21 @@ export async function markSubscriptionPaidManual(args: {
       });
     }
 
-    if (cycleNumber === (subscription.currentCycle ?? 1)) {
-      await tx.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          status: SubscriptionStatus.ACTIVE,
-          retryCount: 0,
-          currentCycle: { increment: 1 },
-          currentPeriodStartAt: baseStart,
-          currentPeriodEndAt: nextEnd,
-          suspendedAt: null,
-          canceledAt: null
-        }
-      });
-    }
+    await tx.subscription.update({
+      where: { id: subscription.id },
+      data: {
+        status: SubscriptionStatus.ACTIVE,
+        retryCount: 0,
+        suspendedAt: null,
+        canceledAt: null
+      }
+    });
 
     return { paymentId };
+  });
+
+  await syncSubscriptionBillingSnapshot({ subscriptionId: subscription.id, asOf: now }).catch((err: any) => {
+    logger.warn({ err, subscriptionId: subscription.id }, "Fallo sincronizando snapshot tras marcar pago manual");
   });
 
   const remainingOverdue = await prisma.subscriptionBillingCycle.count({
@@ -1124,10 +1171,12 @@ export async function unmarkSubscriptionPaidManual(args: {
   }
   if (!subscription.plan) return { ok: false, status: 409, error: "plan_not_found" as const };
 
-  const currentCycle = subscription.currentCycle ?? 1;
-  if (currentCycle <= 1) return { ok: false, status: 409, error: "cycle_cannot_decrement" as const };
-
-  const targetCycle = currentCycle - 1;
+  const linkedCycle = await prisma.subscriptionBillingCycle.findFirst({
+    where: { subscriptionId: subscription.id, paymentId: { not: null } },
+    orderBy: [{ cycleNumber: "desc" }]
+  });
+  const targetCycle = linkedCycle?.cycleNumber ?? ((linkedCycle?.cycleNumber ?? 2) - 1);
+  if (targetCycle <= 0) return { ok: false, status: 409, error: "cycle_cannot_decrement" as const };
   const payment = await prisma.payment.findFirst({
     where: {
       subscriptionId: subscription.id,
@@ -1143,8 +1192,11 @@ export async function unmarkSubscriptionPaidManual(args: {
   if (!isManual) return { ok: false, status: 409, error: "payment_not_manual" as const };
 
   const now = new Date();
-  const prevEnd = subscription.currentPeriodStartAt || subscription.currentPeriodEndAt || subscription.createdAt || now;
-  const prevStart = subtractIntervalUtc(prevEnd, subscription.plan.intervalUnit, subscription.plan.intervalCount);
+  const cycleToReset =
+    linkedCycle ||
+    (await prisma.subscriptionBillingCycle.findFirst({
+      where: { subscriptionId: subscription.id, paymentId: payment.id }
+    }));
 
   await prisma.$transaction(async (tx) => {
     await tx.payment.update({
@@ -1163,21 +1215,51 @@ export async function unmarkSubscriptionPaidManual(args: {
       }
     });
 
+    if (cycleToReset) {
+      const dueAt = new Date(cycleToReset.dueAt || cycleToReset.periodEndAt);
+      await tx.subscriptionBillingCycle.update({
+        where: { id: cycleToReset.id },
+        data: {
+          paymentId: null,
+          paidAt: null,
+          paidOnTime: null,
+          daysEarly: null,
+          daysLate: null,
+          origin: null,
+          associationReason: null,
+          associatedBy: null,
+          status: BillingCycleStatus.PENDING
+        }
+      });
+    }
+
     await tx.subscription.update({
       where: { id: subscription.id },
       data: {
-        status: SubscriptionStatus.PAST_DUE,
-        currentCycle: { decrement: 1 },
-        currentPeriodStartAt: prevStart,
-        currentPeriodEndAt: prevEnd
+        status: SubscriptionStatus.PAST_DUE
       }
     });
   });
 
+  const snapshot = await syncSubscriptionBillingSnapshot({ subscriptionId: subscription.id, asOf: now }).catch((err: any) => {
+    logger.warn({ err, subscriptionId: subscription.id }, "Fallo sincronizando snapshot tras desmarcar pago manual");
+    return null;
+  });
+  const billingState = await resolveSubscriptionBillingState({ subscriptionId: subscription.id, asOf: now }).catch(() => null);
+  const collectionCycle = billingState?.collectionCycle || snapshot?.collectionCycle || null;
+  const hasOverdue = collectionCycle ? new Date(collectionCycle.dueAt || collectionCycle.periodEndAt).getTime() <= now.getTime() : false;
+  await prisma.subscription.update({
+    where: { id: subscription.id },
+    data: {
+      status: hasOverdue ? SubscriptionStatus.PAST_DUE : SubscriptionStatus.ACTIVE
+    }
+  });
+
   const collectionMode = resolveSubscriptionCollectionMode(subscription);
   if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
-    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: prevEnd, maxAttempts: 1 }).catch((err: any) => {
-      logger.warn({ err, subscriptionId: subscription.id, runAt: prevEnd }, "Fallo reprogramando retry tras desmarcar pago manual");
+    const retryAt = collectionCycle ? new Date(collectionCycle.dueAt || collectionCycle.periodEndAt) : now;
+    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: retryAt, maxAttempts: 1 }).catch((err: any) => {
+      logger.warn({ err, subscriptionId: subscription.id, runAt: retryAt }, "Fallo reprogramando retry tras desmarcar pago manual");
     });
   }
 
@@ -1221,18 +1303,36 @@ export async function scheduleSubscriptionCutoff(args: { subscriptionId: string;
     return { ok: false, status: 409, error: "schedule_cutoff_not_allowed" as const };
   }
 
+  const billingState = await resolveSubscriptionBillingState({ subscriptionId, asOf: new Date() }).catch(() => null);
+  const activeCycle = billingState?.activeCycle || null;
+
   // Si la suscripción está al día, solo permitir mover el corte hacia el futuro.
   if (
     subscription.status === SubscriptionStatus.ACTIVE &&
-    subscription.currentPeriodEndAt &&
-    cutoffAt.getTime() < new Date(subscription.currentPeriodEndAt).getTime()
+    activeCycle?.periodEndAt &&
+    cutoffAt.getTime() < new Date(activeCycle.periodEndAt).getTime()
   ) {
     return { ok: false, status: 409, error: "cutoff_cannot_move_backwards" as const };
   }
 
-  const updated = await prisma.subscription.update({
-    where: { id: subscriptionId },
-    data: { currentPeriodEndAt: cutoffAt }
+  const updated = subscription;
+
+  await ensureBillingCyclesForSubscription({
+    id: updated.id,
+    startAt: updated.startAt,
+    currentCycle: activeCycle?.cycleNumber ?? 1,
+    currentPeriodStartAt: activeCycle?.periodStartAt ? new Date(activeCycle.periodStartAt) : updated.startAt,
+    currentPeriodEndAt: cutoffAt,
+    cycleStartDay: updated.cycleStartDay,
+    paymentDay: updated.paymentDay,
+    paymentTiming: updated.paymentTiming as any,
+    graceDays: updated.graceDays,
+    plan: {
+      intervalUnit: subscription.plan.intervalUnit,
+      intervalCount: subscription.plan.intervalCount
+    }
+  }).catch((err: any) => {
+    logger.warn({ err, subscriptionId }, "Fallo regenerando ciclos tras cambiar cutoff");
   });
 
   await prisma.retryJob.deleteMany({
@@ -1301,15 +1401,27 @@ export async function recalcSubscriptionCutoff(args: { subscriptionId: string; t
   }
   if (!subscription.plan) return { ok: false, status: 409, error: "plan_not_found" as const };
 
-  const baseStart = subscription.currentPeriodEndAt || subscription.currentPeriodStartAt || subscription.createdAt;
+  const billingStateForRecalc = await resolveSubscriptionBillingState({ subscriptionId, asOf: new Date() }).catch(() => null);
+  const baseStart = billingStateForRecalc?.activeCycle?.periodEndAt || subscription.startAt || subscription.createdAt;
   const nextEnd = addIntervalUtc(baseStart, subscription.plan.intervalUnit, subscription.plan.intervalCount);
+  const updated = subscription;
 
-  const updated = await prisma.subscription.update({
-    where: { id: subscriptionId },
-    data: {
-      currentPeriodStartAt: baseStart,
-      currentPeriodEndAt: nextEnd
+  await ensureBillingCyclesForSubscription({
+    id: updated.id,
+    startAt: updated.startAt,
+    currentCycle: (billingStateForRecalc?.activeCycle?.cycleNumber ?? 0) + 1,
+    currentPeriodStartAt: new Date(baseStart),
+    currentPeriodEndAt: nextEnd,
+    cycleStartDay: updated.cycleStartDay,
+    paymentDay: updated.paymentDay,
+    paymentTiming: updated.paymentTiming as any,
+    graceDays: updated.graceDays,
+    plan: {
+      intervalUnit: subscription.plan.intervalUnit,
+      intervalCount: subscription.plan.intervalCount
     }
+  }).catch((err: any) => {
+    logger.warn({ err, subscriptionId }, "Fallo regenerando ciclos al recalcular cutoff");
   });
 
   await prisma.retryJob.deleteMany({
@@ -1452,12 +1564,11 @@ export async function updateSubscriptionBillingSettings(args: {
   const updated = await prisma.subscription.update({
     where: { id: subscriptionId },
     data: {
-      ...(args.startAt ? { startAt: anchor, currentPeriodStartAt: effectiveStart } : {}),
+      ...(args.startAt ? { startAt: anchor } : {}),
       cycleStartDay: Math.max(1, Math.min(31, Math.trunc(cycleStartDay))),
       paymentDay: Math.max(1, Math.min(31, Math.trunc(paymentDay))),
       graceDays: Math.max(1, Math.min(5, Math.trunc(graceDays))),
-      paymentTiming,
-      currentPeriodEndAt: effectiveEnd
+      paymentTiming
     }
   });
 
@@ -1469,6 +1580,28 @@ export async function updateSubscriptionBillingSettings(args: {
     graceDays: updated.graceDays
   }, args.actor || "Sistema").catch((err: any) => {
     logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al actualizar reglas de ciclo");
+  });
+
+  await ensureBillingCyclesForSubscription({
+    id: updated.id,
+    startAt: updated.startAt,
+    currentCycle: paymentTiming === "ANTICIPADO" ? 2 : 1,
+    currentPeriodStartAt: effectiveStart,
+    currentPeriodEndAt: effectiveEnd,
+    cycleStartDay: updated.cycleStartDay,
+    paymentDay: updated.paymentDay,
+    paymentTiming: updated.paymentTiming as any,
+    graceDays: updated.graceDays,
+    plan: {
+      intervalUnit: subscription.plan.intervalUnit,
+      intervalCount: subscription.plan.intervalCount
+    }
+  }).catch((err: any) => {
+    logger.warn({ err, subscriptionId }, "Fallo regenerando ciclos tras actualizar reglas de suscripción");
+  });
+
+  await syncSubscriptionBillingSnapshot({ subscriptionId, asOf: new Date() }).catch((err: any) => {
+    logger.warn({ err, subscriptionId }, "Fallo sincronizando snapshot tras actualizar reglas");
   });
 
   return { ok: true as const };
@@ -1549,11 +1682,26 @@ export async function changeSubscriptionPlan(args: {
     where: { id: subscriptionId },
     data: {
       planId: plan.id,
-      metadata: nextSubscriptionMetadata as any,
-      currentCycle: 1,
-      currentPeriodStartAt: now,
-      currentPeriodEndAt: cutoffAt
+      metadata: nextSubscriptionMetadata as any
     }
+  });
+
+  await ensureBillingCyclesForSubscription({
+    id: updated.id,
+    startAt: updated.startAt,
+    currentCycle: 1,
+    currentPeriodStartAt: now,
+    currentPeriodEndAt: cutoffAt,
+    cycleStartDay: updated.cycleStartDay,
+    paymentDay: updated.paymentDay,
+    paymentTiming: updated.paymentTiming as any,
+    graceDays: updated.graceDays,
+    plan: {
+      intervalUnit: plan.intervalUnit,
+      intervalCount: plan.intervalCount
+    }
+  }).catch((err: any) => {
+    logger.warn({ err, subscriptionId }, "Fallo regenerando ciclos al cambiar plan");
   });
 
   await prisma.retryJob.deleteMany({

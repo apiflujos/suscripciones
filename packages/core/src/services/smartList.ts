@@ -1,6 +1,7 @@
 import { prisma } from "../db/prisma";
 import { SubscriptionStatus, PaymentStatus, GamificationEntityType } from "@prisma/client";
 import { formatLevelName } from "./gamification";
+import { buildSubscriptionBillingStateIndex } from "./billingCycles";
 
 export type SmartListRule =
   | {
@@ -205,6 +206,23 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
   gamificationScores.forEach((row) => gamificationByCustomer.set(String(row.entityId), row));
 
   const now = Date.now();
+  const latestSubscriptions = customers
+    .map((customer: any) => customer.subscriptions?.[0] || null)
+    .filter((sub: any) => sub?.plan);
+  const billingStateBySubscription = await buildSubscriptionBillingStateIndex({
+    subscriptions: latestSubscriptions.map((sub: any) => ({
+      id: sub.id,
+      startAt: sub.startAt,
+      cycleStartDay: sub.cycleStartDay,
+      paymentDay: sub.paymentDay,
+      paymentTiming: (sub.paymentTiming as any) === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",
+      graceDays: sub.graceDays,
+      plan: {
+        intervalUnit: sub.plan.intervalUnit,
+        intervalCount: sub.plan.intervalCount
+      }
+    }))
+  });
 
   return customers.filter((customer: any) => {
     const sub = customer.subscriptions?.[0] || null;
@@ -215,10 +233,13 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
     const gamificationLevel = Number(gamification?.level || 1);
     const gamificationLevelName = formatLevelName(gamificationLevel);
 
-    const currentPeriodEndAt = sub?.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
+    const billingState = sub ? billingStateBySubscription.get(String(sub.id)) || null : null;
+    const activeCycle = billingState?.activeCycle || null;
+    const collectionCycle = billingState?.collectionCycle || activeCycle;
+    const nextBillingDate = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : activeCycle?.periodEndAt ? new Date(activeCycle.periodEndAt) : null;
     const daysPastDue =
-      currentPeriodEndAt && currentPeriodEndAt.getTime() < now
-        ? Math.floor((now - currentPeriodEndAt.getTime()) / 86_400_000)
+      nextBillingDate && nextBillingDate.getTime() < now
+        ? Math.floor((now - nextBillingDate.getTime()) / 86_400_000)
         : 0;
 
     const tier =
@@ -241,7 +262,7 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
       planName: sub?.plan?.name ?? null,
       planPrice: sub?.plan?.priceInCents ?? null,
       planActive: sub?.plan?.active ?? null,
-      nextBillingDate: currentPeriodEndAt,
+      nextBillingDate,
       lastPaymentStatus: latestPayment?.status ?? null,
       lastPaymentDate: latestPayment?.createdAt ?? null,
       paymentsCount: totalPayments,

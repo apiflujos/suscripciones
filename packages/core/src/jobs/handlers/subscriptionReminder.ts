@@ -10,6 +10,7 @@ import { getDefaultTenantId } from "../../services/tenantContext";
 import { formatDateTimeEs } from "../../lib/dates";
 import { getAppTimeZone } from "../../services/runtimeConfig";
 import { logger } from "../../lib/logger";
+import { resolveSubscriptionBillingState } from "../../services/billingCycles";
 
 const payloadSchema = z.object({
   trigger: notificationTriggerSchema,
@@ -221,6 +222,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     subscription?.customer ||
     payment?.customer ||
     (parsed.data.customerId ? await prisma.customer.findUnique({ where: { id: parsed.data.customerId } }) : null);
+  const subscriptionBillingState = subscription ? await resolveSubscriptionBillingState({ subscriptionId: subscription.id }) : null;
+  const activeCycle = subscriptionBillingState?.activeCycle || null;
+  const collectionCycle = subscriptionBillingState?.collectionCycle || activeCycle;
 
   if (!customer) {
     await systemLog(LogLevel.WARN, "notifications.dispatch", "Contacto no encontrado", {
@@ -279,28 +283,30 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
 
   // Guard against old scheduled reminders after renewal: cycle/anchor must still match.
   if (subscription && parsed.data.trigger === "SUBSCRIPTION_DUE") {
-    if (typeof parsed.data.cycleNumber === "number" && subscription.currentCycle !== parsed.data.cycleNumber) {
+    if (!collectionCycle) return { ok: false, skipped: true, error: "missing_collection_cycle" };
+    if (typeof parsed.data.cycleNumber === "number" && collectionCycle.cycleNumber !== parsed.data.cycleNumber) {
       await systemLog(LogLevel.WARN, "notifications.dispatch", "Ciclo desactualizado; notificación omitida", {
         ruleId: rule.id,
         templateId: template.id,
         trigger: parsed.data.trigger,
         subscriptionId: subscription.id,
-        currentCycle: subscription.currentCycle,
+        currentCycle: collectionCycle.cycleNumber,
         payloadCycle: parsed.data.cycleNumber
       }, "job:subscriptionReminder").catch((err: any) => {
-        logger.warn({ err, subscriptionId: subscription.id, currentCycle: subscription.currentCycle }, "subscriptionReminder: fallo escribiendo systemLog de ciclo desactualizado");
+        logger.warn({ err, subscriptionId: subscription.id, currentCycle: collectionCycle.cycleNumber }, "subscriptionReminder: fallo escribiendo systemLog de ciclo desactualizado");
       });
       return { ok: false, skipped: true, error: "cycle_mismatch" };
     }
     if (parsed.data.anchorAt) {
       const anchorIso = new Date(parsed.data.anchorAt).toISOString();
-      if (subscription.currentPeriodEndAt.toISOString() !== anchorIso) {
+      const currentAnchor = new Date(collectionCycle.dueAt || collectionCycle.periodEndAt).toISOString();
+      if (currentAnchor !== anchorIso) {
         await systemLog(LogLevel.WARN, "notifications.dispatch", "Fecha de corte no coincide; notificación omitida", {
           ruleId: rule.id,
           templateId: template.id,
           trigger: parsed.data.trigger,
           subscriptionId: subscription.id,
-          currentAnchor: subscription.currentPeriodEndAt.toISOString(),
+          currentAnchor,
           payloadAnchor: anchorIso
         }, "job:subscriptionReminder").catch((err: any) => {
           logger.warn({ err, subscriptionId: subscription.id, anchorIso }, "subscriptionReminder: fallo escribiendo systemLog de anchor desalineado");
@@ -310,7 +316,7 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     }
 
     // Skip reminders if the upcoming cycle payment is already approved.
-    const cycle = parsed.data.cycleNumber ?? subscription.currentCycle;
+    const cycle = parsed.data.cycleNumber ?? collectionCycle.cycleNumber;
     const approved = await prisma.payment.findUnique({
       where: { subscriptionCycleKey: `${subscription.id}:${cycle}` },
       select: { status: true }
@@ -371,7 +377,7 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
 
   let effectivePayment: any = payment;
   if (rule.ensurePaymentLink && subscription && parsed.data.trigger === "SUBSCRIPTION_DUE") {
-    const cycle = parsed.data.cycleNumber ?? subscription.currentCycle;
+    const cycle = parsed.data.cycleNumber ?? collectionCycle?.cycleNumber ?? activeCycle?.cycleNumber ?? 1;
     const subscriptionCycleKey = `${subscription.id}:${cycle}`;
     effectivePayment = await prisma.payment
       .findUnique({ where: { subscriptionCycleKey }, include: { customer: true, subscription: true } })
@@ -507,6 +513,19 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
   const centsToPesos = (value?: number | null) => Math.trunc(Number(value || 0) / 100);
   const tokenizationUrl = parsed.data.tokenUrl || meta?.tokenizationLink?.url || "";
   const catalogUrl = parsed.data.catalogUrl || meta?.cartLink?.url || "";
+  const subscriptionTemplate = subscription
+      ? {
+        ...subscription,
+        activeCycleNumber: activeCycle?.cycleNumber ?? null,
+        activeCycleStartAt: activeCycle?.periodStartAt ?? null,
+        activeCycleEndAt: activeCycle?.periodEndAt ?? null,
+        collectionCycleNumber: collectionCycle?.cycleNumber ?? null,
+        nextBillingDate: collectionCycle?.dueAt ?? activeCycle?.periodEndAt ?? null,
+        currentCycle: activeCycle?.cycleNumber ?? null,
+        currentPeriodStartAt: activeCycle?.periodStartAt ?? null,
+        currentPeriodEndAt: activeCycle?.periodEndAt ?? null
+      }
+    : null;
   const planWithPesos = subscription?.plan
     ? { ...subscription.plan, priceInPesos: centsToPesos(subscription.plan.priceInCents) }
     : null;
@@ -520,7 +539,7 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
   const ctx = {
     __tz: timeZone,
     customer,
-    subscription,
+    subscription: subscriptionTemplate,
     plan: planWithPesos,
     payment: paymentWithPesos,
     checkoutPublicToken,

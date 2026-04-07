@@ -13,6 +13,7 @@ import { prisma } from "../db/prisma";
 import { getNotificationsConfig } from "../services/notificationsConfig";
 import { LogLevel } from "@prisma/client";
 import { systemLog } from "../services/systemLog";
+import { resolveSubscriptionBillingState } from "../services/billingCycles";
 
 async function main() {
   console.log("🔍 Iniciando limpieza de jobs huérfanos...");
@@ -74,9 +75,7 @@ async function main() {
       where: { id: subscriptionId },
       select: {
         id: true,
-        status: true,
-        currentPeriodEndAt: true,
-        currentCycle: true
+        status: true
       }
     });
 
@@ -105,14 +104,28 @@ async function main() {
       continue;
     }
 
-    // 4. Jobs con ciclo desactualizado
-    const payloadCycle = payload?.cycleNumber;
-    if (typeof payloadCycle === "number" && subscription.currentCycle !== payloadCycle) {
+    const billingState = await resolveSubscriptionBillingState({ subscriptionId: subscription.id });
+    const collectionCycle = billingState?.collectionCycle || null;
+    if (!collectionCycle) {
       await prisma.retryJob.update({
         where: { id: job.id },
         data: {
           status: "CANCELED",
-          lastError: `Cycle mismatch: payload=${payloadCycle}, current=${subscription.currentCycle}`
+          lastError: "Missing collection cycle"
+        }
+      });
+      orphanedBySubscription++;
+      continue;
+    }
+
+    // 4. Jobs con ciclo desactualizado
+    const payloadCycle = payload?.cycleNumber;
+    if (typeof payloadCycle === "number" && collectionCycle.cycleNumber !== payloadCycle) {
+      await prisma.retryJob.update({
+        where: { id: job.id },
+        data: {
+          status: "CANCELED",
+          lastError: `Cycle mismatch: payload=${payloadCycle}, current=${collectionCycle.cycleNumber}`
         }
       });
       orphanedBySubscription++;
@@ -121,7 +134,7 @@ async function main() {
 
     // 5. Jobs con anchorAt desactualizado
     const anchorAt = payload?.anchorAt ? new Date(payload.anchorAt) : null;
-    if (anchorAt && subscription.currentPeriodEndAt.toISOString() !== anchorAt.toISOString()) {
+    if (anchorAt && new Date(collectionCycle.dueAt || collectionCycle.periodEndAt).toISOString() !== anchorAt.toISOString()) {
       await prisma.retryJob.update({
         where: { id: job.id },
         data: {

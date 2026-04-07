@@ -1,40 +1,52 @@
 #!/bin/bash
 
-# ========================================
-# Script de Deploy - Suscripciones API
-# ========================================
+set -euo pipefail
 
-set -e  # Exit on error
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
 
-echo "🚀 Iniciando deploy..."
+if [ ! -f ".env" ]; then
+  echo "❌ Falta .env en $ROOT_DIR"
+  exit 1
+fi
 
-# 1. Pull de últimos cambios
+set -a
+source ./.env
+set +a
+
+if [ -z "${DATABASE_URL:-}" ]; then
+  echo "❌ DATABASE_URL no está definido en .env"
+  exit 1
+fi
+
+echo "🚀 Iniciando deploy en $ROOT_DIR"
+
 echo "📦 Obteniendo últimos cambios..."
-git pull origin main
+git pull --ff-only
 
-# 2. Instalar dependencias
 echo "📦 Instalando dependencias..."
-npm ci --production
+npm ci
 
-# 3. Generar Prisma Client
-echo "🗄️  Generando Prisma Client..."
-npx prisma generate --schema ./packages/database/prisma/schema.prisma
+echo "🗄️ Generando Prisma Client..."
+npm run db:generate
 
-# 4. Ejecutar migraciones
-echo "🔄 Ejecutando migraciones..."
-npx prisma migrate deploy --schema ./packages/database/prisma/schema.prisma
+echo "🔄 Aplicando migraciones..."
+npm run prisma:migrate:deploy -w packages/database
 
-# 5. Build del proyecto
 echo "🔨 Construyendo aplicación..."
-npm run build
+npm run build -w apps/admin
 
-# 6. Reiniciar PM2
-echo "🔄 Reiniciando PM2..."
-pm2 restart ecosystem.config.js --update-env
+echo "🔄 Recargando PM2..."
+if pm2 describe ecosystem.config.js >/dev/null 2>&1; then
+  pm2 restart ecosystem.config.js --update-env
+else
+  pm2 start ecosystem.config.js --update-env
+  pm2 save
+fi
 
-# 7. Verificar servicios
 echo "✅ Verificando servicios..."
 sleep 5
 pm2 status
+curl -fsS "http://127.0.0.1:${PORT:-3002}/health" >/dev/null
 
-echo "🎉 Deploy completado exitosamente!"
+echo "🎉 Deploy completado"

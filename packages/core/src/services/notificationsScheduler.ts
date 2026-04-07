@@ -6,7 +6,7 @@ import { getPaymentsConfig } from "./runtimeConfig";
 import { systemLog, SystemActor } from "./systemLog";
 import { subscriptionReminder } from "../jobs/handlers/subscriptionReminder";
 import { classifyReference } from "../webhooks/wompi/classifyReference";
-import { computeBillingCycleDueAt } from "./billingCycles";
+import { resolveSubscriptionBillingState } from "./billingCycles";
 
 type NotificationRule = {
   id: string;
@@ -63,17 +63,14 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
     where: { id: subscriptionId },
     select: {
       id: true,
-      customerId: true,
-      currentCycle: true,
-      currentPeriodStartAt: true,
-      currentPeriodEndAt: true,
-      cycleStartDay: true,
-      paymentDay: true,
-      paymentTiming: true,
-      plan: { select: { intervalUnit: true } }
+      customerId: true
     }
   });
   if (!sub) return { scheduled: 0 };
+
+  const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id });
+  const collectionCycle = billingState?.collectionCycle || null;
+  if (!collectionCycle) return { scheduled: 0 };
 
   const cfg = await getNotificationsConfig();
   const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "SUBSCRIPTION_DUE");
@@ -82,16 +79,7 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
   }
 
   const now = new Date();
-  const anchorAt =
-    String(sub.plan?.intervalUnit || "MONTH").toUpperCase() === "MONTH"
-      ? computeBillingCycleDueAt({
-          periodStartAt: sub.currentPeriodStartAt,
-          periodEndAt: sub.currentPeriodEndAt,
-          cycleStartDay: sub.cycleStartDay,
-          paymentDay: sub.paymentDay,
-          paymentTiming: (sub.paymentTiming as any) === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
-        })
-      : sub.currentPeriodEndAt;
+  const anchorAt = new Date(collectionCycle.dueAt || collectionCycle.periodEndAt);
   const anchorIso = anchorAt.toISOString();
 
   let scheduled = 0;
@@ -109,7 +97,7 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
           AND: [
             { payload: { path: ["ruleId"], equals: rule.id } as any },
             { payload: { path: ["offsetSeconds"], equals: offsetSeconds } as any },
-            { payload: { path: ["cycleNumber"], equals: sub.currentCycle } as any },
+            { payload: { path: ["cycleNumber"], equals: collectionCycle.cycleNumber } as any },
             { payload: { path: ["anchorAt"], equals: anchorIso } as any }
           ]
         } as any
@@ -125,7 +113,7 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
             offsetSeconds,
             subscriptionId: sub.id,
             customerId: sub.customerId,
-            cycleNumber: sub.currentCycle,
+            cycleNumber: collectionCycle.cycleNumber,
             anchorAt: anchorIso
           }
         }
@@ -143,7 +131,7 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
       environment: await getNotificationsActiveEnv(),
       subscriptionId: sub.id,
       customerId: sub.customerId,
-      currentPeriodEndAt: sub.currentPeriodEndAt.toISOString(),
+      currentPeriodEndAt: new Date(collectionCycle.periodEndAt).toISOString(),
       rulesCount: rules.length,
       scheduled
     },

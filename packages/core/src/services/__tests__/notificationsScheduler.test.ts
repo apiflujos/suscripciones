@@ -53,6 +53,16 @@ vi.mock("../webhooks/wompi/classifyReference", () => ({
   classifyReference: vi.fn(() => ({ kind: "subscription" }))
 }));
 
+vi.mock("../billingCycles", () => ({
+  resolveSubscriptionBillingState: vi.fn(async () => ({
+    collectionCycle: {
+      cycleNumber: 1,
+      periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
+      dueAt: new Date("2026-04-15T00:00:00.000Z")
+    }
+  }))
+}));
+
 import { prisma } from "../../db/prisma";
 
 describe("notificationsScheduler", () => {

@@ -5,6 +5,7 @@ import { prisma } from "@suscripciones/database";
 import { reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { logger } from "@suscripciones/core/lib/logger";
+import { ensureBillingCyclesForSubscription } from "@suscripciones/core/services/billingCycles";
 
 async function reconcilePendingPaymentFromWompi(args: { paymentId: string; wompiTransactionId?: string | null; tenantId?: string | null }) {
   const txId = String(args.wompiTransactionId || "").trim();
@@ -148,8 +149,32 @@ export async function listSubscriptionBillingCycles(args: { subscriptionId: stri
   const subscriptionId = String(args.subscriptionId || "").trim();
   if (!subscriptionId) return { ok: false as const, status: 400, error: "invalid_subscription_id" as const };
   const take = Math.min(36, Math.max(1, Number(args.take ?? 18)));
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { plan: { select: { intervalUnit: true, intervalCount: true } } }
+  });
+  if (!subscription) return { ok: false as const, status: 404, error: "subscription_not_found" as const };
+
+  await ensureBillingCyclesForSubscription({
+    id: subscription.id,
+    startAt: subscription.startAt,
+    cycleStartDay: subscription.cycleStartDay,
+    paymentDay: subscription.paymentDay,
+    paymentTiming: subscription.paymentTiming as any,
+    graceDays: subscription.graceDays,
+    plan: {
+      intervalUnit: subscription.plan.intervalUnit,
+      intervalCount: subscription.plan.intervalCount
+    }
+  }).catch((err: any) => {
+    logger.warn({ err, subscriptionId }, "Fallo asegurando ciclos antes de listar billing cycles");
+  });
+
   const items = await prisma.subscriptionBillingCycle.findMany({
-    where: { subscriptionId },
+    where: {
+      subscriptionId,
+      periodStartAt: { lte: new Date() }
+    },
     orderBy: { periodStartAt: "desc" },
     take,
     include: { 
@@ -162,6 +187,76 @@ export async function listSubscriptionBillingCycles(args: { subscriptionId: stri
     }
   });
   return { ok: true as const, items };
+}
+
+export async function searchSubscriptionPaymentCandidates(args: {
+  subscriptionId: string;
+  tenantId?: string | null;
+  q: string;
+  take?: number;
+}) {
+  const subscriptionId = String(args.subscriptionId || "").trim();
+  const q = String(args.q || "").trim();
+  if (!subscriptionId) return { ok: false as const, status: 400, error: "invalid_subscription_id" as const };
+  if (!q) return { ok: true as const, items: [] };
+
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { tenantLinks: true }
+  });
+  if (!subscription) return { ok: false as const, status: 404, error: "subscription_not_found" as const };
+  if (args.tenantId) {
+    const allowed =
+      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+    if (!allowed) return { ok: false as const, status: 404, error: "subscription_not_found" as const };
+  }
+
+  const take = Number.isFinite(args.take) ? Math.min(Math.max(Math.trunc(args.take!), 1), 50) : 20;
+  const digits = q.replace(/\D+/g, "");
+  const amountCandidates = digits ? Array.from(new Set([Number(digits), Number(digits) * 100].filter((n) => Number.isFinite(n)))) : [];
+
+  const items = await prisma.payment.findMany({
+    where: {
+      customerId: subscription.customerId,
+      ...(args.tenantId ? { tenantId: args.tenantId } : {}),
+      status: PaymentStatus.APPROVED,
+      OR: [
+        { subscriptionId: null },
+        { subscriptionId, billingCycle: { is: null } }
+      ],
+      AND: [
+        {
+          OR: [
+            { wompiTransactionId: { contains: q, mode: "insensitive" } },
+            { reference: { contains: q, mode: "insensitive" } },
+            { customer: { name: { contains: q, mode: "insensitive" } } },
+            { customer: { email: { contains: q, mode: "insensitive" } } },
+            ...(amountCandidates.length ? amountCandidates.map((amount) => ({ amountInCents: amount })) : [])
+          ]
+        }
+      ]
+    },
+    orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
+    take
+  });
+
+  return {
+    ok: true as const,
+    items: items.map((p: any) => ({
+      id: p.id,
+      status: p.status,
+      amountInCents: p.amountInCents,
+      currency: p.currency,
+      paidAt: p.paidAt,
+      failedAt: p.failedAt,
+      createdAt: p.createdAt,
+      wompiTransactionId: p.wompiTransactionId,
+      reference: p.reference,
+      origin: p.origin || null,
+      associationReason: p.associationReason || null,
+      associatedBy: p.associatedBy || null
+    }))
+  };
 }
 
 export async function listCustomerBillingCycles(args: { customerId: string; take?: number }) {

@@ -10,7 +10,9 @@ import { describe, expect, it } from "vitest";
 import {
   computeBillingCycleDueAt,
   buildBillingCyclesForSubscription,
-  findBestBillingCycleForPayment
+  findBestBillingCycleForPayment,
+  normalizeSubscriptionSeed,
+  resolveConfiguredCollectionCycle
 } from "../billingCycles";
 
 // ── Helpers ──
@@ -123,6 +125,22 @@ describe("computeBillingCycleDueAt", () => {
 });
 
 describe("buildBillingCyclesForSubscription", () => {
+  it("should infer the effective current cycle from historical anchors", () => {
+    const sub = createSubSeed({
+      startAt: new Date("2026-03-19T07:24:55.034Z"),
+      currentCycle: 1,
+      currentPeriodStartAt: new Date("2026-04-01T00:00:00.000Z"),
+      currentPeriodEndAt: new Date("2026-05-01T00:00:00.000Z"),
+      cycleStartDay: 1,
+      paymentDay: 20,
+      paymentTiming: "ANTICIPADO"
+    });
+
+    const normalized = normalizeSubscriptionSeed(sub as any);
+
+    expect(normalized.currentCycle).toBe(2);
+  });
+
   it("should generate cycles back and forward from current cycle", () => {
     const sub = createSubSeed({
       currentCycle: 6,
@@ -242,6 +260,63 @@ describe("findBestBillingCycleForPayment", () => {
 
     // Payment is within cycle window (Apr 15 is within Apr 1 - May 1 + tolerance)
     expect(result?.id).toBe("c3");
+  });
+});
+
+describe("resolveConfiguredCollectionCycle", () => {
+  const cycles = [
+    {
+      id: "c-apr",
+      cycleNumber: 1,
+      periodStartAt: new Date("2026-04-01T00:00:00.000Z"),
+      periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
+      dueAt: new Date("2026-04-20T00:00:00.000Z"),
+      paymentId: null,
+      status: "PENDING"
+    },
+    {
+      id: "c-may",
+      cycleNumber: 2,
+      periodStartAt: new Date("2026-05-01T00:00:00.000Z"),
+      periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
+      dueAt: new Date("2026-04-20T00:00:00.000Z"),
+      paymentId: null,
+      status: "PENDING"
+    }
+  ];
+
+  it("should keep EN_CURSO on the current cycle for payments on the 19th, 20th and 21st", () => {
+    const dates = [
+      new Date("2026-04-19T12:00:00.000Z"),
+      new Date("2026-04-20T12:00:00.000Z"),
+      new Date("2026-04-21T12:00:00.000Z")
+    ];
+
+    for (const asOf of dates) {
+      const target = resolveConfiguredCollectionCycle({
+        cycles,
+        asOf,
+        paymentTiming: "EN_CURSO"
+      });
+      expect(target?.cycleNumber).toBe(1);
+    }
+  });
+
+  it("should move ANTICIPADO to the next cycle for payments on the 19th, 20th and 21st", () => {
+    const dates = [
+      new Date("2026-04-19T12:00:00.000Z"),
+      new Date("2026-04-20T12:00:00.000Z"),
+      new Date("2026-04-21T12:00:00.000Z")
+    ];
+
+    for (const asOf of dates) {
+      const target = resolveConfiguredCollectionCycle({
+        cycles,
+        asOf,
+        paymentTiming: "ANTICIPADO"
+      });
+      expect(target?.cycleNumber).toBe(2);
+    }
   });
 });
 

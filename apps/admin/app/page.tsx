@@ -1200,7 +1200,7 @@ export default async function Home({
                                     <td>{s?.customer?.name || s?.customer?.email || "Cliente"}</td>
                                     <td>{s?.plan?.name || "—"}</td>
                                     <td>{modeLabel(s)}</td>
-                                    <td>{s?.currentPeriodEndAt ? fmtDateTimeShort(s.currentPeriodEndAt) : "Sin fecha"}</td>
+                                    <td>{s?.nextBillingDate ? fmtDateTimeShort(s.nextBillingDate) : "Sin fecha"}</td>
                                     <td>
                                       <span className="pill pill-bad pill-sm">{statusLabel(s?.status)}</span>
                                     </td>
@@ -1241,7 +1241,7 @@ export default async function Home({
                                     <td>{s?.customer?.name || s?.customer?.email || "Cliente"}</td>
                                     <td>{s?.plan?.name || "—"}</td>
                                     <td>{modeLabel(s)}</td>
-                                    <td>{s?.currentPeriodEndAt ? fmtDateTimeShort(s.currentPeriodEndAt) : "Sin fecha"}</td>
+                                    <td>{s?.nextBillingDate ? fmtDateTimeShort(s.nextBillingDate) : "Sin fecha"}</td>
                                     <td>
                                       <span className="pill pill-ok pill-sm">{statusLabel(s?.status)}</span>
                                     </td>

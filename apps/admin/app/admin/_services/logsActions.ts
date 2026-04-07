@@ -5,7 +5,7 @@ import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, WebhookProcessSt
 import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyReference";
 import { reconcileWompiByReference, reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
-import { attachPaymentToCycle, ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment } from "@suscripciones/core/services/billingCycles";
+import { attachPaymentToCycle, buildSubscriptionSeed, ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment, resolveConfiguredCollectionCycle, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
 import { getSubscriptionPricingTotal } from "@suscripciones/core/lib/metadataSchemas";
 import { logger } from "@suscripciones/core/lib/logger";
 
@@ -312,11 +312,9 @@ export async function associatePaymentToSubscription(args: {
   const toleranceMs = toleranceDays * 24 * 60 * 60 * 1000;
 
   await ensureBillingCyclesForSubscriptions([
-    {
+    buildSubscriptionSeed({
       id: subscription.id,
-      currentCycle: subscription.currentCycle,
-      currentPeriodStartAt: subscription.currentPeriodStartAt,
-      currentPeriodEndAt: subscription.currentPeriodEndAt,
+      startAt: subscription.startAt,
       cycleStartDay: subscription.cycleStartDay,
       paymentDay: subscription.paymentDay,
       paymentTiming: subscription.paymentTiming as any,
@@ -325,12 +323,14 @@ export async function associatePaymentToSubscription(args: {
         intervalUnit: subscription.plan.intervalUnit,
         intervalCount: subscription.plan.intervalCount
       }
-    }
+    })
   ]).catch((err: any) => {
     logger.warn({ err, subscriptionId: subscription.id, paymentId: payment.id }, "Fallo asegurando ciclos antes de asociar pago manual");
   });
 
   const now = new Date();
+  const billingState = await resolveSubscriptionBillingState({ subscriptionId: subscription.id, asOf: now }).catch(() => null);
+  const activeCycle = billingState?.activeCycle || null;
   let cycleToAttach = cycle;
   if (!cycleToAttach) {
     cycleToAttach = await prisma.subscriptionBillingCycle.findFirst({
@@ -345,7 +345,7 @@ export async function associatePaymentToSubscription(args: {
   }
   if (!cycleToAttach) {
     cycleToAttach = await prisma.subscriptionBillingCycle.findUnique({
-      where: { subscriptionId_cycleNumber: { subscriptionId: subscription.id, cycleNumber: subscription.currentCycle } }
+      where: { subscriptionId_cycleNumber: { subscriptionId: subscription.id, cycleNumber: activeCycle?.cycleNumber ?? 1 } }
     });
   }
 
@@ -363,18 +363,22 @@ export async function associatePaymentToSubscription(args: {
 
   const targetWindowStart = cycleToAttach
     ? new Date(new Date(cycleToAttach.periodStartAt).getTime() - toleranceMs)
-    : new Date(subscription.currentPeriodStartAt.getTime() - toleranceMs);
+    : activeCycle
+      ? new Date(new Date(activeCycle.periodStartAt).getTime() - toleranceMs)
+      : new Date(paymentAt.getTime() - toleranceMs);
   const targetWindowEnd = cycleToAttach
     ? new Date(new Date(cycleToAttach.periodEndAt).getTime() + toleranceMs)
-    : new Date(subscription.currentPeriodEndAt.getTime() + toleranceMs);
+    : activeCycle
+      ? new Date(new Date(activeCycle.periodEndAt).getTime() + toleranceMs)
+      : new Date(paymentAt.getTime() + toleranceMs);
   if (paymentAt < targetWindowStart || paymentAt > targetWindowEnd) {
     return {
       ok: false as const,
       error: "out_of_cycle" as const,
       details: {
         paidAt: paymentAt,
-        periodStart: cycleToAttach ? cycleToAttach.periodStartAt : subscription.currentPeriodStartAt,
-        periodEnd: cycleToAttach ? cycleToAttach.periodEndAt : subscription.currentPeriodEndAt
+        periodStart: cycleToAttach ? cycleToAttach.periodStartAt : (activeCycle?.periodStartAt || null),
+        periodEnd: cycleToAttach ? cycleToAttach.periodEndAt : (activeCycle?.periodEndAt || null)
       }
     };
   }
@@ -400,7 +404,7 @@ export async function associatePaymentToSubscription(args: {
       });
     }
 
-    const cycleNumber = cycleToAttach?.cycleNumber ?? payment.cycleNumber ?? subscription.currentCycle;
+    const cycleNumber = cycleToAttach?.cycleNumber ?? payment.cycleNumber ?? activeCycle?.cycleNumber ?? 1;
     await tx.payment.update({
       where: { id: payment.id },
       data: {
@@ -519,7 +523,11 @@ export async function autoAssociateUnlinkedPayments(args: {
       const reference = String(payment.reference || "").trim();
       const refClass = reference ? classifyReference(reference) : null;
 
-      const resolveMatchCycle = async (subscriptionId: string, cycleNumber?: number | null) => {
+      const resolveMatchCycle = async (
+        subscriptionId: string,
+        cycleNumber?: number | null,
+        paymentTiming?: string | null
+      ) => {
         const cycles = await prisma.subscriptionBillingCycle.findMany({
           where: {
             subscriptionId,
@@ -531,7 +539,14 @@ export async function autoAssociateUnlinkedPayments(args: {
         return findBestBillingCycleForPayment({
           cycles,
           paymentAt,
-          cycleNumberHint: cycleNumber ?? null,
+          cycleNumberHint:
+            cycleNumber ??
+            resolveConfiguredCollectionCycle({
+              cycles,
+              asOf: paymentAt,
+              paymentTiming: String(paymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
+            })?.cycleNumber ??
+            null,
           toleranceDays: 7
         });
       };
@@ -557,7 +572,7 @@ export async function autoAssociateUnlinkedPayments(args: {
         }
 
         const cyclesBack = estimateCyclesBack({
-          currentPeriodStartAt: subscription.currentPeriodStartAt,
+          currentPeriodStartAt: subscription.startAt,
           intervalUnit: subscription.plan.intervalUnit,
           intervalCount: subscription.plan.intervalCount,
           paymentAt
@@ -566,9 +581,7 @@ export async function autoAssociateUnlinkedPayments(args: {
           [
             {
               id: subscription.id,
-              currentCycle: subscription.currentCycle,
-              currentPeriodStartAt: subscription.currentPeriodStartAt,
-              currentPeriodEndAt: subscription.currentPeriodEndAt,
+              startAt: subscription.startAt,
               cycleStartDay: subscription.cycleStartDay,
               paymentDay: subscription.paymentDay,
               paymentTiming: (subscription.paymentTiming as any) || "EN_CURSO",
@@ -582,7 +595,7 @@ export async function autoAssociateUnlinkedPayments(args: {
           logger.warn({ err, paymentId: payment.id, subscriptionId: subscription.id }, "Fallo asegurando ciclos para autoasociacion por referencia");
         });
 
-        const cycle = await resolveMatchCycle(subscription.id, refClass.cycle ?? null);
+        const cycle = await resolveMatchCycle(subscription.id, refClass.cycle ?? null, subscription.paymentTiming as any);
         if (!cycle) {
           skipped += 1;
           continue;
@@ -725,7 +738,7 @@ export async function autoAssociateUnlinkedPayments(args: {
 
       for (const sub of usableSubs) {
         const cyclesBack = estimateCyclesBack({
-          currentPeriodStartAt: sub.currentPeriodStartAt,
+          currentPeriodStartAt: sub.startAt,
           intervalUnit: sub.plan.intervalUnit,
           intervalCount: sub.plan.intervalCount,
           paymentAt
@@ -734,9 +747,7 @@ export async function autoAssociateUnlinkedPayments(args: {
           [
             {
               id: sub.id,
-              currentCycle: sub.currentCycle,
-              currentPeriodStartAt: sub.currentPeriodStartAt,
-              currentPeriodEndAt: sub.currentPeriodEndAt,
+              startAt: sub.startAt,
               cycleStartDay: sub.cycleStartDay,
               paymentDay: sub.paymentDay,
               paymentTiming: (sub.paymentTiming as any) || "EN_CURSO",

@@ -21,7 +21,7 @@ import { getEffectiveTenantId } from "@suscripciones/core/services/tenantContext
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import { validateWompiCurrency } from "@suscripciones/core/lib/wompiSignature";
-import { computeBillingCycleDueAt } from "@suscripciones/core/services/billingCycles";
+import { computeBillingCycleDueAt, ensureBillingCyclesForSubscription, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -152,7 +152,8 @@ async function recordManualChargeFailure(args: {
   const tenantId = subscription?.tenantId || subscription?.plan?.tenantId;
   if (!subscription?.id || !subscription?.customerId || !tenantId) return null;
 
-  const cycle = Number(subscription.currentCycle || 1);
+  const billingState = await resolveSubscriptionBillingState({ subscriptionId: subscription.id }).catch(() => null);
+  const cycle = Number(billingState?.collectionCycle?.cycleNumber || billingState?.activeCycle?.cycleNumber || 1);
   const reference = `SUB_${subscription.id}_${cycle}`;
   const subscriptionCycleKey = `${subscription.id}:${cycle}`;
   const amountInCents = Math.trunc(args.amountInCentsOverride ?? readSubscriptionTotalInCents(subscription.metadata, subscription.plan?.priceInCents ?? 0));
@@ -332,17 +333,20 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
 
     const now = new Date();
+    const billingState = await resolveSubscriptionBillingState({ subscriptionId: subscription.id, asOf: now }).catch(() => null);
+    const activeCycle = billingState?.activeCycle || null;
+    const currentCycleNumber = activeCycle?.cycleNumber ?? 1;
     const approvedForCycle = await prisma.payment.findUnique({
-      where: { subscriptionCycleKey: `${subscription.id}:${subscription.currentCycle ?? 1}` },
+      where: { subscriptionCycleKey: `${subscription.id}:${currentCycleNumber}` },
       select: { id: true, status: true, paidAt: true, updatedAt: true, createdAt: true }
     });
     if (approvedForCycle?.status === PaymentStatus.APPROVED) {
       const approvedAt = approvedForCycle.paidAt || approvedForCycle.updatedAt || approvedForCycle.createdAt || now;
-      const currentEnd = subscription.currentPeriodEndAt ? new Date(subscription.currentPeriodEndAt) : null;
+      const currentEnd = activeCycle?.periodEndAt ? new Date(activeCycle.periodEndAt) : null;
       if (currentEnd && now.getTime() + 5_000 >= currentEnd.getTime()) {
         await advanceSubscriptionCycle({
           subscriptionId: subscription.id,
-          cycle: subscription.currentCycle ?? 1,
+          cycle: currentCycleNumber,
           paidAt: new Date(approvedAt)
         }).catch((err) => logIgnored(err, "subscriptions[id]: fallo avanzando ciclo ya aprobado", { subscriptionId: subscription.id }));
         const refreshed = await prisma.subscription.findUnique({
@@ -481,7 +485,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       subscriptionId,
       tenantId: tenantId || null,
       customerId: subscription.customerId,
-      cycle: subscription.currentCycle ?? 1,
+      cycle: currentCycleNumber,
       collectionMode,
       paymentSourceId: Number(paymentSource)
     }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de prechecks", { subscriptionId, tenantId, customerId: subscription.customerId }));
@@ -504,7 +508,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         (
           await prisma.payment
             .findUnique({
-              where: { subscriptionCycleKey: `${subscription.id}:${Number(subscription.currentCycle || 1)}` },
+              where: { subscriptionCycleKey: `${subscription.id}:${Number(currentCycleNumber)}` },
               select: { id: true }
             })
             .catch((findErr) => {
@@ -548,10 +552,24 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return Response.json({ error: "schedule_cutoff_not_allowed" }, { status: 409 });
     }
 
-    const updated = await prisma.subscription.update({
-      where: { id: subscriptionId },
-      data: { currentPeriodEndAt: cutoffAt }
-    });
+    const billingState = await resolveSubscriptionBillingState({ subscriptionId, asOf: new Date() }).catch(() => null);
+    const activeCycle = billingState?.activeCycle || null;
+    const updated = subscription;
+    await ensureBillingCyclesForSubscription({
+      id: subscription.id,
+      startAt: subscription.startAt,
+      currentCycle: activeCycle?.cycleNumber ?? 1,
+      currentPeriodStartAt: activeCycle?.periodStartAt ? new Date(activeCycle.periodStartAt) : subscription.startAt,
+      currentPeriodEndAt: cutoffAt,
+      cycleStartDay: subscription.cycleStartDay,
+      paymentDay: subscription.paymentDay,
+      paymentTiming: subscription.paymentTiming as any,
+      graceDays: subscription.graceDays,
+      plan: {
+        intervalUnit: subscription.plan.intervalUnit as any,
+        intervalCount: subscription.plan.intervalCount
+      }
+    }).catch((err) => logIgnored(err, "subscriptions[id]: fallo regenerando ciclos en schedule-cutoff", { subscriptionId }));
 
     await prisma.retryJob.deleteMany({
       where: {
@@ -565,7 +583,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     const runAt =
       computeRunAtForSubscriptionPeriod({
-        periodStartAt: subscription.currentPeriodStartAt,
+        periodStartAt: activeCycle?.periodStartAt ? new Date(activeCycle.periodStartAt) : subscription.startAt,
         periodEndAt: cutoffAt,
         intervalUnit: subscription.plan?.intervalUnit,
         cycleStartDay: subscription.cycleStartDay,
@@ -772,16 +790,25 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
     if (!subscription.plan) return Response.json({ error: "plan_not_found" }, { status: 409 });
 
-    const baseStart = subscription.currentPeriodEndAt || subscription.currentPeriodStartAt || subscription.createdAt;
+    const billingState = await resolveSubscriptionBillingState({ subscriptionId, asOf: new Date() }).catch(() => null);
+    const baseStart = billingState?.activeCycle?.periodEndAt || subscription.startAt || subscription.createdAt;
     const nextEnd = addIntervalUtc(baseStart, subscription.plan.intervalUnit, subscription.plan.intervalCount);
-
-    const updated = await prisma.subscription.update({
-      where: { id: subscriptionId },
-      data: {
-        currentPeriodStartAt: baseStart,
-        currentPeriodEndAt: nextEnd
+    const updated = subscription;
+    await ensureBillingCyclesForSubscription({
+      id: subscription.id,
+      startAt: subscription.startAt,
+      currentCycle: (billingState?.activeCycle?.cycleNumber ?? 0) + 1,
+      currentPeriodStartAt: new Date(baseStart),
+      currentPeriodEndAt: nextEnd,
+      cycleStartDay: subscription.cycleStartDay,
+      paymentDay: subscription.paymentDay,
+      paymentTiming: subscription.paymentTiming as any,
+      graceDays: subscription.graceDays,
+      plan: {
+        intervalUnit: subscription.plan.intervalUnit as any,
+        intervalCount: subscription.plan.intervalCount
       }
-    });
+    }).catch((err) => logIgnored(err, "subscriptions[id]: fallo regenerando ciclos en recalc-cutoff", { subscriptionId }));
 
     await prisma.retryJob.deleteMany({
       where: {

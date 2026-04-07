@@ -16,7 +16,7 @@ import { GAMIFICATION_WEIGHTS, moneyToPoints } from "../../services/gamification
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 import { publishRealtime } from "../../services/realtimePublisher";
 import { ensurePaymentRetryJob } from "../../services/retryJobScheduler";
-import { attachPaymentToCycle, attachPaymentToMatchingCycle, computeBillingCycleDueAt, ensureBillingCyclesForSubscriptions } from "../../services/billingCycles";
+import { attachPaymentToCycle, attachPaymentToMatchingCycle, buildSubscriptionSeed, computeBillingCycleDueAt, ensureBillingCyclesForSubscriptions, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "../../services/billingCycles";
 import { getSubscriptionPricingTotal, getPlanCollectionMode } from "../../lib/metadataSchemas";
 
 type WompiCustomerData = {
@@ -384,20 +384,20 @@ async function resolveAssociationByScore(args: {
 
   if (args.db === prisma) {
     await ensureBillingCyclesForSubscriptions(
-      withExactAmount.map((sub: any) => ({
-        id: sub.id,
-        currentCycle: sub.currentCycle,
-        currentPeriodStartAt: sub.currentPeriodStartAt,
-        currentPeriodEndAt: sub.currentPeriodEndAt,
-        cycleStartDay: sub.cycleStartDay,
-        paymentDay: sub.paymentDay,
-        paymentTiming: (sub.paymentTiming as any) || "EN_CURSO",
-        graceDays: sub.graceDays,
-        plan: {
-          intervalUnit: sub.plan?.intervalUnit as any,
-          intervalCount: sub.plan?.intervalCount
-        }
-      }))
+      withExactAmount.map((sub: any) =>
+        buildSubscriptionSeed({
+          id: sub.id,
+          startAt: sub.startAt,
+          cycleStartDay: sub.cycleStartDay,
+          paymentDay: sub.paymentDay,
+          paymentTiming: sub.paymentTiming,
+          graceDays: sub.graceDays,
+          plan: {
+            intervalUnit: sub.plan?.intervalUnit as any,
+            intervalCount: sub.plan?.intervalCount
+          }
+        })
+      )
     ).catch((err) => {
       logger.warn({ err, subscriptionIds: withExactAmount.map((sub: any) => sub.id) }, "processWompiEvent: fallo asegurando ciclos para desempate por identidad");
     });
@@ -440,20 +440,18 @@ async function findOldestUnpaidCycle(args: {
 }) {
   if (args.db === prisma) {
     await ensureBillingCyclesForSubscriptions([
-      {
+      buildSubscriptionSeed({
         id: args.subscription.id,
-        currentCycle: args.subscription.currentCycle,
-        currentPeriodStartAt: args.subscription.currentPeriodStartAt,
-        currentPeriodEndAt: args.subscription.currentPeriodEndAt,
+        startAt: args.subscription.startAt,
         cycleStartDay: args.subscription.cycleStartDay,
         paymentDay: args.subscription.paymentDay,
-        paymentTiming: (args.subscription.paymentTiming as any) || "EN_CURSO",
+        paymentTiming: args.subscription.paymentTiming as any,
         graceDays: args.subscription.graceDays,
         plan: {
           intervalUnit: args.subscription.plan.intervalUnit as any,
           intervalCount: args.subscription.plan.intervalCount
         }
-      }
+      })
     ]).catch((err) => {
       logger.warn({ err, subscriptionId: args.subscription.id }, "processWompiEvent: fallo asegurando ciclos para oldest unpaid");
     });
@@ -742,20 +740,18 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   if (subscription && associationCycleNumber != null && !associationCycleId) {
     if (db === prisma) {
       await ensureBillingCyclesForSubscriptions([
-        {
+        buildSubscriptionSeed({
           id: subscription.id,
-          currentCycle: subscription.currentCycle,
-          currentPeriodStartAt: subscription.currentPeriodStartAt,
-          currentPeriodEndAt: subscription.currentPeriodEndAt,
+          startAt: subscription.startAt,
           cycleStartDay: subscription.cycleStartDay,
           paymentDay: subscription.paymentDay,
-          paymentTiming: (subscription.paymentTiming as any) || "EN_CURSO",
+          paymentTiming: subscription.paymentTiming as any,
           graceDays: subscription.graceDays,
           plan: {
             intervalUnit: subscription.plan.intervalUnit as any,
             intervalCount: subscription.plan.intervalCount
           }
-        }
+        })
       ]).catch((err) => {
         logger.warn({ err, subscriptionId: subscription.id, cycleNumber: associationCycleNumber }, "processWompiEvent: fallo asegurando ciclos para cycleNumber");
       });
@@ -785,7 +781,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   const nextStatus = resolvePersistedPaymentStatus(prevStatus, paymentStatus);
 
   const cycleFromRef = referenceClassification.kind === "subscription" ? referenceClassification.cycle ?? null : null;
-  const cycle = paymentMatched?.cycleNumber ?? cycleFromRef ?? associationCycleNumber ?? (subscription?.currentCycle ?? 1);
+  const cycle = paymentMatched?.cycleNumber ?? cycleFromRef ?? associationCycleNumber ?? 1;
   const subscriptionCycleKey = subscription ? `${subscription.id}:${cycle}` : null;
   const wasApproved = prevStatus === PaymentStatus.APPROVED;
   const wasFailed = prevStatus === PaymentStatus.DECLINED || prevStatus === PaymentStatus.ERROR || prevStatus === PaymentStatus.VOIDED;
@@ -1195,7 +1191,8 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         paymentAt: paymentRecord.paidAt,
         origin: paymentRecord.origin,
         associationReason: paymentRecord.associationReason as any,
-        associatedBy: paymentRecord.associatedBy || "system"
+        associatedBy: paymentRecord.associatedBy || "system",
+        cycleNumberHint: paymentRecord.cycleNumber ?? null
       }).catch((err) => {
         logger.warn({ err, paymentId: paymentRecord.id, subscriptionId: paymentRecord.subscriptionId }, "processWompiEvent: fallo adjuntando pago al ciclo coincidente");
       });
@@ -1389,87 +1386,31 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   }
 
   if (nextStatus === PaymentStatus.APPROVED && subscription) {
-    const advancedTo = await db.$transaction(async (tx) => {
-      const sub = await tx.subscription.findUnique({
-        where: { id: subscription.id },
-        include: { plan: true }
-      });
-      if (!sub) return null;
-
-      if (sub.currentCycle !== cycle) {
-        logger.warn({ subscriptionId: sub.id, currentCycle: sub.currentCycle, paymentCycle: cycle }, "Cycle mismatch; not advancing");
-        return null;
+    await db.subscription.update({
+      where: { id: subscription.id },
+      data: {
+        status: SubscriptionStatus.ACTIVE,
+        retryCount: 0
       }
+    }).catch(() => null);
 
-      // Anchor next cutoff to the current cutoff (not last payment).
-      let nextStart = sub.currentPeriodEndAt || sub.currentPeriodStartAt || sub.createdAt || paidAt;
-
-      // FIX: For monthly subscriptions, snap the period start to cycleStartDay.
-      // This prevents period drift when subscriptions are created on arbitrary dates.
-      if (sub.plan.intervalUnit === "MONTH") {
-        const cycleStartDay = Math.max(1, Math.min(31, Math.trunc(sub.cycleStartDay || 1)));
-        const y = nextStart.getUTCFullYear();
-        const m = nextStart.getUTCMonth();
-        const lastDayOfMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-        const clampedDay = Math.min(cycleStartDay, lastDayOfMonth);
-        const snappedStart = new Date(Date.UTC(y, m, clampedDay, 0, 0, 0, 0));
-
-        if (snappedStart.getTime() >= nextStart.getTime()) {
-          nextStart = snappedStart;
-        } else {
-          // Already past the cycleStartDay this month — snap to next month
-          const nextMonth = new Date(Date.UTC(y, m + 1, 0));
-          const nextMonthLast = new Date(Date.UTC(y, m + 2, 0)).getUTCDate();
-          const nextClamped = Math.min(cycleStartDay, nextMonthLast);
-          nextStart = new Date(Date.UTC(y, m + 1, nextClamped, 0, 0, 0, 0));
-        }
-      }
-
-      const nextEnd = addIntervalUtc(nextStart, sub.plan.intervalUnit, sub.plan.intervalCount);
-      const nextRunAt =
-        sub.plan.intervalUnit === "MONTH"
-          ? computeBillingCycleDueAt({
-              periodStartAt: nextStart,
-              periodEndAt: nextEnd,
-              cycleStartDay: Math.max(1, Math.min(31, Math.trunc(sub.cycleStartDay || 1))),
-              paymentDay: Math.max(1, Math.min(31, Math.trunc(sub.paymentDay || 1))),
-              paymentTiming: sub.paymentTiming === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
-            })
-          : nextEnd;
-
-      const updated = await tx.subscription.updateMany({
-        where: { id: sub.id, currentCycle: sub.currentCycle },
-        data: {
-          status: SubscriptionStatus.ACTIVE,
-          retryCount: 0,
-          currentCycle: { increment: 1 },
-          currentPeriodStartAt: nextStart,
-          currentPeriodEndAt: nextEnd
-        }
-      });
-
-      if (updated.count === 0) {
-        logger.warn({ subscriptionId: sub.id }, "Subscription already advanced (idempotent)");
-        return null;
-      } else {
-        logger.info({ subscriptionId: sub.id, nextStart, nextEnd }, "Subscription advanced after payment approval");
-        const collectionMode = resolveSubscriptionCollectionMode(sub);
-
-        // PROGRAMACIÓN AL EVENTO: Agendar el Job exactamente para la fecha del próximo corte.
-        if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
-          await ensurePaymentRetryJob({
-            subscriptionId: sub.id,
-            runAt: nextRunAt,
-            maxAttempts: 1,
-            db: tx
-          }).catch((err) => {
-            logger.warn({ err, subscriptionId: sub.id }, "Fallo agendando próximo cobro tras avance de periodo");
-          });
-        }
-        return { nextEnd, nextRunAt };
-      }
-
+    await syncSubscriptionBillingSnapshot({ subscriptionId: subscription.id, asOf: paidAt }).catch((err) => {
+      logger.warn({ err, subscriptionId: subscription.id }, "processWompiEvent: fallo sincronizando snapshot tras pago");
     });
+
+    const state = await resolveSubscriptionBillingState({ subscriptionId: subscription.id, asOf: paidAt }).catch(() => null);
+    const nextRunAt = state?.collectionCycle?.dueAt ? new Date(state.collectionCycle.dueAt) : null;
+    const collectionMode = resolveSubscriptionCollectionMode(subscription);
+    const advancedTo = nextRunAt ? { nextRunAt } : null;
+    if (nextRunAt && (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK")) {
+      await ensurePaymentRetryJob({
+        subscriptionId: subscription.id,
+        runAt: nextRunAt,
+        maxAttempts: 1
+      }).catch((err) => {
+        logger.warn({ err, subscriptionId: subscription.id }, "Fallo agendando próximo cobro tras pago aprobado");
+      });
+    }
 
     // Notificaciones: la confirmación de pago se maneja por reglas (PAYMENT_APPROVED).
     if (advancedTo) {

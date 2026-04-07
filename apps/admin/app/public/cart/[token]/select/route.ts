@@ -7,7 +7,7 @@ import { getCredential } from "@suscripciones/core/services/credentials";
 import { getCheckoutBaseUrlsFromEnv } from "@suscripciones/core/services/publicBase";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import { getPaymentsConfig } from "@suscripciones/core/services/runtimeConfig";
-import { computeBillingCycleDueAt } from "@suscripciones/core/services/billingCycles";
+import { computeBillingCycleDueAt, ensureBillingCyclesForSubscription } from "@suscripciones/core/services/billingCycles";
 import { signPublicToken, verifyPublicToken } from "../../../../../lib/publicTokens";
 import { logger } from "@suscripciones/core/lib/logger";
 
@@ -195,15 +195,30 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       planId: plan.id,
       status: dueWithGraceAt.getTime() < Date.now() ? SubscriptionStatus.PAST_DUE : SubscriptionStatus.ACTIVE,
       startAt,
-      currentPeriodStartAt: startAt,
-      currentPeriodEndAt: periodEnd,
-      currentCycle: 1,
       cycleStartDay,
       paymentDay,
       paymentTiming,
       graceDays,
       metadata: { templateId: null }
     }
+  });
+
+  await ensureBillingCyclesForSubscription({
+    id: subscription.id,
+    startAt: subscription.startAt,
+    currentCycle: 1,
+    currentPeriodStartAt: startAt,
+    currentPeriodEndAt: periodEnd,
+    cycleStartDay: subscription.cycleStartDay,
+    paymentDay: subscription.paymentDay,
+    paymentTiming: subscription.paymentTiming as any,
+    graceDays: subscription.graceDays,
+    plan: {
+      intervalUnit: plan.intervalUnit,
+      intervalCount: plan.intervalCount
+    }
+  }).catch((err: any) => {
+    logger.warn({ err, subscriptionId: subscription.id }, "Fallo generando ciclos desde cart select");
   });
 
   if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {

@@ -2,6 +2,7 @@ import { LogLevel, Prisma } from "@prisma/client";
 import { createHash } from "crypto";
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
+import { resolveSubscriptionBillingState } from "./billingCycles";
 import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "./runtimeConfig";
 import { systemLog } from "./systemLog";
@@ -364,11 +365,16 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
 
   const sub = customer.subscriptions?.[0] || null;
   const latestPayment = customer.payments?.[0] || sub?.payments?.[0] || null;
-  const currentPeriodEndAt = sub?.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
+  const billingState = sub ? await resolveSubscriptionBillingState({ subscriptionId: sub.id }) : null;
+  const activeCycle = billingState?.activeCycle || null;
+  const collectionCycle = billingState?.collectionCycle || activeCycle;
+  const currentPeriodStartAt = activeCycle?.periodStartAt ? new Date(activeCycle.periodStartAt) : null;
+  const currentPeriodEndAt = activeCycle?.periodEndAt ? new Date(activeCycle.periodEndAt) : null;
+  const nextBillingDate = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : currentPeriodEndAt;
   const now = Date.now();
   const daysPastDue =
-    currentPeriodEndAt && currentPeriodEndAt.getTime() < now
-      ? Math.floor((now - currentPeriodEndAt.getTime()) / 86_400_000)
+    nextBillingDate && nextBillingDate.getTime() < now
+      ? Math.floor((now - nextBillingDate.getTime()) / 86_400_000)
       : 0;
 
   const safeJson = (value: unknown) => {
@@ -396,9 +402,9 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
     subscription_id: sub?.id ?? null,
     subscription_status: sub?.status ?? null,
     subscription_start_at: sub?.startAt ? new Date(sub.startAt).toISOString() : null,
-    subscription_period_start: sub?.currentPeriodStartAt ? new Date(sub.currentPeriodStartAt).toISOString() : null,
+    subscription_period_start: currentPeriodStartAt ? currentPeriodStartAt.toISOString() : null,
     subscription_period_end: currentPeriodEndAt ? currentPeriodEndAt.toISOString() : null,
-    subscription_cycle: sub?.currentCycle ?? null,
+    subscription_cycle: activeCycle?.cycleNumber ?? null,
     subscription_retry_count: sub?.retryCount ?? null,
     subscription_max_retries: sub?.maxRetries ?? null,
     subscription_canceled_at: sub?.canceledAt ? new Date(sub.canceledAt).toISOString() : null,
@@ -417,7 +423,7 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
 
     has_subscription: Boolean(sub),
     has_active_subscription: sub?.status === "ACTIVE",
-    next_billing_date: currentPeriodEndAt ? currentPeriodEndAt.toISOString() : null,
+    next_billing_date: nextBillingDate ? nextBillingDate.toISOString() : null,
     days_past_due: daysPastDue,
     in_mora: sub?.status === "PAST_DUE" || daysPastDue > 0,
 

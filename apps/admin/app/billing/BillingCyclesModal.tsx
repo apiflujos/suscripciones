@@ -4,6 +4,7 @@ import { useEffect, useState, Fragment } from "react";
 import { AppModal } from "../ui/AppModal";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { movePaymentToCycle, autoAssociatePaymentToCycle } from "./actions";
+import { formatCivilDate } from "./civilDate";
 
 type BillingCycleItem = {
   id: string;
@@ -98,8 +99,7 @@ function fmtMoney(cents: number, currency = "COP") {
 function formatDateRange(start: string, end: string) {
   return (
     <span>
-      <LocalDateTime value={start} variant="short" /> ·{" "}
-      <LocalDateTime value={end} variant="short" />
+      {formatCivilDate(start)} · {formatCivilDate(end)}
     </span>
   );
 }
@@ -240,19 +240,10 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
 
     try {
       const res = await fetch(
-        `/api/billing/payment-history?subscriptionId=${encodeURIComponent(subscriptionId)}&take=50`
+        `/api/billing/payment-history?subscriptionId=${encodeURIComponent(subscriptionId)}&includeUnlinked=1&take=20&q=${encodeURIComponent(searchQuery.trim())}`
       );
       const json = await res.json();
-      const payments = Array.isArray(json?.items) ? json.items : [];
-
-      // Filter by search query (txId, reference, amount)
-      const q = searchQuery.toLowerCase();
-      const filtered = payments.filter((p: any) =>
-        String(p.wompiTransactionId || "").toLowerCase().includes(q) ||
-        String(p.reference || "").toLowerCase().includes(q) ||
-        String(p.amountInCents || "").includes(q)
-      );
-      setSearchResults(filtered);
+      setSearchResults(Array.isArray(json?.items) ? json.items : []);
     } catch {
       setSearchResults([]);
     } finally {
@@ -371,7 +362,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                                 <strong style={{ fontSize: "13px" }}>Ciclo {cycle.cycleNumber}</strong>
                               </td>
                               <td style={{ textAlign: "left" }}>{formatDateRange(cycle.periodStartAt, cycle.periodEndAt)}</td>
-                              <td style={{ textAlign: "left" }}><LocalDateTime value={cycle.dueAt} variant="short" /></td>
+                              <td style={{ textAlign: "left" }}>{formatCivilDate(cycle.dueAt)}</td>
                               <td style={{ textAlign: "left" }}>{cycle.paidAt ? <LocalDateTime value={cycle.paidAt} variant="short" /> : "—"}</td>
                               <td style={{ textAlign: "left" }}><span className={`pill pill-sm ${status.class}`}>{status.label}</span></td>
                               <td style={{ textAlign: "left" }}><span className={`pill pill-sm ${punctual.class}`}>{punctual.label}</span></td>
@@ -490,7 +481,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                                             .filter((c) => c.id !== cycle.id && !c.paymentId)
                                             .map((c) => (
                                               <option key={`move-${cycle.id}-${c.id}`} value={c.id}>
-                                                Ciclo {c.cycleNumber} · {new Date(c.periodStartAt).toLocaleDateString("es-CO")} → {new Date(c.periodEndAt).toLocaleDateString("es-CO")}
+                                                Ciclo {c.cycleNumber} · {formatCivilDate(c.periodStartAt)} → {formatCivilDate(c.periodEndAt)}
                                               </option>
                                             ))}
                                         </select>
@@ -602,7 +593,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                           <span className="pill pill-sm pill-warn">Ciclo {candidate.cycle.cycleNumber}</span>
                           <span style={{ fontSize: 11, color: "var(--muted)" }}>
-                            {new Date(candidate.cycle.periodStartAt).toLocaleDateString("es-CO")} → {new Date(candidate.cycle.periodEndAt).toLocaleDateString("es-CO")}
+                            {formatCivilDate(candidate.cycle.periodStartAt)} → {formatCivilDate(candidate.cycle.periodEndAt)}
                           </span>
                         </div>
 
@@ -614,7 +605,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                             </div>
                             {candidate.payment.paidAt && (
                               <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                                Pagado: {new Date(candidate.payment.paidAt).toLocaleDateString("es-CO")}
+                                Pagado: <LocalDateTime value={candidate.payment.paidAt} variant="short" />
                               </div>
                             )}
                           </div>
@@ -720,7 +711,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                     </div>
                     {p.paidAt && (
                       <div style={{ fontSize: 10, color: "var(--text-faint)" }}>
-                        {new Date(p.paidAt).toLocaleDateString("es-CO")}
+                        <LocalDateTime value={p.paidAt} variant="short" />
                       </div>
                     )}
                   </div>

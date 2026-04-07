@@ -14,6 +14,7 @@ import {
   moneyToPoints
 } from "./gamificationConfig";
 import { getGamificationConfig } from "./gamificationSettings";
+import { buildSubscriptionBillingStateIndex } from "./billingCycles";
 
 export const GAMIFICATION_EVENT_KINDS = {
   PAYMENT_APPROVED: "payment.approved",
@@ -475,8 +476,36 @@ async function recomputeCustomerScores(
   const subWhere: any = tenantId ? { tenantId } : {};
   const subscriptions = await prisma.subscription.findMany({
     where: subWhere,
-    select: { customerId: true, tenantId: true, status: true, currentPeriodEndAt: true, createdAt: true },
+    select: {
+      id: true,
+      customerId: true,
+      tenantId: true,
+      status: true,
+      startAt: true,
+      cycleStartDay: true,
+      paymentDay: true,
+      paymentTiming: true,
+      graceDays: true,
+      createdAt: true,
+      plan: { select: { intervalUnit: true, intervalCount: true } }
+    },
     orderBy: { createdAt: "desc" }
+  });
+  const billingStateBySubscription = await buildSubscriptionBillingStateIndex({
+    subscriptions: subscriptions
+      .filter((sub) => sub.plan)
+      .map((sub) => ({
+        id: sub.id,
+        startAt: sub.startAt,
+        cycleStartDay: sub.cycleStartDay,
+        paymentDay: sub.paymentDay,
+        paymentTiming: (sub.paymentTiming as any) === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",
+        graceDays: sub.graceDays,
+        plan: {
+          intervalUnit: sub.plan.intervalUnit,
+          intervalCount: sub.plan.intervalCount
+        }
+      }))
   });
 
   const subByKey = new Map<string, any>();
@@ -524,9 +553,11 @@ async function recomputeCustomerScores(
       metadata: (customer.metadata ?? null) as CustomerMeta | null
     });
     const sub = globalSubByCustomer.get(String(customer.id)) || null;
-    const currentPeriodEndAt = sub?.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
-    const daysPastDue = currentPeriodEndAt && currentPeriodEndAt.getTime() < Date.now()
-      ? Math.floor((Date.now() - currentPeriodEndAt.getTime()) / 86_400_000)
+    const billingState = sub ? billingStateBySubscription.get(String(sub.id)) || null : null;
+    const collectionCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
+    const dueAt = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : collectionCycle?.periodEndAt ? new Date(collectionCycle.periodEndAt) : null;
+    const daysPastDue = dueAt && dueAt.getTime() < Date.now()
+      ? Math.floor((Date.now() - dueAt.getTime()) / 86_400_000)
       : 0;
 
     const computed = computeCustomerScores({
@@ -603,9 +634,11 @@ async function recomputeCustomerScores(
         metadata: (customer.metadata ?? null) as CustomerMeta | null
       });
       const sub = subByKey.get(`${tId}:${customer.id}`) || null;
-      const currentPeriodEndAt = sub?.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
-      const daysPastDue = currentPeriodEndAt && currentPeriodEndAt.getTime() < Date.now()
-        ? Math.floor((Date.now() - currentPeriodEndAt.getTime()) / 86_400_000)
+      const billingState = sub ? billingStateBySubscription.get(String(sub.id)) || null : null;
+      const collectionCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
+      const dueAt = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : collectionCycle?.periodEndAt ? new Date(collectionCycle.periodEndAt) : null;
+      const daysPastDue = dueAt && dueAt.getTime() < Date.now()
+        ? Math.floor((Date.now() - dueAt.getTime()) / 86_400_000)
         : 0;
 
       const computed = computeCustomerScores({

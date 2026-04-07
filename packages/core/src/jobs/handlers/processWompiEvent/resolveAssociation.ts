@@ -6,7 +6,7 @@
 import { BillingCycleStatus, PaymentAssociationReason } from "@prisma/client";
 import type { prisma } from "../../../db/prisma";
 import { logger } from "../../../lib/logger";
-import { ensureBillingCyclesForSubscriptions } from "../../../services/billingCycles";
+import { buildSubscriptionSeed, ensureBillingCyclesForSubscriptions } from "../../../services/billingCycles";
 import { getSubscriptionPricingTotal } from "../../../lib/metadataSchemas";
 import { classifyReference } from "../../../webhooks/wompi/classifyReference";
 import type { AssociationDecision } from "./types";
@@ -183,17 +183,17 @@ export async function resolveAssociationByScore(args: {
 
   // Multiple matches — tie-break by oldest unpaid cycle
   await ensureBillingCyclesForSubscriptions(
-    withExactAmount.map((sub: any) => ({
-      id: sub.id,
-      currentCycle: sub.currentCycle,
-      currentPeriodStartAt: sub.currentPeriodStartAt,
-      currentPeriodEndAt: sub.currentPeriodEndAt,
-      cycleStartDay: sub.cycleStartDay,
-      paymentDay: sub.paymentDay,
-      paymentTiming: (sub.paymentTiming as any) || "EN_CURSO",
-      graceDays: sub.graceDays,
-      plan: { intervalUnit: sub.plan?.intervalUnit as any, intervalCount: sub.plan?.intervalCount }
-    }))
+    withExactAmount.map((sub: any) =>
+      buildSubscriptionSeed({
+        id: sub.id,
+        startAt: sub.startAt,
+        cycleStartDay: sub.cycleStartDay,
+        paymentDay: sub.paymentDay,
+        paymentTiming: sub.paymentTiming,
+        graceDays: sub.graceDays,
+        plan: { intervalUnit: sub.plan?.intervalUnit as any, intervalCount: sub.plan?.intervalCount }
+      })
+    )
   ).catch((err) => {
     logger.warn({ err, subscriptionIds: withExactAmount.map((sub: any) => sub.id) }, "resolveAssociation: fallo asegurando ciclos para desempate");
   });
@@ -235,26 +235,28 @@ export async function resolveAssociationByScore(args: {
 export async function findOldestUnpaidCycle(args: {
   db: typeof prisma;
   subscriptionId: string;
-  currentCycle: number;
-  currentPeriodStartAt: Date;
-  currentPeriodEndAt: Date;
+  startAt?: Date | null;
+  currentCycle?: number | null;
+  currentPeriodStartAt?: Date | null;
+  currentPeriodEndAt?: Date | null;
   cycleStartDay: number;
   paymentDay: number;
-  paymentTiming: string;
+  paymentTiming?: string | null;
   graceDays: number;
   plan: { intervalUnit: string; intervalCount: number };
 }) {
-  await ensureBillingCyclesForSubscriptions([{
+  await ensureBillingCyclesForSubscriptions([buildSubscriptionSeed({
     id: args.subscriptionId,
+    startAt: args.startAt,
     currentCycle: args.currentCycle,
     currentPeriodStartAt: args.currentPeriodStartAt,
     currentPeriodEndAt: args.currentPeriodEndAt,
     cycleStartDay: args.cycleStartDay,
     paymentDay: args.paymentDay,
-    paymentTiming: (args.paymentTiming as any) || "EN_CURSO",
+    paymentTiming: args.paymentTiming,
     graceDays: args.graceDays,
     plan: { intervalUnit: args.plan.intervalUnit as any, intervalCount: args.plan.intervalCount }
-  }]).catch((err) => {
+  })]).catch((err) => {
     logger.warn({ err, subscriptionId: args.subscriptionId }, "findOldestUnpaidCycle: fallo asegurando ciclos");
   });
 

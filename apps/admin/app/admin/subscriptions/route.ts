@@ -24,7 +24,7 @@ import { consumeApp } from "@suscripciones/core/services/superAdminApp";
 import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "@suscripciones/core/services/tenantContext";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import { validateWompiCurrency } from "@suscripciones/core/lib/wompiSignature";
-import { computeBillingCycleDueAt } from "@suscripciones/core/services/billingCycles";
+import { computeBillingCycleDueAt, ensureBillingCyclesForSubscription, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
 import { getPaymentsConfig } from "@suscripciones/core/services/runtimeConfig";
 import { listSubscriptions } from "../_services/subscriptions";
 
@@ -82,7 +82,8 @@ async function recordManualChargeFailure(args: {
   const tenantId = subscription?.tenantId || subscription?.plan?.tenantId;
   if (!subscription?.id || !subscription?.customerId || !tenantId) return null;
 
-  const cycle = Number(subscription.currentCycle || 1);
+  const billingState = await resolveSubscriptionBillingState({ subscriptionId: subscription.id }).catch(() => null);
+  const cycle = Number(billingState?.collectionCycle?.cycleNumber || billingState?.activeCycle?.cycleNumber || 1);
   const reference = `SUB_${subscription.id}_${cycle}`;
   const subscriptionCycleKey = `${subscription.id}:${cycle}`;
   const amountInCents = Math.trunc(args.amountInCentsOverride ?? readSubscriptionTotalInCents(subscription.metadata, subscription.plan?.priceInCents ?? 0));
@@ -318,9 +319,6 @@ export async function POST(req: Request) {
         planId: plan.id,
         status: dueWithGraceAt.getTime() < Date.now() ? SubscriptionStatus.PAST_DUE : SubscriptionStatus.ACTIVE,
         startAt,
-        currentPeriodStartAt: startAt,
-        currentPeriodEndAt: periodEnd,
-        currentCycle: 1,
         cycleStartDay,
         paymentDay,
         paymentTiming,
@@ -331,6 +329,21 @@ export async function POST(req: Request) {
         } as any
       }
     });
+    await ensureBillingCyclesForSubscription({
+      id: subscription.id,
+      startAt,
+      currentCycle: 1,
+      currentPeriodStartAt: startAt,
+      currentPeriodEndAt: periodEnd,
+      cycleStartDay,
+      paymentDay,
+      paymentTiming,
+      graceDays,
+      plan: {
+        intervalUnit: plan.intervalUnit,
+        intervalCount: plan.intervalCount
+      }
+    }).catch((err) => logIgnored(err, "subscriptions: fallo generando ciclos al crear suscripción", { subscriptionId: subscription.id }));
     await prisma.subscriptionTenant.createMany({
       data: effectiveTenantIds.map((t) => ({ subscriptionId: subscription.id, tenantId: t })),
       skipDuplicates: true

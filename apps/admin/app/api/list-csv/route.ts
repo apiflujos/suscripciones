@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@suscripciones/database";
 import { listChatwootMessages } from "../../admin/_services/logs";
+import { listSubscriptions } from "../../admin/_services/subscriptions";
 import { requireApiSession } from "../_lib/requireApiSession";
 
 function escapeCsv(value: unknown) {
@@ -164,32 +165,15 @@ export async function GET(req: Request) {
     }
 
     if (scope === "billing") {
-      const where: any = {};
-      if (effectiveTenantId) {
-        where.AND = [{ OR: [{ tenantId: effectiveTenantId }, { tenantLinks: { some: { tenantId: effectiveTenantId } } }] }];
-      }
-      if (estado && estado !== "todos") {
-        where.status = estado.toUpperCase();
-      }
-      if (q) {
-        where.OR = [
-          { customer: { name: { contains: q, mode: "insensitive" } } },
-          { customer: { email: { contains: q, mode: "insensitive" } } },
-          { plan: { name: { contains: q, mode: "insensitive" } } }
-        ];
-      }
-      if (tipo === "suscripciones") {
-        where.plan = { metadata: { path: ["collectionMode"], equals: "AUTO_DEBIT" } } as any;
-      }
-      if (tipo === "planes") {
-        where.plan = { metadata: { path: ["collectionMode"], equals: "MANUAL_LINK" } } as any;
-      }
-      const items = await prisma.subscription.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
+      const result = await listSubscriptions({
+        tenantId: effectiveTenantId || null,
         take: 3000,
-        include: { customer: true, plan: true }
+        skip: 0,
+        q: q || undefined,
+        estado: estado === "todos" ? undefined : estado || undefined,
+        collectionMode: tipo === "suscripciones" ? "AUTO_DEBIT" : tipo === "planes" ? "MANUAL_LINK" : undefined
       });
+      const items = result.items || [];
       const csv = toCsv(
         ["id", "customerId", "customerName", "planId", "planName", "status", "collectionMode", "amount_cop", "currency", "periodEndAt"],
         items.map((s: any) => ({
@@ -199,10 +183,10 @@ export async function GET(req: Request) {
           planId: s?.planId || s?.plan?.id || "",
           planName: s?.plan?.name || "",
           status: s?.status || "",
-          collectionMode: s?.plan?.metadata?.collectionMode || "",
+          collectionMode: s?.collectionModeResolved || s?.plan?.metadata?.collectionMode || "",
           amount_cop: Math.trunc(Number(s?.plan?.priceInCents || 0) / 100),
           currency: s?.plan?.currency || "COP",
-          periodEndAt: s?.currentPeriodEndAt || ""
+          periodEndAt: s?.nextBillingDate || ""
         }))
       );
       return new NextResponse(csv, {

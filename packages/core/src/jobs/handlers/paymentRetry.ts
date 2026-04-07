@@ -5,7 +5,7 @@ import { systemLog, SystemActor } from "../../services/systemLog";
 import { getAutoDebitConfig } from "../../services/runtimeConfig";
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 import { publishRealtime } from "../../services/realtimePublisher";
-import { computeBillingCycleDueAt } from "../../services/billingCycles";
+import { resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "../../services/billingCycles";
 import { logger } from "../../lib/logger";
 
 function shouldCreateFallbackLinkWhenAutoDebitDisabled() {
@@ -23,26 +23,6 @@ function asResultMode(raw: string): "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK" {
   if (mode === "AUTO_DEBIT") return "AUTO_DEBIT";
   if (mode === "AUTO_LINK") return "AUTO_LINK";
   return "MANUAL_LINK";
-}
-
-function computeSubscriptionDueAt(sub: {
-  currentPeriodStartAt: Date;
-  currentPeriodEndAt: Date;
-  cycleStartDay: number;
-  paymentDay: number;
-  paymentTiming: string;
-  plan?: { intervalUnit?: string | null } | null;
-}) {
-  const intervalUnit = String(sub.plan?.intervalUnit || "").toUpperCase();
-  return intervalUnit === "MONTH"
-    ? computeBillingCycleDueAt({
-        periodStartAt: sub.currentPeriodStartAt,
-        periodEndAt: sub.currentPeriodEndAt,
-        cycleStartDay: sub.cycleStartDay,
-        paymentDay: sub.paymentDay,
-        paymentTiming: String(sub.paymentTiming || "").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
-      })
-    : sub.currentPeriodEndAt;
 }
 
 export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
@@ -64,6 +44,8 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
     const sub = await prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { plan: true, customer: true } });
     if (!sub) throw new Error("subscription_not_found");
     if (sub.status === "CANCELED") throw new Error("subscription_canceled");
+    await syncSubscriptionBillingSnapshot({ subscriptionId }).catch(() => null);
+    const billingState = await resolveSubscriptionBillingState({ subscriptionId }).catch(() => null);
 
     // Validar email del cliente (requerido para Wompi)
     if (!sub.customer?.email) {
@@ -154,8 +136,9 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
         };
       }
 
-      const dueByCutoff = sub.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
-      const dueAt = sub.currentPeriodEndAt ? computeSubscriptionDueAt(sub) : null;
+      const dueCycle = billingState?.collectionCycle || null;
+      const dueByCutoff = dueCycle?.periodEndAt ? new Date(dueCycle.periodEndAt) : null;
+      const dueAt = dueCycle?.dueAt ? new Date(dueCycle.dueAt) : null;
 
       if (dueAt && now.getTime() + 5_000 < dueAt.getTime()) {
         await systemLog(LogLevel.INFO, "jobs.payment_retry", "Cobro automático omitido: aún no es fecha de cobro", {
@@ -252,8 +235,8 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
             hasPaymentSource: Boolean((sub.customer.metadata as any)?.wompi?.paymentSourceId),
             collectionMode: mode,
             subscriptionStatus: sub.status,
-            currentCycle: sub.currentCycle,
-            currentPeriodEndAt: sub.currentPeriodEndAt?.toISOString(),
+            currentCycle: billingState?.activeCycle?.cycleNumber ?? null,
+            currentPeriodEndAt: billingState?.activeCycle?.periodEndAt?.toISOString?.() || null,
             errorDetails: err?.details || err?.cause || null,
             wompiTransactionId: err?.wompiTransactionId || null,
             reference: err?.reference || null

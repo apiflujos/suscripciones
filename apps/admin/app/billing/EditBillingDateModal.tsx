@@ -30,13 +30,28 @@ export function EditBillingDateModal({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const toCivilDateInput = (value?: string | null) => {
+    if (!value) return "";
+    const raw = String(value).slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
+  };
+
+  const toCivilTimeInput = (value?: string | null) => {
+    if (!value) return "10:00";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "10:00";
+    const hh = String(date.getHours()).padStart(2, "0");
+    const mm = String(date.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  };
+
   // Calcular valor inicial para el input date
   const initialDateValue = currentChargeAt
-    ? new Date(currentChargeAt).toISOString().slice(0, 10)
-    : new Date().toISOString().slice(0, 10);
+    ? toCivilDateInput(currentChargeAt)
+    : toCivilDateInput(new Date().toISOString());
 
   const initialTimeValue = currentChargeAt
-    ? new Date(currentChargeAt).toTimeString().slice(0, 5)
+    ? toCivilTimeInput(currentChargeAt)
     : "10:00";
 
   const [dateValue, setDateValue] = useState(initialDateValue);

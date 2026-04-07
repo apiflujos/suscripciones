@@ -59,10 +59,10 @@ describe("catalog products service", () => {
     const result = await getCatalogProductById({ productId: "prod_2", tenantId: "tenant_1" });
 
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.item.id).toBe("prod_2");
-      expect(result.item.name).toBe("Producto activo");
-      expect(result.item.sku).toBe("SKU-1");
-    }
+    if (!result.ok) throw new Error("expected ok result");
+    const item = result.item!;
+    expect(item.id).toBe("prod_2");
+    expect(item.name).toBe("Producto activo");
+    expect(item.sku).toBe("SKU-1");
   });
 });

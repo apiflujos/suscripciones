@@ -5,6 +5,7 @@ import { AppModal } from "../ui/AppModal";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 import { mapPlanFromApi, type PlanOption } from "./ChangePlanButton";
+import { formatCivilDate } from "./civilDate";
 
 type SubscriptionProduct = {
   id: string;
@@ -354,7 +355,7 @@ export function SubscriptionEditModal({
                       onChange={(e) => setLocalStartAt(e.target.value)}
                     />
                     <div className="field-hint">
-                      Actual: {periodStartAt ? new Date(periodStartAt).toLocaleDateString("es-CO") : "—"}
+                      Actual: {formatCivilDate(periodStartAt, "short")}
                     </div>
                   </div>
 

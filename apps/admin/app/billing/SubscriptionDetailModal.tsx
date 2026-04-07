@@ -14,6 +14,7 @@ import { ManualUnmarkPaidButton } from "./ManualUnmarkPaidButton";
 import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
 import { PaymentLinkModalButton } from "./PaymentLinkModalButton";
 import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
+import { formatCivilDate } from "./civilDate";
 
 type SubscriptionDetail = {
   id: string;
@@ -266,15 +267,13 @@ export function SubscriptionDetailModal({
                 <div style={{ display: "grid", gap: 8 }}>
                   <div>
                     <div className="field-hint">Próximo cobro</div>
-                    <div className="contact-value">
-                      <LocalDateTime value={subscription.vencimientoAt} variant="short" />
-                    </div>
+                    <div className="contact-value">{formatCivilDate(subscription.vencimientoAt)}</div>
                   </div>
                   {subscription.periodoInicioAt && subscription.periodoFinAt ? (
                     <div>
                       <div className="field-hint">Ciclo actual</div>
                       <div className="contact-value">
-                        {new Date(subscription.periodoInicioAt).toLocaleDateString("es-CO")} → {new Date(subscription.periodoFinAt).toLocaleDateString("es-CO")}
+                        {formatCivilDate(subscription.periodoInicioAt)} → {formatCivilDate(subscription.periodoFinAt)}
                       </div>
                     </div>
                   ) : null}

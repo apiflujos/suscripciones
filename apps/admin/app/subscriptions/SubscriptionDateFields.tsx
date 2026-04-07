@@ -5,9 +5,12 @@ import { HelpTip } from "../ui/HelpTip";
 
 function toIsoFromLocalInput(value: string): string {
   if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString();
+  const [datePart, timePart = "00:00"] = value.split("T");
+  const [year, month, day] = datePart.split("-").map((part) => Number(part));
+  const [hour, minute] = timePart.split(":").map((part) => Number(part));
+  if (!year || !month || !day) return "";
+  const date = new Date(Date.UTC(year, month - 1, day, hour || 0, minute || 0, 0, 0));
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
 }
 
 export function SubscriptionDateFields() {

@@ -85,7 +85,7 @@ URLs:
 
 ---
 
-# 🚀 Producción con PM2 (Guía detallada)
+# 🚀 Producción con PM2 (Guía operativa)
 
 ## 1) Requisitos
 - Node.js >= 20
@@ -97,10 +97,14 @@ npm i -g pm2
 ```
 
 ## 2) Variables de entorno (obligatorias)
-Crear `.env` en el root del repo. **Este archivo es fuente única** para admin + jobs.
+Crear `.env` en el root del repo. **Este archivo es fuente única** para admin + jobs + migraciones + build.
 
 ```ini
 DATABASE_URL=postgresql://USER:PASS@HOST:PORT/DB
+HOST=0.0.0.0
+PORT=3002
+PM2_APP_PREFIX=crm-sus
+CLIENT_SLUG=mdv
 JWT_SECRET=... (min 32 bytes)
 JWT_ISSUER=suscripciones
 JWT_AUDIENCE=admin
@@ -112,22 +116,40 @@ WOMPI_PUBLIC_KEY=...
 WOMPI_PRIVATE_KEY=...
 WOMPI_API_BASE_URL=https://api.wompi.co/v1
 NEXT_PUBLIC_API_BASE_URL=https://mdv.sus.apiflujos.com
+NEXT_PUBLIC_PUBLIC_BASE_URL=https://mdv.sus.apiflujos.com
 ```
 
-> **Nota:** PM2 no exporta `.env` automáticamente al shell. Hay que cargarla antes de migrar y arrancar.
+> No uses `apps/admin/.env.local` en producción. `ecosystem.config.js` ya consume `.env` del root.
 
-## 3) Instalación y build
+## 3) Precheck antes del deploy
 ```bash
 cd /srv/apiflujos/mdv/suscripciones
-npm install
+test -f .env
+set -a
+source .env
+set +a
+echo "$DATABASE_URL" | sed 's#://.*@#://***:***@#'
+node -v
+pm2 -v
+```
+
+Si esta release incluye cambios estructurales en Prisma, respalda la base antes de seguir:
+
+```bash
+pg_dump "$DATABASE_URL" > "backup-$(date +%F-%H%M%S).sql"
+```
+
+## 4) Instalación y build
+```bash
+cd /srv/apiflujos/mdv/suscripciones
+npm ci
 npm run db:generate
 npm run build -w apps/admin
 ```
-> Importante: **no usar `npm install --omit=dev`** en producción. Next necesita TypeScript/typings para el build.  
-> Además, los tipos necesarios ahora están en `dependencies` del admin para evitar instalaciones automáticas con pnpm.
+> Importante: no usar `npm install --omit=dev`. El build de Next necesita toolchain completa.
 
-## 4) Migraciones en producción
-**Usar siempre `migrate:deploy`:**
+## 5) Migraciones en producción
+Usar siempre `migrate:deploy`:
 
 ```bash
 set -a
@@ -136,8 +158,18 @@ set +a
 npm run prisma:migrate:deploy -w packages/database
 ```
 
-## 5) Arranque con PM2 (óptimo)
-Se usa **`.env` en el root** como fuente principal. El worker y el admin reciben `DATABASE_URL` y secrets explícitos.
+### Migración de billing actual
+Esta versión elimina `currentCycle`, `currentPeriodStartAt` y `currentPeriodEndAt` de `Subscription`.
+
+Orden correcto:
+1. build
+2. `migrate:deploy`
+3. restart PM2
+
+No reinicies PM2 antes de aplicar la migración.
+
+## 6) Arranque con PM2
+Se usa `.env` en el root como fuente principal. El worker y el admin reciben `DATABASE_URL` y secrets explícitos.
 
 Ejemplo de `ecosystem.config.js` (alineado con producción):
 
@@ -183,7 +215,7 @@ module.exports = {
 };
 ```
 
-Luego:
+Primer arranque:
 ```bash
 set -a
 source /srv/apiflujos/mdv/suscripciones/.env
@@ -192,7 +224,56 @@ pm2 start ecosystem.config.js
 pm2 save
 ```
 
-## 6) URLs clave
+Deploy/reload normal:
+```bash
+cd /srv/apiflujos/mdv/suscripciones
+set -a
+source .env
+set +a
+git pull --ff-only
+npm ci
+npm run db:generate
+npm run prisma:migrate:deploy -w packages/database
+npm run build -w apps/admin
+pm2 restart ecosystem.config.js --update-env
+```
+
+Con script:
+```bash
+./scripts/deploy.sh
+```
+
+Solo migración:
+```bash
+./scripts/migrate.sh
+```
+
+## 7) Validación post-deploy
+```bash
+curl -I http://127.0.0.1:3002/health
+pm2 status
+pm2 logs crm-sus-admin-mdv --lines 100
+pm2 logs crm-sus-jobs-mdv --lines 100
+```
+
+Checklist funcional mínimo:
+- abrir `/billing`
+- abrir modal de ciclos
+- confirmar que una suscripción muestra ciclos pasados y actual
+- crear o asociar un pago
+- verificar que el worker sigue levantando jobs
+
+Verificación SQL recomendada después de esta migración:
+```sql
+SELECT column_name
+FROM information_schema.columns
+WHERE table_name = 'Subscription'
+  AND column_name IN ('currentCycle', 'currentPeriodStartAt', 'currentPeriodEndAt');
+```
+
+Debe devolver `0` filas.
+
+## 8) URLs clave
 - Login Admin: `/login`
 - Login Super Admin: `/sa/login`
 - Health público: `/health` y `/healthz`
@@ -202,7 +283,7 @@ Ejemplo:
 https://mdv.sus.apiflujos.com/login
 ```
 
-## 7) Proxy (Nginx)
+## 9) Proxy (Nginx)
 Asegura que `/_next` **no** pase por auth y no se bloquee:
 
 ```nginx
@@ -219,28 +300,33 @@ location / {
 }
 ```
 
-## 8) Health check
+## 10) Health check
 ```bash
 curl -I http://localhost:3002/health
 ```
 
-## 9) Realtime (SSE + fallback)
+## 11) Realtime (SSE + fallback)
 - Endpoint SSE: `/api/realtime?channel=<canal>`
 - Canales soportados: `notifications`, `payments`, `logs`, `jobs`
 - El cliente del admin usa `EventSource` y cae a polling si el stream falla
 
-## 10) Troubleshooting
+## 12) Troubleshooting
 - **401 en /health:** revisar middleware. `/health` debe ser público.
 - **Chunks 400/404:** limpiar CDN/cache y verificar `_next/static` directo.
 - **Jobs fallan:** verificar `DATABASE_URL`, `CREDENTIALS_ENCRYPTION_KEY_B64` y que no exista `.env.local` dentro de `apps/admin`.
+- **Falla `migrate:deploy`:** confirmar `DATABASE_URL` cargado con `set -a && source .env && set +a`.
+- **PM2 sigue con env vieja:** usar `pm2 restart ecosystem.config.js --update-env`.
+- **Error por columnas legacy faltantes:** confirma que el código desplegado y la migración corresponden a la misma release.
 
-## 11) Comandos útiles PM2
+## 13) Comandos útiles PM2
 ```bash
 pm2 status
 pm2 logs crm-sus-admin-mdv --lines 200
 pm2 logs crm-sus-jobs-mdv --lines 200
 pm2 restart crm-sus-admin-mdv
 pm2 restart crm-sus-jobs-mdv
+pm2 restart ecosystem.config.js --update-env
+pm2 save
 ```
 
 ---

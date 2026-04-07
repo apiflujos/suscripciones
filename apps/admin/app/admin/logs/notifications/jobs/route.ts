@@ -2,6 +2,7 @@ import { prisma } from "@suscripciones/database";
 import { Prisma } from "@prisma/client";
 import { requireAdminToken } from "../../../_lib/requireAdminToken";
 import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
+import { resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,8 +54,6 @@ export async function GET(req: Request) {
               select: {
                 id: true,
                 status: true,
-                currentCycle: true,
-                currentPeriodEndAt: true,
                 customer: { select: { id: true, name: true, email: true } }
               }
             })
@@ -69,6 +68,7 @@ export async function GET(req: Request) {
 
       const cfg = await getNotificationsConfig();
       const rulesCount = cfg.rules.filter((r) => r.enabled && r.trigger === "SUBSCRIPTION_DUE").length;
+      const billingState = subscription ? await resolveSubscriptionBillingState({ subscriptionId: subscription.id }).catch(() => null) : null;
 
       return {
         ...job,
@@ -77,8 +77,8 @@ export async function GET(req: Request) {
             ? {
                 id: subscription.id,
                 status: subscription.status,
-                currentCycle: subscription.currentCycle,
-                currentPeriodEndAt: subscription.currentPeriodEndAt.toISOString(),
+                currentCycle: billingState?.activeCycle?.cycleNumber ?? null,
+                currentPeriodEndAt: billingState?.activeCycle?.periodEndAt ? new Date(billingState.activeCycle.periodEndAt).toISOString() : null,
                 customer: subscription.customer
               }
             : null,

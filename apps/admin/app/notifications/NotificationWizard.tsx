@@ -26,9 +26,11 @@ const VARIABLES = [
   { label: "Estado del pago", value: "{{payment.status}}" },
   { label: "Referencia", value: "{{payment.reference}}" },
   { label: "Estado de la suscripción", value: "{{subscription.status}}" },
-  { label: "Ciclo actual", value: "{{subscription.currentCycle}}" },
-  { label: "Fecha de inicio del ciclo", value: "{{subscription.currentPeriodStartAt}}" },
-  { label: "Fecha de corte", value: "{{subscription.currentPeriodEndAt}}" },
+  { label: "Ciclo activo", value: "{{subscription.activeCycleNumber}}" },
+  { label: "Inicio del ciclo activo", value: "{{subscription.activeCycleStartAt}}" },
+  { label: "Fin del ciclo activo", value: "{{subscription.activeCycleEndAt}}" },
+  { label: "Ciclo de cobro", value: "{{subscription.collectionCycleNumber}}" },
+  { label: "Próximo cobro", value: "{{subscription.nextBillingDate}}" },
   { label: "Fecha de pago", value: "{{payment.paidAt}}" },
   { label: "Fecha de creación del pago", value: "{{payment.createdAt}}" },
   { label: "Fecha de fallo del pago", value: "{{payment.failedAt}}" },
@@ -600,7 +602,7 @@ export function NotificationWizard({
                             return next;
                           })}
                           onFocus={(e) => (lastFocusableRef.current = e.target)}
-                          placeholder="Ej: {{subscription.currentPeriodEndAt}}"
+                          placeholder="Ej: {{subscription.nextBillingDate}}"
                         />
                       </div>
                     );

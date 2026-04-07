@@ -307,9 +307,6 @@ model Subscription {
   planId               String             @db.Uuid
   status               SubscriptionStatus @default(ACTIVE)
   startAt              DateTime           @default(now())
-  currentPeriodStartAt DateTime           @default(now())
-  currentPeriodEndAt   DateTime
-  currentCycle         Int                @default(1)
   cycleStartDay         Int               @default(1)
   paymentDay            Int               @default(1)
   paymentTiming         PaymentTiming     @default(EN_CURSO)
@@ -333,7 +330,7 @@ model Subscription {
   chatwootMsgs  ChatwootMessage[]
   paymentLinks  PaymentLink[]
 
-  @@index([status, currentPeriodEndAt])
+  @@index([status])
   @@index([customerId])
   @@index([empresaId])
   @@index([contactoId])

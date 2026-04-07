@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma";
 import { PaymentStatus, SubscriptionStatus, SmartViewVisibility as DbSmartViewVisibility } from "@prisma/client";
+import { buildSubscriptionBillingStateIndex } from "./billingCycles";
 
 export type SmartViewRule =
   | {
@@ -323,9 +324,10 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
       { key: "subscription.status", label: "Estado suscripción", group: "Suscripción", type: "enum", operators: [], options: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"].map((v) => ({ value: v, label: v })) },
       { key: "subscription.hasActive", label: "Tiene suscripción activa", group: "Suscripción", type: "boolean", operators: [] },
       { key: "subscription.startAt", label: "Fecha inicio suscripción", group: "Suscripción", type: "date", operators: [] },
-      { key: "subscription.currentPeriodStartAt", label: "Inicio del ciclo", group: "Suscripción", type: "date", operators: [] },
-      { key: "subscription.currentPeriodEndAt", label: "Fin del ciclo", group: "Suscripción", type: "date", operators: [] },
+      { key: "subscription.activeCycleStartAt", label: "Inicio del ciclo activo", group: "Suscripción", type: "date", operators: [] },
+      { key: "subscription.activeCycleEndAt", label: "Fin del ciclo activo", group: "Suscripción", type: "date", operators: [] },
       { key: "subscription.nextBillingDate", label: "Próximo pago", group: "Suscripción", type: "date", operators: [] },
+      { key: "subscription.collectionCycleNumber", label: "Ciclo de cobro", group: "Suscripción", type: "number", operators: [] },
       { key: "subscription.daysPastDue", label: "Días en mora", group: "Suscripción", type: "number", operators: [] },
       { key: "subscription.inMora", label: "En mora", group: "Suscripción", type: "boolean", operators: [] },
       { key: "plan.name", label: "Nombre plan", group: "Plan", type: "enum", operators: [], optionsSource: "plan_names" },
@@ -377,11 +379,12 @@ export function getSmartViewFields(scope: SmartViewScope): SmartField[] {
       { key: "subscription.status", label: "Estado suscripción", group: "Suscripción", type: "enum", operators: [], options: ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"].map((v) => ({ value: v, label: v })) },
       { key: "subscription.inMora", label: "En mora", group: "Suscripción", type: "boolean", operators: [] },
       { key: "subscription.startAt", label: "Fecha inicio", group: "Suscripción", type: "date", operators: [] },
-      { key: "subscription.currentPeriodStartAt", label: "Inicio del ciclo", group: "Suscripción", type: "date", operators: [] },
-      { key: "subscription.currentPeriodEndAt", label: "Fin del ciclo", group: "Suscripción", type: "date", operators: [] },
+      { key: "subscription.activeCycleStartAt", label: "Inicio del ciclo activo", group: "Suscripción", type: "date", operators: [] },
+      { key: "subscription.activeCycleEndAt", label: "Fin del ciclo activo", group: "Suscripción", type: "date", operators: [] },
       { key: "subscription.nextBillingDate", label: "Próximo pago", group: "Suscripción", type: "date", operators: [] },
       { key: "subscription.daysPastDue", label: "Días en mora", group: "Suscripción", type: "number", operators: [] },
-      { key: "subscription.currentCycle", label: "Ciclo actual", group: "Suscripción", type: "number", operators: [] },
+      { key: "subscription.activeCycleNumber", label: "Ciclo activo", group: "Suscripción", type: "number", operators: [] },
+      { key: "subscription.collectionCycleNumber", label: "Ciclo de cobro", group: "Suscripción", type: "number", operators: [] },
       { key: "payments.lastStatus", label: "Estado último pago", group: "Pago", type: "enum", operators: [], options: ["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"].map((v) => ({ value: v, label: v })) },
       { key: "payments.lastPaidAt", label: "Fecha último pago", group: "Pago", type: "date", operators: [] },
       { key: "payments.lastAmountInCents", label: "Monto último pago (COP)", group: "Pago", type: "money", operators: [] },
@@ -562,6 +565,23 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
     const paymentsByCustomer = new Map<string, number>();
     paymentCounts.forEach((row) => paymentsByCustomer.set(String(row.customerId), Number(row._count?._all || 0)));
     const now = Date.now();
+    const latestSubscriptions = customers
+      .map((customer: any) => customer.subscriptions?.[0] || null)
+      .filter((sub: any) => sub?.plan);
+    const billingStateBySubscription = await buildSubscriptionBillingStateIndex({
+      subscriptions: latestSubscriptions.map((sub: any) => ({
+        id: sub.id,
+        startAt: sub.startAt,
+        cycleStartDay: sub.cycleStartDay,
+        paymentDay: sub.paymentDay,
+        paymentTiming: (sub.paymentTiming as any) === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",
+        graceDays: sub.graceDays,
+        plan: {
+          intervalUnit: sub.plan.intervalUnit,
+          intervalCount: sub.plan.intervalCount
+        }
+      }))
+    });
 
     return customers
       .filter((customer: any) => {
@@ -569,11 +589,15 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
         const latestPayment = customer.payments?.[0] || sub?.payments?.[0] || null;
         const approvedCount = approvedByCustomer.get(String(customer.id)) || 0;
         const totalPayments = paymentsByCustomer.get(String(customer.id)) || 0;
-        const currentPeriodEndAt = sub?.currentPeriodEndAt ? new Date(sub.currentPeriodEndAt) : null;
-        const currentPeriodStartAt = sub?.currentPeriodStartAt ? new Date(sub.currentPeriodStartAt) : null;
+        const billingState = sub ? billingStateBySubscription.get(String(sub.id)) || null : null;
+        const activeCycle = billingState?.activeCycle || null;
+        const collectionCycle = billingState?.collectionCycle || activeCycle;
+        const currentPeriodEndAt = activeCycle?.periodEndAt ? new Date(activeCycle.periodEndAt) : null;
+        const currentPeriodStartAt = activeCycle?.periodStartAt ? new Date(activeCycle.periodStartAt) : null;
+        const nextBillingDate = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : currentPeriodEndAt;
         const daysPastDue =
-          currentPeriodEndAt && currentPeriodEndAt.getTime() < now
-            ? Math.floor((now - currentPeriodEndAt.getTime()) / 86_400_000)
+          nextBillingDate && nextBillingDate.getTime() < now
+            ? Math.floor((now - nextBillingDate.getTime()) / 86_400_000)
             : 0;
 
         const planMeta = asRecord(sub?.plan?.metadata);
@@ -604,10 +628,14 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
             status: sub?.status ?? null,
             hasActive: sub?.status === SubscriptionStatus.ACTIVE,
             startAt: sub?.startAt ?? null,
+            activeCycleStartAt: currentPeriodStartAt,
+            activeCycleEndAt: currentPeriodEndAt,
+            activeCycleNumber: activeCycle?.cycleNumber ?? null,
+            collectionCycleNumber: collectionCycle?.cycleNumber ?? null,
             currentPeriodStartAt,
             currentPeriodEndAt,
-            currentCycle: sub?.currentCycle ?? null,
-            nextBillingDate: currentPeriodEndAt,
+            currentCycle: activeCycle?.cycleNumber ?? null,
+            nextBillingDate,
             daysPastDue,
             inMora: sub?.status === SubscriptionStatus.PAST_DUE || daysPastDue > 0
           },
@@ -678,12 +706,31 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
       include: { plan: true, customer: true, payments: { orderBy: { createdAt: "desc" }, take: 1 } }
     });
     const now = Date.now();
+    const billingStateBySubscription = await buildSubscriptionBillingStateIndex({
+      subscriptions: items.map((sub: any) => ({
+        id: sub.id,
+        startAt: sub.startAt,
+        cycleStartDay: sub.cycleStartDay,
+        paymentDay: sub.paymentDay,
+        paymentTiming: (sub.paymentTiming as any) === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",
+        graceDays: sub.graceDays,
+        plan: {
+          intervalUnit: sub.plan.intervalUnit,
+          intervalCount: sub.plan.intervalCount
+        }
+      }))
+    });
     return items
       .filter((s: any) => {
-        const currentPeriodEndAt = s.currentPeriodEndAt ? new Date(s.currentPeriodEndAt) : null;
+        const billingState = billingStateBySubscription.get(String(s.id)) || null;
+        const activeCycle = billingState?.activeCycle || null;
+        const collectionCycle = billingState?.collectionCycle || activeCycle;
+        const currentPeriodStartAt = activeCycle?.periodStartAt ? new Date(activeCycle.periodStartAt) : null;
+        const currentPeriodEndAt = activeCycle?.periodEndAt ? new Date(activeCycle.periodEndAt) : null;
+        const nextBillingDate = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : currentPeriodEndAt;
         const daysPastDue =
-          currentPeriodEndAt && currentPeriodEndAt.getTime() < now
-            ? Math.floor((now - currentPeriodEndAt.getTime()) / 86_400_000)
+          nextBillingDate && nextBillingDate.getTime() < now
+            ? Math.floor((now - nextBillingDate.getTime()) / 86_400_000)
             : 0;
         const planMeta = asRecord(s.plan?.metadata);
         const collectionMode = (planMeta.collectionMode as string) || null;
@@ -710,10 +757,14 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
           subscription: {
             status: s.status,
             startAt: s.startAt ?? null,
-            currentPeriodStartAt: s.currentPeriodStartAt ?? null,
-            currentPeriodEndAt: s.currentPeriodEndAt ?? null,
-            currentCycle: s.currentCycle ?? null,
-            nextBillingDate: currentPeriodEndAt,
+            activeCycleStartAt: currentPeriodStartAt,
+            activeCycleEndAt: currentPeriodEndAt,
+            activeCycleNumber: activeCycle?.cycleNumber ?? null,
+            collectionCycleNumber: collectionCycle?.cycleNumber ?? null,
+            currentPeriodStartAt,
+            currentPeriodEndAt,
+            currentCycle: activeCycle?.cycleNumber ?? null,
+            nextBillingDate,
             daysPastDue,
             inMora: s.status === SubscriptionStatus.PAST_DUE || daysPastDue > 0
           },

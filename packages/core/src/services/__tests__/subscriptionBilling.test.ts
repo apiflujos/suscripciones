@@ -91,17 +91,22 @@ vi.mock("../../db/prisma", () => {
     prisma: {
       $queryRaw: vi.fn().mockResolvedValue([{ locked: true }]),
       $queryRawUnsafe: vi.fn().mockResolvedValue(0),
+      $transaction: async (input: any) => {
+        if (typeof input === "function") return input((globalThis as any).__mockTx || {});
+        if (Array.isArray(input)) return Promise.all(input);
+        return input;
+      },
       subscription: {
         findUnique: async ({ where, include }: any) => {
           const sub = store.subscription[where.id];
           if (!sub) return null;
-          if (include?.plan) {
-            return { ...sub, plan: store.plan?.[sub.planId] || { priceInCents: 10000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 } };
-          }
-          if (include?.customer) {
-            return { ...sub, customer: store.customer[sub.customerId] || null };
-          }
-          return sub;
+          return {
+            ...sub,
+            ...(include?.plan
+              ? { plan: store.plan?.[sub.planId] || { priceInCents: 10000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 } }
+              : {}),
+            ...(include?.customer ? { customer: store.customer[sub.customerId] || null } : {})
+          };
         },
         findMany: async ({ where }: any = {}) => {
           let rows = Object.values(store.subscription);
@@ -171,6 +176,28 @@ vi.mock("../../db/prisma", () => {
           const id = "pa-" + Math.random().toString(36).slice(2, 8);
           store.paymentAttempt[id] = { id, ...data };
           return store.paymentAttempt[id];
+        }
+      },
+      subscriptionBillingCycle: {
+        findMany: async ({ where }: any = {}) => {
+          let rows = Object.values(store.subscriptionBillingCycle);
+          if (where?.subscriptionId) rows = rows.filter((c: any) => c.subscriptionId === where.subscriptionId);
+          if (where?.paymentId === null) rows = rows.filter((c: any) => c.paymentId == null);
+          if (where?.status?.not) rows = rows.filter((c: any) => c.status !== where.status.not);
+          return rows;
+        },
+        upsert: async ({ where, create, update }: any) => {
+          const key = where?.subscriptionId_cycleNumber;
+          const existing = Object.values(store.subscriptionBillingCycle).find(
+            (c: any) => c.subscriptionId === key.subscriptionId && c.cycleNumber === key.cycleNumber
+          );
+          if (existing) {
+            Object.assign(existing, update);
+            return existing;
+          }
+          const id = "cycle-" + Math.random().toString(36).slice(2, 8);
+          store.subscriptionBillingCycle[id] = { id, ...create };
+          return store.subscriptionBillingCycle[id];
         }
       }
     },
@@ -331,6 +358,37 @@ describe("Subscription Billing: Payment link creation", () => {
     expect(result).toHaveProperty("wompiPaymentLinkId");
     expect(result).toHaveProperty("checkoutUrl");
   });
+
+  it("should assign ANTICIPADO payment links to the next cycle", async () => {
+    const { store } = await import("../../db/prisma");
+
+    store.customer["cust-link-advance"] = { id: "cust-link-advance", email: "link-advance@test.com", name: "Link Advance", metadata: {} };
+    store.plan = {
+      ...(store.plan || {}),
+      "plan-advance": { id: "plan-advance", tenantId: "tenant-1", name: "Plan", priceInCents: 15000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 }
+    };
+    store.subscription["sub-link-advance"] = {
+      id: "sub-link-advance",
+      tenantId: "tenant-1",
+      customerId: "cust-link-advance",
+      planId: "plan-advance",
+      status: "ACTIVE",
+      startAt: new Date("2026-03-19T07:24:55.034Z"),
+      currentCycle: 1,
+      currentPeriodStartAt: new Date("2026-04-01T00:00:00.000Z"),
+      currentPeriodEndAt: new Date("2026-05-01T00:00:00.000Z"),
+      cycleStartDay: 1,
+      paymentDay: 20,
+      paymentTiming: "ANTICIPADO",
+      graceDays: 3
+    };
+
+    const { createPaymentLinkForSubscription } = await import("../../services/subscriptionBilling");
+    const result = await createPaymentLinkForSubscription({ subscriptionId: "sub-link-advance" });
+
+    expect(store.payment[result.paymentId]?.cycleNumber).toBe(3);
+    expect(store.payment[result.paymentId]?.subscriptionCycleKey).toBe("sub-link-advance:3");
+  });
 });
 
 describe("ensureExpiredSubscriptions", () => {
@@ -346,12 +404,22 @@ describe("ensureExpiredSubscriptions", () => {
       planId: "plan-1",
       status: "ACTIVE",
       currentCycle: 1,
-      currentPeriodStartAt: new Date("2026-02-01"),
-      currentPeriodEndAt: new Date("2026-03-01"),
+      currentPeriodStartAt: new Date("2026-03-01T00:00:00.000Z"),
+      currentPeriodEndAt: new Date("2026-04-01T00:00:00.000Z"),
       cycleStartDay: 1,
-      paymentDay: 5,
+      paymentDay: 1,
       paymentTiming: "EN_CURSO",
       graceDays: 3
+    };
+    store.subscriptionBillingCycle["cycle-pastdue"] = {
+      id: "cycle-pastdue",
+      subscriptionId: "sub-pastdue",
+      cycleNumber: 1,
+      periodStartAt: new Date("2026-03-01T00:00:00.000Z"),
+      periodEndAt: new Date("2026-04-01T00:00:00.000Z"),
+      dueAt: new Date("2026-03-01T00:00:00.000Z"),
+      status: "PENDING",
+      paymentId: null
     };
 
     const { ensureExpiredSubscriptions } = await import("../../services/subscriptionBilling");
@@ -372,12 +440,22 @@ describe("ensureExpiredSubscriptions", () => {
       planId: "plan-1",
       status: "ACTIVE",
       currentCycle: 1,
-      currentPeriodStartAt: new Date("2026-04-01"),
-      currentPeriodEndAt: new Date(new Date().getTime() - 1 * 24 * 60 * 60 * 1000), // Due yesterday
+      currentPeriodStartAt: new Date("2026-04-01T00:00:00.000Z"),
+      currentPeriodEndAt: new Date("2026-05-01T00:00:00.000Z"),
       cycleStartDay: 1,
-      paymentDay: 1,
+      paymentDay: 5,
       paymentTiming: "EN_CURSO",
       graceDays: 3
+    };
+    store.subscriptionBillingCycle["cycle-grace"] = {
+      id: "cycle-grace",
+      subscriptionId: "sub-grace",
+      cycleNumber: 1,
+      periodStartAt: new Date("2026-04-01T00:00:00.000Z"),
+      periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
+      dueAt: new Date("2026-04-05T00:00:00.000Z"),
+      status: "PENDING",
+      paymentId: null
     };
 
     const { ensureExpiredSubscriptions } = await import("../../services/subscriptionBilling");

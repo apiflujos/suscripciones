@@ -459,7 +459,22 @@ export default async function CustomerDetailPage({
   const lastPaymentAt = lastPayment?.paidAt || lastPayment?.createdAt || null;
   const meta =
     (customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {}) as any;
-  const nextPeriodEnd = activeSub?.currentPeriodEndAt || null;
+  const nowTs = Date.now();
+  const activeSubCycles = activeSub
+    ? billingCycles
+        .filter((cycle: any) => String(cycle?.subscriptionId || cycle?.subscription?.id || "") === String(activeSub.id))
+        .sort((a: any, b: any) => new Date(b.periodStartAt || 0).getTime() - new Date(a.periodStartAt || 0).getTime())
+    : [];
+  const activeCycleForSummary =
+    activeSubCycles.find((cycle: any) => {
+      const startTs = new Date(cycle.periodStartAt || 0).getTime();
+      const endTs = new Date(cycle.periodEndAt || 0).getTime();
+      return Number.isFinite(startTs) && Number.isFinite(endTs) && startTs <= nowTs && nowTs < endTs;
+    }) ||
+    activeSubCycles.find((cycle: any) => new Date(cycle.periodStartAt || 0).getTime() <= nowTs) ||
+    activeSubCycles[0] ||
+    null;
+  const nextPeriodEnd = activeCycleForSummary?.periodEndAt || null;
   const wompiMeta = (meta as any)?.wompi || {};
   const paymentSourceId = wompiMeta?.paymentSourceId || wompiMeta?.payment_source_id || null;
   const activePlanLabel = activeSub ? formatPlanTitle(activeSub?.plan) : "Sin plan activo";

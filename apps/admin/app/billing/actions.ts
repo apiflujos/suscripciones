@@ -1326,9 +1326,7 @@ export async function setBillingChargeDate(formData: FormData) {
       where: { id: subscriptionId },
       select: {
         id: true,
-        currentPeriodEndAt: true,
-        currentPeriodStartAt: true,
-        plan: { select: { intervalUnit: true, intervalCount: true } }
+        metadata: true
       }
     });
 
@@ -1342,29 +1340,17 @@ export async function setBillingChargeDate(formData: FormData) {
       redirect(`${returnTo}?error=invalid_datetime`);
     }
 
-    // Calcular inicio del ciclo basado en la periodicidad
-    const intervalUnit = sub.plan.intervalUnit;
-    const intervalCount = sub.plan.intervalCount || 1;
+    const res = await scheduleSubscriptionCutoff({
+      subscriptionId,
+      cutoffAt: newChargeAt.toISOString()
+    });
+    if (!res.ok) {
+      redirect(`${returnTo}?error=${encodeURIComponent(String(res.error || "schedule_cutoff_failed"))}`);
+    }
 
-    // Calcular nuevo period start basado en la nueva fecha de cobro
-    const newPeriodStart = (() => {
-      const d = new Date(newChargeAt.getTime());
-      if (intervalUnit === "MONTH") {
-        d.setUTCMonth(d.getUTCMonth() - intervalCount);
-      } else if (intervalUnit === "WEEK") {
-        d.setUTCDate(d.getUTCDate() - (7 * intervalCount));
-      } else if (intervalUnit === "DAY") {
-        d.setUTCDate(d.getUTCDate() - intervalCount);
-      }
-      return d;
-    })();
-
-    // Actualizar suscripción
     await prisma.subscription.update({
       where: { id: subscriptionId },
       data: {
-        currentPeriodEndAt: newChargeAt,
-        currentPeriodStartAt: newPeriodStart,
         metadata: {
           ...(sub as any).metadata,
           billing: {

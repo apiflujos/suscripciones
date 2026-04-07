@@ -21,7 +21,7 @@ import { publishRealtime } from "./realtimePublisher";
 import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
 import { reconcileWompiTransaction } from "./wompiReconcile";
 import { getSubscriptionPricingTotal, getPlanCollectionMode } from "../lib/metadataSchemas";
-import { computeBillingCycleDueAt } from "./billingCycles";
+import { resolveSubscriptionBillingState } from "./billingCycles";
 
 const PAYMENT_LINK_LOCK_PREFIX = "payment-link";
 const AUTO_DEBIT_LOCK_PREFIX = "auto-debit";
@@ -111,31 +111,6 @@ export function readSubscriptionTotalInCents(subscriptionMeta: unknown, fallback
   return getSubscriptionPricingTotal(subscriptionMeta, fallback);
 }
 
-function computeSubscriptionDueWithGrace(subscription: {
-  currentPeriodStartAt: Date;
-  currentPeriodEndAt: Date;
-  cycleStartDay: number;
-  paymentDay: number;
-  paymentTiming: "EN_CURSO" | "ANTICIPADO";
-  graceDays: number;
-  plan?: { intervalUnit?: string | null } | null;
-}) {
-  const intervalUnit = String(subscription.plan?.intervalUnit || "").toUpperCase();
-  const dueAt =
-    intervalUnit === "MONTH"
-      ? computeBillingCycleDueAt({
-          periodStartAt: subscription.currentPeriodStartAt,
-          periodEndAt: subscription.currentPeriodEndAt,
-          cycleStartDay: subscription.cycleStartDay,
-          paymentDay: subscription.paymentDay,
-          paymentTiming: subscription.paymentTiming === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
-        })
-      : subscription.currentPeriodEndAt;
-  const graceDays = Number.isFinite(subscription.graceDays as any) ? Math.max(0, Math.trunc(subscription.graceDays || 0)) : 0;
-  const dueWithGraceAt = new Date(dueAt.getTime() + graceDays * 24 * 60 * 60 * 1000);
-  return { dueAt, dueWithGraceAt };
-}
-
 export async function ensureExpiredSubscriptions() {
   const now = new Date();
   const candidates = await prisma.subscription.findMany({
@@ -145,19 +120,17 @@ export async function ensureExpiredSubscriptions() {
     select: {
       id: true,
       status: true,
-      currentPeriodStartAt: true,
-      currentPeriodEndAt: true,
-      cycleStartDay: true,
-      paymentDay: true,
-      paymentTiming: true,
-      graceDays: true,
-      plan: { select: { intervalUnit: true } }
+      graceDays: true
     }
   });
   let toPastDue = 0;
   let toExpired = 0;
   for (const sub of candidates) {
-    const { dueWithGraceAt } = computeSubscriptionDueWithGrace(sub);
+    const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id, asOf: now });
+    const collectionCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
+    if (!collectionCycle) continue;
+    const dueAt = new Date(collectionCycle.dueAt || collectionCycle.periodEndAt);
+    const dueWithGraceAt = new Date(dueAt.getTime() + Math.max(0, Math.trunc(sub.graceDays || 0)) * 24 * 60 * 60 * 1000);
     if (sub.status === SubscriptionStatus.ACTIVE && dueWithGraceAt.getTime() < now.getTime()) {
       await prisma.subscription.update({
         where: { id: sub.id },
@@ -189,11 +162,19 @@ export async function ensureExpiredSubscriptions() {
 export async function handleSubscriptionPaymentFailure(subscriptionId: string, error: string) {
   const sub = await prisma.subscription.findUnique({
     where: { id: subscriptionId },
-    include: { plan: { select: { intervalUnit: true } } }
+    select: {
+      id: true,
+      status: true,
+      graceDays: true
+    }
   });
   if (!sub || sub.status === SubscriptionStatus.CANCELED || sub.status === SubscriptionStatus.EXPIRED) return;
 
-  const { dueAt, dueWithGraceAt } = computeSubscriptionDueWithGrace(sub);
+  const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id });
+  const collectionCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
+  if (!collectionCycle) return;
+  const dueAt = new Date(collectionCycle.dueAt || collectionCycle.periodEndAt);
+  const dueWithGraceAt = new Date(dueAt.getTime() + Math.max(0, Math.trunc(sub.graceDays || 0)) * 24 * 60 * 60 * 1000);
   if (dueWithGraceAt.getTime() >= Date.now()) {
     await systemLog(LogLevel.WARN, "subscriptions.lifecycle", "Cobro falló pero la suscripción sigue dentro de gracia", {
       subscriptionId,
@@ -241,7 +222,11 @@ export async function createPaymentLinkForSubscription(args: {
   // FIX: Validar moneda antes de crear payment link
   const currency = validateWompiCurrency(sub.plan.currency);
 
-  const cycle = sub.currentCycle;
+  const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id }).catch((err) => {
+    logIgnored(err, "payment link: failed to resolve billing state", { subscriptionId: sub.id });
+    return null;
+  });
+  const cycle = billingState?.collectionCycle?.cycleNumber ?? 1;
   let reference = `SUB_${sub.id}_${cycle}`;
   const amountInCents = args.amountInCentsOverride ?? readSubscriptionTotalInCents(sub.metadata, sub.plan.priceInCents);
 
@@ -573,7 +558,12 @@ export async function createAutoDebitTransactionForSubscription(args: {
   const overrideCycle = Number.isFinite(args.cycleNumberOverride)
     ? Math.max(1, Math.trunc(args.cycleNumberOverride as number))
     : null;
-  const cycle = overrideCycle ?? sub.currentCycle;
+  const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id }).catch((err) => {
+    logIgnored(err, "auto debit: failed to resolve billing state", { subscriptionId: sub.id });
+    return null;
+  });
+  const inferredCycle = billingState?.collectionCycle?.cycleNumber ?? 1;
+  const cycle = overrideCycle ?? inferredCycle;
   let reference = `SUB_${sub.id}_${cycle}`;
   const amountInCents = Math.trunc(args.amountInCentsOverride ?? readSubscriptionTotalInCents(sub.metadata, sub.plan.priceInCents));
   const currency = validateWompiCurrency(sub.plan.currency);

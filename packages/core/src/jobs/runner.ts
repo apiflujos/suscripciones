@@ -20,7 +20,7 @@ import { ensurePaymentRetryJob } from "../services/retryJobScheduler";
 import { handleSubscriptionPaymentFailure, ensureExpiredSubscriptions } from "../services/subscriptionBilling";
 import { runWithActor } from "../services/actorStore";
 import { publishRealtime } from "../services/realtimePublisher";
-import { computeBillingCycleDueAt } from "../services/billingCycles";
+import { resolveSubscriptionBillingState } from "../services/billingCycles";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
@@ -369,13 +369,8 @@ async function ensureDueCutoffRetries() {
       select: {
         id: true,
         status: true,
-        currentPeriodEndAt: true,
-        currentPeriodStartAt: true,
-        cycleStartDay: true,
-        paymentDay: true,
-        paymentTiming: true,
         metadata: true,
-        plan: { select: { metadata: true, intervalUnit: true } }
+        plan: { select: { metadata: true } }
       },
       take: PAGE_SIZE,
       skip: cursor ? 1 : 0,
@@ -404,18 +399,9 @@ async function ensureDueCutoffRetries() {
         continue;
       }
 
-      const dueAt =
-        String(sub.plan?.intervalUnit || "MONTH").toUpperCase() === "MONTH" &&
-        sub.currentPeriodStartAt &&
-        sub.currentPeriodEndAt
-          ? computeBillingCycleDueAt({
-              periodStartAt: sub.currentPeriodStartAt,
-              periodEndAt: sub.currentPeriodEndAt,
-              cycleStartDay: sub.cycleStartDay,
-              paymentDay: sub.paymentDay,
-              paymentTiming: (sub.paymentTiming as any) === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
-            })
-          : sub.currentPeriodEndAt;
+      const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id });
+      const collectionCycle = billingState?.collectionCycle || null;
+      const dueAt = collectionCycle ? new Date(collectionCycle.dueAt || collectionCycle.periodEndAt) : null;
       const runAtMs = dueAt?.getTime?.() ?? 0;
       const runAt = runAtMs > now + futureToleranceMs ? new Date(runAtMs) : nowDate;
 

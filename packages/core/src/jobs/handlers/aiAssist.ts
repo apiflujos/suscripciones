@@ -7,6 +7,7 @@ import { getDefaultTenantId } from "../../services/tenantContext";
 import { systemLog } from "../../services/systemLog";
 import { getMetricsOverview } from "../../services/metrics";
 import { getOperationsReport, getChatwootReport } from "../../services/reports";
+import { buildSubscriptionBillingStateIndex } from "../../services/billingCycles";
 
 type AiAssistPayload = {
   requestId?: string;
@@ -325,13 +326,34 @@ export async function aiAssist(payload: AiAssistPayload) {
         take: 12
       })
     ]);
+    const billingStateBySubscription = await buildSubscriptionBillingStateIndex({
+      subscriptions: subs.map((s) => ({
+        id: s.id,
+        startAt: s.startAt,
+        cycleStartDay: s.cycleStartDay,
+        paymentDay: s.paymentDay,
+        paymentTiming: (s.paymentTiming as any) === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",
+        graceDays: s.graceDays,
+        plan: {
+          intervalUnit: s.plan.intervalUnit,
+          intervalCount: s.plan.intervalCount
+        }
+      }))
+    });
     (context as any).customer = customer || null;
-    (context as any).subscriptions = subs.map((s) => ({
-      id: s.id,
-      status: s.status,
-      plan: s.plan?.name || null,
-      currentPeriodEndAt: s.currentPeriodEndAt
-    }));
+    (context as any).subscriptions = subs.map((s) => {
+      const billingState = billingStateBySubscription.get(String(s.id)) || null;
+      const activeCycle = billingState?.activeCycle || null;
+      const collectionCycle = billingState?.collectionCycle || activeCycle;
+      return {
+        id: s.id,
+        status: s.status,
+        plan: s.plan?.name || null,
+        activeCycleNumber: activeCycle?.cycleNumber ?? null,
+        activeCycleEndAt: activeCycle?.periodEndAt ?? null,
+        nextBillingDate: collectionCycle?.dueAt ?? activeCycle?.periodEndAt ?? null
+      };
+    });
   }
 
   if (scope === "product" && productId) {
