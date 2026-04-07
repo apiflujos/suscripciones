@@ -5,6 +5,7 @@ import Link from "next/link";
 import { deleteCustomer, updateCustomer } from "./actions";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
+import { AppModal } from "../ui/AppModal";
 import { ViewLinksModal } from "../ui/ViewLinksModal";
 import { CustomerEditModal } from "./CustomerEditModal";
 
@@ -822,44 +823,29 @@ export function CustomersTable({
       </div>
       )}
 
-      {planModalOpen && planModalCustomer ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 980 }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Crear plan o suscripción</strong>
-              <button className="ghost modal-close" type="button" onClick={closePlanModal} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <NewBillingAssignmentForm
-              customers={items}
-              empresas={empresas}
-              catalogItems={products}
-              csrfToken={csrfToken}
-              tenantId={planModalCustomer?.tenantId || ""}
-              tenants={tenants}
-              defaultOpen
-              forceOpen
-              hideHeader
-              returnTo={returnTo || "/customers"}
-              defaultSelectedCustomerId={String(planModalCustomer.id)}
-              createCustomer={createCustomer}
-              createPlanAndSubscription={createPlanAndSubscription}
-            />
-          </div>
-        </div>
-      ) : null}
+      <AppModal open={Boolean(planModalOpen && planModalCustomer)} onClose={closePlanModal} title="Crear plan o suscripción" maxWidth={980}>
+        {planModalCustomer ? (
+          <NewBillingAssignmentForm
+            customers={items}
+            empresas={empresas}
+            catalogItems={products}
+            csrfToken={csrfToken}
+            tenantId={planModalCustomer?.tenantId || ""}
+            tenants={tenants}
+            defaultOpen
+            forceOpen
+            hideHeader
+            returnTo={returnTo || "/customers"}
+            defaultSelectedCustomerId={String(planModalCustomer.id)}
+            createCustomer={createCustomer}
+            createPlanAndSubscription={createPlanAndSubscription}
+          />
+        ) : null}
+      </AppModal>
 
-      {payModalOpen && payModalCustomer ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 520 }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Enviar link de pago</strong>
-              <button className="ghost modal-close" type="button" onClick={closePayModal} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <form
+      <AppModal open={Boolean(payModalOpen && payModalCustomer)} onClose={closePayModal} title="Enviar link de pago" maxWidth={520}>
+        {payModalCustomer ? (
+          <form
               className="panel module"
               onSubmit={async (e) => {
                 e.preventDefault();
@@ -1031,21 +1017,13 @@ export function CustomersTable({
                   </>
                 );
               })()}
-            </form>
-          </div>
-        </div>
-      ) : null}
+          </form>
+        ) : null}
+      </AppModal>
 
-      {cartModalOpen && cartModalCustomer ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 520 }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Enviar catálogo</strong>
-              <button className="ghost modal-close" type="button" onClick={closeCartModal} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <form
+      <AppModal open={Boolean(cartModalOpen && cartModalCustomer)} onClose={closeCartModal} title="Enviar catálogo" maxWidth={520}>
+        {cartModalCustomer ? (
+          <form
               className="panel module"
               onSubmit={async (e) => {
                 e.preventDefault();
@@ -1201,21 +1179,13 @@ export function CustomersTable({
                   </>
                 );
               })()}
-            </form>
-          </div>
-        </div>
-      ) : null}
+          </form>
+        ) : null}
+      </AppModal>
 
-      {tokenModalOpen && tokenModalCustomer ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 520 }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Enviar débito automático</strong>
-              <button className="ghost modal-close" type="button" onClick={closeTokenModal} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <form
+      <AppModal open={Boolean(tokenModalOpen && tokenModalCustomer)} onClose={closeTokenModal} title="Enviar débito automático" maxWidth={520}>
+        {tokenModalCustomer ? (
+          <form
               className="panel module"
               onSubmit={async (e) => {
                 e.preventDefault();
@@ -1363,25 +1333,24 @@ export function CustomersTable({
                   </>
                 );
               })()}
-            </form>
-          </div>
-        </div>
-      ) : null}
+          </form>
+        ) : null}
+      </AppModal>
 
 
       {viewLinksOpen ? (
         <ViewLinksModal links={viewLinksItems} onClose={closeViewLinks} />
       ) : null}
 
-      {viewFichaOpen && viewFichaCustomer ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel customer-view-ficha-modal" style={{ width: "min(700px, 96vw)" }}>
-            <div className="panel-header" style={{ justifyContent: "space-between" }}>
-              <h3 style={{ margin: 0 }}>Ficha: {viewFichaCustomer.name || viewFichaCustomer.email || "Contacto"}</h3>
-              <button type="button" className="ghost modal-close" onClick={closeViewFicha} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
-            </div>
-
-            <div className="modal-body" style={{ display: "grid", gap: 16 }}>
+      <AppModal
+        open={Boolean(viewFichaOpen && viewFichaCustomer)}
+        onClose={closeViewFicha}
+        title={`Ficha: ${viewFichaCustomer?.name || viewFichaCustomer?.email || "Contacto"}`}
+        width="min(700px, 96vw)"
+        panelClassName="customer-view-ficha-modal"
+      >
+        {viewFichaCustomer ? (
+          <div style={{ display: "grid", gap: 16 }}>
               {/* Información personal */}
               <section className="card cardPad" style={{ padding: "12px" }}>
                 <h4 style={{ margin: "0 0 12px 0", fontSize: 13, fontWeight: 600, color: "var(--primary)" }}>Información personal</h4>
@@ -1454,16 +1423,14 @@ export function CustomersTable({
                   )}
                 </div>
               </section>
-            </div>
-
-            {/* Footer con botones */}
-            <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 16px" }}>
-              <button className="ghost btn-compact" type="button" onClick={closeViewFicha}>Cerrar</button>
-              <button className="primary btn-compact" type="button" onClick={() => { closeViewFicha(); openEditor(viewFichaCustomer); }}>Editar</button>
-            </div>
+              <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 16px" }}>
+                <button className="ghost btn-compact" type="button" onClick={closeViewFicha}>Cerrar</button>
+                <button className="primary btn-compact" type="button" onClick={() => { closeViewFicha(); openEditor(viewFichaCustomer); }}>Editar</button>
+              </div>
           </div>
-        </div>
-      ) : null}
+          </div>
+        ) : null}
+      </AppModal>
 
       <CustomerEditModal
         customer={editing}

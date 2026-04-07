@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useEffect } from "react";
+import { AppModal } from "../ui/AppModal";
 import { ViewLinksModal } from "../ui/ViewLinksModal";
 import { sendProductToCustomer, updateProduct } from "./actions";
 import { HelpTip } from "../ui/HelpTip";
@@ -637,44 +638,29 @@ export function ProductsTable({
         </div>
       )}
 
-      {planModalOpen && planModalProduct ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ maxWidth: 980 }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Crear plan o suscripción</strong>
-              <button className="ghost modal-close" type="button" onClick={closePlanModal} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <NewBillingAssignmentForm
-              customers={customers}
-              empresas={empresas}
-              catalogItems={items}
-              csrfToken={csrfToken}
-              tenantId={planModalProduct?.tenantId || ""}
-              tenants={tenants}
-              defaultOpen
-              forceOpen
-              hideHeader
-              returnTo={returnTo || "/products"}
-              defaultSelectedProductId={String(planModalProduct.id)}
-              createCustomer={createCustomer}
-              createPlanAndSubscription={createPlanAndSubscription}
-            />
-          </div>
-        </div>
-      ) : null}
+      <AppModal open={Boolean(planModalOpen && planModalProduct)} onClose={closePlanModal} title="Crear plan o suscripción" maxWidth={980}>
+        {planModalProduct ? (
+          <NewBillingAssignmentForm
+            customers={customers}
+            empresas={empresas}
+            catalogItems={items}
+            csrfToken={csrfToken}
+            tenantId={planModalProduct?.tenantId || ""}
+            tenants={tenants}
+            defaultOpen
+            forceOpen
+            hideHeader
+            returnTo={returnTo || "/products"}
+            defaultSelectedProductId={String(planModalProduct.id)}
+            createCustomer={createCustomer}
+            createPlanAndSubscription={createPlanAndSubscription}
+          />
+        ) : null}
+      </AppModal>
 
-      {sendOpen && sendProduct ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ width: "min(980px, 96vw)" }}>
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>Enviar producto</strong>
-              <button className="ghost modal-close" type="button" onClick={closeSendModal} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <form action={sendProductToCustomer} className="send-product-grid">
+      <AppModal open={Boolean(sendOpen && sendProduct)} onClose={closeSendModal} title="Enviar producto" width="min(980px, 96vw)">
+        {sendProduct ? (
+          <form action={sendProductToCustomer} className="send-product-grid">
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="productId" value={sendProduct.id} />
               <input type="hidden" name="customerId" value={sendCustomerId} />
@@ -832,10 +818,9 @@ export function ProductsTable({
                   ) : null}
                 </div>
               </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
+          </form>
+        ) : null}
+      </AppModal>
 
       {open && editing ? (
         <div className="modal-backdrop">
@@ -1141,23 +1126,15 @@ export function ProductsTable({
         </div>
       ) : null}
 
-      {txOpen && txProduct ? (
-        <div className="modal-backdrop">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="product-tx-title"
-            className="modal-panel"
-            style={{ width: "min(900px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
-          >
-            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 id="product-tx-title" style={{ margin: 0 }}>
-                Transacciones: {txProduct.name}
-              </h3>
-              <button type="button" className="ghost modal-close" onClick={closeTransactions} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
+      <AppModal
+        open={Boolean(txOpen && txProduct)}
+        onClose={closeTransactions}
+        title={`Transacciones: ${txProduct?.name || ""}`}
+        width="min(900px, 96vw)"
+        bodyClassName="modal-body"
+      >
+        {txProduct ? (
+          <div style={{ maxHeight: "90vh", overflow: "auto" }}>
             {txLoading ? <div className="field-hint">Cargando transacciones…</div> : null}
             {txError ? <div className="field-hint" style={{ color: "var(--danger)" }}>Error: {txError}</div> : null}
             {!txLoading && !txError && txItems.length === 0 ? <div className="field-hint">No hay transacciones.</div> : null}
@@ -1195,8 +1172,8 @@ export function ProductsTable({
               </div>
             ) : null}
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </AppModal>
 
       {viewLinksOpen ? (
         <ViewLinksModal links={viewLinksItems} onClose={closeViewLinks} />
