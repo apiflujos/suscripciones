@@ -70,7 +70,9 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
       await systemLog(LogLevel.ERROR, "jobs.payment_retry", "Cliente sin email - imposible cobrar", {
         subscriptionId,
         customerId: sub.customerId
-      }, SystemActor.JOB_PAYMENT_RETRY).catch(() => {});
+      }, SystemActor.JOB_PAYMENT_RETRY).catch((logErr: any) => {
+        logger.warn({ err: logErr, subscriptionId, customerId: sub.customerId }, "Fallo escribiendo systemLog por cliente sin email");
+      });
       throw new Error("customer_email_required");
     }
 
@@ -82,7 +84,9 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
         await systemLog(LogLevel.WARN, "jobs.payment_retry", "Cliente sin token - creando link de pago", {
           subscriptionId,
           customerId: sub.customerId
-        }, SystemActor.JOB_PAYMENT_RETRY).catch(() => {});
+        }, SystemActor.JOB_PAYMENT_RETRY).catch((logErr: any) => {
+          logger.warn({ err: logErr, subscriptionId, customerId: sub.customerId }, "Fallo escribiendo systemLog por cliente sin token");
+        });
         void publishRealtime("payments", {
           type: "payment_retry_missing_token",
           subscriptionId,
@@ -131,7 +135,9 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
           wompiTransactionId: recentPendingAutoCharge.wompiTransactionId,
           pendingCreatedAt: recentPendingAutoCharge.createdAt?.toISOString?.() || recentPendingAutoCharge.createdAt,
           reScheduledAt: nextRunAt.toISOString()
-        }, SystemActor.JOB_PAYMENT_RETRY).catch(() => {});
+        }, SystemActor.JOB_PAYMENT_RETRY).catch((logErr: any) => {
+          logger.warn({ err: logErr, subscriptionId, pendingPaymentId: recentPendingAutoCharge.id }, "Fallo escribiendo systemLog por cobro pendiente reciente");
+        });
         void publishRealtime("payments", {
           type: "payment_retry_deferred_pending",
           subscriptionId,
@@ -158,7 +164,9 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
           dueAt: dueAt.toISOString(),
           now: now.toISOString(),
           byCutoff: dueByCutoff ? dueByCutoff.toISOString() : null
-        }, SystemActor.JOB_PAYMENT_RETRY).catch(() => {});
+        }, SystemActor.JOB_PAYMENT_RETRY).catch((logErr: any) => {
+          logger.warn({ err: logErr, subscriptionId, dueAt }, "Fallo escribiendo systemLog por cobro fuera de fecha");
+        });
         void publishRealtime("payments", {
           type: "payment_retry_deferred_not_due",
           subscriptionId,
@@ -183,7 +191,9 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
           await systemLog(LogLevel.INFO, "jobs.payment_retry", "Débito automático deshabilitado; creando link de respaldo", {
             subscriptionId,
             source: "settings.auto_debit.enabled"
-          }, SystemActor.JOB_PAYMENT_RETRY).catch(() => {});
+          }, SystemActor.JOB_PAYMENT_RETRY).catch((logErr: any) => {
+            logger.warn({ err: logErr, subscriptionId }, "Fallo escribiendo systemLog por auto debit deshabilitado");
+          });
           void publishRealtime("payments", {
             type: "payment_retry_auto_debit_disabled",
             subscriptionId,
@@ -229,9 +239,9 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
         const isMissingSource = msg === "customer_payment_source_missing";
 
         // Log detallado del fallo para debug
-        await systemLog(
-          isMissingSource ? LogLevel.WARN : LogLevel.ERROR,
-          "jobs.payment_retry",
+          await systemLog(
+            isMissingSource ? LogLevel.WARN : LogLevel.ERROR,
+            "jobs.payment_retry",
           isMissingSource ? "Auto-debit sin token; creando link manual" : "Fallo en cobro automático",
           {
             subscriptionId,
@@ -247,7 +257,9 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
             errorDetails: err?.details || err?.cause || null,
             wompiTransactionId: err?.wompiTransactionId || null,
             reference: err?.reference || null
-          }, SystemActor.JOB_PAYMENT_RETRY).catch(() => {});
+          }, SystemActor.JOB_PAYMENT_RETRY).catch((logErr: any) => {
+            logger.warn({ err: logErr, subscriptionId, customerId: sub.customerId }, "Fallo escribiendo systemLog por fallo en cobro automático");
+          });
         
         void publishRealtime("payments", {
           type: isMissingSource ? "payment_retry_missing_token" : "payment_retry_failed",
@@ -270,7 +282,9 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
               originalError: msg,
               fallbackError: linkErr?.message || "unknown"
             }, SystemActor.JOB_PAYMENT_RETRY
-          ).catch(() => {});
+          ).catch((logErr: any) => {
+            logger.warn({ err: logErr, subscriptionId, customerId: sub.customerId }, "Fallo escribiendo systemLog por fallback de link de emergencia");
+          });
         });
 
         if (!isMissingSource) throw err;
@@ -291,6 +305,8 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
       subscriptionId
     };
   } finally {
-    await prisma.$queryRaw`SELECT pg_advisory_unlock(hashtext(${lockKey}))`.catch(() => {});
+    await prisma.$queryRaw`SELECT pg_advisory_unlock(hashtext(${lockKey}))`.catch((err: any) => {
+      logger.warn({ err, subscriptionId, lockKey }, "Fallo liberando advisory lock de payment retry");
+    });
   }
 }

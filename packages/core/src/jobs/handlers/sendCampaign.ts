@@ -45,7 +45,9 @@ export async function sendCampaign(payload: { campaignId: string }) {
       await systemLog(LogLevel.ERROR, "campaigns.send", "Campaña sin audiencia válida", {
         campaignId: campaign.id,
         tenantId: campaign.tenantId
-      }).catch(() => {});
+      }).catch((err: any) => {
+        logger.warn({ err, campaignId: campaign.id }, "Fallo escribiendo systemLog de campaña sin audiencia");
+      });
       return;
     }
 
@@ -128,7 +130,9 @@ export async function sendCampaign(payload: { campaignId: string }) {
       failedCount,
       pendingCount,
       batchSize: pending.length
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, campaignId: campaign.id }, "Fallo escribiendo systemLog de lote de campaña");
+    });
 
     if (pendingCount > 0) {
       await prisma.retryJob.create({
@@ -146,7 +150,9 @@ export async function sendCampaign(payload: { campaignId: string }) {
       campaignId: campaign.id,
       tenantId: campaign.tenantId,
       error: message
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, campaignId: campaign.id }, "Fallo escribiendo systemLog de campaña fallida");
+    });
     throw err;
   }
 }

@@ -176,7 +176,9 @@ async function ensureGamificationRecalcJob() {
       maxAttempts: 3,
       payload: { reason: "auto" }
     }
-  }).catch(() => {});
+  }).catch((err: any) => {
+    logger.warn({ err }, '[Jobs/Gamification] Fallo creando job de recálculo');
+  });
 }
 
 async function ensureDataTrainerJob() {
@@ -199,7 +201,9 @@ async function ensureDataTrainerJob() {
       maxAttempts: 3,
       payload: { reason: "auto" }
     }
-  }).catch(() => {});
+  }).catch((err: any) => {
+    logger.warn({ err }, '[Jobs/DataTrainer] Fallo creando job de entrenamiento');
+  });
 }
 
 async function ensureLogCleanup() {
@@ -230,7 +234,9 @@ async function ensureJobsHeartbeat() {
       create: { key: workerHeartbeatKey, lastSeenAt: heartbeatAt, meta },
       update: { lastSeenAt: heartbeatAt, meta }
     })
-  ]).catch(() => {});
+  ]).catch((err: any) => {
+    logger.warn({ err, workerId, workerHeartbeatKey }, '[Jobs/Heartbeat] Fallo actualizando heartbeat');
+  });
 }
 
 async function ensurePendingPaymentsAutoReconcile() {
