@@ -770,19 +770,18 @@ export function SmartViewsBar({
         ) : null}
       </div>
 
-      {mode === "filters" ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel modal-panel-fixed smartViewsModalPanel">
-            <div className="panel-header">
-              <div>
-                <div className="panel-title">Filtros inteligentes</div>
-                <div className="panel-sub">Configura condiciones con datos reales.</div>
-              </div>
-              <button className="modal-close" type="button" onClick={() => setMode("list")} aria-label="Cerrar">
-                ×
-              </button>
-            </div>
-            <div className="modal-body smartViewsModalBody">
+      <AppModal
+        open={mode === "filters"}
+        onClose={() => setMode("list")}
+        title={
+          <div>
+            <div className="panel-title">Filtros inteligentes</div>
+            <div className="panel-sub">Configura condiciones con datos reales.</div>
+          </div>
+        }
+        panelClassName="modal-panel-fixed smartViewsModalPanel"
+        bodyClassName="modal-body smartViewsModalBody"
+      >
               {fields.length === 0 ? (
                 fieldsError ? (
                   <div className="smartViewsError">
@@ -901,10 +900,7 @@ export function SmartViewsBar({
                   </div>
                 </>
               ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
+      </AppModal>
 
       <AppModal
         open={pinModalIndex !== null}
