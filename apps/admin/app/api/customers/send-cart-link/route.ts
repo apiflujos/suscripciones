@@ -6,6 +6,7 @@ import { getCustomerById, updateCustomerMetadata } from "../../../admin/_service
 import { scheduleCatalogLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { signPublicToken } from "../../../../lib/publicTokens";
 import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
+import { logger } from "@suscripciones/core/lib/logger";
 
 function ensureHttps(value: string) {
   if (!value) return value;
@@ -27,7 +28,8 @@ export async function POST(req: Request) {
   let body: any = null;
   try {
     body = await req.json();
-  } catch {
+  } catch (err: any) {
+    logger.warn({ err }, "Body invalido en send-cart-link");
     return NextResponse.json({ ok: false, error: "invalid_json" }, { status: 400 });
   }
 
@@ -39,7 +41,10 @@ export async function POST(req: Request) {
   if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
   if (!productId) return NextResponse.json({ ok: false, error: "missing_product_for_customer" }, { status: 400 });
 
-  const notificationsConfig = await getNotificationsConfig().catch(() => null);
+  const notificationsConfig = await getNotificationsConfig().catch((err: any) => {
+    logger.warn({ err, customerId, tenantId, productId, catalogType }, "Fallo cargando configuracion de notificaciones para cart link");
+    return null;
+  });
   if (notificationsConfig) {
     const rules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
     const templates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
@@ -58,7 +63,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
   }
 
-  const checkoutConfig = await getCheckoutConfig();
+  const checkoutConfig = await getCheckoutConfig().catch((err: any) => {
+    logger.error({ err, customerId, tenantId, productId, catalogType }, "Fallo cargando checkout config para cart link");
+    return null;
+  });
+  if (!checkoutConfig) {
+    return NextResponse.json({ ok: false, error: "missing_public_base_url" }, { status: 500 });
+  }
   const baseFromSettings =
     String(checkoutConfig?.planBaseUrl || "").trim() ||
     String(checkoutConfig?.subscriptionBaseUrl || "").trim();
@@ -94,7 +105,10 @@ export async function POST(req: Request) {
       usedAt: null
     }
   };
-  await updateCustomerMetadata({ customerId, metadata: nextMeta });
+  await updateCustomerMetadata({ customerId, metadata: nextMeta }).catch((err: any) => {
+    logger.warn({ err, customerId, productId, catalogType }, "Fallo guardando metadata de cart link");
+    throw err;
+  });
 
   const schedule = await scheduleCatalogLinkNotifications({
     customerId,
@@ -102,6 +116,9 @@ export async function POST(req: Request) {
     forceNow: true,
     paymentType: catalogType,
     actor: auth.session.sub
+  }).catch((err: any) => {
+    logger.error({ err, customerId, productId, catalogType, actor: auth.session.sub }, "Fallo programando o enviando catalog link");
+    throw err;
   });
   const rulesActive = Boolean(schedule?.rulesActive);
   if (!rulesActive) {

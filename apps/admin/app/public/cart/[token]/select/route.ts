@@ -9,6 +9,7 @@ import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobSche
 import { getPaymentsConfig } from "@suscripciones/core/services/runtimeConfig";
 import { computeBillingCycleDueAt } from "@suscripciones/core/services/billingCycles";
 import { signPublicToken, verifyPublicToken } from "../../../../../lib/publicTokens";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,7 +48,8 @@ function parseCheckoutConfig(raw: string | null) {
   try {
     const json = raw ? JSON.parse(raw) : null;
     parsed = json && typeof json === "object" ? (json as CheckoutConfig) : null;
-  } catch {
+  } catch (err: any) {
+    logger.warn({ err }, "Fallo parseando checkout config en cart select");
     parsed = null;
   }
   const envBases = getCheckoutBaseUrlsFromEnv();
@@ -86,7 +88,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   });
   if (!customer) return Response.json({ error: "token_not_found" }, { status: 404 });
 
-  const body = await req.json().catch(() => null);
+  const body = await req.json().catch((err: any) => {
+    logger.warn({ err, token, customerId: customer.id }, "Body invalido en cart select");
+    return null;
+  });
   const planId = String(body?.planId || "").trim();
   if (!planId) return Response.json({ error: "missing_plan_id" }, { status: 400 });
 
@@ -202,7 +207,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   });
 
   if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
-    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: dueAt, maxAttempts: 1 }).catch(() => {});
+    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: dueAt, maxAttempts: 1 }).catch((err: any) => {
+      logger.warn({ err, subscriptionId: subscription.id, dueAt }, "Fallo programando payment retry desde cart select");
+    });
   }
 
   const tenantIds = Array.from(
@@ -219,13 +226,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
         data: tenantIds.map((t) => ({ subscriptionId: subscription.id, tenantId: t })),
         skipDuplicates: true
       })
-      .catch(() => {});
+      .catch((err: any) => {
+        logger.warn({ err, subscriptionId: subscription.id, tenantIds }, "Fallo creando subscription tenants desde cart select");
+      });
     await prisma.customerTenant
       .createMany({ data: tenantIds.map((t) => ({ customerId: customer.id, tenantId: t })), skipDuplicates: true })
-      .catch(() => {});
+      .catch((err: any) => {
+        logger.warn({ err, customerId: customer.id, tenantIds }, "Fallo creando customer tenants desde cart select");
+      });
   }
 
-  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err: any) => {
+    logger.warn({ err, subscriptionId: subscription.id }, "Fallo programando notificaciones de vencimiento desde cart select");
+  });
   const linkCreated = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
   const base = normalizeCheckoutBase(cfg.planBaseUrl, "plan");
   if (!base) return Response.json({ error: "missing_plan_base_url" }, { status: 400 });

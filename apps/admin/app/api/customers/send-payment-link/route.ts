@@ -6,6 +6,7 @@ import { findCheckoutTemplateForProduct } from "../../../admin/_services/checkou
 import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
 import { signPublicToken } from "../../../../lib/publicTokens";
 import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
+import { logger } from "@suscripciones/core/lib/logger";
 
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");
@@ -22,7 +23,8 @@ export async function POST(req: Request) {
   let body: any = null;
   try {
     body = await req.json();
-  } catch {
+  } catch (err: any) {
+    logger.warn({ err }, "Body invalido en send-payment-link");
     return NextResponse.json({ ok: false, error: "invalid_json" }, { status: 400 });
   }
 
@@ -38,7 +40,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "missing_product_for_customer" }, { status: 400 });
   }
 
-  const notificationsConfig = await getNotificationsConfig().catch(() => null);
+  const notificationsConfig = await getNotificationsConfig().catch((err: any) => {
+    logger.warn({ err, customerId, tenantId, productId }, "Fallo cargando configuracion de notificaciones para payment link");
+    return null;
+  });
   if (notificationsConfig) {
     const rules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
     const templates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
@@ -116,8 +121,11 @@ export async function POST(req: Request) {
       };
       await updateCustomerMetadata({ customerId, metadata: nextMeta });
     }
-  } catch {
-    // ignore best-effort public link
+  } catch (err: any) {
+    logger.warn(
+      { err, customerId, tenantId, productId, checkoutUrl, resolvedTemplateId },
+      "Fallo generando o guardando public payment link"
+    );
   }
 
   return NextResponse.json({
