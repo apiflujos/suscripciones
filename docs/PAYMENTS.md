@@ -23,11 +23,11 @@ El módulo de pagos gestiona la creación, seguimiento y conciliación de pagos 
 2. **Auto Debit**: Cobra automáticamente usando tokenización de tarjeta
 
 **Archivos principales:**
-- `services/subscriptionBilling.ts` - Creación de links y auto-debit
-- `services/wompiReconcile.ts` - Conciliación de transacciones
-- `routes/payments.ts` - Endpoint de consulta de pagos
-- `lib/wompiSignature.ts` - Firmas e integridad
-- `providers/wompi/client.ts` - Cliente HTTP para Wompi API
+- `packages/core/src/services/subscriptionBilling.ts` - Creación de links y auto-debit
+- `packages/core/src/services/wompiReconcile.ts` - Conciliación de transacciones
+- `apps/admin/app/admin/payments/[id]/route.ts` - Endpoint de consulta de pagos
+- `packages/core/src/lib/wompiSignature.ts` - Firmas e integridad
+- `packages/core/src/providers/wompi/client.ts` - Cliente HTTP para Wompi API
 
 ---
 
@@ -113,7 +113,7 @@ El módulo de pagos gestiona la creación, seguimiento y conciliación de pagos 
 
 ### Clasificación de Referencias
 
-**Archivo**: `webhooks/wompi/classifyReference.ts`
+**Archivo**: `packages/core/src/webhooks/wompi/classifyReference.ts`
 
 ```typescript
 export type PaymentSource =
@@ -131,7 +131,7 @@ export function classifyReference(reference: string): PaymentSource {
 
 ## Endpoints
 
-### GET `/payments/:id`
+### GET `/admin/payments/:id`
 
 Obtiene detalles de un pago específico con conciliación automática si está pendiente.
 

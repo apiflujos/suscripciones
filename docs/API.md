@@ -1,6 +1,11 @@
 # API Docs (Minimal)
 
-Base URL: `http://<host>:3001`
+Base URL: `http://<host>:3002`
+
+Notas:
+- El backend HTTP vive dentro del mismo runtime de Next.js en `apps/admin/app`.
+- Las rutas administrativas usan el prefijo `/admin/*`.
+- Las rutas públicas y webhooks también salen del mismo servicio Next.
 
 ## Auth
 
@@ -40,6 +45,9 @@ Admin endpoints require:
 - `GET /admin/orders?take=50&skip=0&q=...`
 - `POST /admin/orders`
 
+## Admin: Payments
+- `GET /admin/payments/:id`
+
 ## Admin: Logs
 - `GET /admin/logs/system?take=100&skip=0`
 - `GET /admin/logs/system/:id`
@@ -75,7 +83,7 @@ Admin endpoints require:
 - `POST /admin/comms/sync-attributes`
 - `GET /admin/notifications/config?environment=PRODUCTION|SANDBOX`
 - `PUT /admin/notifications/config`
-- `GET /admin/metrics`
+- `GET /admin/metrics/overview`
 
 ## Auth
 - `POST /admin/auth/login`
