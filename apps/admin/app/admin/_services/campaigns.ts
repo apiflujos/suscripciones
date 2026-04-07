@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@suscripciones/database";
 import { LogLevel, RetryJobStatus, RetryJobType } from "@prisma/client";
 import { systemLog } from "@suscripciones/core/services/systemLog";
+import { logger } from "@suscripciones/core/lib/logger";
 
 const campaignCreateSchema = z.object({
   name: z.string().min(1),
@@ -139,7 +140,9 @@ export async function runCampaign(id: string) {
   await systemLog(LogLevel.INFO, "campaigns.run", "Campaña encolada", {
     campaignId,
     tenantId: campaign.tenantId
-  }).catch(() => {});
+  }).catch((err: any) => {
+    logger.warn({ err, campaignId, tenantId: campaign.tenantId }, "Fallo escribiendo systemLog al encolar campaña");
+  });
 
   return { ok: true as const, queued: true };
 }

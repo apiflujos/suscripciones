@@ -5,6 +5,7 @@ import { prisma } from "@suscripciones/database";
 import { SaUserRole } from "@prisma/client";
 import { createSaSession, ensureBootstrapSuperAdmin, hashPassword, verifyPassword } from "@suscripciones/core/services/superAdminAuth";
 import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
+import { logger } from "@suscripciones/core/lib/logger";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -17,7 +18,9 @@ const bootstrapSchema = z.object({
 });
 
 export async function loginAdminUser(input: unknown) {
-  await ensureBootstrapSuperAdmin().catch(() => {});
+  await ensureBootstrapSuperAdmin().catch((err: any) => {
+    logger.warn({ err }, "Fallo asegurando bootstrap de superadmin en login");
+  });
   const parsed = loginSchema.safeParse(input ?? {});
   if (!parsed.success) return { ok: false as const, status: 400, error: "invalid_body" as const, details: parsed.error.flatten() };
 

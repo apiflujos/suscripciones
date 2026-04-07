@@ -6,6 +6,7 @@ import { getClientOrThrow, sanitizeChatwootContent, DEDUPE_WINDOW_MS } from "../
 import { syncChatwootAttributesForCustomer } from "@suscripciones/core/services/chatwootSync";
 import { sendChatwootMessage } from "@suscripciones/core/jobs/handlers/sendChatwootMessage";
 import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export async function sendChatwootMessageForCustomer(args: {
   customerId: string;
@@ -56,7 +57,9 @@ export async function sendChatwootMessageForCustomer(args: {
       if (!synced.ok) return { ok: false, status: 400, error: synced.reason || "sync_failed" };
       conversationId = (await (client as any).createConversation({ contactId: synced.contactId, sourceId: synced.sourceId })).conversationId;
     } else {
-      await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
+      await syncChatwootAttributesForCustomer(customer.id).catch((err: any) => {
+        logger.warn({ err, customerId: customer.id }, "Fallo sincronizando atributos Chatwoot antes de crear conversacion");
+      });
       conversationId = (await (client as any).createConversation({ contactId: knownContactId, sourceId: knownSourceId })).conversationId;
     }
   } catch (err: any) {
@@ -94,6 +97,8 @@ export async function sendChatwootMessageForCustomer(args: {
         type: RetryJobType.SEND_CHATWOOT_MESSAGE,
         payload: { chatwootMessageId: created.id }
       }
+    }).catch((queueErr: any) => {
+      logger.warn({ err: queueErr, chatwootMessageId: created.id, customerId }, "Fallo encolando retry de mensaje Chatwoot");
     });
     return { ok: false, status: 502, error: "centralcom_send_failed", messageId: created.id, details: String(err?.message || err) };
   }

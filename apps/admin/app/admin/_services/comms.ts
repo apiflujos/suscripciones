@@ -5,12 +5,15 @@ import { ChatwootClient } from "@suscripciones/core/providers/chatwoot/client";
 import { getChatwootConfig } from "@suscripciones/core/services/runtimeConfig";
 import { CHATWOOT_CUSTOM_ATTR_DEFS, ensureChatwootCustomAttributes, syncChatwootAttributesForCustomer } from "@suscripciones/core/services/chatwootSync";
 import { getChatwootClient } from "../comms/_lib";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export async function syncContactsAttributes(limit: number) {
   const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 2000) : 200;
   const startedAt = new Date();
 
-  await ensureChatwootCustomAttributes().catch(() => {});
+  await ensureChatwootCustomAttributes().catch((err: any) => {
+    logger.warn({ err }, "Fallo asegurando atributos custom de Chatwoot antes de sincronizar contactos");
+  });
 
   const customers = await prisma.customer.findMany({ orderBy: { createdAt: "desc" }, take: safeLimit });
   let synced = 0;

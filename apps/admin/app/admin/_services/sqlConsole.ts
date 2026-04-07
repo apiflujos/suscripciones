@@ -206,7 +206,9 @@ export async function executeSqlConsole(body: any) {
 
     await systemLog(LogLevel.WARN, "sql.console", "SQL console execution", {
       statementCount: statements.length
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, statementCount: statements.length }, "Fallo escribiendo systemLog de ejecucion SQL");
+    });
 
     return {
       ok: true,
