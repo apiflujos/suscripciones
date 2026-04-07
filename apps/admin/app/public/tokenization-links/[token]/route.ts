@@ -3,6 +3,7 @@ import { LogLevel } from "@prisma/client";
 import { getTenantBrand } from "@suscripciones/core/services/tenantBrand";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { tokenMeta } from "@suscripciones/core/lib/tokenMeta";
+import { logger } from "@suscripciones/core/lib/logger";
 import { verifyPublicToken } from "../../../../lib/publicTokens";
 
 export const runtime = "nodejs";
@@ -36,7 +37,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
       ...tokenMeta(token),
       ip,
       userAgent: req.headers.get("user-agent") || null
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, token, ip }, "Fallo escribiendo systemLog de tokenization token not found");
+    });
     return new Response(JSON.stringify({ error: "token_not_found" }), {
       status: 404,
       headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", Pragma: "no-cache" }
@@ -63,7 +66,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
       usedAt: usedAt.toISOString(),
       ip,
       userAgent: req.headers.get("user-agent") || null
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, token, customerId: customer.id, ip }, "Fallo escribiendo systemLog de tokenization token used");
+    });
     return new Response(JSON.stringify({ error: "token_used" }), {
       status: 410,
       headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", Pragma: "no-cache" }
@@ -83,7 +88,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
       expiresAt: expiresAt.toISOString(),
       ip,
       userAgent: req.headers.get("user-agent") || null
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, token, customerId: customer.id, ip }, "Fallo escribiendo systemLog de tokenization token expired");
+    });
     return new Response(JSON.stringify({ error: "token_expired" }), {
       status: 410,
       headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", Pragma: "no-cache" }

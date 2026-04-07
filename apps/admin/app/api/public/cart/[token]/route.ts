@@ -3,6 +3,7 @@ import { LogLevel, PlanIntervalUnit } from "@prisma/client";
 import { getTenantBrand } from "@suscripciones/core/services/tenantBrand";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { tokenMeta } from "@suscripciones/core/lib/tokenMeta";
+import { logger } from "@suscripciones/core/lib/logger";
 import { verifyPublicToken } from "../../../../../lib/publicTokens";
 
 export const runtime = "nodejs";
@@ -48,7 +49,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
       ...tokenMeta(token),
       ip,
       userAgent: req.headers.get("user-agent") || null
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, token, ip }, "Fallo escribiendo systemLog de cart token not found");
+    });
     return new Response(JSON.stringify({ error: "token_not_found" }), {
       status: 404,
       headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", Pragma: "no-cache" }
@@ -65,7 +68,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
       expiresAt: expiresAt.toISOString(),
       ip,
       userAgent: req.headers.get("user-agent") || null
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, token, customerId: customer.id, ip }, "Fallo escribiendo systemLog de cart token expired");
+    });
     return new Response(JSON.stringify({ error: "token_expired" }), {
       status: 410,
       headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", Pragma: "no-cache" }
@@ -81,7 +86,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
       templateId: templateId || null,
       ip,
       userAgent: req.headers.get("user-agent") || null
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, token, customerId: customer.id, templateId, ip }, "Fallo escribiendo systemLog de cart template not found");
+    });
     return new Response(JSON.stringify({ error: "template_not_found" }), {
       status: 404,
       headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", Pragma: "no-cache" }

@@ -5,6 +5,7 @@ import { assertCsrfToken } from "../lib/csrf";
 import { createCustomer as createCustomerService, updateCustomerProfile, deleteCustomerProfile } from "../admin/_services/customers";
 import { createManualOrderForAdmin } from "../admin/_services/orders";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
+import { logger } from "@suscripciones/core/lib/logger";
 
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");
@@ -98,7 +99,10 @@ export async function sendPaymentLinkForCustomer(formData: FormData) {
   }
 
   try {
-    const cfg = await getNotificationsConfigForEnv("PRODUCTION").catch(() => null);
+    const cfg = await getNotificationsConfigForEnv("PRODUCTION").catch((err: any) => {
+      logger.warn({ err, customerId }, "Fallo cargando configuracion de notificaciones en sendPaymentLinkForCustomer");
+      return null;
+    });
     if (!cfg) return redirect(`/customers?error=${encodeURIComponent("missing_template")}`);
     const rules = Array.isArray((cfg as any)?.rules) ? (cfg as any).rules : [];
     const templates = Array.isArray((cfg as any)?.templates) ? (cfg as any).templates : [];
