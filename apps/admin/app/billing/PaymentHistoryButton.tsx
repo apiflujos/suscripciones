@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { AppModal } from "../ui/AppModal";
 import { LocalDateTime } from "../ui/LocalDateTime";
 
 type Attempt = {
@@ -160,16 +161,8 @@ export function PaymentHistoryButton({ subscriptionId, tenantId, forceOpen, onOp
           onClick={() => setOpen(true)}
         />
       ) : null}
-      {open ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel" style={{ width: "min(760px, 96vw)" }}>
-            <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h3 style={{ margin: 0 }}>Historial de pagos</h3>
-              <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                X
-              </button>
-            </div>
-            <div className="billing-history">
+      <AppModal open={open} onClose={() => setOpen(false)} title="Historial de pagos" width="min(760px, 96vw)">
+        <div className="billing-history">
               <div className="billing-history-controls">
                 <label className="billing-history-label">
                   Estado
@@ -258,10 +251,8 @@ export function PaymentHistoryButton({ subscriptionId, tenantId, forceOpen, onOp
                   </table>
                 </div>
               ) : null}
-            </div>
-          </div>
         </div>
-      ) : null}
+      </AppModal>
     </>
   );
 }

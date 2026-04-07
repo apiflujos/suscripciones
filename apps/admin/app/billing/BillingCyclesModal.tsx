@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, Fragment } from "react";
+import { AppModal } from "../ui/AppModal";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { movePaymentToCycle } from "./actions";
 
@@ -149,30 +150,19 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
     <>
       {triggerButton}
 
-      {open && (
-        <div className="modal-backdrop" onClick={() => setOpen(false)}>
-          <div 
-            className="modal-panel modal-panel-fixed" 
-            style={{ width: "min(900px, 96vw)", maxWidth: "96vw" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="panel-header">
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <h3 style={{ margin: 0 }}>Ciclos de Pago</h3>
-                <span className="pill pill-sm pill-muted">{items.length} ciclos</span>
-              </div>
-              <button 
-                type="button" 
-                className="ghost btn-compact btn-icon-only" 
-                onClick={() => setOpen(false)} 
-                aria-label="Cerrar"
-                style={{ width: "32px", height: "32px", minWidth: "32px" }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="modal-body" style={{ padding: "8px 0" }}>
+      <AppModal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span>Ciclos de Pago</span>
+            <span className="pill pill-sm pill-muted">{items.length} ciclos</span>
+          </div>
+        }
+        width="min(900px, 96vw)"
+        panelClassName="modal-panel-fixed"
+      >
+        <div style={{ padding: "8px 0" }}>
               {loading ? (
                 <div style={{ padding: "40px", textAlign: "center", color: "var(--text-faint)" }}>
                   <div className="loading-spinner" style={{ margin: "0 auto 12px" }} />
@@ -370,10 +360,8 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                   </table>
                 </div>
               )}
-            </div>
-          </div>
         </div>
-      )}
+      </AppModal>
     </>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { enterToNextField } from "../lib/enterToNext";
+import { AppModal } from "../ui/AppModal";
 import { HelpTip } from "../ui/HelpTip";
 
 type Municipality = { dept: string; city: string; code5: string; dane8: string };
@@ -130,14 +131,7 @@ export function NewCustomerForm({
 
       {open ? (
         useModal ? (
-          <div className="modal-backdrop">
-            <div className="modal-panel ui-modal-panel-wide">
-              <div className="panel-header ui-panel-header">
-                <h3 className="ui-title-reset">Crear contacto</h3>
-                <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                  X
-                </button>
-              </div>
+          <AppModal open={open} onClose={() => setOpen(false)} title="Crear contacto" panelClassName="ui-modal-panel-wide">
               <form
                 action={createCustomer}
                 onKeyDownCapture={enterToNextField}
@@ -259,8 +253,7 @@ export function NewCustomerForm({
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
+          </AppModal>
         ) : (
           <form
             action={createCustomer}
