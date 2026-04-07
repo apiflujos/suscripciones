@@ -138,6 +138,9 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
     };
 
     let running = true;
+    let es: EventSource | null = null;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
     const fetchNotifications = async () => {
       try {
         const res = await fetch("/api/realtime/notifications?limit=40", { cache: "no-store" });
@@ -151,12 +154,40 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
       }
     };
 
+    const startPolling = () => {
+      if (timer) return;
+      fetchNotifications();
+      timer = setInterval(fetchNotifications, 20000);
+    };
+
+    const stopPolling = () => {
+      if (!timer) return;
+      clearInterval(timer);
+      timer = null;
+    };
+
+    try {
+      es = new EventSource("/api/realtime?channel=notifications", { withCredentials: true });
+      es.addEventListener("ready", () => {
+        stopPolling();
+        void fetchNotifications();
+      });
+      es.addEventListener("message", () => {
+        void fetchNotifications();
+      });
+      es.onerror = () => {
+        startPolling();
+      };
+    } catch {
+      startPolling();
+    }
+
     fetchNotifications();
-    const timer = setInterval(fetchNotifications, 20000);
 
     return () => {
       running = false;
-      clearInterval(timer);
+      stopPolling();
+      es?.close();
     };
   }, [session?.email, addToast]);
 
