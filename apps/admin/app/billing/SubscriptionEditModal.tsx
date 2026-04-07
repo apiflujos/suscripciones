@@ -40,7 +40,9 @@ export function SubscriptionEditModal({
   cancelDays,
   updateSubscriptionBillingSettings,
   deleteSubscription,
-  globalConfig
+  globalConfig,
+  CyclesModal,
+  cyclesTrigger
 }: {
   subscriptionId: string;
   tenantId?: string | null;
@@ -70,6 +72,8 @@ export function SubscriptionEditModal({
     suspendDays: number;
     cancelDays: number;
   };
+  CyclesModal?: React.ComponentType<{ subscriptionId: string; csrfToken: string; returnTo: string; tenantId?: string | null }>;
+  cyclesTrigger?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [subscriptionType, setSubscriptionType] = useState<"AUTO_DEBIT" | "LINK_PAYMENT">("AUTO_DEBIT");
@@ -90,6 +94,18 @@ export function SubscriptionEditModal({
   const [productSearchResults, setProductSearchResults] = useState<PlanOption[]>([]);
   const [productSearchLoading, setProductSearchLoading] = useState(false);
   const [productSearchError, setProductSearchError] = useState("");
+
+  // Start date state — editable to regenerate cycles
+  const [localStartAt, setLocalStartAt] = useState<string>(() => {
+    if (periodStartAt) {
+      const d = new Date(periodStartAt);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+    return "";
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -324,6 +340,51 @@ export function SubscriptionEditModal({
               {/* 4. Configuración de ciclo */}
               <section className="card cardPad">
                 <div style={{ display: "grid", gap: "var(--space-3)" }}>
+                  {/* Fecha de inicio — editable para regenerar ciclos */}
+                  <div className="field">
+                    <label className="field-label">
+                      Fecha de inicio de la suscripción
+                      <HelpTip text="Cambia esta fecha para regenerar los ciclos de cobro desde el nuevo inicio. Se recalcula automáticamente." />
+                    </label>
+                    <input
+                      className="input"
+                      type="date"
+                      name="startAt"
+                      value={localStartAt}
+                      onChange={(e) => setLocalStartAt(e.target.value)}
+                    />
+                    <div className="field-hint">
+                      Actual: {periodStartAt ? new Date(periodStartAt).toLocaleDateString("es-CO") : "—"}
+                    </div>
+                  </div>
+
+                  {/* Botón para ver ciclos de facturación */}
+                  <div className="field">
+                    <label className="field-label">Ciclos de facturación</label>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      {cyclesTrigger ? (
+                        <button
+                          className="ghost btn-compact"
+                          type="button"
+                          onClick={cyclesTrigger}
+                        >
+                          📅 Ver y asociar ciclos
+                        </button>
+                      ) : null}
+                      {CyclesModal ? (
+                        <CyclesModal
+                          subscriptionId={subscriptionId}
+                          csrfToken={csrfToken}
+                          returnTo={returnTo}
+                          tenantId={tenantId}
+                        />
+                      ) : null}
+                    </div>
+                    <div className="field-hint">
+                      Revisa los ciclos generados, asocia pagos automáticamente o busca manualmente.
+                    </div>
+                  </div>
+
                   <div className="subscription-edit-cycle-grid">
                     <div className="field">
                       <label className="field-label">

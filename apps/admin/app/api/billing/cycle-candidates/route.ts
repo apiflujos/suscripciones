@@ -96,14 +96,10 @@ export async function GET(req: Request) {
       let score = 0;
       const reasons: string[] = [];
 
-      // Amount match (most important)
-      if (payment.amountInCents === planAmount) {
-        score += 50;
-        reasons.push("monto_exact");
-      } else if (Math.abs(payment.amountInCents - planAmount) < planAmount * 0.1) {
-        score += 20;
-        reasons.push("monto_cercano");
-      }
+      // Amount match: MUST BE EXACT — no tolerance
+      if (payment.amountInCents !== planAmount) continue;
+      score += 60;
+      reasons.push("monto_exact");
 
       // Currency match
       if ((payment.currency || "COP").toUpperCase() === planCurrency) {

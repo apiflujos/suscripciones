@@ -1399,6 +1399,7 @@ export async function updateSubscriptionTenants(args: {
 export async function updateSubscriptionBillingSettings(args: {
   subscriptionId: string;
   tenantId?: string | null;
+  startAt?: string;
   cycleStartDay?: number | string;
   paymentDay?: number | string;
   paymentTiming?: string;
@@ -1427,7 +1428,14 @@ export async function updateSubscriptionBillingSettings(args: {
   const normalized = normalizeInterval(planUnitRaw, planCountRaw);
   const cycleDay = Math.max(1, Math.min(31, Math.trunc(cycleStartDay)));
   const now = new Date();
-  const anchor = subscription.startAt ? new Date(subscription.startAt) : now;
+
+  // FIX: Use provided startAt if given (allows regenerating cycles from new date)
+  const anchor = args.startAt
+    ? (() => {
+        const d = new Date(args.startAt + "T12:00:00Z");
+        return Number.isNaN(d.getTime()) ? (subscription.startAt ? new Date(subscription.startAt) : now) : d;
+      })()
+    : (subscription.startAt ? new Date(subscription.startAt) : now);
 
   const baseStart =
     normalized.unit === "MONTH"
@@ -1444,11 +1452,11 @@ export async function updateSubscriptionBillingSettings(args: {
   const updated = await prisma.subscription.update({
     where: { id: subscriptionId },
     data: {
+      ...(args.startAt ? { startAt: anchor, currentPeriodStartAt: effectiveStart } : {}),
       cycleStartDay: Math.max(1, Math.min(31, Math.trunc(cycleStartDay))),
       paymentDay: Math.max(1, Math.min(31, Math.trunc(paymentDay))),
       graceDays: Math.max(1, Math.min(5, Math.trunc(graceDays))),
       paymentTiming,
-      currentPeriodStartAt: effectiveStart,
       currentPeriodEndAt: effectiveEnd
     }
   });

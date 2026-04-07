@@ -677,6 +677,7 @@ export default async function BillingPage({
                 updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
                 deleteSubscription={deleteSubscription}
                 globalConfig={{ graceDays: 5, suspendDays: 15, cancelDays: 30 }}
+                CyclesModal={PaymentCyclesModal}
               />
               <PaymentHistoryButton subscriptionId={r.id} tenantId={r.tenantId} />
               <PaymentCyclesModal

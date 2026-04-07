@@ -98,7 +98,6 @@ function fmtMoney(cents: number, currency = "COP") {
 function reasonLabel(reason: string) {
   const map: Record<string, string> = {
     monto_exact: "💰 Monto exacto",
-    monto_cercano: "💵 Monto cercano",
     en_rango: "📅 En rango del ciclo",
     cerca_del_vencimiento: "⏰ Cerca del vencimiento",
     referencia_coincide: "🏷️ Referencia coincide"
