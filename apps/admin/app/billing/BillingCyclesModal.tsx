@@ -95,6 +95,15 @@ function fmtMoney(cents: number, currency = "COP") {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(major);
 }
 
+function formatDateRange(start: string, end: string) {
+  return (
+    <span>
+      <LocalDateTime value={start} variant="short" /> ·{" "}
+      <LocalDateTime value={end} variant="short" />
+    </span>
+  );
+}
+
 function reasonLabel(reason: string) {
   const map: Record<string, string> = {
     monto_exact: "💰 Monto exacto",
