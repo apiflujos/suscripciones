@@ -3334,12 +3334,22 @@ html[data-theme="dark"] .payments-health-banner code {
 
 .logs-table-payments .log-payment-actions {
   width: 100%;
-  display: inline-flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.logs-table-payments .log-actions-row {
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.logs-table-payments .log-actions-secondary {
+  padding-top: 4px;
+  border-top: 1px solid var(--border, #e5e5e5);
 }
 
 .logs-table-payments .log-payment-actions form {
@@ -5657,7 +5667,7 @@ textarea.input {
 }
 
 .customersPage .billing-card .contact-plan-grid {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .customersPage .billing-card .contact-plan-grid .field-hint {

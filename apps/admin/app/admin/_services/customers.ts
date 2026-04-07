@@ -8,6 +8,7 @@ import { GamificationEntityType } from "@prisma/client";
 import { formatLevelName } from "@suscripciones/core/services/gamification";
 import { applyGamificationEvent, GAMIFICATION_EVENT_KINDS } from "@suscripciones/core/services/gamification";
 import { WompiClient } from "@suscripciones/core/providers/wompi/client";
+import { logger } from "@suscripciones/core/lib/logger";
 import {
   getWompiApiBaseUrl,
   getWompiCheckoutLinkBaseUrl,

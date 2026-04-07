@@ -7,6 +7,7 @@ import { PlanIntervalUnit, SubscriptionStatus } from "@prisma/client";
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@suscripciones/core/lib/currencies";
 import { getMediaDir } from "@suscripciones/core/services/mediaStorage";
 import { getPublicBaseUrlFromEnv } from "@suscripciones/core/services/publicBase";
+import { logger } from "@suscripciones/core/lib/logger";
 
 function normalizeSku(input: string) {
   return String(input || "").trim().toUpperCase();

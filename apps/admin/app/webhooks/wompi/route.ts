@@ -193,12 +193,31 @@ export async function POST(req: Request) {
       transactionId: (parsed.data as any)?.data?.transaction?.id
     });
 
-    await prisma.retryJob.create({
-      data: {
+    // FIX #3: Deduplicar jobs de PROCESS_WOMPI_EVENT.
+    // Si Wompi reenvía el mismo webhook, ya existe un job encolado.
+    // Evitar inflación innecesaria de la cola de jobs.
+    const existingJob = await prisma.retryJob.findFirst({
+      where: {
         type: RetryJobType.PROCESS_WOMPI_EVENT,
-        payload: { webhookEventId: webhookEvent.id }
-      }
+        payload: { path: ["webhookEventId"], equals: webhookEvent.id } as any
+      },
+      select: { id: true, status: true }
     });
+
+    if (!existingJob) {
+      await prisma.retryJob.create({
+        data: {
+          type: RetryJobType.PROCESS_WOMPI_EVENT,
+          payload: { webhookEventId: webhookEvent.id }
+        }
+      });
+    } else {
+      console.log("[Webhooks/Wompi] Job ya existe (deduplicado)", {
+        webhookEventId: webhookEvent.id,
+        existingJobId: existingJob.id,
+        existingStatus: existingJob.status
+      });
+    }
 
     try {
       await processWompiEventLogic(webhookEvent.id, prisma);

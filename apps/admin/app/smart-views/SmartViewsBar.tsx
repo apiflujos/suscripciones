@@ -951,7 +951,7 @@ export function SmartViewsBar({
               type="button"
               disabled={!pinSelectValue}
               onClick={() => {
-                if (!pinSelectValue) return;
+                if (!pinSelectValue || pinModalIndex == null) return;
                 const next = pinnedIds.slice();
                 next[pinModalIndex] = pinSelectValue;
                 savePins(next);

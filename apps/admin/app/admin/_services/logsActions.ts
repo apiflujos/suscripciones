@@ -5,7 +5,7 @@ import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, WebhookProcessSt
 import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyReference";
 import { reconcileWompiByReference, reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
-import { ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment } from "@suscripciones/core/services/billingCycles";
+import { attachPaymentToCycle, ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment } from "@suscripciones/core/services/billingCycles";
 import { getSubscriptionPricingTotal } from "@suscripciones/core/lib/metadataSchemas";
 import { logger } from "@suscripciones/core/lib/logger";
 

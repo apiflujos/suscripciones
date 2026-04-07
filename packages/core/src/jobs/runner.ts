@@ -308,6 +308,24 @@ async function ensureWompiWebhookRecoveryJobs() {
   }
 }
 
+/**
+ * FIX #1: Evita spam de payment links duplicados.
+ * Si ya existe un payment link PENDIENTE reciente para esta suscripción,
+ * no se crea otro job de reintento.
+ */
+async function hasRecentPendingPaymentLink(subscriptionId: string, windowMs: number): Promise<boolean> {
+  const recent = await prisma.payment.findFirst({
+    where: {
+      subscriptionId,
+      status: PaymentStatus.PENDING,
+      origin: { in: ["AUTO_LINK", "MANUAL_LINK"] as any },
+      createdAt: { gte: new Date(Date.now() - windowMs) }
+    },
+    select: { id: true }
+  });
+  return recent !== null;
+}
+
 async function ensureDueCutoffRetries() {
   const now = Date.now();
   // Correr con menos frecuencia (cada 30 min) ya que ahora es solo un respaldo
@@ -336,75 +354,116 @@ async function ensureDueCutoffRetries() {
       AND k.rn > 1
   `);
 
-  // 2. Sincronización de Seguridad: Solo crea el Job si NO existe uno activo.
+  // 2. FIX #2: Paginación con cursor para procesar TODAS las suscripciones (no solo 1000).
+  // Sincronización de Seguridad: Solo crea el Job si NO existe uno activo.
   // Esto asegura que ninguna suscripción se quede sin su "despertador".
-  const subs = await prisma.subscription.findMany({
-    where: { status: { in: ["ACTIVE", "PAST_DUE"] as any } },
-    select: {
-      id: true,
-      status: true,
-      currentPeriodEndAt: true,
-      currentPeriodStartAt: true,
-      cycleStartDay: true,
-      paymentDay: true,
-      paymentTiming: true,
-      metadata: true,
-      plan: { select: { metadata: true, intervalUnit: true } }
-    },
-    take: 1000
-  });
-  if (!subs.length) return;
+  const PAGE_SIZE = 500;
+  let processedTotal = 0;
+  let createdJobs = 0;
+  let skippedRecentLink = 0;
+  let cursor: string | undefined;
 
-  const nowDate = new Date();
-  const futureToleranceMs = 5_000;
-  for (const sub of subs) {
-    const mode = resolveSubscriptionCollectionMode(sub);
-    if (mode !== "AUTO_DEBIT" && mode !== "AUTO_LINK") continue;
-
-    // Si es AUTO_DEBIT y el cobro en corte está apagado, omitir creación de Job.
-    if (mode === "AUTO_DEBIT" && !chargeAtCutoffEnabled) continue;
-
-    const dueAt =
-      String(sub.plan?.intervalUnit || "MONTH").toUpperCase() === "MONTH" &&
-      sub.currentPeriodStartAt &&
-      sub.currentPeriodEndAt
-        ? computeBillingCycleDueAt({
-            periodStartAt: sub.currentPeriodStartAt,
-            periodEndAt: sub.currentPeriodEndAt,
-            cycleStartDay: sub.cycleStartDay,
-            paymentDay: sub.paymentDay,
-            paymentTiming: (sub.paymentTiming as any) === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
-          })
-        : sub.currentPeriodEndAt;
-    const runAtMs = dueAt?.getTime?.() ?? 0;
-    const runAt = runAtMs > now + futureToleranceMs ? new Date(runAtMs) : nowDate;
-
-    // ensurePaymentRetryJob internamente revisa si ya existe uno pendiente.
-    const job = await ensurePaymentRetryJob({ subscriptionId: sub.id, runAt, maxAttempts: 1 }).catch((err) => {
-      logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo en sincronización de seguridad');
-      return null;
+  do {
+    const subs = await prisma.subscription.findMany({
+      where: { status: { in: ["ACTIVE", "PAST_DUE"] as any } },
+      select: {
+        id: true,
+        status: true,
+        currentPeriodEndAt: true,
+        currentPeriodStartAt: true,
+        cycleStartDay: true,
+        paymentDay: true,
+        paymentTiming: true,
+        metadata: true,
+        plan: { select: { metadata: true, intervalUnit: true } }
+      },
+      take: PAGE_SIZE,
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
+      orderBy: { id: "asc" }
     });
 
-    // Actualizar metadata para que sea visible en el UI
-    if (job) {
-      const currentMetadata = (sub.metadata as Record<string, any>) || {};
-      const newMetadata = {
-        ...currentMetadata,
-        autoRetry: {
-          nextRetryAt: runAt.toISOString(),
-          scheduledAt: new Date().toISOString(),
-          source: "ensureDueCutoffRetries",
-          runAt: runAt.toISOString()
-        }
-      };
+    if (!subs.length) break;
+    processedTotal += subs.length;
 
-      await prisma.subscription.update({
-        where: { id: sub.id },
-        data: { metadata: newMetadata }
-      }).catch((err) => {
-        logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo al actualizar metadata de reintento');
+    const nowDate = new Date();
+    const futureToleranceMs = 5_000;
+
+    for (const sub of subs) {
+      const mode = resolveSubscriptionCollectionMode(sub);
+      if (mode !== "AUTO_DEBIT" && mode !== "AUTO_LINK") continue;
+
+      // Si es AUTO_DEBIT y el cobro en corte está apagado, omitir creación de Job.
+      if (mode === "AUTO_DEBIT" && !chargeAtCutoffEnabled) continue;
+
+      // FIX #1: Si ya hay un payment link pendiente reciente, saltar para evitar spam.
+      // Ventana de 2 horas: si se creó un link en las últimas 2h, no crear otro.
+      const hasRecent = await hasRecentPendingPaymentLink(sub.id, 2 * 60 * 60 * 1000);
+      if (hasRecent) {
+        skippedRecentLink++;
+        continue;
+      }
+
+      const dueAt =
+        String(sub.plan?.intervalUnit || "MONTH").toUpperCase() === "MONTH" &&
+        sub.currentPeriodStartAt &&
+        sub.currentPeriodEndAt
+          ? computeBillingCycleDueAt({
+              periodStartAt: sub.currentPeriodStartAt,
+              periodEndAt: sub.currentPeriodEndAt,
+              cycleStartDay: sub.cycleStartDay,
+              paymentDay: sub.paymentDay,
+              paymentTiming: (sub.paymentTiming as any) === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
+            })
+          : sub.currentPeriodEndAt;
+      const runAtMs = dueAt?.getTime?.() ?? 0;
+      const runAt = runAtMs > now + futureToleranceMs ? new Date(runAtMs) : nowDate;
+
+      // ensurePaymentRetryJob internamente revisa si ya existe uno pendiente.
+      const job = await ensurePaymentRetryJob({ subscriptionId: sub.id, runAt, maxAttempts: 1 }).catch((err) => {
+        logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo en sincronización de seguridad');
+        return null;
       });
+
+      // Actualizar metadata para que sea visible en el UI
+      if (job) {
+        createdJobs++;
+        const currentMetadata = (sub.metadata as Record<string, any>) || {};
+        const newMetadata = {
+          ...currentMetadata,
+          autoRetry: {
+            nextRetryAt: runAt.toISOString(),
+            scheduledAt: new Date().toISOString(),
+            source: "ensureDueCutoffRetries",
+            runAt: runAt.toISOString()
+          }
+        };
+
+        await prisma.subscription.update({
+          where: { id: sub.id },
+          data: { metadata: newMetadata }
+        }).catch((err) => {
+          logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo al actualizar metadata de reintento');
+        });
+      }
     }
+
+    // Avanzar cursor
+    cursor = subs[subs.length - 1].id;
+
+    // Si recibimos menos de PAGE_SIZE, ya no hay más
+    if (subs.length < PAGE_SIZE) break;
+  } while (true);
+
+  // Log de resumen para observabilidad
+  if (processedTotal > 0) {
+    await systemLog(LogLevel.INFO, "jobs.safety_sync", "Due cutoff retries processed", {
+      processedSubscriptions: processedTotal,
+      jobsCreated: createdJobs,
+      jobsSkippedRecentLink: skippedRecentLink
+    }).catch((err) => {
+      logger.warn({ err }, '[Jobs/SafetySync] Fallo creando resumen de seguridad');
+    });
   }
 }
 

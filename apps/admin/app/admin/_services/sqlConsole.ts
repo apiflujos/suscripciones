@@ -4,6 +4,7 @@ import { Prisma, LogLevel } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@suscripciones/database";
 import { systemLog } from "@suscripciones/core/services/systemLog";
+import { logger } from "@suscripciones/core/lib/logger";
 
 const executeSqlSchema = z.object({
   sql: z.string().min(1).max(100_000)

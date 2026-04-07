@@ -1427,8 +1427,7 @@ export function CustomersTable({
                 <button className="ghost btn-compact" type="button" onClick={closeViewFicha}>Cerrar</button>
                 <button className="primary btn-compact" type="button" onClick={() => { closeViewFicha(); openEditor(viewFichaCustomer); }}>Editar</button>
               </div>
-          </div>
-          </div>
+        </div>
         ) : null}
       </AppModal>
 

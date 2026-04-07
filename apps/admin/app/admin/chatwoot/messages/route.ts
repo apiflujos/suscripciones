@@ -59,13 +59,14 @@ export async function POST(req: Request) {
 
     try {
       if (!knownContactId) {
-        const synced = await syncChatwootAttributesForCustomer(customer.id);
+        const synced = await syncChatwootAttributesForCustomer(customer!.id);
         if (!synced.ok) return Response.json({ error: synced.reason }, { status: 400 });
         conversationId = (await (client as any).createConversation({ contactId: synced.contactId, sourceId: synced.sourceId }))
           .conversationId;
       } else {
-        await syncChatwootAttributesForCustomer(customer.id).catch((err) => {
-          logIgnored(err, "chatwoot/messages: fallo sincronizando atributos antes de crear conversación", { customerId: customer.id });
+        const custId = customer!.id;
+        await syncChatwootAttributesForCustomer(custId).catch((err) => {
+          logIgnored(err, "chatwoot/messages: fallo sincronizando atributos antes de crear conversación", { customerId: custId });
         });
         conversationId = (await (client as any).createConversation({ contactId: knownContactId, sourceId: knownSourceId }))
           .conversationId;

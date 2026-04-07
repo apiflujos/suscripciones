@@ -1376,102 +1376,109 @@ export default async function LogsPage({
                         </td>
                         <td className="log-payment-actions-cell">
                           <div className="log-payment-actions">
-                            {String(p.status || "").toUpperCase() === "PENDING" ? (
-                              <form action={reconcilePayment}>
-                                <input type="hidden" name="csrf" value={csrfToken} />
-                                <input type="hidden" name="returnTo" value={returnTo} />
-                                <input type="hidden" name="paymentId" value={String(p.id || "")} />
-                                <input type="hidden" name="reference" value={String(p.reference || "")} />
-                                <input type="hidden" name="wompiTransactionId" value={String(p.wompiTransactionId || "")} />
-                                <input type="hidden" name="wompiPaymentLinkId" value={String(p.wompiPaymentLinkId || "")} />
-                                <input type="hidden" name="tenantId" value={String(tenantId || p.tenantId || "")} />
-                                <input type="hidden" name="amountInCents" value={String(Number(p.amountInCents || 0))} />
-                                <input type="hidden" name="currency" value={String(p.currency || "COP")} />
-                                <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando...">
-                                  Conciliar
-                                </PendingButton>
-                              </form>
-                            ) : null}
-                            {isShopifyPayment ? (
-                              <form action={forwardShopifyPayment}>
-                                <input type="hidden" name="csrf" value={csrfToken} />
-                                <input type="hidden" name="paymentId" value={String(p.id || "")} />
-                                <input type="hidden" name="returnTo" value={returnTo} />
-                                <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Reenviando...">
-                                  Reenviar a Shopify
-                                </PendingButton>
-                              </form>
-                            ) : null}
-                            {!p.subscriptionId && contactId ? (
-                              <PaymentCreateSubscriptionModal
-                                paymentId={String(p.id || "")}
-                                customerId={contactId}
-                                tenantId={String(tenantId || p.tenantId || "")}
-                                origin={String(p.origin || "")}
-                                customerName={String(p.customer?.name || p.subscription?.customer?.name || "")}
-                                customers={paymentCustomers}
-                                empresas={paymentEmpresas}
-                                products={paymentProducts}
-                                csrfToken={csrfToken}
-                                tenants={paymentTenants}
-                                returnTo={returnTo}
-                                createCustomer={createCustomerFromBilling}
-                                createPlanAndSubscription={createPlanAndSubscription}
-                              />
-                            ) : null}
-                            {!p.subscriptionId && (contactId || contactQuery) ? (
-                              <Link
-                                className="ghost btn-compact btn-noicon"
-                                href={`/billing?${new URLSearchParams({
-                                  ...(contactId ? { q: contactId } : {}),
-                                  ...(!contactId && contactQuery ? { q: String(contactQuery) } : {})
-                                }).toString()}`}
-                              >
-                                Buscar suscripción
-                              </Link>
-                            ) : null}
+                            {/* Primary actions row */}
+                            <div className="log-actions-row">
+                              {String(p.status || "").toUpperCase() === "PENDING" ? (
+                                <form action={reconcilePayment}>
+                                  <input type="hidden" name="csrf" value={csrfToken} />
+                                  <input type="hidden" name="returnTo" value={returnTo} />
+                                  <input type="hidden" name="paymentId" value={String(p.id || "")} />
+                                  <input type="hidden" name="reference" value={String(p.reference || "")} />
+                                  <input type="hidden" name="wompiTransactionId" value={String(p.wompiTransactionId || "")} />
+                                  <input type="hidden" name="wompiPaymentLinkId" value={String(p.wompiPaymentLinkId || "")} />
+                                  <input type="hidden" name="tenantId" value={String(tenantId || p.tenantId || "")} />
+                                  <input type="hidden" name="amountInCents" value={String(Number(p.amountInCents || 0))} />
+                                  <input type="hidden" name="currency" value={String(p.currency || "COP")} />
+                                  <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Conciliando...">
+                                    Conciliar
+                                  </PendingButton>
+                                </form>
+                              ) : null}
+                              {isShopifyPayment ? (
+                                <form action={forwardShopifyPayment}>
+                                  <input type="hidden" name="csrf" value={csrfToken} />
+                                  <input type="hidden" name="paymentId" value={String(p.id || "")} />
+                                  <input type="hidden" name="returnTo" value={returnTo} />
+                                  <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Reenviando...">
+                                    Reenviar a Shopify
+                                  </PendingButton>
+                                </form>
+                              ) : null}
+                              {contactId ? (
+                                <Link className="ghost btn-compact btn-view" href={`/customers/${encodeURIComponent(contactId)}`}>
+                                  Ver cliente
+                                </Link>
+                              ) : contactQuery ? (
+                                <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
+                                  Ver cliente
+                                </Link>
+                              ) : null}
+                            </div>
+
+                            {/* Secondary actions — only shown when no subscription linked */}
                             {!p.subscriptionId ? (
-                              <form action={associatePayment} className="log-associate-form">
-                                <input type="hidden" name="csrf" value={csrfToken} />
-                                <input type="hidden" name="paymentId" value={String(p.id || "")} />
-                                <input type="hidden" name="tenantId" value={String(tenantId || p.tenantId || "")} />
-                                <input type="hidden" name="returnTo" value={returnTo} />
-                                {Array.isArray(p.candidateCycles) && p.candidateCycles.length ? (
-                                  <select className="select select-sm" name="cycleId" defaultValue="">
-                                    <option value="">Ciclo a asociar…</option>
-                                    {p.candidateCycles.map((c: any) => {
-                                      const start = c.periodStartAt ? new Date(c.periodStartAt) : null;
-                                      const end = c.periodEndAt ? new Date(c.periodEndAt) : null;
-                                      const fmt = (d: Date | null) =>
-                                        d ? new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" }).format(d) : "—";
-                                      return (
-                                        <option key={c.id} value={c.id}>
-                                          {c.planName || "Plan"} · ciclo {c.cycleNumber} · {fmt(start)} → {fmt(end)}
-                                        </option>
-                                      );
-                                    })}
-                                  </select>
-                                ) : (
-                                  <input
-                                    className="input input-sm"
-                                    name="subscriptionId"
-                                    placeholder="ID suscripción"
-                                    aria-label="ID de suscripción"
+                              <div className="log-actions-row log-actions-secondary">
+                                {!p.subscriptionId && contactId ? (
+                                  <PaymentCreateSubscriptionModal
+                                    paymentId={String(p.id || "")}
+                                    customerId={contactId}
+                                    tenantId={String(tenantId || p.tenantId || "")}
+                                    origin={String(p.origin || "")}
+                                    customerName={String(p.customer?.name || p.subscription?.customer?.name || "")}
+                                    customers={paymentCustomers}
+                                    empresas={paymentEmpresas}
+                                    products={paymentProducts}
+                                    csrfToken={csrfToken}
+                                    tenants={paymentTenants}
+                                    returnTo={returnTo}
+                                    createCustomer={createCustomerFromBilling}
+                                    createPlanAndSubscription={createPlanAndSubscription}
                                   />
-                                )}
-                                <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Asociando...">
-                                  Asociar
-                                </PendingButton>
-                              </form>
-                            ) : null}
-                            {contactId ? (
-                              <Link className="ghost btn-compact btn-view" href={`/customers/${encodeURIComponent(contactId)}`}>
-                                Ver cliente
-                              </Link>
-                            ) : contactQuery ? (
-                              <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
-                                Ver cliente
-                              </Link>
+                                ) : null}
+                                {!p.subscriptionId && (contactId || contactQuery) ? (
+                                  <Link
+                                    className="ghost btn-compact btn-noicon"
+                                    href={`/billing?${new URLSearchParams({
+                                      ...(contactId ? { q: contactId } : {}),
+                                      ...(!contactId && contactQuery ? { q: String(contactQuery) } : {})
+                                    }).toString()}`}
+                                  >
+                                    Buscar suscripción
+                                  </Link>
+                                ) : null}
+                                <form action={associatePayment} className="log-associate-form">
+                                  <input type="hidden" name="csrf" value={csrfToken} />
+                                  <input type="hidden" name="paymentId" value={String(p.id || "")} />
+                                  <input type="hidden" name="tenantId" value={String(tenantId || p.tenantId || "")} />
+                                  <input type="hidden" name="returnTo" value={returnTo} />
+                                  {Array.isArray(p.candidateCycles) && p.candidateCycles.length ? (
+                                    <select className="select select-sm" name="cycleId" defaultValue="">
+                                      <option value="">Ciclo…</option>
+                                      {p.candidateCycles.map((c: any) => {
+                                        const start = c.periodStartAt ? new Date(c.periodStartAt) : null;
+                                        const end = c.periodEndAt ? new Date(c.periodEndAt) : null;
+                                        const fmt = (d: Date | null) =>
+                                          d ? new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" }).format(d) : "—";
+                                        return (
+                                          <option key={c.id} value={c.id}>
+                                            ciclo {c.cycleNumber}
+                                          </option>
+                                        );
+                                      })}
+                                    </select>
+                                  ) : (
+                                    <input
+                                      className="input input-sm"
+                                      name="subscriptionId"
+                                      placeholder="ID suscripción"
+                                      aria-label="ID de suscripción"
+                                    />
+                                  )}
+                                  <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Asociando...">
+                                    Asociar
+                                  </PendingButton>
+                                </form>
+                              </div>
                             ) : null}
                           </div>
                         </td>
