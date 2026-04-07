@@ -425,7 +425,9 @@ async function ensurePaymentRetryQueueHealth() {
     await prisma.retryJob.update({
       where: { id: job.id },
       data: { status: RetryJobStatus.PENDING, lockedAt: null, lockedBy: null, attempts: { increment: 1 } }
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, jobId: job.id }, "[Jobs/Health] Fallo reencolando retry job estancado");
+    });
   }
 }
 

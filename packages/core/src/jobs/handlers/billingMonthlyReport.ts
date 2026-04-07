@@ -1,4 +1,5 @@
 import { LogLevel, SaUserRole } from "@prisma/client";
+import { logger } from "../../lib/logger";
 import { systemLog } from "../../services/systemLog";
 import { buildMonthlyBillingReport } from "../../services/billingReport";
 import { sendEmailViaSmtp } from "../../services/email";
@@ -32,7 +33,9 @@ export async function billingMonthlyReport(payload: any) {
     await systemLog(LogLevel.WARN, "billing.report", "Monthly report recipients not configured", {
       periodKey,
       hint: "Set BILLING_REPORT_TO or create an active SUPER_ADMIN user."
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, periodKey }, "billingMonthlyReport: fallo escribiendo systemLog sin destinatarios");
+    });
     return { ok: true, skipped: true, reason: "no_recipients" };
   }
   const subject = `Reporte mensual SaaS ${periodKey}`;
@@ -56,7 +59,9 @@ export async function billingMonthlyReport(payload: any) {
       subject,
       text: report.text
     });
-    await systemLog(LogLevel.INFO, "billing.report", "Monthly report sent", { periodKey, to, method: "smtp" }).catch(() => {});
+    await systemLog(LogLevel.INFO, "billing.report", "Monthly report sent", { periodKey, to, method: "smtp" }).catch((err: any) => {
+      logger.warn({ err, periodKey, to }, "billingMonthlyReport: fallo escribiendo systemLog de envio");
+    });
   } else {
     await systemLog(LogLevel.INFO, "billing.report", "Monthly report generated (email not configured)", {
       periodKey,
@@ -64,7 +69,9 @@ export async function billingMonthlyReport(payload: any) {
       method: "none",
       hint: "Set SMTP_HOST, SMTP_FROM (and SMTP_USER/SMTP_PASS) to enable email sending.",
       report: report.text.slice(0, 5000)
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, periodKey, to }, "billingMonthlyReport: fallo escribiendo systemLog sin email");
+    });
   }
 
   return { ok: true };

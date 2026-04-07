@@ -1,4 +1,5 @@
 import { LogLevel } from "@prisma/client";
+import { logger } from "../../lib/logger";
 import { systemLog } from "../../services/systemLog";
 import { recomputeGamificationScores } from "../../services/gamification";
 
@@ -8,5 +9,7 @@ export async function gamificationRecalc(payload: any) {
   await recomputeGamificationScores({ scope, tenantId }).catch((err) => {
     throw err;
   });
-  await systemLog(LogLevel.INFO, "gamification.recalc", "Gamificacion recalculada", { scope, tenantId }).catch(() => {});
+  await systemLog(LogLevel.INFO, "gamification.recalc", "Gamificacion recalculada", { scope, tenantId }).catch((err: any) => {
+    logger.warn({ err, scope, tenantId }, "gamificationRecalc: fallo escribiendo systemLog");
+  });
 }

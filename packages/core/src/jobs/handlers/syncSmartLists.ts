@@ -1,6 +1,7 @@
 import { syncAllSmartLists } from "../../services/smartListSync";
 import { systemLog } from "../../services/systemLog";
 import { LogLevel } from "@prisma/client";
+import { logger } from "../../lib/logger";
 
 export async function syncSmartLists() {
   const results = await syncAllSmartLists();
@@ -15,5 +16,7 @@ export async function syncSmartLists() {
     { added: 0, removed: 0, failed: 0 }
   );
   if (totals.added === 0 && totals.removed === 0 && totals.failed === 0) return;
-  await systemLog(LogLevel.INFO, "smart_lists.sync", "Smart lists synced", { results, totals }).catch(() => {});
+  await systemLog(LogLevel.INFO, "smart_lists.sync", "Smart lists synced", { results, totals }).catch((err: any) => {
+    logger.warn({ err, totals }, "syncSmartLists: fallo escribiendo systemLog");
+  });
 }

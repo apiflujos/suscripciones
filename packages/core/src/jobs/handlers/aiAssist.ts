@@ -1,5 +1,6 @@
 import { LogLevel, PaymentStatus } from "@prisma/client";
 import { prisma } from "../../db/prisma";
+import { logger } from "../../lib/logger";
 import { createAiChatCompletion } from "../../services/aiClient";
 import { getReportCache, setReportCache } from "../../services/reportCache";
 import { getDefaultTenantId } from "../../services/tenantContext";
@@ -100,7 +101,9 @@ export async function aiAssist(payload: AiAssistPayload) {
         answer: payload.answer,
         chart: payload.chart,
         context: payload.context
-      }).catch(() => {});
+      }).catch((err: any) => {
+        logger.warn({ err, requestId, tenantId, scope }, "aiAssist: fallo escribiendo systemLog de cache");
+      });
       if (!cached.stale) return;
       return;
     }
@@ -385,7 +388,9 @@ export async function aiAssist(payload: AiAssistPayload) {
       scope,
       error: msg,
       chart
-    }).catch(() => {});
+    }).catch((logErr: any) => {
+      logger.warn({ err: logErr, requestId, tenantId, scope }, "aiAssist: fallo escribiendo systemLog de error");
+    });
     throw err;
   }
 }
