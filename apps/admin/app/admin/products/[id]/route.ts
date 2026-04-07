@@ -392,17 +392,33 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
       const paymentIds = payments.map((p: any) => p.id);
 
       if (paymentIds.length) {
-        await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+        await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch((err) => {
+          console.error("[Products/Delete] Fallo eliminando paymentAttempt", { id, paymentIdsCount: paymentIds.length, error: err?.message });
+        });
       }
-      await prisma.chatwootMessage.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
+      await prisma.chatwootMessage.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err) => {
+        console.error("[Products/Delete] Fallo eliminando chatwootMessage", { id, subscriptionIdsCount: subIds.length, error: err?.message });
+      });
       await prisma.paymentLink
         .deleteMany({ where: { OR: [{ subscriptionId: { in: subIds } }, { planId: { in: relatedPlanIds } }] } })
-        .catch(() => {});
-      await prisma.payment.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-      await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-      await prisma.subscription.deleteMany({ where: { id: { in: subIds } } }).catch(() => {});
-      await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: { in: relatedPlanIds } } }).catch(() => {});
-      await prisma.subscriptionPlan.deleteMany({ where: { id: { in: relatedPlanIds } } }).catch(() => {});
+        .catch((err) => {
+          console.error("[Products/Delete] Fallo eliminando paymentLink", { id, subscriptionIdsCount: subIds.length, relatedPlanIdsCount: relatedPlanIds.length, error: err?.message });
+        });
+      await prisma.payment.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err) => {
+        console.error("[Products/Delete] Fallo eliminando payment", { id, subscriptionIdsCount: subIds.length, error: err?.message });
+      });
+      await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err) => {
+        console.error("[Products/Delete] Fallo eliminando subscriptionTenant", { id, subscriptionIdsCount: subIds.length, error: err?.message });
+      });
+      await prisma.subscription.deleteMany({ where: { id: { in: subIds } } }).catch((err) => {
+        console.error("[Products/Delete] Fallo eliminando subscription", { id, subscriptionIdsCount: subIds.length, error: err?.message });
+      });
+      await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: { in: relatedPlanIds } } }).catch((err) => {
+        console.error("[Products/Delete] Fallo eliminando subscriptionPlanTenant", { id, relatedPlanIdsCount: relatedPlanIds.length, error: err?.message });
+      });
+      await prisma.subscriptionPlan.deleteMany({ where: { id: { in: relatedPlanIds } } }).catch((err) => {
+        console.error("[Products/Delete] Fallo eliminando subscriptionPlan", { id, relatedPlanIdsCount: relatedPlanIds.length, error: err?.message });
+      });
       console.log("[Products/Delete] Eliminación en cascada completada", {
         id,
         subscriptionsDeleted: subIds.length,

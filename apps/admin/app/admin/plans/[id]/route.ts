@@ -3,11 +3,16 @@ import { prisma } from "@suscripciones/database";
 import { LogLevel, PlanIntervalUnit, PlanType } from "@prisma/client";
 import { requireAdminToken } from "../../_lib/requireAdminToken";
 import { reqToCompat } from "../../_lib/reqCompat";
+import { logger } from "@suscripciones/core/lib/logger";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { getEffectiveTenantId } from "@suscripciones/core/services/tenantContext";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function logIgnored(err: unknown, message: string, context?: Record<string, unknown>) {
+  logger.warn({ err, ...(context || {}) }, message);
+}
 
 const updatePlanSchema = z.object({
   intervalUnit: z.nativeEnum(PlanIntervalUnit).optional(),
@@ -42,7 +47,9 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
   if (!Object.keys(data).length) return Response.json({ ok: true, plan });
 
   const updated = await prisma.subscriptionPlan.update({ where: { id }, data });
-  await systemLog(LogLevel.INFO, "plans.update", "Plan updated", { planId: id }).catch(() => {});
+  await systemLog(LogLevel.INFO, "plans.update", "Plan updated", { planId: id }).catch((err) => {
+    logIgnored(err, "plans[id]: fallo escribiendo systemLog de update", { planId: id });
+  });
   return Response.json({ plan: updated });
 }
 
@@ -84,17 +91,33 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
     const paymentIds = payments.map((p: any) => p.id);
 
     if (paymentIds.length) {
-      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch((err) => {
+        logIgnored(err, "plans[id]: fallo eliminando paymentAttempt en delete forzado", { planId: id, paymentIdsCount: paymentIds.length });
+      });
     }
-    await prisma.chatwootMessage.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-    await prisma.paymentLink.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-    await prisma.payment.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-    await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-    await prisma.subscription.deleteMany({ where: { id: { in: subIds } } }).catch(() => {});
-    await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: id } }).catch(() => {});
+    await prisma.chatwootMessage.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err) => {
+      logIgnored(err, "plans[id]: fallo eliminando chatwootMessage en delete forzado", { planId: id, subscriptionIdsCount: subIds.length });
+    });
+    await prisma.paymentLink.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err) => {
+      logIgnored(err, "plans[id]: fallo eliminando paymentLink en delete forzado", { planId: id, subscriptionIdsCount: subIds.length });
+    });
+    await prisma.payment.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err) => {
+      logIgnored(err, "plans[id]: fallo eliminando payment en delete forzado", { planId: id, subscriptionIdsCount: subIds.length });
+    });
+    await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err) => {
+      logIgnored(err, "plans[id]: fallo eliminando subscriptionTenant en delete forzado", { planId: id, subscriptionIdsCount: subIds.length });
+    });
+    await prisma.subscription.deleteMany({ where: { id: { in: subIds } } }).catch((err) => {
+      logIgnored(err, "plans[id]: fallo eliminando subscription en delete forzado", { planId: id, subscriptionIdsCount: subIds.length });
+    });
+    await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: id } }).catch((err) => {
+      logIgnored(err, "plans[id]: fallo eliminando subscriptionPlanTenant en delete forzado", { planId: id });
+    });
   }
 
   await prisma.subscriptionPlan.delete({ where: { id } });
-  await systemLog(LogLevel.INFO, "plans.delete", "Plan deleted", { planId: id }).catch(() => {});
+  await systemLog(LogLevel.INFO, "plans.delete", "Plan deleted", { planId: id }).catch((err) => {
+    logIgnored(err, "plans[id]: fallo escribiendo systemLog de delete", { planId: id });
+  });
   return Response.json({ ok: true });
 }

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma } from "@suscripciones/database";
 import { requireAdminToken } from "../../_lib/requireAdminToken";
 import { reqToCompat } from "../../_lib/reqCompat";
+import { logger } from "@suscripciones/core/lib/logger";
 import { getEffectiveTenantId } from "@suscripciones/core/services/tenantContext";
 import { syncChatwootAttributesForCustomer } from "@suscripciones/core/services/chatwootSync";
 import { applyGamificationEvent, GAMIFICATION_EVENT_KINDS, formatLevelName } from "@suscripciones/core/services/gamification";
@@ -10,6 +11,10 @@ import { getCustomerWithGamification } from "../../_services/customers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function logIgnored(err: unknown, message: string, context?: Record<string, unknown>) {
+  logger.warn({ err, ...(context || {}) }, message);
+}
 
 const customerMetadataSchema = z
   .object({
@@ -193,7 +198,9 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
 
       return customerUpdated;
     });
-    await syncChatwootAttributesForCustomer(updated.id).catch(() => {});
+    await syncChatwootAttributesForCustomer(updated.id).catch((err) => {
+      logIgnored(err, "customers[id]: fallo sincronizando Chatwoot al actualizar", { customerId: updated.id });
+    });
 
     const prevEmail = String(existing?.email || "").trim();
     const nextEmail = String(updated.email || "").trim();
@@ -209,7 +216,9 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
         tenantId: updated.tenantId || null,
         kind: GAMIFICATION_EVENT_KINDS.DATA_EMAIL_ADDED,
         metadata: { source: "customers.update" }
-      }).catch(() => {});
+      }).catch((err) => {
+        logIgnored(err, "customers[id]: fallo aplicando gamificación por email", { customerId: updated.id });
+      });
     }
 
     if (!prevPhone && nextPhone) {
@@ -219,7 +228,9 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
         tenantId: updated.tenantId || null,
         kind: GAMIFICATION_EVENT_KINDS.DATA_PHONE_ADDED,
         metadata: { source: "customers.update" }
-      }).catch(() => {});
+      }).catch((err) => {
+        logIgnored(err, "customers[id]: fallo aplicando gamificación por phone", { customerId: updated.id });
+      });
     }
 
     if (!prevId && nextId) {
@@ -229,7 +240,9 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
         tenantId: updated.tenantId || null,
         kind: GAMIFICATION_EVENT_KINDS.DATA_ID_ADDED,
         metadata: { source: "customers.update" }
-      }).catch(() => {});
+      }).catch((err) => {
+        logIgnored(err, "customers[id]: fallo aplicando gamificación por identificación", { customerId: updated.id });
+      });
     }
 
     return Response.json({ customer: updated });
@@ -362,7 +375,9 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
       }
 
       if (paymentIds.length) {
-        await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+        await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch((err) => {
+          logIgnored(err, "customers[id]: fallo eliminando paymentAttempt en delete forzado", { customerId, paymentIdsCount: paymentIds.length });
+        });
       }
       await prisma.chatwootMessage
         .deleteMany({
@@ -374,9 +389,13 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
             ]
           }
         })
-        .catch(() => {});
+        .catch((err) => {
+          logIgnored(err, "customers[id]: fallo eliminando chatwootMessage en delete forzado", { customerId, subscriptionIdsCount: subscriptionIds.length, paymentIdsCount: paymentIds.length });
+        });
       if (paymentIds.length) {
-        await prisma.paymentLink.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+        await prisma.paymentLink.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch((err) => {
+          logIgnored(err, "customers[id]: fallo eliminando paymentLink en delete forzado", { customerId, paymentIdsCount: paymentIds.length });
+        });
       }
       await prisma.payment
         .deleteMany({
@@ -384,14 +403,26 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
             OR: [{ customerId }, ...(subscriptionIds.length ? [{ subscriptionId: { in: subscriptionIds } }] : [])]
           }
         })
-        .catch(() => {});
+        .catch((err) => {
+          logIgnored(err, "customers[id]: fallo eliminando payment en delete forzado", { customerId, subscriptionIdsCount: subscriptionIds.length });
+        });
       if (subscriptionIds.length) {
-        await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subscriptionIds } } }).catch(() => {});
+        await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subscriptionIds } } }).catch((err) => {
+          logIgnored(err, "customers[id]: fallo eliminando subscriptionTenant en delete forzado", { customerId, subscriptionIdsCount: subscriptionIds.length });
+        });
       }
-      await prisma.subscription.deleteMany({ where: { customerId } }).catch(() => {});
-      await prisma.smartListMember.deleteMany({ where: { customerId } }).catch(() => {});
-      await prisma.campaignSend.deleteMany({ where: { customerId } }).catch(() => {});
-      await prisma.customerTenant.deleteMany({ where: { customerId } }).catch(() => {});
+      await prisma.subscription.deleteMany({ where: { customerId } }).catch((err) => {
+        logIgnored(err, "customers[id]: fallo eliminando subscription en delete forzado", { customerId });
+      });
+      await prisma.smartListMember.deleteMany({ where: { customerId } }).catch((err) => {
+        logIgnored(err, "customers[id]: fallo eliminando smartListMember en delete forzado", { customerId });
+      });
+      await prisma.campaignSend.deleteMany({ where: { customerId } }).catch((err) => {
+        logIgnored(err, "customers[id]: fallo eliminando campaignSend en delete forzado", { customerId });
+      });
+      await prisma.customerTenant.deleteMany({ where: { customerId } }).catch((err) => {
+        logIgnored(err, "customers[id]: fallo eliminando customerTenant en delete forzado", { customerId });
+      });
 
       console.log("[Customers/Delete] Eliminación en cascada completada", {
         customerId,
