@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AppModal } from "../ui/AppModal";
 import { NewCustomerForm } from "../customers/NewCustomerForm";
 import { enterToNextField } from "../lib/enterToNext";
 
@@ -590,14 +591,7 @@ export function NewBillingAssignmentForm({
                   />
                 </div>
               ) : (
-                <div className="modal-backdrop">
-                  <div className="modal-panel ui-modal-panel-wide">
-                    <div className="panel-header ui-panel-header">
-                      <strong>Crear contacto</strong>
-                      <button className="ghost modal-close" type="button" onClick={() => setShowNewCustomer(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                        X
-                      </button>
-                    </div>
+                <AppModal open={showNewCustomer} onClose={() => setShowNewCustomer(false)} title="Crear contacto" panelClassName="ui-modal-panel-wide">
                     <NewCustomerForm
                       createCustomer={createCustomer}
                       defaultOpen
@@ -609,8 +603,7 @@ export function NewBillingAssignmentForm({
                       tenantId={tenantId}
                       tenants={tenants}
                     />
-                  </div>
-                </div>
+                </AppModal>
               )
             ) : null}
           </div>

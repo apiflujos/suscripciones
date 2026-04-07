@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppModal } from "../ui/AppModal";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 import { mapPlanFromApi, type PlanOption } from "./ChangePlanButton";
@@ -187,15 +188,8 @@ export function SubscriptionEditModal({
         onClick={() => setOpen(true)}
       />
 
-      {open ? (
-        <div className="modal-backdrop">
-          <div className="modal-panel subscription-edit-modal">
-            <div className="panel-header">
-              <h3 style={{ margin: 0 }}>Editar suscripción</h3>
-              <button type="button" className="ghost modal-close" onClick={() => setOpen(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">X</button>
-            </div>
-
-            <form action={updateSubscriptionBillingSettings} className="modal-body subscription-edit-modal-body">
+      <AppModal open={open} onClose={() => setOpen(false)} title="Editar suscripción" panelClassName="subscription-edit-modal">
+        <form action={updateSubscriptionBillingSettings} className="modal-body subscription-edit-modal-body">
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="subscriptionId" value={subscriptionId} />
               {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
@@ -466,10 +460,8 @@ export function SubscriptionEditModal({
                   Guardar
                 </PendingButton>
               </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
+        </form>
+      </AppModal>
     </>
   );
 }

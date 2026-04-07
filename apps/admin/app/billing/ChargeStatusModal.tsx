@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AppModal } from "../ui/AppModal";
 
 type Props = {
   initialStatus: "processing" | "ok" | "fail";
@@ -231,15 +232,12 @@ export function ChargeStatusModal({
       ? "La confirmación está tardando. Puedes cerrar este modal y revisar el estado más tarde."
       : "";
 
+  const closeModal = () => {
+    window.location.href = returnTo;
+  };
+
   return (
-    <div className="modal-backdrop">
-      <div className="modal-panel" style={{ maxWidth: 460 }}>
-        <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <h3 style={{ margin: 0 }}>{title}</h3>
-          <a className="ghost modal-close" href={returnTo} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-            X
-          </a>
-        </div>
+    <AppModal open onClose={closeModal} title={title} maxWidth={460}>
         <div
           className="card cardPad"
           style={{
@@ -277,7 +275,6 @@ export function ChargeStatusModal({
             </form>
           ) : null}
         </div>
-      </div>
-    </div>
+    </AppModal>
   );
 }
