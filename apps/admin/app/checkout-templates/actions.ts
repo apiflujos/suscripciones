@@ -12,6 +12,7 @@ import {
 import { listTenants } from "../admin/_services/tenants";
 import { getAdminSettings } from "../admin/_services/settings";
 import { listCatalogProducts } from "../admin/_services/products";
+import { logger } from "@suscripciones/core/lib/logger";
 
 function redirectWith(action: string, status: "ok" | "fail", error?: string) {
   const qp = new URLSearchParams({ a: action, status, tab: "checkout-publico" });
@@ -31,7 +32,9 @@ function parseProductIds(raw: string): any[] {
     try {
       const parsed = JSON.parse(trimmed);
       if (Array.isArray(parsed)) return parsed;
-    } catch {}
+    } catch (err: any) {
+      logger.warn({ err, raw: trimmed }, "JSON inválido en productIds de checkout template");
+    }
   }
   return trimmed
     .split(",")
@@ -45,7 +48,8 @@ export async function createCheckoutTemplate(formData: FormData) {
     let layout: any = {};
     try {
       layout = JSON.parse(String(formData.get("layout") || "{}"));
-    } catch {
+    } catch (err: any) {
+      logger.warn({ err }, "JSON inválido en layout al crear checkout template");
       layout = {};
     }
     const name = String(formData.get("name") || "").trim();
@@ -101,7 +105,8 @@ export async function updateCheckoutTemplate(formData: FormData) {
     let layout: any = {};
     try {
       layout = JSON.parse(String(formData.get("layout") || "{}"));
-    } catch {
+    } catch (err: any) {
+      logger.warn({ err, id }, "JSON inválido en layout al actualizar checkout template");
       layout = {};
     }
     const name = String(formData.get("name") || "").trim();

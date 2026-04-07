@@ -7,6 +7,7 @@ import { PublicErrorPage } from "../../_components/PublicErrorPage";
 import { PUBLIC_COPY } from "../../_components/publicCopy";
 import { headers } from "next/headers";
 import { getPublicBaseUrlFromEnv } from "@suscripciones/core/services/publicBase";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +27,8 @@ async function fetchPublicToken(token: string, bases: string[]) {
       const res = await fetch(`${apiBase}/public/tokenization-links/${encodeURIComponent(token)}`, { cache: "no-store" });
       const json = await res.json().catch(() => null);
       if (res.ok && json?.ok) return { ok: true, status: res.status, json, apiBase };
-    } catch {
-      // Continuar con el siguiente base si hay error de red/DNS/TLS
+    } catch (err: any) {
+      logger.warn({ err, apiBase, token }, "Fallo consultando tokenization link en base candidata");
     }
   }
   const lastBase = uniqueBases[uniqueBases.length - 1];
@@ -35,7 +36,8 @@ async function fetchPublicToken(token: string, bases: string[]) {
     const res = await fetch(`${lastBase}/public/tokenization-links/${encodeURIComponent(token)}`, { cache: "no-store" });
     const json = await res.json().catch(() => null);
     return { ok: res.ok, status: res.status, json };
-  } catch {
+  } catch (err: any) {
+    logger.error({ err, apiBase: lastBase, token }, "Fallo definitivo consultando tokenization link");
     return { ok: false, status: 0, json: { error: "fetch_failed" } };
   }
 }
@@ -48,8 +50,8 @@ async function fetchCheckoutConfig(bases: string[]) {
       const res = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" });
       const json = await res.json().catch(() => null);
       if (res.ok && json?.config) return { ok: true, json, apiBase };
-    } catch {
-      // Continuar con el siguiente base si hay error de red/DNS/TLS
+    } catch (err: any) {
+      logger.warn({ err, apiBase }, "Fallo consultando checkout config público en base candidata");
     }
   }
   const lastBase = uniqueBases[uniqueBases.length - 1];
@@ -57,7 +59,8 @@ async function fetchCheckoutConfig(bases: string[]) {
     const res = await fetch(`${lastBase}/public/checkout-config`, { cache: "no-store" });
     const json = await res.json().catch(() => null);
     return { ok: res.ok, json };
-  } catch {
+  } catch (err: any) {
+    logger.error({ err, apiBase: lastBase }, "Fallo definitivo consultando checkout config público");
     return { ok: false, json: { error: "fetch_failed" } };
   }
 }

@@ -4,6 +4,7 @@ import { PublicErrorPage } from "../../_components/PublicErrorPage";
 import { PUBLIC_COPY } from "../../_components/publicCopy";
 import { headers } from "next/headers";
 import { getPublicBaseUrlFromEnv } from "@suscripciones/core/services/publicBase";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,8 @@ async function fetchJsonAcrossBases(path: string, bases: string[]) {
       const res = await fetch(`${apiBase}${path}`, { cache: "no-store" });
       const json = await res.json().catch(() => null);
       if (res.ok) return { ok: true, status: res.status, json, apiBase };
-    } catch {
-      // Try next base.
+    } catch (err: any) {
+      logger.warn({ err, apiBase, path }, "Fallo consultando checkout público en base candidata");
     }
   }
 
@@ -34,7 +35,8 @@ async function fetchJsonAcrossBases(path: string, bases: string[]) {
     const res = await fetch(`${lastBase}${path}`, { cache: "no-store" });
     const json = await res.json().catch(() => null);
     return { ok: res.ok, status: res.status, json, apiBase: lastBase };
-  } catch {
+  } catch (err: any) {
+    logger.error({ err, apiBase: lastBase, path }, "Fallo definitivo consultando checkout público");
     return { ok: false, status: 0, json: { error: "fetch_failed" } };
   }
 }
