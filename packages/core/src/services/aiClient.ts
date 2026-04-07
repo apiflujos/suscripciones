@@ -1,5 +1,6 @@
 import { CredentialProvider, LogLevel } from "@prisma/client";
 import { postJson } from "../lib/http";
+import { logger } from "../lib/logger";
 import { getCredential } from "./credentials";
 import { systemLog } from "./systemLog";
 
@@ -101,10 +102,14 @@ export async function createAiChatCompletion(messages: AiMessage[], meta?: Recor
       const msg = String(err?.message || err);
       const payload = { provider: p.provider, error: msg, prompt: promptPreview, meta: meta || null };
       if (i < providers.length - 1) {
-        await systemLog(LogLevel.WARN, `ai.${p.provider.toLowerCase()}`, "Proveedor falló, intentando respaldo", payload).catch(() => {});
+        await systemLog(LogLevel.WARN, `ai.${p.provider.toLowerCase()}`, "Proveedor falló, intentando respaldo", payload).catch((logErr: any) => {
+          logger.warn({ err: logErr, provider: p.provider }, "aiClient: fallo escribiendo systemLog de fallback");
+        });
         continue;
       }
-      await systemLog(LogLevel.ERROR, `ai.${p.provider.toLowerCase()}`, "Fallo al procesar IA", payload).catch(() => {});
+      await systemLog(LogLevel.ERROR, `ai.${p.provider.toLowerCase()}`, "Fallo al procesar IA", payload).catch((logErr: any) => {
+        logger.warn({ err: logErr, provider: p.provider }, "aiClient: fallo escribiendo systemLog de error final");
+      });
     }
   }
 

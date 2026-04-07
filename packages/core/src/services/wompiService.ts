@@ -48,14 +48,16 @@ export async function advanceSubscriptionCycle(params: {
 
     logger.info({ subscriptionId: sub.id, nextEnd }, "Subscription advanced after payment approval");
     const collectionMode = resolveSubscriptionCollectionMode(sub);
-    
+
     if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
       await ensurePaymentRetryJob({
         subscriptionId: sub.id,
         runAt: collectionMode === "AUTO_LINK" && nextEnd <= new Date(Date.now() + 5_000) ? new Date() : nextEnd,
         maxAttempts: 1,
         db: tx
-      }).catch(() => {});
+      }).catch((err: any) => {
+        logger.warn({ err, subscriptionId: sub.id, nextEnd, collectionMode }, "wompiService: fallo reprogramando retry tras aprobación");
+      });
     }
 
     return nextEnd;
