@@ -14,6 +14,7 @@ import { getCustomerById } from "../admin/_services/customers";
 import { createManualOrderForAdmin } from "../admin/_services/orders";
 import { createPlan } from "../admin/_services/plans";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
+import { logger } from "@suscripciones/core/lib/logger";
 
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");
@@ -368,7 +369,9 @@ export async function createPlanTemplate(formData: FormData) {
       try {
         const parsed = JSON.parse(variantsJson);
         if (Array.isArray(parsed)) variants = parsed;
-      } catch {}
+      } catch (err: any) {
+        logger.warn({ err, variantsJson, tenantIds }, "JSON inválido en variantes al crear producto desde products");
+      }
 
       if (!itemName || !itemSku) throw new Error("producto_incompleto");
       if (!basePriceInCents || basePriceInCents <= 0) throw new Error("precio_requerido");

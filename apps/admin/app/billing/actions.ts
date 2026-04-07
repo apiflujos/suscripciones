@@ -27,6 +27,7 @@ import { getAdminSettings } from "../admin/_services/settings";
 import { findCheckoutTemplateForProduct } from "../admin/_services/checkoutTemplates";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
+import { logger } from "@suscripciones/core/lib/logger";
 import { signPublicToken } from "../../lib/publicTokens";
 
 function safeReturnTo(formData: FormData) {
@@ -238,7 +239,9 @@ export async function createPlanTemplate(formData: FormData) {
       try {
         const parsed = JSON.parse(variantsJson);
         if (Array.isArray(parsed)) variants = parsed;
-      } catch {}
+      } catch (err: any) {
+        logger.warn({ err, subscriptionId: "new", variantsJson }, "JSON inválido en variantes al crear producto desde billing");
+      }
 
       if (!itemName || !itemSku) throw new Error("producto_incompleto");
       if (!basePriceInCents || basePriceInCents <= 0) throw new Error("precio_requerido");
@@ -1003,7 +1006,9 @@ export async function createPlanAndSubscription(formData: FormData) {
           usedAt: null
         }
       };
-      await updateCustomerProfile({ customerId: resolvedCustomerId, metadata: nextMeta }).catch(() => {});
+      await updateCustomerProfile({ customerId: resolvedCustomerId, metadata: nextMeta }).catch((err: any) => {
+        logger.warn({ err, customerId: resolvedCustomerId, planId }, "Fallo guardando metadata de tokenización en customer profile");
+      });
 
       const rulesActive = await hasNotificationRule("PAYMENT_LINK_CREATED");
       if (shouldCreateLink && rulesActive !== true) {
@@ -1060,13 +1065,16 @@ export async function createPlanAndSubscription(formData: FormData) {
           usedAt: null
         }
       };
-      await updateCustomerProfile({ customerId: resolvedCustomerId, metadata: nextMeta }).catch(() => {});
+      await updateCustomerProfile({ customerId: resolvedCustomerId, metadata: nextMeta }).catch((err: any) => {
+        logger.warn({ err, customerId: resolvedCustomerId, planId }, "Fallo guardando metadata de tokenización en customer profile");
+      });
 
       let rulesActive: boolean | null = null;
       try {
         const scheduled = await scheduleTokenizationLinkNotifications({ customerId: resolvedCustomerId, tokenUrl: url, forceNow: true });
         rulesActive = Boolean(scheduled?.rulesActive);
-      } catch {
+      } catch (err: any) {
+        logger.warn({ err, customerId: resolvedCustomerId, planId }, "Fallo programando notificaciones de tokenización");
         rulesActive = null;
       }
       if (rulesActive !== true) {
@@ -1203,13 +1211,16 @@ export async function sendCentralComTokenizationLink(formData: FormData) {
         usedAt: null
       }
     };
-    await updateCustomerProfile({ customerId, metadata: nextMeta }).catch(() => {});
+    await updateCustomerProfile({ customerId, metadata: nextMeta }).catch((err: any) => {
+      logger.warn({ err, customerId, planId }, "Fallo guardando metadata de tokenización en envío manual");
+    });
 
     let rulesActive: boolean | null = null;
     try {
       const scheduled = await scheduleTokenizationLinkNotifications({ customerId, tokenUrl: url, forceNow: true });
       rulesActive = Boolean(scheduled?.rulesActive);
-    } catch {
+    } catch (err: any) {
+      logger.warn({ err, customerId, planId }, "Fallo programando notificaciones de tokenización en envío manual");
       rulesActive = null;
     }
     if (rulesActive !== true) {
