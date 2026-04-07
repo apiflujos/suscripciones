@@ -1,43 +1,38 @@
 /**
- * WebSocket Hub - Publica eventos en tiempo real a los clientes conectados
- * 
+ * Realtime Hub en cliente.
+ *
+ * Mantiene suscriptores en memoria para componentes del frontend y
+ * también despacha eventos custom del navegador por canal.
+ *
  * Uso:
  * import { publishToChannel } from "@/app/lib/wsHub";
- * publishToChannel("notifications", { type: "MESSAGE_SENT", ... });
+ * publishToChannel("notifications", { type: "MESSAGE_SENT" });
  */
 
 type ChannelPayload = Record<string, unknown>;
 
 const channels = new Map<string, Set<(payload: ChannelPayload) => void>>();
 
-/**
- * Suscribirse a un canal
- */
 export function subscribeToChannel(channel: string, callback: (payload: ChannelPayload) => void) {
   if (!channels.has(channel)) {
     channels.set(channel, new Set());
   }
   channels.get(channel)!.add(callback);
-  
+
   return () => {
     channels.get(channel)?.delete(callback);
   };
 }
 
-/**
- * Publicar en un canal
- * Retorna true si hay suscriptores, false si no
- */
 export function publishToChannel(channel: string, payload: ChannelPayload): boolean {
   const subscribers = channels.get(channel);
   if (!subscribers || subscribers.size === 0) {
-    // No hay suscriptores, pero intentamos dispatch de evento custom para la UI
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent(`apiflujos:${channel}`, { detail: payload }));
     }
     return false;
   }
-  
+
   subscribers.forEach((callback) => {
     try {
       callback(payload);
@@ -45,18 +40,14 @@ export function publishToChannel(channel: string, payload: ChannelPayload): bool
       console.error(`Error in channel ${channel} subscriber:`, err);
     }
   });
-  
-  // También dispatch de evento custom para la UI
+
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(`apiflujos:${channel}`, { detail: payload }));
   }
-  
+
   return true;
 }
 
-/**
- * Obtener número de suscriptores en un canal
- */
 export function getSubscriberCount(channel: string): number {
   return channels.get(channel)?.size || 0;
 }

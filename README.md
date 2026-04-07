@@ -145,7 +145,7 @@ Ejemplo de `ecosystem.config.js` (alineado con producción):
 module.exports = {
   apps: [
     {
-      name: "crm-sus-api-mdv",
+      name: "crm-sus-admin-mdv",
       cwd: "/srv/apiflujos/mdv/suscripciones/apps/admin",
       script: "npm",
       args: "run start",
@@ -237,9 +237,9 @@ curl -I http://localhost:3002/health
 ## 11) Comandos útiles PM2
 ```bash
 pm2 status
-pm2 logs crm-sus-api-mdv --lines 200
+pm2 logs crm-sus-admin-mdv --lines 200
 pm2 logs crm-sus-jobs-mdv --lines 200
-pm2 restart crm-sus-api-mdv
+pm2 restart crm-sus-admin-mdv
 pm2 restart crm-sus-jobs-mdv
 ```
 
