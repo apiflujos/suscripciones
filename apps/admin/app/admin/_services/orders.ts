@@ -15,6 +15,7 @@ import { schedulePaymentLinkNotifications } from "@suscripciones/core/services/n
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { getEffectiveTenantId } from "@suscripciones/core/services/tenantContext";
 import { DEFAULT_CURRENCY, isSupportedCurrency, normalizeCurrencyCode } from "@suscripciones/core/lib/currencies";
+import { logger } from "@suscripciones/core/lib/logger";
 import { reqToCompat } from "../_lib/reqCompat";
 
 const currencyCodeSchema = z
@@ -71,7 +72,9 @@ export async function createManualOrder(args: { req: Request; body: any }) {
   if (!tenantId) return { ok: false, status: 400, error: "tenant_required" };
   await prisma.customerTenant
     .createMany({ data: [{ customerId: customer.id, tenantId }], skipDuplicates: true })
-    .catch(() => {});
+    .catch((err: any) => {
+      logger.warn({ err, customerId: customer.id, tenantId }, "Fallo vinculando tenant al cliente al crear orden manual");
+    });
 
   const totals = computeTotals(parsed.data);
 
@@ -122,7 +125,9 @@ export async function createManualOrder(args: { req: Request; body: any }) {
   let cfg: any = null;
   try {
     cfg = rawConfig ? JSON.parse(rawConfig) : null;
-  } catch {}
+  } catch (err: any) {
+    logger.warn({ err }, "Fallo parseando CHECKOUT_CONFIG al crear orden manual");
+  }
   const templateTitle = String(cfg?.planTitle || "").trim();
   const templateDesc = String(cfg?.planDescription || "").trim();
   const replaceVars = (input: string) =>
@@ -156,11 +161,15 @@ export async function createManualOrder(args: { req: Request; body: any }) {
           providerResponse: { ...(payment.providerResponse as any), wompiError: String(err?.message || err) } as any
         }
       })
-      .catch(() => {});
+      .catch((updateErr: any) => {
+        logger.warn({ err: updateErr, paymentId: payment.id }, "Fallo actualizando pago tras error de Wompi en orden manual");
+      });
     await systemLog(LogLevel.ERROR, "orders.create", "Wompi link creation failed", {
       paymentId: payment.id,
       err: String(err?.message || err)
-    }).catch(() => {});
+    }).catch((logErr: any) => {
+      logger.warn({ err: logErr, paymentId: payment.id }, "Fallo escribiendo systemLog por error Wompi en orden manual");
+    });
     return { ok: false, status: 502, error: "wompi_payment_link_failed" };
   }
 
@@ -175,12 +184,15 @@ export async function createManualOrder(args: { req: Request; body: any }) {
   const scheduledInfo =
     parsed.data.sendChatwoot === false
       ? { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] }
-      : await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch(() => ({
-          scheduled: 0,
-          sentNow: 0,
-          rulesActive: false,
-          errors: [] as string[]
-        }));
+      : await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch((err: any) => {
+          logger.warn({ err, paymentId: updated.id }, "Fallo programando notificaciones de payment link en orden manual");
+          return {
+            scheduled: 0,
+            sentNow: 0,
+            rulesActive: false,
+            errors: [] as string[]
+          };
+        });
 
   return {
     ok: true,
@@ -233,7 +245,9 @@ export async function createManualOrderForAdmin(args: {
 
   await prisma.customerTenant
     .createMany({ data: [{ customerId: customer.id, tenantId }], skipDuplicates: true })
-    .catch(() => {});
+    .catch((err: any) => {
+      logger.warn({ err, customerId: customer.id, tenantId }, "Fallo vinculando tenant al cliente al crear orden manual admin");
+    });
 
   const totals = computeTotals(parsed.data);
 
@@ -285,7 +299,9 @@ export async function createManualOrderForAdmin(args: {
   let cfg: any = null;
   try {
     cfg = rawConfig ? JSON.parse(rawConfig) : null;
-  } catch {}
+  } catch (err: any) {
+    logger.warn({ err }, "Fallo parseando CHECKOUT_CONFIG al crear orden manual admin");
+  }
   const templateTitle = String(cfg?.planTitle || "").trim();
   const templateDesc = String(cfg?.planDescription || "").trim();
   const replaceVars = (input: string) =>
@@ -320,11 +336,15 @@ export async function createManualOrderForAdmin(args: {
           providerResponse: { ...(payment.providerResponse as any), wompiError: String(err?.message || err) } as any
         }
       })
-      .catch(() => {});
+      .catch((updateErr: any) => {
+        logger.warn({ err: updateErr, paymentId: payment.id }, "Fallo actualizando pago tras error de Wompi en orden manual admin");
+      });
     await systemLog(LogLevel.ERROR, "orders.create", "Wompi link creation failed", {
       paymentId: payment.id,
       err: String(err?.message || err)
-    }).catch(() => {});
+    }).catch((logErr: any) => {
+      logger.warn({ err: logErr, paymentId: payment.id }, "Fallo escribiendo systemLog por error Wompi en orden manual admin");
+    });
     return { ok: false, status: 502, error: "wompi_payment_link_failed" };
   }
 
@@ -339,12 +359,15 @@ export async function createManualOrderForAdmin(args: {
   const scheduledInfo =
     parsed.data.sendChatwoot === false
       ? { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] }
-      : await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch(() => ({
-          scheduled: 0,
-          sentNow: 0,
-          rulesActive: false,
-          errors: [] as string[]
-        }));
+      : await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch((err: any) => {
+          logger.warn({ err, paymentId: updated.id }, "Fallo programando notificaciones de payment link en orden manual admin");
+          return {
+            scheduled: 0,
+            sentNow: 0,
+            rulesActive: false,
+            errors: [] as string[]
+          };
+        });
 
   return {
     ok: true,

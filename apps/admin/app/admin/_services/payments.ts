@@ -4,6 +4,7 @@ import { LogLevel, PaymentStatus } from "@prisma/client";
 import { prisma } from "@suscripciones/database";
 import { reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
+import { logger } from "@suscripciones/core/lib/logger";
 
 async function reconcilePendingPaymentFromWompi(args: { paymentId: string; wompiTransactionId?: string | null; tenantId?: string | null }) {
   const txId = String(args.wompiTransactionId || "").trim();
@@ -26,7 +27,9 @@ async function reconcilePendingPaymentFromWompi(args: { paymentId: string; wompi
       paymentId: args.paymentId,
       wompiTransactionId: txId,
       error: err?.message || String(err)
-    }).catch(() => {});
+    }).catch((logErr: any) => {
+      logger.warn({ err: logErr, paymentId: args.paymentId, wompiTransactionId: txId }, "Fallo escribiendo systemLog de reconcile fallido");
+    });
   }
 }
 
@@ -82,7 +85,9 @@ export async function getPaymentStatus(args: { paymentId: string; tenantId?: str
       paymentId: payment.id,
       wompiTransactionId: payment.wompiTransactionId,
       tenantId: payment.tenantId
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, paymentId: payment.id, wompiTransactionId: payment.wompiTransactionId }, "Fallo reconciliando pago pendiente desde polling");
+    });
 
     const refreshed = await prisma.payment.findUnique({
       where: { id },
