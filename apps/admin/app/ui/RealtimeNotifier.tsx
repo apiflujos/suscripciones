@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useRealtimeChannel } from "../lib/useRealtimeChannel";
 import { FEED_STORAGE_KEY } from "./notificationsFeed";
 
 type ToastEvent = {
@@ -37,9 +38,6 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Polling liviano para restaurar notificaciones y sonido
-  // (se había desactivado el realtime).
-
   useEffect(() => {
     if (!session?.email) return;
 
@@ -60,14 +58,15 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
         for (const n of parsed) if (n?.id) seed.add(String(n.id));
         lastSeenRef.current = seed;
       }
-    } catch {}
+    } catch {
+      // ignore local storage seed failures
+    }
 
     const unlockSound = () => {
       soundReadyRef.current = true;
     };
     window.addEventListener("pointerdown", unlockSound, { once: true });
 
-    // Escuchar eventos de notificación personalizados desde otros componentes
     const handleNotification = (event: Event) => {
       const customEvent = event as CustomEvent<ToastEvent>;
       addToast(customEvent.detail);
@@ -81,29 +80,16 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
     };
   }, [session?.email, addToast]);
 
-  useEffect(() => {
-    if (!session?.email) return;
+  const handleItems = useCallback(
+    (items: any[]) => {
+      if (!Array.isArray(items)) return;
 
-    const playSound = (audio: HTMLAudioElement | null) => {
-      if (!audio || !soundReadyRef.current) return;
-      try {
-        audio.currentTime = 0;
-        void audio.play();
-      } catch {
-        // ignore autoplay restrictions
-      }
-    };
-
-    const pushFeed = (items: any[]) => {
       try {
         window.localStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(items));
-      } catch {}
+      } catch {
+        // ignore local storage write failures
+      }
       window.dispatchEvent(new CustomEvent("apiflujos:notifications-updated", { detail: { items } }));
-    };
-
-    const handleItems = (items: any[]) => {
-      if (!Array.isArray(items)) return;
-      pushFeed(items);
 
       const nextSeen = new Set(lastSeenRef.current);
       const newItems = items.filter((n) => n?.id && !nextSeen.has(n.id));
@@ -111,6 +97,17 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
       lastSeenRef.current = nextSeen;
 
       if (!newItems.length) return;
+
+      const playSound = (audio: HTMLAudioElement | null) => {
+        if (!audio || !soundReadyRef.current) return;
+        try {
+          audio.currentTime = 0;
+          void audio.play();
+        } catch {
+          // ignore autoplay restrictions
+        }
+      };
+
       for (const n of newItems.slice(0, 3)) {
         const level = String(n.level || "info");
         const category = String(n.category || "");
@@ -135,61 +132,31 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
           href: n.href || undefined
         });
       }
-    };
+    },
+    [addToast]
+  );
 
-    let running = true;
-    let es: EventSource | null = null;
-    let timer: ReturnType<typeof setInterval> | null = null;
-
-    const fetchNotifications = async () => {
-      try {
-        const res = await fetch("/api/realtime/notifications?limit=40", { cache: "no-store" });
-        const json = await res.json().catch(() => null);
-        if (!running) return;
-        if (json?.notifications) {
-          handleItems(json.notifications);
-        }
-      } catch {
-        // ignore polling failures
-      }
-    };
-
-    const startPolling = () => {
-      if (timer) return;
-      fetchNotifications();
-      timer = setInterval(fetchNotifications, 20000);
-    };
-
-    const stopPolling = () => {
-      if (!timer) return;
-      clearInterval(timer);
-      timer = null;
-    };
-
+  const fetchNotifications = useCallback(async () => {
+    if (!session?.email) return;
     try {
-      es = new EventSource("/api/realtime?channel=notifications", { withCredentials: true });
-      es.addEventListener("ready", () => {
-        stopPolling();
-        void fetchNotifications();
-      });
-      es.addEventListener("message", () => {
-        void fetchNotifications();
-      });
-      es.onerror = () => {
-        startPolling();
-      };
+      const res = await fetch("/api/realtime/notifications?limit=40", { cache: "no-store" });
+      const json = await res.json().catch(() => null);
+      if (json?.notifications) {
+        handleItems(json.notifications);
+      }
     } catch {
-      startPolling();
+      // ignore realtime refresh failures
     }
+  }, [handleItems, session?.email]);
 
-    fetchNotifications();
-
-    return () => {
-      running = false;
-      stopPolling();
-      es?.close();
-    };
-  }, [session?.email, addToast]);
+  useRealtimeChannel({
+    channel: "notifications",
+    enabled: Boolean(session?.email),
+    pollIntervalMs: 20000,
+    statusEventName: "apiflujos:realtime-status",
+    onSnapshot: fetchNotifications,
+    onMessage: fetchNotifications
+  });
 
   const getToastIcon = (type: string) => {
     switch (type) {
@@ -231,7 +198,6 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
     <>
       {children}
 
-      {/* Contenedor de toasts */}
       <div className="realtime-toasts">
         {toasts.map((toast) => (
           <div
@@ -268,7 +234,6 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
         ))}
       </div>
 
-      {/* Auto-dismiss */}
       {toasts.map((toast) => (
         <AutoDismiss key={toast.id} id={toast.id} duration={toast.type === "error" ? 8000 : 5000} onDismiss={removeToast} />
       ))}

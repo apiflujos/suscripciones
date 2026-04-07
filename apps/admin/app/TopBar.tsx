@@ -68,6 +68,7 @@ export function TopBar({ session }: { session: AdminSession | null }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [paymentPulse, setPaymentPulse] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
   const menuRef = useRef<HTMLDivElement | null>(null);
   const notifRef = useRef<HTMLDivElement | null>(null);
   const pulseRef = useRef<NodeJS.Timeout | null>(null);
@@ -113,9 +114,16 @@ export function TopBar({ session }: { session: AdminSession | null }) {
 
   useEffect(() => {
     const onPayment = () => triggerPaymentPulse();
+    const onRealtimeStatus = (event: Event) => {
+      const customEvent = event as CustomEvent<{ status?: "connecting" | "connected" | "disconnected"; channel?: string }>;
+      if (customEvent.detail?.channel !== "notifications") return;
+      setRealtimeStatus(customEvent.detail?.status || "disconnected");
+    };
     window.addEventListener("apiflujos:payment-approved", onPayment);
+    window.addEventListener("apiflujos:realtime-status", onRealtimeStatus);
     return () => {
       window.removeEventListener("apiflujos:payment-approved", onPayment);
+      window.removeEventListener("apiflujos:realtime-status", onRealtimeStatus);
       if (pulseRef.current) clearTimeout(pulseRef.current);
     };
   }, []);
@@ -180,6 +188,12 @@ export function TopBar({ session }: { session: AdminSession | null }) {
         <div className={`topbarPulse ${paymentPulse ? "is-active" : ""}`} aria-live="polite">
           <span className="topbarPulseDot" aria-hidden="true" />
           <span className="topbarPulseText">Pago recibido</span>
+        </div>
+        <div className={`realtime-status is-${realtimeStatus}`} aria-label={`Estado realtime: ${realtimeStatus}`}>
+          <span className="realtime-status-dot" aria-hidden="true" />
+          <span className="realtime-status-text">
+            {realtimeStatus === "connected" ? "Realtime activo" : realtimeStatus === "connecting" ? "Conectando realtime" : "Realtime en fallback"}
+          </span>
         </div>
       </div>
 
