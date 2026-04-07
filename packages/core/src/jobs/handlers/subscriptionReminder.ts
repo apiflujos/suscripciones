@@ -9,6 +9,7 @@ import { sendChatwootMessage } from "./sendChatwootMessage";
 import { getDefaultTenantId } from "../../services/tenantContext";
 import { formatDateTimeEs } from "../../lib/dates";
 import { getAppTimeZone } from "../../services/runtimeConfig";
+import { logger } from "../../lib/logger";
 
 const payloadSchema = z.object({
   trigger: notificationTriggerSchema,
@@ -269,7 +270,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
         paymentId: payment.id,
         status: payment.status,
         required: rule.conditions.requirePaymentStatusIn
-      }, "job:subscriptionReminder").catch(() => {});
+      }, "job:subscriptionReminder").catch((err: any) => {
+        logger.warn({ err, paymentId: payment.id, status: payment.status }, "subscriptionReminder: fallo escribiendo systemLog de estado requerido");
+      });
       return { ok: false, skipped: true, error: "payment_status_not_allowed" };
     }
   }
@@ -284,7 +287,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
         subscriptionId: subscription.id,
         currentCycle: subscription.currentCycle,
         payloadCycle: parsed.data.cycleNumber
-      }, "job:subscriptionReminder").catch(() => {});
+      }, "job:subscriptionReminder").catch((err: any) => {
+        logger.warn({ err, subscriptionId: subscription.id, currentCycle: subscription.currentCycle }, "subscriptionReminder: fallo escribiendo systemLog de ciclo desactualizado");
+      });
       return { ok: false, skipped: true, error: "cycle_mismatch" };
     }
     if (parsed.data.anchorAt) {
@@ -297,7 +302,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
           subscriptionId: subscription.id,
           currentAnchor: subscription.currentPeriodEndAt.toISOString(),
           payloadAnchor: anchorIso
-        }, "job:subscriptionReminder").catch(() => {});
+        }, "job:subscriptionReminder").catch((err: any) => {
+          logger.warn({ err, subscriptionId: subscription.id, anchorIso }, "subscriptionReminder: fallo escribiendo systemLog de anchor desalineado");
+        });
         return { ok: false, skipped: true, error: "anchor_mismatch" };
       }
     }
@@ -315,7 +322,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
         trigger: parsed.data.trigger,
         subscriptionId: subscription.id,
         paymentStatus: approved.status
-      }, "job:subscriptionReminder").catch(() => {});
+      }, "job:subscriptionReminder").catch((err: any) => {
+        logger.warn({ err, subscriptionId: subscription.id }, "subscriptionReminder: fallo escribiendo systemLog de pago ya aprobado");
+      });
       return { ok: false, skipped: true, error: "already_paid" };
     }
   }
@@ -325,7 +334,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
       ruleId: rule.id,
       templateId: template.id,
       trigger: parsed.data.trigger
-    }, "job:subscriptionReminder").catch(() => {});
+    }, "job:subscriptionReminder").catch((err: any) => {
+      logger.warn({ err, ruleId: rule.id, templateId: template.id }, "subscriptionReminder: fallo escribiendo systemLog de META no soportado");
+    });
     return { ok: false, skipped: true, error: "meta_not_supported" };
   }
 
@@ -334,7 +345,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
       ruleId: rule.id,
       templateId: template.id,
       trigger: parsed.data.trigger
-    }, "job:subscriptionReminder").catch(() => {});
+    }, "job:subscriptionReminder").catch((err: any) => {
+      logger.warn({ err, ruleId: rule.id, templateId: template.id }, "subscriptionReminder: fallo escribiendo systemLog de tipo faltante");
+    });
     return { ok: false, skipped: true, error: "chatwoot_type_missing" };
   }
 
@@ -350,7 +363,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
       ruleId: rule.id,
       templateId: template.id,
       trigger: parsed.data.trigger
-    }, "job:subscriptionReminder").catch(() => {});
+    }, "job:subscriptionReminder").catch((err: any) => {
+      logger.warn({ err, ruleId: rule.id, templateId: template.id }, "subscriptionReminder: fallo escribiendo systemLog de plantilla WhatsApp faltante");
+    });
     return { ok: false, skipped: true, error: "whatsapp_template_missing" };
   }
 
@@ -369,7 +384,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
         await systemLog(LogLevel.WARN, "notifications.dispatch", "ensurePaymentLink failed; continuing without link", {
           subscriptionId: subscription.id,
           err: err?.message ? String(err.message) : "unknown error"
-        }, "job:subscriptionReminder").catch(() => {});
+        }, "job:subscriptionReminder").catch((logErr: any) => {
+          logger.warn({ err: logErr, subscriptionId: subscription.id }, "subscriptionReminder: fallo escribiendo systemLog de ensurePaymentLink");
+        });
       }
     }
   }
@@ -382,7 +399,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
       templateId: template.id,
       trigger: parsed.data.trigger,
       paymentType
-    }, "job:subscriptionReminder").catch(() => {});
+    }, "job:subscriptionReminder").catch((err: any) => {
+      logger.warn({ err, paymentType, ruleId: rule.id }, "subscriptionReminder: fallo escribiendo systemLog de tipo de pago no permitido");
+    });
     return { ok: false, skipped: true, error: "payment_type_not_allowed" };
   }
 
@@ -395,7 +414,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
         trigger: parsed.data.trigger,
         paymentId: effectivePayment?.id ?? parsed.data.paymentId ?? null,
         paymentStatus: effectivePayment?.status ?? null
-      }, "job:subscriptionReminder").catch(() => {});
+      }, "job:subscriptionReminder").catch((err: any) => {
+        logger.warn({ err, paymentId: effectivePayment?.id ?? parsed.data.paymentId ?? null }, "subscriptionReminder: fallo escribiendo systemLog de pago no aprobado");
+      });
       return { ok: false, skipped: true, error: "payment_not_approved" };
     }
   }
@@ -408,7 +429,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
         trigger: parsed.data.trigger,
         paymentId: effectivePayment?.id ?? parsed.data.paymentId ?? null,
         paymentStatus: effectivePayment?.status ?? null
-      }, "job:subscriptionReminder").catch(() => {});
+      }, "job:subscriptionReminder").catch((err: any) => {
+        logger.warn({ err, paymentId: effectivePayment?.id ?? parsed.data.paymentId ?? null }, "subscriptionReminder: fallo escribiendo systemLog de pago no fallido");
+      });
       return { ok: false, skipped: true, error: "payment_not_declined" };
     }
   }
@@ -448,10 +471,15 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
           templateId: template.id,
           trigger: parsed.data.trigger,
           customerId: customer.id
-        }, "job:subscriptionReminder").catch(() => {});
+        }, "job:subscriptionReminder").catch((err: any) => {
+          logger.warn({ err, customerId: customer.id, ruleId: rule.id }, "subscriptionReminder: fallo escribiendo systemLog de checkout AUTO faltante");
+        });
         return { ok: false, skipped: true, error: "checkout_auto_missing" };
       }
-      const created = await createPublicCheckoutLink({ customerId: customer.id, templateId: targetId }).catch(() => null);
+      const created = await createPublicCheckoutLink({ customerId: customer.id, templateId: targetId }).catch((err: any) => {
+        logger.warn({ err, customerId: customer.id, templateId: targetId }, "subscriptionReminder: fallo creando checkout público");
+        return null;
+      });
       if (created?.url) {
         checkoutPublicToken[id] = created.token;
         checkoutPublicName[id] = created.templateName;
@@ -469,7 +497,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
           trigger: parsed.data.trigger,
           customerId: customer.id,
           checkoutTemplateId: targetId
-        }, "job:subscriptionReminder").catch(() => {});
+        }, "job:subscriptionReminder").catch((err: any) => {
+          logger.warn({ err, customerId: customer.id, templateId: targetId }, "subscriptionReminder: fallo escribiendo systemLog de checkout faltante");
+        });
         return { ok: false, skipped: true, error: "checkout_missing" };
       }
     }
@@ -483,7 +513,10 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
   const paymentWithPesos = effectivePayment
     ? { ...effectivePayment, amountInPesos: centsToPesos(effectivePayment.amountInCents) }
     : null;
-  const timeZone = await getAppTimeZone().catch(() => "America/Bogota");
+  const timeZone = await getAppTimeZone().catch((err: any) => {
+    logger.warn({ err }, "subscriptionReminder: fallo resolviendo zona horaria, usando America/Bogota");
+    return "America/Bogota";
+  });
   const ctx = {
     __tz: timeZone,
     customer,
@@ -514,7 +547,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
       subscriptionId: subscription?.id ?? null,
       paymentId: effectivePayment?.id ?? null,
       missing
-    }, "job:subscriptionReminder").catch(() => {});
+    }, "job:subscriptionReminder").catch((err: any) => {
+      logger.warn({ err, customerId: customer.id, missing }, "subscriptionReminder: fallo escribiendo systemLog de variables faltantes");
+    });
   }
 
   const content = template.content ? renderTemplate(template.content, ctx) : "(template)";
@@ -548,7 +583,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
       customerId: customer.id,
       subscriptionId: subscription?.id ?? null,
       paymentId: effectivePayment?.id ?? null
-    }, "job:subscriptionReminder").catch(() => {});
+    }, "job:subscriptionReminder").catch((err: any) => {
+      logger.warn({ err, customerId: customer.id, paymentId: effectivePayment?.id ?? null }, "subscriptionReminder: fallo escribiendo systemLog de mensaje duplicado");
+    });
     return { ok: false, skipped: true, error: "duplicate" };
   }
 
@@ -595,7 +632,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
           customerId: customer.id,
           paymentId: effectivePayment?.id ?? null,
           err: errorMessage
-        }, "job:subscriptionReminder").catch(() => {});
+        }, "job:subscriptionReminder").catch((err: any) => {
+          logger.warn({ err, chatwootMessageId: created.id }, "subscriptionReminder: fallo escribiendo systemLog de mensaje fallido");
+        });
         return { ok: false, error: errorMessage };
       }
     } catch (err: any) {
@@ -607,7 +646,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
         customerId: customer.id,
         paymentId: effectivePayment?.id ?? null,
         err: errorMessage
-      }, "job:subscriptionReminder").catch(() => {});
+      }, "job:subscriptionReminder").catch((logErr: any) => {
+        logger.warn({ err: logErr, chatwootMessageId: created.id }, "subscriptionReminder: fallo escribiendo systemLog de excepción en envío");
+      });
       return { ok: false, error: errorMessage };
     }
     return { ok: true, sent: true };
@@ -627,7 +668,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
       await prisma.subscription.update({
         where: { id: subscription.id },
         data: { status: SubscriptionStatus.PAST_DUE }
-      }).catch(() => {});
+      }).catch((err: any) => {
+        logger.warn({ err, subscriptionId: subscription.id }, "subscriptionReminder: fallo marcando suscripción en PAST_DUE");
+      });
     }
   }
   return { ok: true };

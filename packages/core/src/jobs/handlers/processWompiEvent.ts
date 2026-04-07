@@ -398,7 +398,9 @@ async function resolveAssociationByScore(args: {
           intervalCount: sub.plan?.intervalCount
         }
       }))
-    ).catch(() => {});
+    ).catch((err) => {
+      logger.warn({ err, subscriptionIds: withExactAmount.map((sub: any) => sub.id) }, "processWompiEvent: fallo asegurando ciclos para desempate por identidad");
+    });
   }
 
   const oldestCycles = await args.db.subscriptionBillingCycle.findMany({
@@ -452,7 +454,9 @@ async function findOldestUnpaidCycle(args: {
           intervalCount: args.subscription.plan.intervalCount
         }
       }
-    ]).catch(() => {});
+    ]).catch((err) => {
+      logger.warn({ err, subscriptionId: args.subscription.id }, "processWompiEvent: fallo asegurando ciclos para oldest unpaid");
+    });
   }
 
   const cycles = await args.db.subscriptionBillingCycle.findMany({
@@ -524,7 +528,10 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   const lockKey = `webhook-process:${webhookEventId}`;
   const lockAcquired = await db.$queryRaw<{ locked: boolean }[]>`
     SELECT pg_try_advisory_lock(hashtext(${lockKey})) as locked
-  `.then(rows => Boolean(rows?.[0]?.locked)).catch(() => false);
+  `.then(rows => Boolean(rows?.[0]?.locked)).catch((err) => {
+    logger.warn({ err, webhookEventId }, "processWompiEvent: fallo adquiriendo advisory lock");
+    return false;
+  });
 
   if (!lockAcquired) {
     logger.info({ webhookEventId }, "Webhook processing already in progress (lock skip)");
@@ -644,7 +651,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       dedupeKey: `${String(paymentLinkId || "sin_link")}|${String(reference || "sin_ref")}`,
       context: { paymentLinkId, reference },
       windowMinutes: 360
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, paymentLinkId, reference }, "processWompiEvent: fallo registrando advertencia deduplicada");
+    });
   }
 
   // FIX: Si la referencia viene de un cobro manual (SUB_xxx_cycle), usar ese subscriptionId directamente
@@ -747,7 +756,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
             intervalCount: subscription.plan.intervalCount
           }
         }
-      ]).catch(() => {});
+      ]).catch((err) => {
+        logger.warn({ err, subscriptionId: subscription.id, cycleNumber: associationCycleNumber }, "processWompiEvent: fallo asegurando ciclos para cycleNumber");
+      });
     }
     const cycleByNumber = await db.subscriptionBillingCycle.findUnique({
       where: { subscriptionId_cycleNumber: { subscriptionId: subscription.id, cycleNumber: associationCycleNumber } }
@@ -911,7 +922,10 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       const subFromRef = await db.subscription.findUnique({
         where: { id: referenceClassification.subscriptionId },
         select: { id: true, customerId: true }
-      }).catch(() => null);
+      }).catch((err) => {
+        logger.warn({ err, subscriptionId: referenceClassification.subscriptionId }, "processWompiEvent: fallo resolviendo suscripción desde referencia");
+        return null;
+      });
       if (subFromRef) {
         fallbackSubscriptionId = subFromRef.id;
         fallbackCustomerId = subFromRef.customerId;
@@ -1041,7 +1055,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       paymentLinkId,
       reference: fallbackReference,
       customerId: customer.id
-    }, "webhook:wompi").catch(() => {});
+    }, "webhook:wompi").catch((err) => {
+      logger.warn({ err, webhookEventId, paymentId: paymentResolved.id }, "processWompiEvent: fallo escribiendo systemLog de fallback sin suscripción");
+    });
   }
 
   const tenantIdForPayment =
@@ -1169,7 +1185,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         origin: paymentRecord.origin,
         associationReason: paymentRecord.associationReason as any,
         associatedBy: paymentRecord.associatedBy || "system"
-      }).catch(() => {});
+      }).catch((err) => {
+        logger.warn({ err, paymentId: paymentRecord.id, cycleId: associationCycleId }, "processWompiEvent: fallo adjuntando pago a ciclo específico");
+      });
     } else {
       await attachPaymentToMatchingCycle({
         subscriptionId: paymentRecord.subscriptionId,
@@ -1178,7 +1196,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         origin: paymentRecord.origin,
         associationReason: paymentRecord.associationReason as any,
         associatedBy: paymentRecord.associatedBy || "system"
-      }).catch(() => {});
+      }).catch((err) => {
+        logger.warn({ err, paymentId: paymentRecord.id, subscriptionId: paymentRecord.subscriptionId }, "processWompiEvent: fallo adjuntando pago al ciclo coincidente");
+      });
     }
   }
 
@@ -1211,7 +1231,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
             paidAt: paymentRecord.paidAt ?? null
           }
         })
-        .catch(() => {});
+        .catch((err) => {
+          logger.warn({ err, paymentId: paymentRecord.id, subscriptionId: paymentRecord.subscriptionId }, "processWompiEvent: fallo sincronizando paymentLink");
+        });
     }
   }
 
@@ -1306,7 +1328,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         errorMessage: failureMessage || "Pago rechazado por el emisor.",
         response: payload as Prisma.InputJsonValue
       }
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, paymentId: paymentRecord.id }, "processWompiEvent: fallo creando paymentAttempt fallido");
+    });
   }
 
   if (becameApproved) {
@@ -1317,7 +1341,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       kind: GAMIFICATION_EVENT_KINDS.PAYMENT_APPROVED,
       moneyInCents: paymentRecord.amountInCents,
       metadata: { paymentId: paymentRecord.id, subscriptionId: paymentRecord.subscriptionId || null }
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, paymentId: paymentRecord.id, customerId: paymentRecord.customerId }, "processWompiEvent: fallo aplicando gamificación a customer por pago aprobado");
+    });
 
     if (subscription?.planId) {
       const moneyPts = moneyToPoints(paymentRecord.amountInCents, GAMIFICATION_WEIGHTS.paymentApproved.moneyScale);
@@ -1330,7 +1356,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         statusDelta: GAMIFICATION_WEIGHTS.paymentApproved.status + moneyPts,
         lifetimeDelta: GAMIFICATION_WEIGHTS.paymentApproved.lifetime + moneyPts,
         metadata: { paymentId: paymentRecord.id, subscriptionId: paymentRecord.subscriptionId || null }
-      }).catch(() => {});
+      }).catch((err) => {
+        logger.warn({ err, paymentId: paymentRecord.id, planId: subscription.planId }, "processWompiEvent: fallo aplicando gamificación a producto por pago aprobado");
+      });
     }
   } else if (becameFailed) {
     await applyGamificationEvent({
@@ -1340,7 +1368,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       kind: GAMIFICATION_EVENT_KINDS.PAYMENT_FAILED,
       moneyInCents: paymentRecord.amountInCents,
       metadata: { paymentId: paymentRecord.id, subscriptionId: paymentRecord.subscriptionId || null }
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, paymentId: paymentRecord.id, customerId: paymentRecord.customerId }, "processWompiEvent: fallo aplicando gamificación a customer por pago fallido");
+    });
 
     if (subscription?.planId) {
       await applyGamificationEvent({
@@ -1352,7 +1382,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         statusDelta: GAMIFICATION_WEIGHTS.paymentFailed.status,
         lifetimeDelta: GAMIFICATION_WEIGHTS.paymentFailed.lifetime,
         metadata: { paymentId: paymentRecord.id, subscriptionId: paymentRecord.subscriptionId || null }
-      }).catch(() => {});
+      }).catch((err) => {
+        logger.warn({ err, paymentId: paymentRecord.id, planId: subscription.planId }, "processWompiEvent: fallo aplicando gamificación a producto por pago fallido");
+      });
     }
   }
 
@@ -1425,7 +1457,9 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }
   }
   } finally {
-    await db.$queryRaw`SELECT pg_advisory_unlock(hashtext(${lockKey}))`.catch(() => {});
+    await db.$queryRaw`SELECT pg_advisory_unlock(hashtext(${lockKey}))`.catch((err) => {
+      logger.warn({ err, webhookEventId }, "processWompiEvent: fallo liberando advisory lock");
+    });
   }
 }
 export async function processWompiEvent(webhookEventId: string) {
@@ -1483,7 +1517,9 @@ export async function forwardWompiToShopify(webhookEventId: string) {
         url: cfg.url
       },
       "webhook:wompi"
-    ).catch(() => {});
+    ).catch((err) => {
+      logger.warn({ err, webhookEventId, transactionId, paymentLinkId }, "processWompiEvent: fallo escribiendo systemLog de forward sin referencia");
+    });
     return;
   }
   const normalizedTx =
@@ -1524,7 +1560,9 @@ export async function forwardWompiToShopify(webhookEventId: string) {
       status: res.status,
       body: bodyText.slice(0, 2000),
       url: cfg.url
-    }, "webhook:wompi").catch(() => {});
+    }, "webhook:wompi").catch((err) => {
+      logger.warn({ err, webhookEventId, status: res.status }, "processWompiEvent: fallo escribiendo systemLog de Shopify forward fallido");
+    });
     throw new Error(`forward failed: ${res.status} ${bodyText}`);
   }
 }
