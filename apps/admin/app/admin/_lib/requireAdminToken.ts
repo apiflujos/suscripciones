@@ -1,6 +1,7 @@
 import { permissionsForPath, hasPermissions } from "../../../lib/rbac";
 import { normalizeBearer, verifyJwt } from "../../../lib/jwt";
 import { prisma } from "@suscripciones/database";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export async function requireAdminToken(req: Request): Promise<
   | { ok: true; claims: { sub: string; role: string; permissions: string[]; tenantId?: string | null } }
@@ -32,7 +33,9 @@ export async function requireAdminToken(req: Request): Promise<
     await prisma.apiToken.updateMany({
       where: { id: tokenId },
       data: { lastUsedAt: new Date() }
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn({ err, tokenId }, "requireAdminToken: fallo actualizando lastUsedAt de apiToken");
+    });
   }
 
   const pathname = new URL(req.url).pathname;

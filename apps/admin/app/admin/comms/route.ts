@@ -3,6 +3,7 @@ import { prisma } from "@suscripciones/database";
 import { RetryJobType } from "@prisma/client";
 import { requireAdminToken } from "../_lib/requireAdminToken";
 import { reqToCompat } from "../_lib/reqCompat";
+import { logger } from "@suscripciones/core/lib/logger";
 import { computeSmartListRecipients } from "@suscripciones/core/services/smartList";
 import { getSystemSmartList, getSystemSmartLists } from "@suscripciones/core/services/systemSmartLists";
 import { CHATWOOT_CUSTOM_ATTR_DEFS, ensureChatwootCustomAttributes, syncChatwootAttributesForCustomer } from "@suscripciones/core/services/chatwootSync";
@@ -14,6 +15,10 @@ import { getChatwootClient, matchesTenant, parseRules, slugifyLabel } from "./_l
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function logIgnored(err: unknown, message: string, context?: Record<string, unknown>) {
+  logger.warn({ err, ...(context || {}) }, message);
+}
 
 const smartListCreateSchema = z.object({
   name: z.string().min(1),
@@ -59,7 +64,9 @@ export async function GET(req: Request) {
   if (op === "whatsapp_templates") {
     try {
       const client = await getChatwootClient();
-      await client.syncWhatsappTemplates().catch(() => {});
+      await client.syncWhatsappTemplates().catch((err) => {
+        logIgnored(err, "comms: fallo sincronizando plantillas WhatsApp", {});
+      });
       const templates = await client.listWhatsappTemplates();
       return Response.json({ ok: true, templates });
     } catch (err: any) {
@@ -141,7 +148,9 @@ export async function POST(req: Request) {
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), 2000) : 200;
     const startedAt = new Date();
 
-    await ensureChatwootCustomAttributes().catch(() => {});
+    await ensureChatwootCustomAttributes().catch((err) => {
+      logIgnored(err, "comms: fallo asegurando atributos custom de Chatwoot", {});
+    });
 
     const customers = await prisma.customer.findMany({ orderBy: { createdAt: "desc" }, take: limit });
     let synced = 0;

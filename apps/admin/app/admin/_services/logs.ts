@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@suscripciones/database";
+import { logger } from "@suscripciones/core/lib/logger";
 import { Prisma, RetryJobStatus, WebhookProcessStatus, WebhookProvider } from "@prisma/client";
 import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
 import { getWompiEventsSecret } from "@suscripciones/core/services/runtimeConfig";
@@ -190,7 +191,9 @@ export async function listPaymentLogs(args: {
         graceDays: (s as any).graceDays ?? 1,
         plan: { intervalUnit: (s as any).plan?.intervalUnit, intervalCount: (s as any).plan?.intervalCount }
       }))
-    ).catch(() => {});
+    ).catch((err) => {
+      logger.warn({ err, subscriptionIds: activeSubscriptions.map((s) => s.id) }, "logs service: fallo asegurando ciclos para resumen de pagos");
+    });
   }
   const cycles = activeSubscriptions.length
     ? await prisma.subscriptionBillingCycle.findMany({

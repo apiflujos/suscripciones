@@ -3,6 +3,7 @@ import { prisma } from "@suscripciones/database";
 import { ChatwootMessageType, MessageStatus, LogLevel, RetryJobType } from "@prisma/client";
 import { requireAdminToken } from "../../_lib/requireAdminToken";
 import { reqToCompat } from "../../_lib/reqCompat";
+import { logger } from "@suscripciones/core/lib/logger";
 import { getClientOrThrow, sanitizeChatwootContent, DEDUPE_WINDOW_MS } from "../_lib";
 import { syncChatwootAttributesForCustomer } from "@suscripciones/core/services/chatwootSync";
 import { sendChatwootMessage } from "@suscripciones/core/jobs/handlers/sendChatwootMessage";
@@ -11,6 +12,10 @@ import { systemLog } from "@suscripciones/core/services/systemLog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function logIgnored(err: unknown, message: string, context?: Record<string, unknown>) {
+  logger.warn({ err, ...(context || {}) }, message);
+}
 
 const messageSchema = z.object({
   conversationId: z.number().int().positive().optional(),
@@ -59,7 +64,9 @@ export async function POST(req: Request) {
         conversationId = (await (client as any).createConversation({ contactId: synced.contactId, sourceId: synced.sourceId }))
           .conversationId;
       } else {
-        await syncChatwootAttributesForCustomer(customer.id).catch(() => {});
+        await syncChatwootAttributesForCustomer(customer.id).catch((err) => {
+          logIgnored(err, "chatwoot/messages: fallo sincronizando atributos antes de crear conversación", { customerId: customer.id });
+        });
         conversationId = (await (client as any).createConversation({ contactId: knownContactId, sourceId: knownSourceId }))
           .conversationId;
       }
@@ -89,7 +96,9 @@ export async function POST(req: Request) {
         chatwootMessageId: existing.id,
         customerId: parsed.data.customerId,
         type: msgType
-      }).catch(() => {});
+      }).catch((err) => {
+        logIgnored(err, "chatwoot/messages: fallo escribiendo systemLog de mensaje duplicado", { customerId: parsed.data.customerId, chatwootMessageId: existing.id });
+      });
       return Response.json({ ok: true, duplicated: true, messageId: existing.id });
     }
 

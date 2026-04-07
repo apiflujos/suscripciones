@@ -3,6 +3,7 @@ import "server-only";
 import crypto from "crypto";
 import { LogLevel, RetryJobType } from "@prisma/client";
 import { prisma } from "@suscripciones/database";
+import { logger } from "@suscripciones/core/lib/logger";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { getGlobalModuleAccess } from "@suscripciones/core/services/moduleAccess";
 
@@ -82,7 +83,9 @@ export async function queueAiAssistRequest(args: {
     }
   });
 
-  await systemLog(LogLevel.INFO, "ai.chat.requested", "Solicitud IA registrada", payload).catch(() => {});
+  await systemLog(LogLevel.INFO, "ai.chat.requested", "Solicitud IA registrada", payload).catch((err) => {
+    logger.warn({ err, requestId }, "ai service: fallo escribiendo systemLog de solicitud");
+  });
 
   return { ok: true, requestId };
 }
