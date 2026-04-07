@@ -1,3 +1,4 @@
+import { logger } from "@suscripciones/core/lib/logger";
 import { getSaSessionByToken, normalizeSaToken, touchSaSession } from "@suscripciones/core/services/superAdminAuth";
 
 export async function requireSaSession(req: Request): Promise<
@@ -10,7 +11,9 @@ export async function requireSaSession(req: Request): Promise<
   if (!out) {
     return { ok: false, response: Response.json({ error: "unauthorized_sa" }, { status: 401 }) };
   }
-  await touchSaSession(token).catch(() => {});
+  await touchSaSession(token).catch((err) => {
+    logger.warn({ err, sessionId: out.session.id, userId: out.user.id }, "requireSaSession: fallo renovando sesión SA");
+  });
   return {
     ok: true,
     sa: {
