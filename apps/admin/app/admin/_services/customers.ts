@@ -282,7 +282,9 @@ export async function createCustomer(args: {
     });
     await prisma.customerTenant
       .createMany({ data: args.tenantIds.map((t) => ({ customerId: customer.id, tenantId: t })), skipDuplicates: true })
-      .catch(() => {});
+      .catch((err: any) => {
+        logger.warn({ err, customerId: customer.id, tenantIds: args.tenantIds }, "Fallo vinculando tenants al crear customer");
+      });
     await consumeApp("customers_created", { amount: 1, source: "api:customers.create", meta: { customerId: customer.id } });
     await syncChatwootAttributesForCustomer(customer.id).catch((err) => {
       console.error("[Customers/Create] Fallo sincronización Chatwoot", {
@@ -408,7 +410,9 @@ export async function updateCustomerProfile(args: {
     return customerUpdated;
   });
 
-  await syncChatwootAttributesForCustomer(updated.id).catch(() => {});
+  await syncChatwootAttributesForCustomer(updated.id).catch((err: any) => {
+    logger.warn({ err, customerId: updated.id }, "Fallo sincronizando atributos Chatwoot al actualizar customer");
+  });
 
   const prevEmail = String(existing?.email || "").trim();
   const nextEmail = String(updated.email || "").trim();
@@ -424,7 +428,9 @@ export async function updateCustomerProfile(args: {
       tenantId: updated.tenantId || null,
       kind: GAMIFICATION_EVENT_KINDS.DATA_EMAIL_ADDED,
       metadata: { source: "customers.update" }
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, customerId: updated.id }, "Fallo aplicando evento de gamificacion por email agregado");
+    });
   }
 
   if (!prevPhone && nextPhone) {
@@ -434,7 +440,9 @@ export async function updateCustomerProfile(args: {
       tenantId: updated.tenantId || null,
       kind: GAMIFICATION_EVENT_KINDS.DATA_PHONE_ADDED,
       metadata: { source: "customers.update" }
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, customerId: updated.id }, "Fallo aplicando evento de gamificacion por telefono agregado");
+    });
   }
 
   if (!prevId && nextId) {
@@ -444,7 +452,9 @@ export async function updateCustomerProfile(args: {
       tenantId: updated.tenantId || null,
       kind: GAMIFICATION_EVENT_KINDS.DATA_ID_ADDED,
       metadata: { source: "customers.update" }
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, customerId: updated.id }, "Fallo aplicando evento de gamificacion por identificacion agregada");
+    });
   }
 
   return { ok: true, customer: updated };
@@ -516,7 +526,9 @@ export async function deleteCustomerProfile(args: { customerId: string; tenantId
             entityId: customerId
           }
         })
-        .catch(() => {});
+        .catch((err: any) => {
+          logger.warn({ err, customerId }, "Fallo limpiando eventos de gamificacion al borrar customer");
+        });
     }
 
     if (gamificationScoreCount > 0) {
@@ -527,11 +539,15 @@ export async function deleteCustomerProfile(args: { customerId: string; tenantId
             entityId: customerId
           }
         })
-        .catch(() => {});
+        .catch((err: any) => {
+          logger.warn({ err, customerId }, "Fallo limpiando scores de gamificacion al borrar customer");
+        });
     }
 
     if (paymentIds.length) {
-      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch((err: any) => {
+        logger.warn({ err, customerId, paymentIds }, "Fallo limpiando payment attempts al borrar customer");
+      });
     }
     await prisma.chatwootMessage
       .deleteMany({
@@ -543,9 +559,13 @@ export async function deleteCustomerProfile(args: { customerId: string; tenantId
           ]
         }
       })
-      .catch(() => {});
+      .catch((err: any) => {
+        logger.warn({ err, customerId, subscriptionIds, paymentIds }, "Fallo limpiando mensajes Chatwoot al borrar customer");
+      });
     if (paymentIds.length) {
-      await prisma.paymentLink.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+      await prisma.paymentLink.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch((err: any) => {
+        logger.warn({ err, customerId, paymentIds }, "Fallo limpiando payment links al borrar customer");
+      });
     }
     await prisma.payment
       .deleteMany({
@@ -553,14 +573,26 @@ export async function deleteCustomerProfile(args: { customerId: string; tenantId
           OR: [{ customerId }, ...(subscriptionIds.length ? [{ subscriptionId: { in: subscriptionIds } }] : [])]
         }
       })
-      .catch(() => {});
+      .catch((err: any) => {
+        logger.warn({ err, customerId, subscriptionIds }, "Fallo limpiando pagos al borrar customer");
+      });
     if (subscriptionIds.length) {
-      await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subscriptionIds } } }).catch(() => {});
+      await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subscriptionIds } } }).catch((err: any) => {
+        logger.warn({ err, customerId, subscriptionIds }, "Fallo limpiando tenants de suscripcion al borrar customer");
+      });
     }
-    await prisma.subscription.deleteMany({ where: { customerId } }).catch(() => {});
-    await prisma.smartListMember.deleteMany({ where: { customerId } }).catch(() => {});
-    await prisma.campaignSend.deleteMany({ where: { customerId } }).catch(() => {});
-    await prisma.customerTenant.deleteMany({ where: { customerId } }).catch(() => {});
+    await prisma.subscription.deleteMany({ where: { customerId } }).catch((err: any) => {
+      logger.warn({ err, customerId }, "Fallo limpiando suscripciones al borrar customer");
+    });
+    await prisma.smartListMember.deleteMany({ where: { customerId } }).catch((err: any) => {
+      logger.warn({ err, customerId }, "Fallo limpiando smart list members al borrar customer");
+    });
+    await prisma.campaignSend.deleteMany({ where: { customerId } }).catch((err: any) => {
+      logger.warn({ err, customerId }, "Fallo limpiando campaign sends al borrar customer");
+    });
+    await prisma.customerTenant.deleteMany({ where: { customerId } }).catch((err: any) => {
+      logger.warn({ err, customerId }, "Fallo limpiando customer tenants al borrar customer");
+    });
   }
 
   await prisma.customer.delete({ where: { id: customerId } });
