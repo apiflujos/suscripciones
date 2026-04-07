@@ -6,100 +6,111 @@ import { getCustomerById, updateCustomerMetadata } from "../../../admin/_service
 import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { signPublicToken } from "../../../../lib/publicTokens";
 import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export async function POST(req: Request) {
   const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
-  let body: any = null;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ ok: false, error: "invalid_json" }, { status: 400 });
-  }
+    let body: any = null;
+    try {
+      body = await req.json();
+    } catch (err: any) {
+      logger.warn({ err, actor: auth.session.sub }, "Body inválido en send-tokenization-link");
+      return NextResponse.json({ ok: false, error: "invalid_json" }, { status: 400 });
+    }
 
-  const customerId = String(body?.customerId || "").trim();
-  const productId = String(body?.productId || "").trim();
-  if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
-  if (!productId) return NextResponse.json({ ok: false, error: "missing_product_for_customer" }, { status: 400 });
+    const customerId = String(body?.customerId || "").trim();
+    const productId = String(body?.productId || "").trim();
+    if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
+    if (!productId) return NextResponse.json({ ok: false, error: "missing_product_for_customer" }, { status: 400 });
 
-  const notificationsConfig = await getNotificationsConfig().catch(() => null);
-  if (notificationsConfig) {
-    const rules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
-    const templates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
-    const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === "TOKENIZATION_LINK_CREATED");
-    const rule = candidates[0] || null;
-    const tpl = rule ? templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || "")) : null;
-    if (!tpl || !String(tpl?.chatwootTemplate?.name || "").trim()) {
+    const notificationsConfig = await getNotificationsConfig().catch((err: any) => {
+      logger.warn({ err, customerId, productId }, "Fallo cargando configuración de notificaciones para tokenization link");
+      return null;
+    });
+    if (notificationsConfig) {
+      const rules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
+      const templates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
+      const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === "TOKENIZATION_LINK_CREATED");
+      const rule = candidates[0] || null;
+      const tpl = rule ? templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || "")) : null;
+      if (!tpl || !String(tpl?.chatwootTemplate?.name || "").trim()) {
+        return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
+      }
+    } else {
       return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
     }
-  } else {
-    return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
-  }
 
-  const checkoutConfig = await getCheckoutConfig();
-  const selected = await findCheckoutTemplateForProduct({
-    tenantId: String(body?.tenantId || "").trim() || null,
-    kind: "SUBSCRIPTION" as any,
-    productId
-  });
-  const resolvedTemplateId = selected ? String((selected as any).id || "") : "";
-  if (!resolvedTemplateId) return NextResponse.json({ ok: false, error: "missing_checkout_for_product" }, { status: 400 });
-  const baseFromSettings = String(checkoutConfig.subscriptionBaseUrl || "").trim();
-  const base = baseFromSettings.replace(/\/$/, "");
-  if (!base) return NextResponse.json({ ok: false, error: "missing_subscription_base_url" }, { status: 400 });
+    const checkoutConfig = await getCheckoutConfig();
+    const selected = await findCheckoutTemplateForProduct({
+      tenantId: String(body?.tenantId || "").trim() || null,
+      kind: "SUBSCRIPTION" as any,
+      productId
+    });
+    const resolvedTemplateId = selected ? String((selected as any).id || "") : "";
+    if (!resolvedTemplateId) return NextResponse.json({ ok: false, error: "missing_checkout_for_product" }, { status: 400 });
+    const baseFromSettings = String(checkoutConfig.subscriptionBaseUrl || "").trim();
+    const base = baseFromSettings.replace(/\/$/, "");
+    if (!base) return NextResponse.json({ ok: false, error: "missing_subscription_base_url" }, { status: 400 });
 
-  const ensureHttps = (value: string) => {
-    if (!value) return value;
-    if (/^https?:\/\//i.test(value)) return value;
-    return `https://${value.replace(/^\/+/, "")}`;
-  };
+    const ensureHttps = (value: string) => {
+      if (!value) return value;
+      if (/^https?:\/\//i.test(value)) return value;
+      return `https://${value.replace(/^\/+/, "")}`;
+    };
 
-  const expiryHours = Number(checkoutConfig?.tokenExpiryHours || 24);
-  const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
-  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
-  const linkToken = await signPublicToken({ sub: customerId, scope: "tokenization", ttlSeconds: hours * 60 * 60 });
-  const normalized = ensureHttps(base).replace(/\/$/, "");
-  const hasSubPath = /\/public\/suscripcion$/i.test(normalized);
-  const link = `${normalized}${hasSubPath ? "" : "/public/suscripcion"}/${linkToken}`;
+    const expiryHours = Number(checkoutConfig?.tokenExpiryHours || 24);
+    const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
+    const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+    const linkToken = await signPublicToken({ sub: customerId, scope: "tokenization", ttlSeconds: hours * 60 * 60 });
+    const normalized = ensureHttps(base).replace(/\/$/, "");
+    const hasSubPath = /\/public\/suscripcion$/i.test(normalized);
+    const link = `${normalized}${hasSubPath ? "" : "/public/suscripcion"}/${linkToken}`;
 
-  const existing = await getCustomerById(customerId);
-  if (!existing) return NextResponse.json({ ok: false, error: "customer_not_found" }, { status: 404 });
-  const prevMeta = (existing?.metadata ?? {}) as any;
+    const existing = await getCustomerById(customerId);
+    if (!existing) return NextResponse.json({ ok: false, error: "customer_not_found" }, { status: 404 });
+    const prevMeta = (existing?.metadata ?? {}) as any;
 
-  const nextMeta = {
-    ...prevMeta,
-    tokenizationLink: {
-      url: link,
-      token: linkToken,
-      ...(prevMeta?.tokenizationLink?.token ? { previousToken: prevMeta.tokenizationLink.token } : {}),
-      ...(prevMeta?.tokenizationLink?.expiresAt ? { previousExpiresAt: prevMeta.tokenizationLink.expiresAt } : {}),
-      ...(prevMeta?.tokenizationLink?.usedAt ? { previousUsedAt: prevMeta.tokenizationLink.usedAt } : {}),
-      ...(prevMeta?.tokenizationLink?.createdAt ? { previousCreatedAt: prevMeta.tokenizationLink.createdAt } : {}),
-      ...(resolvedTemplateId ? { templateId: resolvedTemplateId } : {}),
-      createdAt: new Date().toISOString(),
-      expiresAt,
-      usedAt: null
+    const nextMeta = {
+      ...prevMeta,
+      tokenizationLink: {
+        url: link,
+        token: linkToken,
+        ...(prevMeta?.tokenizationLink?.token ? { previousToken: prevMeta.tokenizationLink.token } : {}),
+        ...(prevMeta?.tokenizationLink?.expiresAt ? { previousExpiresAt: prevMeta.tokenizationLink.expiresAt } : {}),
+        ...(prevMeta?.tokenizationLink?.usedAt ? { previousUsedAt: prevMeta.tokenizationLink.usedAt } : {}),
+        ...(prevMeta?.tokenizationLink?.createdAt ? { previousCreatedAt: prevMeta.tokenizationLink.createdAt } : {}),
+        ...(resolvedTemplateId ? { templateId: resolvedTemplateId } : {}),
+        createdAt: new Date().toISOString(),
+        expiresAt,
+        usedAt: null
+      }
+    };
+    const stored = await updateCustomerMetadata({ customerId, metadata: nextMeta });
+    if (!stored) {
+      logger.error({ customerId, productId }, "No se pudo guardar metadata de tokenization link");
+      return NextResponse.json({ ok: false, error: "store_failed" }, { status: 500 });
     }
-  };
-  const stored = await updateCustomerMetadata({ customerId, metadata: nextMeta });
-  if (!stored) {
-    return NextResponse.json({ ok: false, error: "store_failed" }, { status: 500 });
+
+    const schedule = await scheduleTokenizationLinkNotifications({
+      customerId,
+      tokenUrl: link,
+      forceNow: true,
+      actor: auth.session.sub
+    });
+    const rulesActive = Boolean(schedule?.rulesActive);
+
+    return NextResponse.json({
+      ok: true,
+      link,
+      notificationsScheduled: schedule?.scheduled ?? 0,
+      notificationsSent: schedule?.sentNow ?? 0,
+      notificationsRulesActive: rulesActive
+    });
+  } catch (err: any) {
+    logger.error({ err, actor: auth.session.sub }, "Fallo en send-tokenization-link");
+    return NextResponse.json({ ok: false, error: String(err?.message || "internal_error") }, { status: 500 });
   }
-
-  const schedule = await scheduleTokenizationLinkNotifications({
-    customerId,
-    tokenUrl: link,
-    forceNow: true,
-    actor: auth.session.sub
-  });
-  const rulesActive = Boolean(schedule?.rulesActive);
-
-  return NextResponse.json({
-    ok: true,
-    link,
-    notificationsScheduled: schedule?.scheduled ?? 0,
-    notificationsSent: schedule?.sentNow ?? 0,
-    notificationsRulesActive: rulesActive
-  });
 }

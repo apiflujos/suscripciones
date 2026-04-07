@@ -4,6 +4,7 @@ import { getCheckoutConfig } from "../../../../admin/_services/settings";
 import { createWompiPaymentSource, consumeTokenizationLink, updateCustomerProfile } from "../../../../admin/_services/customers";
 import { createSubscription } from "../../../../admin/_services/subscriptions";
 import { verifyPublicToken } from "../../../../../lib/publicTokens";
+import { logger } from "@suscripciones/core/lib/logger";
 
 function getRedirectBase(req: Request) {
   const envBase =
@@ -67,6 +68,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     const normalized = normalizeRedirectBase(configBase);
     if (normalized) redirectBase = normalized;
   } catch (err: any) {
+    logger.warn({ err, linkToken }, "Fallo resolviendo base de redirección para tokenización pública");
     const msg = err?.message ? String(err.message) : "missing_next_public_api_base_url";
     return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, redirectBase));
   }
@@ -98,7 +100,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=customer_email_required`, redirectBase));
   }
 
-  const formData = await req.formData().catch(() => null);
+  const formData = await req.formData().catch((err: any) => {
+    logger.warn({ err, linkToken, customerId }, "Fallo leyendo formData en tokenización pública");
+    return null;
+  });
   if (!formData) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=invalid_form`, redirectBase));
   const acceptTerms = String(formData.get("accept_terms") || "").trim();
   const acceptPersonal = String(formData.get("accept_personal_data") || "").trim();
@@ -118,7 +123,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(error)}`, redirectBase));
     }
 
-    await consumeTokenizationLink({ token: linkToken }).catch(() => null);
+    await consumeTokenizationLink({ token: linkToken }).catch((err: any) => {
+      logger.warn({ err, linkToken, customerId }, "Fallo marcando tokenization link como consumido");
+      return null;
+    });
 
     const prevMeta = customer?.metadata ?? {};
     const prevTokenizationLink = (prevMeta as any)?.tokenizationLink || {};
@@ -130,7 +138,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       }
     };
 
-    await updateCustomerProfile({ customerId, metadata: nextMeta }).catch(() => {});
+    await updateCustomerProfile({ customerId, metadata: nextMeta }).catch((err: any) => {
+      logger.warn({ err, customerId, linkToken }, "Fallo guardando metadata tras tokenización pública");
+    });
 
     if (linkKind === "SUBSCRIPTION" && linkPlanId) {
       try {
@@ -150,13 +160,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
               subscriptionId: (subRes as any).subscription.id
             }
           };
-          await updateCustomerProfile({ customerId, metadata: finalMeta }).catch(() => {});
+          await updateCustomerProfile({ customerId, metadata: finalMeta }).catch((err: any) => {
+            logger.warn({ err, customerId, subscriptionId: (subRes as any).subscription.id }, "Fallo guardando subscriptionId en metadata tras tokenización pública");
+          });
         }
-      } catch {}
+      } catch (err: any) {
+        logger.warn({ err, customerId, planId: linkPlanId }, "Fallo creando suscripción automática tras tokenización pública");
+      }
     }
 
     return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}/success`, redirectBase));
   } catch (err: any) {
+    logger.error({ err, customerId, linkToken }, "Fallo procesando tokenización pública");
     const msg = err?.message ? String(err.message) : "request_failed";
     return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, redirectBase));
   }

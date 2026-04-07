@@ -4,6 +4,7 @@ import { sha256Hex } from "@suscripciones/core/lib/crypto";
 import { redactHeaders } from "@suscripciones/core/lib/redact";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { verifyWebhookSecret } from "@suscripciones/core/services/webhookSecrets";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,7 +50,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ path: string }
   let payload: any = null;
   try {
     payload = rawBody ? JSON.parse(rawBody) : {};
-  } catch {
+  } catch (err: any) {
+    logger.warn({ err, path }, "Payload no JSON en webhook entrante; se guardará raw");
     payload = { raw: rawBody };
   }
 
@@ -82,6 +84,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ path: string }
     if (String(err?.code) === "P2002") {
       return Response.json({ ok: true, deduped: true });
     }
+    logger.error({ err, path, provider: endpoint.provider, eventName }, "Fallo persistiendo webhook entrante");
     return Response.json({ error: "internal_error" }, { status: 500 });
   }
 
