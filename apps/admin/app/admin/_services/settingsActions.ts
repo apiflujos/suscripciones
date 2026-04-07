@@ -257,7 +257,9 @@ export async function updateChatwootSettings(input: unknown) {
     return { ok: false as const, status: 400, error: "credentials_error" as const, message: String(err?.message || err) };
   }
 
-  await systemLog(LogLevel.INFO, "configuracion.comunicaciones", "Credenciales de la central de comunicaciones actualizadas").catch(() => {});
+  await systemLog(LogLevel.INFO, "configuracion.comunicaciones", "Credenciales de la central de comunicaciones actualizadas").catch((err: any) => {
+    logger.warn({ err }, "Fallo escribiendo systemLog al actualizar credenciales de comunicaciones");
+  });
   return { ok: true as const };
 }
 
@@ -275,7 +277,9 @@ export async function deleteChatwootSettings(input: unknown) {
     return { ok: false as const, status: 400, error: "credentials_error" as const, message: String(err?.message || err) };
   }
 
-  await systemLog(LogLevel.INFO, "configuracion.comunicaciones", "Credenciales de la central de comunicaciones eliminadas").catch(() => {});
+  await systemLog(LogLevel.INFO, "configuracion.comunicaciones", "Credenciales de la central de comunicaciones eliminadas").catch((err: any) => {
+    logger.warn({ err }, "Fallo escribiendo systemLog al eliminar credenciales de comunicaciones");
+  });
   return { ok: true as const };
 }
 
@@ -287,7 +291,8 @@ export async function updateAutoDebitConfig(input: unknown) {
   let current: any = {};
   try {
     current = currentRaw ? JSON.parse(currentRaw) : {};
-  } catch {
+  } catch (err: any) {
+    logger.warn({ err }, "Fallo parseando AUTO_DEBIT_CONFIG actual");
     current = {};
   }
 
@@ -335,7 +340,9 @@ export async function updateAutoDebitConfig(input: unknown) {
     retryEveryUnit: derived.retryEveryUnit,
     retryEveryMinutes,
     maxRetries
-  }).catch(() => {});
+  }).catch((err: any) => {
+    logger.warn({ err }, "Fallo escribiendo systemLog al actualizar configuracion de debito automatico");
+  });
   return { ok: true as const };
 }
 
@@ -347,7 +354,8 @@ export async function updatePaymentsConfig(input: unknown) {
   let current: any = {};
   try {
     current = currentRaw ? JSON.parse(currentRaw) : {};
-  } catch {
+  } catch (err: any) {
+    logger.warn({ err }, "Fallo parseando PAYMENTS_CONFIG actual");
     current = {};
   }
 
@@ -399,7 +407,9 @@ export async function updatePaymentsConfig(input: unknown) {
     defaultPaymentDay,
     defaultPaymentTiming,
     defaultGraceDays
-  }).catch(() => {});
+  }).catch((err: any) => {
+    logger.warn({ err }, "Fallo escribiendo systemLog al actualizar configuracion de pagos");
+  });
   return { ok: true as const };
 }
 
@@ -453,7 +463,9 @@ export async function updateAiProvider(input: unknown) {
     return { ok: false as const, status: 400, error: "credentials_error" as const, message: String(err?.message || err) };
   }
 
-  await systemLog(LogLevel.INFO, "configuracion.ia", "Configuración de IA actualizada", { provider }).catch(() => {});
+  await systemLog(LogLevel.INFO, "configuracion.ia", "Configuración de IA actualizada", { provider }).catch((err: any) => {
+    logger.warn({ err, provider }, "Fallo escribiendo systemLog al actualizar configuracion de IA");
+  });
   return { ok: true as const };
 }
 
@@ -473,6 +485,8 @@ export async function deleteAiProvider(input: unknown) {
     return { ok: false as const, status: 400, error: "credentials_error" as const, message: String(err?.message || err) };
   }
 
-  await systemLog(LogLevel.INFO, "configuracion.ia", "Configuración de IA eliminada", { provider }).catch(() => {});
+  await systemLog(LogLevel.INFO, "configuracion.ia", "Configuración de IA eliminada", { provider }).catch((err: any) => {
+    logger.warn({ err, provider }, "Fallo escribiendo systemLog al eliminar configuracion de IA");
+  });
   return { ok: true as const };
 }

@@ -4,6 +4,7 @@ import { CredentialProvider } from "@prisma/client";
 import { getCredential, getCredentialsBulk } from "@suscripciones/core/services/credentials";
 import { getGlobalModuleAccess } from "@suscripciones/core/services/moduleAccess";
 import { getCheckoutBaseUrlsFromEnv } from "@suscripciones/core/services/publicBase";
+import { logger } from "@suscripciones/core/lib/logger";
 import { ActiveEnv, maskSecret, toBool, toInt, deriveRetryUnitAndValue } from "../settings/_lib";
 
 export async function getCheckoutConfig() {
@@ -11,7 +12,8 @@ export async function getCheckoutConfig() {
   let checkoutConfig: any = {};
   try {
     checkoutConfig = checkoutConfigRaw ? JSON.parse(checkoutConfigRaw) : {};
-  } catch {
+  } catch (err: any) {
+    logger.warn({ err }, "Fallo parseando CHECKOUT_CONFIG en getCheckoutConfig");
     checkoutConfig = {};
   }
 
@@ -183,7 +185,8 @@ export async function getAdminSettings() {
   let checkoutConfig: any = {};
   try {
     checkoutConfig = checkoutConfigRaw ? JSON.parse(checkoutConfigRaw) : {};
-  } catch {
+  } catch (err: any) {
+    logger.warn({ err }, "Fallo parseando CHECKOUT_CONFIG en getAdminSettings");
     checkoutConfig = {};
   }
   const envBases = getCheckoutBaseUrlsFromEnv();
@@ -192,7 +195,8 @@ export async function getAdminSettings() {
   let autoDebitConfigRaw: any = {};
   try {
     autoDebitConfigRaw = wompiCreds.get("AUTO_DEBIT_CONFIG") ? JSON.parse(String(wompiCreds.get("AUTO_DEBIT_CONFIG"))) : {};
-  } catch {
+  } catch (err: any) {
+    logger.warn({ err }, "Fallo parseando AUTO_DEBIT_CONFIG en getAdminSettings");
     autoDebitConfigRaw = {};
   }
   const autoDebitConfig = {
@@ -209,7 +213,8 @@ export async function getAdminSettings() {
   let paymentsConfigRaw: any = {};
   try {
     paymentsConfigRaw = wompiCreds.get("PAYMENTS_CONFIG") ? JSON.parse(String(wompiCreds.get("PAYMENTS_CONFIG"))) : {};
-  } catch {
+  } catch (err: any) {
+    logger.warn({ err }, "Fallo parseando PAYMENTS_CONFIG en getAdminSettings");
     paymentsConfigRaw = {};
   }
   const paymentsConfig = {
