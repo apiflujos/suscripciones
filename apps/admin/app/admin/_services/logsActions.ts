@@ -1056,7 +1056,9 @@ export async function recollectPayments(args: { days?: number; take?: number }) 
     "Recolectar pagos ejecutado",
     { days, take, reconciledNow, queuedProcess, queuedForward, skipped, failed },
     "Sistema"
-  ).catch(() => {});
+  ).catch((err: any) => {
+    logger.warn({ err, days, take, reconciledNow, queuedProcess, queuedForward, skipped, failed }, "Fallo escribiendo systemLog de recolectar pagos");
+  });
 
   return {
     ok: true,
