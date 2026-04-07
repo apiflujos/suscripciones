@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createWompiPaymentSource } from "../../../../admin/_services/customers";
+import { logger } from "@suscripciones/core/lib/logger";
 
 function detectToken(formData: FormData): string {
   const direct =
@@ -26,7 +27,10 @@ function tokenToType(token: string): "CARD" | "NEQUI" | "PSE" {
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
 
-  const formData = await req.formData().catch(() => null);
+  const formData = await req.formData().catch((err: any) => {
+    logger.warn({ err, customerId: id }, "Formulario invalido en customer payment-method process");
+    return null;
+  });
   if (!formData) return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=invalid_form`, req.url));
   const acceptTerms = String(formData.get("accept_terms") || "").trim();
   const acceptPersonal = String(formData.get("accept_personal_data") || "").trim();

@@ -79,7 +79,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ path: string }
       "webhook_received",
       { webhookEventId: webhookEvent.id, endpointId: endpoint.id, provider: endpoint.provider },
       "webhook:incoming"
-    ).catch(() => {});
+    ).catch((err: any) => {
+      logger.warn({ err, webhookEventId: webhookEvent.id, endpointId: endpoint.id }, "Fallo escribiendo systemLog de webhook incoming");
+    });
   } catch (err: any) {
     if (String(err?.code) === "P2002") {
       return Response.json({ ok: true, deduped: true });

@@ -139,7 +139,10 @@ export async function POST(req: Request) {
     claims && Array.isArray(claims.permissions) && claims.permissions.includes("webhook:receive")
   );
 
-  const body = await req.json().catch(() => null);
+  const body = await req.json().catch((err: any) => {
+    logger.warn({ err }, "Body invalido en webhook Chatwoot");
+    return null;
+  });
   const parsed = chatwootWebhookSchema.safeParse(body);
   if (!parsed.success) {
     return Response.json({ error: "invalid_payload" }, { status: 400 });

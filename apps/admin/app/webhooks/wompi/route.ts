@@ -8,6 +8,7 @@ import { redactHeaders } from "@suscripciones/core/lib/redact";
 import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
 import { processWompiEventLogic } from "@suscripciones/core/jobs/handlers/processWompiEvent";
 import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyReference";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,7 +73,10 @@ async function resolveWebhookTenantId(payload: any): Promise<string | null> {
 }
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => null);
+  const body = await req.json().catch((err: any) => {
+    logger.warn({ err }, "Body invalido en webhook Wompi");
+    return null;
+  });
   const parsed = wompiEventSchema.safeParse(body);
   if (!parsed.success) {
     console.error("[Webhooks/Wompi] Payload inválido", {
@@ -133,8 +137,8 @@ export async function POST(req: Request) {
           }
         });
       }
-    } catch {
-      // ignore logging failures
+    } catch (err: any) {
+      logger.warn({ err, event: parsed.data.event }, "Fallo persistiendo intento de webhook Wompi con firma invalida");
     }
     return Response.json({ error: "firma_invalida", razon: signature.reason }, { status: 400 });
   }
@@ -178,7 +182,9 @@ export async function POST(req: Request) {
         actor: "wompi"
       },
       SystemActor.WEBHOOK_WOMPI
-    ).catch(() => {});
+    ).catch((err: any) => {
+      logger.warn({ err, webhookEventId: webhookEvent.id, tenantId }, "Fallo escribiendo systemLog de webhook Wompi recibido");
+    });
 
     console.log("[Webhooks/Wompi] Webhook recibido", {
       webhookEventId: webhookEvent.id,
