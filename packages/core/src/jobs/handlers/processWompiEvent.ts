@@ -1402,7 +1402,29 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       }
 
       // Anchor next cutoff to the current cutoff (not last payment).
-      const nextStart = sub.currentPeriodEndAt || sub.currentPeriodStartAt || sub.createdAt || paidAt;
+      let nextStart = sub.currentPeriodEndAt || sub.currentPeriodStartAt || sub.createdAt || paidAt;
+
+      // FIX: For monthly subscriptions, snap the period start to cycleStartDay.
+      // This prevents period drift when subscriptions are created on arbitrary dates.
+      if (sub.plan.intervalUnit === "MONTH") {
+        const cycleStartDay = Math.max(1, Math.min(31, Math.trunc(sub.cycleStartDay || 1)));
+        const y = nextStart.getUTCFullYear();
+        const m = nextStart.getUTCMonth();
+        const lastDayOfMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+        const clampedDay = Math.min(cycleStartDay, lastDayOfMonth);
+        const snappedStart = new Date(Date.UTC(y, m, clampedDay, 0, 0, 0, 0));
+
+        if (snappedStart.getTime() >= nextStart.getTime()) {
+          nextStart = snappedStart;
+        } else {
+          // Already past the cycleStartDay this month — snap to next month
+          const nextMonth = new Date(Date.UTC(y, m + 1, 0));
+          const nextMonthLast = new Date(Date.UTC(y, m + 2, 0)).getUTCDate();
+          const nextClamped = Math.min(cycleStartDay, nextMonthLast);
+          nextStart = new Date(Date.UTC(y, m + 1, nextClamped, 0, 0, 0, 0));
+        }
+      }
+
       const nextEnd = addIntervalUtc(nextStart, sub.plan.intervalUnit, sub.plan.intervalCount);
       const nextRunAt =
         sub.plan.intervalUnit === "MONTH"
@@ -1430,7 +1452,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         logger.warn({ subscriptionId: sub.id }, "Subscription already advanced (idempotent)");
         return null;
       } else {
-        logger.info({ subscriptionId: sub.id, nextEnd }, "Subscription advanced after payment approval");
+        logger.info({ subscriptionId: sub.id, nextStart, nextEnd }, "Subscription advanced after payment approval");
         const collectionMode = resolveSubscriptionCollectionMode(sub);
 
         // PROGRAMACIÓN AL EVENTO: Agendar el Job exactamente para la fecha del próximo corte.
