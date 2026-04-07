@@ -10,6 +10,7 @@ import {
 import { requireAdminToken } from "../../_lib/requireAdminToken";
 import { reqToCompat } from "../../_lib/reqCompat";
 import { addIntervalUtc } from "@suscripciones/core/lib/dates";
+import { logger } from "@suscripciones/core/lib/logger";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription, readSubscriptionTotalInCents } from "@suscripciones/core/services/subscriptionBilling";
 import { advanceSubscriptionCycle } from "@suscripciones/core/services/wompiService";
@@ -24,6 +25,10 @@ import { computeBillingCycleDueAt } from "@suscripciones/core/services/billingCy
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function logIgnored(err: unknown, message: string, context?: Record<string, unknown>) {
+  logger.warn({ err, ...(context || {}) }, message);
+}
 
 function computeRunAtForSubscriptionPeriod(args: {
   periodStartAt?: Date | null;
@@ -234,7 +239,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       await systemLog(LogLevel.ERROR, "subscriptions.payment_link", "Payment link create failed", {
         subscriptionId,
         err: err?.message ? String(err.message) : "unknown error"
-      }).catch(() => {});
+      }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de payment-link", { subscriptionId }));
       return Response.json({ error: "wompi_payment_link_failed" }, { status: 502 });
     }
   }
@@ -246,7 +251,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: invalid body", {
         subscriptionId,
         details: parsed.error.flatten()
-      }).catch(() => {});
+      }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de invalid body", { subscriptionId }));
       return Response.json({ error: "invalid_body", details: parsed.error.flatten() }, { status: 400 });
     }
 
@@ -256,7 +261,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       subscriptionId,
       tenantId: tenantId || null,
       amountInCentsOverride: (parsed as any).data.amountInCents ?? null
-    }).catch(() => {});
+    }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de manual charge requested", { subscriptionId, tenantId }));
     let subscription = await prisma.subscription.findUnique({
       where: { id: subscriptionId },
       include: { plan: true, customer: true, tenantLinks: true }
@@ -265,7 +270,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: subscription not found", {
         subscriptionId,
         tenantId: tenantId || null
-      }).catch(() => {});
+      }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de subscription not found", { subscriptionId, tenantId }));
       return Response.json({ error: "subscription_not_found" }, { status: 404 });
     }
     if (tenantId) {
@@ -277,7 +282,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           requestedTenantId: tenantId,
           subscriptionTenantId: subscription.tenantId || null,
           tenantLinks: (subscription.tenantLinks || []).map((t: any) => t.tenantId)
-        }).catch(() => {});
+        }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de tenant mismatch", { subscriptionId, tenantId }));
         return Response.json({
           error: "subscription_not_found",
           details: {
@@ -296,13 +301,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         amountInCentsOverride: (parsed as any).data.amountInCents,
         errorCode: "manual_charge_not_allowed",
         details: { collectionMode }
-      }).catch(() => null);
+      }).catch((err) => {
+        logIgnored(err, "subscriptions[id]: fallo registrando manual charge invalid mode", { subscriptionId, collectionMode });
+        return null;
+      });
       await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: invalid collection mode", {
         subscriptionId,
         tenantId: tenantId || null,
         paymentId,
         collectionMode
-      }).catch(() => {});
+      }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de invalid collection mode", { subscriptionId, tenantId, collectionMode }));
       return Response.json({ error: "manual_charge_not_allowed", details: { collectionMode }, ...(paymentId ? { paymentId } : {}) }, { status: 409 });
     }
     const autoDebitCfg = await getAutoDebitConfig();
@@ -311,12 +319,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         subscription,
         amountInCentsOverride: (parsed as any).data.amountInCents,
         errorCode: "manual_charge_disabled_by_settings"
-      }).catch(() => null);
+      }).catch((err) => {
+        logIgnored(err, "subscriptions[id]: fallo registrando manual charge disabled by settings", { subscriptionId });
+        return null;
+      });
       await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: disabled by settings", {
         subscriptionId,
         tenantId: tenantId || null,
         paymentId
-      }).catch(() => {});
+      }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de disabled by settings", { subscriptionId, tenantId }));
       return Response.json({ error: "manual_charge_disabled_by_settings", ...(paymentId ? { paymentId } : {}) }, { status: 409 });
     }
 
@@ -333,7 +344,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           subscriptionId: subscription.id,
           cycle: subscription.currentCycle ?? 1,
           paidAt: new Date(approvedAt)
-        }).catch(() => {});
+        }).catch((err) => logIgnored(err, "subscriptions[id]: fallo avanzando ciclo ya aprobado", { subscriptionId: subscription.id }));
         const refreshed = await prisma.subscription.findUnique({
           where: { id: subscription.id },
           include: { plan: true, customer: true, tenantLinks: true }
@@ -368,7 +379,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           wompiTransactionId: recentPending.wompiTransactionId,
           tenantId,
           checksumPrefix: "manual-charge-precheck"
-        }).catch(() => {});
+        }).catch((err) => logIgnored(err, "subscriptions[id]: fallo reconciliando wompi precheck", { subscriptionId, wompiTransactionId: recentPending.wompiTransactionId, tenantId }));
         const refreshed = await prisma.payment.findUnique({
           where: { id: recentPending.id },
           select: { status: true }
@@ -384,14 +395,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             amountInCentsOverride: (parsed as any).data.amountInCents,
             errorCode: "pending_charge_exists",
             details
-          }).catch(() => null);
+          }).catch((err) => {
+            logIgnored(err, "subscriptions[id]: fallo registrando pending charge exists", { subscriptionId, pendingPaymentId: recentPending.id });
+            return null;
+          });
           await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: pending payment exists", {
             subscriptionId,
             tenantId: tenantId || null,
             paymentId: failedPaymentId || recentPending.id,
             pendingPaymentId: recentPending.id,
             wompiTransactionId: recentPending.wompiTransactionId
-          }).catch(() => {});
+          }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de pending payment exists", { subscriptionId, tenantId, pendingPaymentId: recentPending.id }));
           return Response.json({ error: "pending_charge_exists", details, paymentId: failedPaymentId || recentPending.id }, { status: 409 });
         }
       } else {
@@ -405,14 +419,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           amountInCentsOverride: (parsed as any).data.amountInCents,
           errorCode: "pending_charge_exists",
           details
-        }).catch(() => null);
+        }).catch((err) => {
+          logIgnored(err, "subscriptions[id]: fallo registrando pending charge exists sin tenant reconcile", { subscriptionId, pendingPaymentId: recentPending.id });
+          return null;
+        });
         await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: pending payment exists", {
           subscriptionId,
           tenantId: tenantId || null,
           paymentId: failedPaymentId || recentPending.id,
           pendingPaymentId: recentPending.id,
           wompiTransactionId: recentPending.wompiTransactionId
-        }).catch(() => {});
+        }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de pending payment exists sin reconcile", { subscriptionId, tenantId, pendingPaymentId: recentPending.id }));
         return Response.json({ error: "pending_charge_exists", details, paymentId: failedPaymentId || recentPending.id }, { status: 409 });
       }
     }
@@ -430,13 +447,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         amountInCentsOverride: (parsed as any).data.amountInCents,
         errorCode: "customer_payment_source_missing",
         details
-      }).catch(() => null);
+      }).catch((err) => {
+        logIgnored(err, "subscriptions[id]: fallo registrando payment source missing", { subscriptionId, customerId: subscription.customerId });
+        return null;
+      });
       await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: payment source missing", {
         subscriptionId,
         tenantId: tenantId || null,
         paymentId,
         ...details
-      }).catch(() => {});
+      }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de payment source missing", { subscriptionId, tenantId }));
       return Response.json({ error: "customer_payment_source_missing", details, ...(paymentId ? { paymentId } : {}) }, { status: 409 });
     }
     if (!subscription.customer?.email) {
@@ -444,13 +464,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         subscription,
         amountInCentsOverride: (parsed as any).data.amountInCents,
         errorCode: "customer_email_required"
-      }).catch(() => null);
+      }).catch((err) => {
+        logIgnored(err, "subscriptions[id]: fallo registrando customer email required", { subscriptionId, customerId: subscription.customerId });
+        return null;
+      });
       await systemLog(LogLevel.WARN, "subscriptions.charge_now", "Manual charge blocked: customer email missing", {
         subscriptionId,
         tenantId: tenantId || null,
         paymentId,
         customerId: subscription.customerId
-      }).catch(() => {});
+      }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de customer email missing", { subscriptionId, tenantId, customerId: subscription.customerId }));
       return Response.json({ error: "customer_email_required", ...(paymentId ? { paymentId } : {}) }, { status: 409 });
     }
 
@@ -461,7 +484,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       cycle: subscription.currentCycle ?? 1,
       collectionMode,
       paymentSourceId: Number(paymentSource)
-    }).catch(() => {});
+    }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de prechecks", { subscriptionId, tenantId, customerId: subscription.customerId }));
 
     try {
       const result = await createAutoDebitTransactionForSubscription({
@@ -474,7 +497,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         tenantId: tenantId || null,
         paymentId: result.paymentId,
         wompiTransactionId: result.wompiTransactionId
-      }).catch(() => {});
+      }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de transaction requested", { subscriptionId, tenantId, paymentId: result.paymentId }));
       return Response.json({ ok: true, ...result }, { status: 201 });
     } catch (err: any) {
       const paymentId =
@@ -484,13 +507,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
               where: { subscriptionCycleKey: `${subscription.id}:${Number(subscription.currentCycle || 1)}` },
               select: { id: true }
             })
-            .catch(() => null)
+            .catch((findErr) => {
+              logIgnored(findErr, "subscriptions[id]: fallo buscando pago de ciclo tras error manual", { subscriptionId: subscription.id });
+              return null;
+            })
         )?.id || null;
       await systemLog(LogLevel.ERROR, "subscriptions.charge_now", "Manual charge failed", {
         subscriptionId,
         paymentId,
         err: err?.message ? String(err.message) : "unknown error"
-      }).catch(() => {});
+      }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de manual charge failed", { subscriptionId, paymentId }));
       return Response.json({ error: err?.message || "charge_now_failed", ...(paymentId ? { paymentId } : {}) }, { status: 502 });
     }
   }
@@ -535,7 +561,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       } as any
     });
 
-    await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+    await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err) => logIgnored(err, "subscriptions[id]: fallo reprogramando notificaciones en schedule-cutoff", { subscriptionId: subscription.id }));
 
     const runAt =
       computeRunAtForSubscriptionPeriod({
@@ -551,7 +577,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       subscriptionId,
       runAt: runAt <= new Date(Date.now() + 5_000) ? new Date() : runAt,
       maxAttempts: 1
-    }).catch(() => {});
+    }).catch((err) => logIgnored(err, "subscriptions[id]: fallo reprogramando retry en schedule-cutoff", { subscriptionId, runAt: runAt.toISOString() }));
 
     return Response.json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString(), scheduled: true }, { status: 200 });
   }
@@ -645,7 +671,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       } as any
     });
 
-    await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+    await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err) => logIgnored(err, "subscriptions[id]: fallo reprogramando notificaciones en change-plan", { subscriptionId: subscription.id }));
 
     const updatedMode = resolveSubscriptionCollectionMode({ metadata: nextSubscriptionMetadata, plan });
     if (updatedMode === "AUTO_LINK" || updatedMode === "AUTO_DEBIT") {
@@ -662,7 +688,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         subscriptionId,
         runAt: runAt <= new Date(Date.now() + 5_000) ? new Date() : runAt,
         maxAttempts: 1
-      }).catch(() => {});
+      }).catch((err) => logIgnored(err, "subscriptions[id]: fallo reprogramando retry en change-plan", { subscriptionId, runAt: runAt.toISOString() }));
     }
 
     return Response.json({ ok: true, subscription: updated, scheduledAt: cutoffAt.toISOString(), scheduled: true }, { status: 200 });
@@ -771,15 +797,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         subscriptionId,
         runAt: nextEnd <= new Date(Date.now() + 5_000) ? new Date() : nextEnd,
         maxAttempts: 1
-      }).catch(() => {});
+      }).catch((err) => logIgnored(err, "subscriptions[id]: fallo reprogramando retry en recalculate-cutoff", { subscriptionId, nextEnd: nextEnd.toISOString() }));
     }
 
-    await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch(() => {});
+    await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err) => logIgnored(err, "subscriptions[id]: fallo reprogramando notificaciones en recalculate-cutoff", { subscriptionId: subscription.id }));
     await systemLog(LogLevel.INFO, "subscriptions.recalculate_cutoff", "Subscription cutoff recalculated", {
       subscriptionId,
       startAt: baseStart?.toISOString?.() || baseStart,
       endAt: nextEnd?.toISOString?.() || nextEnd
-    }).catch(() => {});
+    }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de recalculate-cutoff", { subscriptionId }));
 
     return Response.json({ ok: true, subscription: updated, startAt: baseStart, endAt: nextEnd });
   }
@@ -801,7 +827,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         where: { id: subscriptionId },
         data: { status: SubscriptionStatus.SUSPENDED, suspendedAt: new Date() }
       });
-      await systemLog(LogLevel.INFO, "subscriptions.suspend", "Subscription suspended", { subscriptionId }).catch(() => {});
+      await systemLog(LogLevel.INFO, "subscriptions.suspend", "Subscription suspended", { subscriptionId }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de suspend", { subscriptionId }));
       return Response.json({ subscription: updated });
     }
 
@@ -810,7 +836,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         where: { id: subscriptionId },
         data: { status: SubscriptionStatus.CANCELED, canceledAt: new Date(), suspendedAt: null }
       });
-      await systemLog(LogLevel.INFO, "subscriptions.cancel", "Subscription canceled", { subscriptionId }).catch(() => {});
+      await systemLog(LogLevel.INFO, "subscriptions.cancel", "Subscription canceled", { subscriptionId }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de cancel", { subscriptionId }));
       return Response.json({ subscription: updated });
     }
 
@@ -819,7 +845,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         where: { id: subscriptionId },
         data: { status: SubscriptionStatus.ACTIVE, suspendedAt: null }
       });
-      await systemLog(LogLevel.INFO, "subscriptions.resume", "Subscription resumed", { subscriptionId }).catch(() => {});
+      await systemLog(LogLevel.INFO, "subscriptions.resume", "Subscription resumed", { subscriptionId }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de resume", { subscriptionId }));
       return Response.json({ subscription: updated });
     }
 
@@ -828,7 +854,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         where: { id: subscriptionId },
         data: { status: SubscriptionStatus.ACTIVE, canceledAt: null, suspendedAt: null }
       });
-      await systemLog(LogLevel.INFO, "subscriptions.activate", "Subscription activated", { subscriptionId }).catch(() => {});
+      await systemLog(LogLevel.INFO, "subscriptions.activate", "Subscription activated", { subscriptionId }).catch((logErr) => logIgnored(logErr, "subscriptions[id]: fallo escribiendo systemLog de activate", { subscriptionId }));
       return Response.json({ subscription: updated });
     }
   }

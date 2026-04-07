@@ -11,6 +11,7 @@ import {
 import { requireAdminToken } from "../_lib/requireAdminToken";
 import { reqToCompat } from "../_lib/reqCompat";
 import { addIntervalUtc } from "@suscripciones/core/lib/dates";
+import { logger } from "@suscripciones/core/lib/logger";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import {
   createAutoDebitTransactionForSubscription,
@@ -29,6 +30,10 @@ import { listSubscriptions } from "../_services/subscriptions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function logIgnored(err: unknown, message: string, context?: Record<string, unknown>) {
+  logger.warn({ err, ...(context || {}) }, message);
+}
 
 const createSubscriptionSchema = z.object({
   customerId: z.string().uuid(),
@@ -332,7 +337,7 @@ export async function POST(req: Request) {
     });
     await prisma.customerTenant
       .createMany({ data: effectiveTenantIds.map((t) => ({ customerId: customer.id, tenantId: t })), skipDuplicates: true })
-      .catch(() => {});
+      .catch((err) => logIgnored(err, "subscriptions: fallo vinculando customerTenant al crear suscripción", { customerId: customer.id, tenantIds: effectiveTenantIds }));
 
     await consumeApp("subscriptions_created", { amount: 1, source: "api:subscriptions.create", meta: { subscriptionId: subscription.id, planId: plan.id } });
     await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err) => {
@@ -381,7 +386,7 @@ export async function POST(req: Request) {
         await systemLog(LogLevel.ERROR, "subscriptions.create", "Subscription created but payment link failed", {
           subscriptionId: subscription.id,
           err: err?.message ? String(err.message) : "unknown error"
-        }).catch(() => {});
+        }).catch((logErr) => logIgnored(logErr, "subscriptions: fallo escribiendo systemLog de payment link failed", { subscriptionId: subscription.id }));
         return Response.json({ subscription, scheduled: true, paymentLinkError: "fallo_creando_link_de_pago" }, { status: 201 });
       }
     }
@@ -408,7 +413,7 @@ export async function POST(req: Request) {
       await systemLog(LogLevel.ERROR, "subscriptions.create", "Subscription created but payment link failed", {
         subscriptionId: subscription.id,
         err: err?.message ? String(err.message) : "unknown error"
-      }).catch(() => {});
+      }).catch((logErr) => logIgnored(logErr, "subscriptions: fallo escribiendo systemLog de payment link failed manual", { subscriptionId: subscription.id }));
       return Response.json({ subscription, paymentLinkError: "fallo_creando_link_de_pago" }, { status: 201 });
     }
   } catch (err: any) {
