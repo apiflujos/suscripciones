@@ -1,4 +1,5 @@
 import { prisma } from "../db/prisma";
+import { logger } from "../lib/logger";
 import { BillingCycleStatus, PlanIntervalUnit, PaymentAssociationReason, PaymentOrigin } from "@prisma/client";
 
 type SubscriptionSeed = {
@@ -301,7 +302,9 @@ export async function attachPaymentToMatchingCycle(args: {
       graceDays: subscription.graceDays,
       plan: { intervalUnit: subscription.plan.intervalUnit, intervalCount: subscription.plan.intervalCount }
     }
-  ]).catch(() => {});
+  ]).catch((err) => {
+    logger.warn({ err, subscriptionId: subscription.id }, "billingCycles: fallo asegurando ciclos antes de match");
+  });
 
   const toleranceDays = Number.isFinite(args.toleranceDays) ? Math.max(0, Math.trunc(args.toleranceDays!)) : 7;
 

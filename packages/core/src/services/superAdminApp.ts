@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { consumeLimitOrBlock } from "./superAdminConsume";
 
 function normalize(v: unknown) {
@@ -17,6 +18,7 @@ export function getSaAppTenantId(): string {
 export async function consumeApp(serviceKey: string, args: { amount?: number; source?: string; meta?: any }) {
   const tenantId = getSaAppTenantId();
   if (!tenantId) return;
-  await consumeLimitOrBlock(serviceKey, { tenantId, amount: args.amount, source: args.source, meta: args.meta }).catch(() => {});
+  await consumeLimitOrBlock(serviceKey, { tenantId, amount: args.amount, source: args.source, meta: args.meta }).catch((err) => {
+    logger.warn({ err, serviceKey, tenantId }, "superAdminApp: fallo consumiendo límite/app usage");
+  });
 }
-
