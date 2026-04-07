@@ -610,7 +610,8 @@ export function CheckoutTemplatesPanel({
                     {filteredProducts.map((p) => {
                       const selection = productIds[0];
                       const activeItem = String(selection?.id || "") === String(p.id);
-                      const mode = selection?.mode || "AUTO_LINK";
+                      const currentMode = selection?.mode || "AUTO_LINK";
+                      const productMode = String((p as any)?.collectionMode || "AUTO_LINK").toUpperCase() === "AUTO_DEBIT" ? "AUTO_DEBIT" : "AUTO_LINK";
                       return (
                         <div
                           key={p.id}
@@ -623,7 +624,8 @@ export function CheckoutTemplatesPanel({
                               name="templateProduct"
                               checked={activeItem}
                               onChange={() => {
-                                setProductIds([{ id: p.id, mode: activeItem ? mode : "AUTO_LINK" }]);
+                                const resolvedMode = isCart ? "AUTO_LINK" : productMode;
+                                setProductIds([{ id: p.id, mode: resolvedMode }]);
                               }}
                             />
                             <span>{p.name}</span>
@@ -635,7 +637,7 @@ export function CheckoutTemplatesPanel({
                               </label>
                               <select
                                 className="select"
-                                value={mode}
+                                value={activeItem ? currentMode : ""}
                                 disabled={!activeItem}
                                 onChange={(e) => {
                                   const nextMode = String(e.target.value || "AUTO_LINK").toUpperCase() === "AUTO_DEBIT" ? "AUTO_DEBIT" : "AUTO_LINK";
