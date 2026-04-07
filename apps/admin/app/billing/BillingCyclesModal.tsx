@@ -3,7 +3,7 @@
 import { useEffect, useState, Fragment } from "react";
 import { AppModal } from "../ui/AppModal";
 import { LocalDateTime } from "../ui/LocalDateTime";
-import { movePaymentToCycle } from "./actions";
+import { movePaymentToCycle, autoAssociatePaymentToCycle } from "./actions";
 
 type BillingCycleItem = {
   id: string;
@@ -24,6 +24,31 @@ type BillingCycleItem = {
     id?: string;
     plan?: { name?: string | null; id?: string } | null;
   } | null;
+};
+
+type PaymentCandidate = {
+  cycle: {
+    id: string;
+    cycleNumber: number;
+    periodStartAt: string;
+    periodEndAt: string;
+    dueAt: string;
+    status: string;
+  };
+  payment: {
+    id: string;
+    amountInCents: number;
+    currency: string;
+    status: string;
+    paidAt: string | null;
+    createdAt: string;
+    reference: string | null;
+    wompiTransactionId: string | null;
+    origin: string | null;
+    cycleNumber: number | null;
+  };
+  score: number;
+  reasons: string[];
 };
 
 type Props = {
@@ -65,26 +90,20 @@ function punctualityLabel(cycle: BillingCycleItem) {
   return { label: "Tarde", class: "pill-bad" };
 }
 
-function formatDateRange(start: string, end: string) {
-  const startDate = new Date(start);
-  const endDate = new Date(end);
-  const sameMonth = startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear();
-  
-  if (sameMonth) {
-    return (
-      <span>
-        <LocalDateTime value={start} variant="short" /> ·{" "}
-        <LocalDateTime value={end} variant="short" />
-      </span>
-    );
-  }
-  
-  return (
-    <span>
-      <LocalDateTime value={start} variant="short" /> ·{" "}
-      <LocalDateTime value={end} variant="short" />
-    </span>
-  );
+function fmtMoney(cents: number, currency = "COP") {
+  const major = Math.trunc(Number(cents || 0) / 100);
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(major);
+}
+
+function reasonLabel(reason: string) {
+  const map: Record<string, string> = {
+    monto_exact: "💰 Monto exacto",
+    monto_cercano: "💵 Monto cercano",
+    en_rango: "📅 En rango del ciclo",
+    cerca_del_vencimiento: "⏰ Cerca del vencimiento",
+    referencia_coincide: "🏷️ Referencia coincide"
+  };
+  return map[reason] || reason;
 }
 
 export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenantId, trigger, forceOpen, onOpenChange }: Props) {
@@ -92,6 +111,21 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<BillingCycleItem[]>([]);
   const [expandedCycle, setExpandedCycle] = useState<string | null>(null);
+
+  // Auto-associate state
+  const [autoModalOpen, setAutoModalOpen] = useState(false);
+  const [autoLoading, setAutoLoading] = useState(false);
+  const [candidates, setCandidates] = useState<PaymentCandidate[]>([]);
+  const [autoAssociating, setAutoAssociating] = useState<string | null>(null);
+  const [autoResult, setAutoResult] = useState<{ ok: boolean; message?: string; error?: string } | null>(null);
+
+  // Manual search state
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedCycleForManual, setSelectedCycleForManual] = useState<string | null>(null);
+
   const open = forceOpen ?? internalOpen;
 
   const setOpen = (next: boolean) => {
@@ -129,7 +163,111 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
   }, [open, subscriptionId]);
 
   const handleOpen = () => setOpen(true);
-  
+
+  // Auto-associate handler
+  const handleAutoAssociate = async () => {
+    setAutoLoading(true);
+    setCandidates([]);
+    setAutoResult(null);
+    setAutoModalOpen(true);
+
+    try {
+      const res = await fetch(`/api/billing/cycle-candidates?subscriptionId=${encodeURIComponent(subscriptionId)}`);
+      const json = await res.json();
+
+      if (!json.ok || !json.candidates) {
+        setCandidates([]);
+        return;
+      }
+      setCandidates(json.candidates);
+    } catch {
+      setCandidates([]);
+    } finally {
+      setAutoLoading(false);
+    }
+  };
+
+  const handleConfirmAssociation = async (candidate: PaymentCandidate) => {
+    const key = `${candidate.cycle.id}-${candidate.payment.id}`;
+    setAutoAssociating(key);
+    setAutoResult(null);
+
+    const formData = new FormData();
+    formData.set("csrf", csrfToken);
+    formData.set("subscriptionId", subscriptionId);
+    formData.set("cycleId", candidate.cycle.id);
+    formData.set("paymentId", candidate.payment.id);
+    if (tenantId) formData.set("tenantId", tenantId);
+
+    try {
+      const result = await autoAssociatePaymentToCycle(formData);
+      if (result.ok) {
+        setAutoResult({ ok: true, message: `Ciclo ${candidate.cycle.cycleNumber} asociado exitosamente` });
+        // Refresh cycles list
+        const res = await fetch(`/api/billing/billing-cycles?subscriptionId=${encodeURIComponent(subscriptionId)}&take=36`);
+        const json = await res.json();
+        if (json.ok && Array.isArray(json.items)) setItems(json.items);
+        // Remove associated candidate from list
+        setCandidates((prev) => prev.filter((c) => c.payment.id !== candidate.payment.id));
+      } else {
+        setAutoResult({ ok: false, error: result.error || "association_failed" });
+      }
+    } catch {
+      setAutoResult({ ok: false, error: "network_error" });
+    } finally {
+      setAutoAssociating(null);
+    }
+  };
+
+  // Manual search handler
+  const handleManualSearch = async () => {
+    if (!selectedCycleForManual || !searchQuery.trim()) return;
+    setSearchLoading(true);
+
+    try {
+      const res = await fetch(
+        `/api/billing/payment-history?subscriptionId=${encodeURIComponent(subscriptionId)}&take=50`
+      );
+      const json = await res.json();
+      const payments = Array.isArray(json?.items) ? json.items : [];
+
+      // Filter by search query (txId, reference, amount)
+      const q = searchQuery.toLowerCase();
+      const filtered = payments.filter((p: any) =>
+        String(p.wompiTransactionId || "").toLowerCase().includes(q) ||
+        String(p.reference || "").toLowerCase().includes(q) ||
+        String(p.amountInCents || "").includes(q)
+      );
+      setSearchResults(filtered);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleManualAssociate = async (paymentId: string) => {
+    if (!selectedCycleForManual) return;
+
+    const formData = new FormData();
+    formData.set("csrf", csrfToken);
+    formData.set("subscriptionId", subscriptionId);
+    formData.set("cycleId", selectedCycleForManual);
+    formData.set("paymentId", paymentId);
+    if (tenantId) formData.set("tenantId", tenantId);
+
+    const result = await autoAssociatePaymentToCycle(formData);
+    if (result.ok) {
+      // Refresh
+      const res = await fetch(`/api/billing/billing-cycles?subscriptionId=${encodeURIComponent(subscriptionId)}&take=36`);
+      const json = await res.json();
+      if (json.ok && Array.isArray(json.items)) setItems(json.items);
+      setSearchModalOpen(false);
+      setSelectedCycleForManual(null);
+      setSearchResults([]);
+    }
+  };
+
   const triggerButton = forceOpen !== undefined
     ? null
     : trigger ? (
@@ -146,6 +284,8 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
         </button>
       );
 
+  const pendingCyclesCount = items.filter((c) => c.status === "PENDING" || c.status === "FAILED").length;
+
   return (
     <>
       {triggerButton}
@@ -154,9 +294,19 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
         open={open}
         onClose={() => setOpen(false)}
         title={
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
             <span>Ciclos de Pago</span>
             <span className="pill pill-sm pill-muted">{items.length} ciclos</span>
+            {pendingCyclesCount > 0 && (
+              <button
+                className="ghost btn-compact btn-send"
+                type="button"
+                onClick={handleAutoAssociate}
+                title="Buscar y asociar pagos automáticamente"
+              >
+                🔗 Asociar automáticamente
+              </button>
+            )}
           </div>
         }
         width="min(900px, 96vw)"
@@ -186,7 +336,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                         <th style={{ width: "110px", textAlign: "left" }}>Estado</th>
                         <th style={{ width: "140px", textAlign: "left" }}>Puntualidad</th>
                         <th style={{ width: "110px", textAlign: "left" }}>Origen</th>
-                        <th style={{ width: "40px", textAlign: "center" }}></th>
+                        <th style={{ width: "80px", textAlign: "center" }}>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -195,6 +345,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                         const punctual = punctualityLabel(cycle);
                         const origin = originLabel(cycle.origin);
                         const isExpanded = expandedCycle === cycle.id;
+                        const isPending = cycle.status === "PENDING" || cycle.status === "FAILED";
 
                         return (
                           <Fragment key={cycle.id}>
@@ -212,24 +363,42 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                               <td style={{ textAlign: "left" }}><span className={`pill pill-sm ${punctual.class}`}>{punctual.label}</span></td>
                               <td style={{ textAlign: "left" }}><span className={`pill pill-sm ${origin.class}`}>{origin.label}</span></td>
                               <td style={{ textAlign: "center" }}>
-                                <span
-                                  className={`btn-icon-only ${isExpanded ? "active" : ""}`}
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    width: "24px",
-                                    height: "24px",
-                                    fontSize: "10px",
-                                    transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                                    transition: "transform 0.2s"
-                                  }}
-                                >
-                                  ▼
-                                </span>
+                                <div style={{ display: "flex", gap: 4, justifyContent: "center", alignItems: "center" }}>
+                                  {isPending && (
+                                    <button
+                                      className="ghost btn-compact btn-noicon"
+                                      type="button"
+                                      title="Buscar pago manualmente"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedCycleForManual(cycle.id);
+                                        setSearchModalOpen(true);
+                                        setSearchResults([]);
+                                        setSearchQuery("");
+                                      }}
+                                    >
+                                      🔍
+                                    </button>
+                                  )}
+                                  <span
+                                    className={`btn-icon-only ${isExpanded ? "active" : ""}`}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      width: "24px",
+                                      height: "24px",
+                                      fontSize: "10px",
+                                      transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                                      transition: "transform 0.2s"
+                                    }}
+                                  >
+                                    ▼
+                                  </span>
+                                </div>
                               </td>
                             </tr>
-                            
+
                             {isExpanded && (
                               <tr>
                                 <td colSpan={8} style={{ padding: 0 }}>
@@ -360,6 +529,208 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                   </table>
                 </div>
               )}
+        </div>
+      </AppModal>
+
+      {/* ── MODAL: Auto-associate ── */}
+      <AppModal
+        open={autoModalOpen}
+        onClose={() => { setAutoModalOpen(false); setCandidates([]); setAutoResult(null); }}
+        title="Asociar pagos automáticamente"
+        width="min(700px, 96vw)"
+      >
+        <div style={{ padding: "8px 0" }}>
+          {autoLoading ? (
+            <div style={{ padding: "40px", textAlign: "center", color: "var(--text-faint)" }}>
+              <div className="loading-spinner" style={{ margin: "0 auto 12px" }} />
+              Buscando pagos no asociados...
+            </div>
+          ) : candidates.length === 0 ? (
+            <div style={{ padding: "32px", textAlign: "center" }}>
+              <div style={{ fontSize: "36px", marginBottom: "12px", opacity: 0.3 }}>🔍</div>
+              <div style={{ fontWeight: 600, marginBottom: "4px" }}>No se encontraron pagos automáticos</div>
+              <div style={{ fontSize: "13px", color: "var(--muted)" }}>
+                No hay pagos sin asociar que coincidan con los ciclos pendientes.
+                Puedes intentar la asociación manual desde el ciclo.
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 12 }}>
+              <div className="field-hint" style={{ marginBottom: 8 }}>
+                Se encontraron <strong>{candidates.length}</strong> posible(s) coincidencia(s). Revisa y confirma cada asociación.
+              </div>
+
+              {autoResult && (
+                <div
+                  className={autoResult.ok ? "paylink-success" : "paylink-error"}
+                  style={{ marginBottom: 8 }}
+                >
+                  {autoResult.ok ? autoResult.message : `Error: ${autoResult.error}`}
+                </div>
+              )}
+
+              {candidates.map((candidate, idx) => {
+                const key = `${candidate.cycle.id}-${candidate.payment.id}`;
+                const isAssociating = autoAssociating === key;
+
+                return (
+                  <div
+                    key={key}
+                    style={{
+                      padding: "12px 16px",
+                      background: "var(--panel-soft)",
+                      border: "1px solid var(--stroke)",
+                      borderRadius: 8
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                          <span className="pill pill-sm pill-warn">Ciclo {candidate.cycle.cycleNumber}</span>
+                          <span style={{ fontSize: 11, color: "var(--muted)" }}>
+                            {new Date(candidate.cycle.periodStartAt).toLocaleDateString("es-CO")} → {new Date(candidate.cycle.periodEndAt).toLocaleDateString("es-CO")}
+                          </span>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12 }}>
+                          <div>
+                            <div style={{ fontSize: 10, textTransform: "uppercase", color: "var(--text-faint)" }}>Pago</div>
+                            <div style={{ fontWeight: 500 }}>
+                              {fmtMoney(candidate.payment.amountInCents, candidate.payment.currency)}
+                            </div>
+                            {candidate.payment.paidAt && (
+                              <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                                Pagado: {new Date(candidate.payment.paidAt).toLocaleDateString("es-CO")}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 10, textTransform: "uppercase", color: "var(--text-faint)" }}>Coincidencia</div>
+                            <div style={{ fontWeight: 600, color: candidate.score >= 80 ? "var(--status-ok)" : "var(--status-warning)" }}>
+                              {candidate.score}%
+                            </div>
+                            <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                              {candidate.reasons.map(reasonLabel).join(", ")}
+                            </div>
+                          </div>
+                        </div>
+
+                        {candidate.payment.wompiTransactionId && (
+                          <div style={{ fontSize: 10, color: "var(--text-faint)", marginTop: 6 }}>
+                            Tx: <code>{candidate.payment.wompiTransactionId}</code>
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        className="primary btn-compact"
+                        type="button"
+                        disabled={isAssociating}
+                        onClick={() => handleConfirmAssociation(candidate)}
+                      >
+                        {isAssociating ? "Asociando..." : "✓ Confirmar"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16, gap: 8 }}>
+            <button
+              className="ghost btn-compact"
+              type="button"
+              onClick={() => { setAutoModalOpen(false); setCandidates([]); setAutoResult(null); }}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </AppModal>
+
+      {/* ── MODAL: Manual search ── */}
+      <AppModal
+        open={searchModalOpen}
+        onClose={() => { setSearchModalOpen(false); setSelectedCycleForManual(null); setSearchResults([]); setSearchQuery(""); }}
+        title="Buscar pago para asociar"
+        width="min(600px, 96vw)"
+      >
+        <div style={{ padding: "8px 0" }}>
+          <div className="field">
+            <label>Buscar pago</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                className="input"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="ID transacción, referencia o monto..."
+                onKeyDown={(e) => { if (e.key === "Enter") handleManualSearch(); }}
+              />
+              <button
+                className="primary btn-compact"
+                type="button"
+                onClick={handleManualSearch}
+                disabled={!searchQuery.trim() || searchLoading}
+              >
+                {searchLoading ? "..." : "Buscar"}
+              </button>
+            </div>
+          </div>
+
+          {searchResults.length === 0 && searchQuery && (
+            <div style={{ padding: "24px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+              No se encontraron pagos con "{searchQuery}"
+            </div>
+          )}
+
+          {searchResults.length > 0 && (
+            <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+              {searchResults.map((p: any) => (
+                <div
+                  key={p.id}
+                  style={{
+                    padding: "10px 14px",
+                    background: "var(--panel-soft)",
+                    border: "1px solid var(--stroke)",
+                    borderRadius: 6,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}
+                >
+                  <div style={{ fontSize: 13 }}>
+                    <div style={{ fontWeight: 500 }}>{fmtMoney(p.amountInCents, p.currency)}</div>
+                    <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                      {p.wompiTransactionId ? `Tx: ${p.wompiTransactionId}` : p.reference}
+                    </div>
+                    {p.paidAt && (
+                      <div style={{ fontSize: 10, color: "var(--text-faint)" }}>
+                        {new Date(p.paidAt).toLocaleDateString("es-CO")}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    className="ghost btn-compact"
+                    type="button"
+                    onClick={() => handleManualAssociate(p.id)}
+                  >
+                    Asociar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+            <button
+              className="ghost btn-compact"
+              type="button"
+              onClick={() => { setSearchModalOpen(false); setSelectedCycleForManual(null); setSearchResults([]); setSearchQuery(""); }}
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </AppModal>
     </>

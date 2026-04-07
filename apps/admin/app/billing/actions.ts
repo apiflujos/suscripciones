@@ -640,6 +640,36 @@ export async function movePaymentToCycle(formData: FormData) {
   );
 }
 
+export async function autoAssociatePaymentToCycle(formData: FormData) {
+  await assertCsrfToken(formData);
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const cycleId = String(formData.get("cycleId") || "").trim();
+  const paymentId = String(formData.get("paymentId") || "").trim();
+  const tenantId = String(formData.get("tenantId") || "").trim();
+
+  if (!subscriptionId || !cycleId || !paymentId) {
+    return { ok: false, error: "missing_required_fields" };
+  }
+
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+  const session = sessionToken ? await verifyAdminSessionToken(sessionToken) : null;
+
+  const res = await associatePaymentToSubscription({
+    paymentId,
+    cycleId,
+    subscriptionId,
+    tenantId: tenantId || undefined,
+    actorEmail: session?.email || undefined
+  });
+
+  if (!res.ok) {
+    return { ok: false, error: res.error || "association_failed" };
+  }
+
+  return { ok: true, message: "payment_associated" };
+}
+
 export async function changeSubscriptionPlan(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
