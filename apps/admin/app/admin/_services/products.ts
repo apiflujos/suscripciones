@@ -442,17 +442,33 @@ export async function deleteCatalogProduct(args: { productId: string; tenantId?:
     const paymentIds = payments.map((p: any) => p.id);
 
     if (paymentIds.length) {
-      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch((err: any) => {
+        logger.warn({ err, productId: id, paymentIds }, "Fallo limpiando payment attempts al borrar producto");
+      });
     }
-    await prisma.chatwootMessage.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
+    await prisma.chatwootMessage.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err: any) => {
+      logger.warn({ err, productId: id, subIds }, "Fallo limpiando mensajes Chatwoot al borrar producto");
+    });
     await prisma.paymentLink
       .deleteMany({ where: { OR: [{ subscriptionId: { in: subIds } }, { planId: { in: relatedPlanIds } }] } })
-      .catch(() => {});
-    await prisma.payment.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-    await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-    await prisma.subscription.deleteMany({ where: { id: { in: subIds } } }).catch(() => {});
-    await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: { in: relatedPlanIds } } }).catch(() => {});
-    await prisma.subscriptionPlan.deleteMany({ where: { id: { in: relatedPlanIds } } }).catch(() => {});
+      .catch((err: any) => {
+        logger.warn({ err, productId: id, subIds, relatedPlanIds }, "Fallo limpiando payment links al borrar producto");
+      });
+    await prisma.payment.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err: any) => {
+      logger.warn({ err, productId: id, subIds }, "Fallo limpiando pagos al borrar producto");
+    });
+    await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err: any) => {
+      logger.warn({ err, productId: id, subIds }, "Fallo limpiando tenants de suscripcion al borrar producto");
+    });
+    await prisma.subscription.deleteMany({ where: { id: { in: subIds } } }).catch((err: any) => {
+      logger.warn({ err, productId: id, subIds }, "Fallo limpiando suscripciones al borrar producto");
+    });
+    await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: { in: relatedPlanIds } } }).catch((err: any) => {
+      logger.warn({ err, productId: id, relatedPlanIds }, "Fallo limpiando tenants de planes al borrar producto");
+    });
+    await prisma.subscriptionPlan.deleteMany({ where: { id: { in: relatedPlanIds } } }).catch((err: any) => {
+      logger.warn({ err, productId: id, relatedPlanIds }, "Fallo limpiando planes relacionados al borrar producto");
+    });
   } else {
     await prisma.subscriptionPlan.delete({ where: { id } });
   }

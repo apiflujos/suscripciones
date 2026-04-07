@@ -5,6 +5,7 @@ import { LogLevel, PlanIntervalUnit, PlanType } from "@prisma/client";
 import { consumeApp } from "@suscripciones/core/services/superAdminApp";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { DEFAULT_CURRENCY, isSupportedCurrency, normalizeCurrencyCode } from "@suscripciones/core/lib/currencies";
+import { logger } from "@suscripciones/core/lib/logger";
 
 type PlanCreateResult =
   | { ok: true; plan: any }
@@ -96,7 +97,9 @@ export async function updatePlanRecurrence(args: {
   if (!Object.keys(data).length) return { ok: true, plan };
 
   const updated = await prisma.subscriptionPlan.update({ where: { id }, data });
-  await systemLog(LogLevel.INFO, "plans.update", "Plan updated", { planId: id }).catch(() => {});
+  await systemLog(LogLevel.INFO, "plans.update", "Plan updated", { planId: id }).catch((err: any) => {
+    logger.warn({ err, planId: id }, "Fallo escribiendo systemLog al actualizar plan");
+  });
   return { ok: true, plan: updated };
 }
 
@@ -130,17 +133,33 @@ export async function deletePlan(args: { planId: string; tenantId?: string | nul
     const paymentIds = payments.map((p: any) => p.id);
 
     if (paymentIds.length) {
-      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch((err: any) => {
+        logger.warn({ err, planId: id, paymentIds }, "Fallo limpiando payment attempts al borrar plan");
+      });
     }
-    await prisma.chatwootMessage.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-    await prisma.paymentLink.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-    await prisma.payment.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-    await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch(() => {});
-    await prisma.subscription.deleteMany({ where: { id: { in: subIds } } }).catch(() => {});
-    await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: id } }).catch(() => {});
+    await prisma.chatwootMessage.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err: any) => {
+      logger.warn({ err, planId: id, subIds }, "Fallo limpiando mensajes Chatwoot al borrar plan");
+    });
+    await prisma.paymentLink.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err: any) => {
+      logger.warn({ err, planId: id, subIds }, "Fallo limpiando payment links al borrar plan");
+    });
+    await prisma.payment.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err: any) => {
+      logger.warn({ err, planId: id, subIds }, "Fallo limpiando pagos al borrar plan");
+    });
+    await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err: any) => {
+      logger.warn({ err, planId: id, subIds }, "Fallo limpiando tenants de suscripcion al borrar plan");
+    });
+    await prisma.subscription.deleteMany({ where: { id: { in: subIds } } }).catch((err: any) => {
+      logger.warn({ err, planId: id, subIds }, "Fallo limpiando suscripciones al borrar plan");
+    });
+    await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: id } }).catch((err: any) => {
+      logger.warn({ err, planId: id }, "Fallo limpiando tenants vinculados al plan");
+    });
   }
 
   await prisma.subscriptionPlan.delete({ where: { id } });
-  await systemLog(LogLevel.INFO, "plans.delete", "Plan deleted", { planId: id }).catch(() => {});
+  await systemLog(LogLevel.INFO, "plans.delete", "Plan deleted", { planId: id }).catch((err: any) => {
+    logger.warn({ err, planId: id }, "Fallo escribiendo systemLog al borrar plan");
+  });
   return { ok: true };
 }
