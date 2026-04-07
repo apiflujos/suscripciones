@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AppModal } from "../ui/AppModal";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { HelpTip } from "../ui/HelpTip";
 import { SubscriptionEditModal } from "./SubscriptionEditModal";
@@ -139,14 +140,21 @@ export function SubscriptionDetailModal({
 
   return (
     <>
-      <div className="modal-backdrop" onClick={onClose}>
-        <div className="modal-panel subscription-detail-modal" onClick={(e) => e.stopPropagation()} style={{ width: "min(1000px, 96vw)", maxHeight: "90vh", overflow: "auto" }}>
+      <AppModal
+        open
+        onClose={onClose}
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span>Detalles de suscripción</span>
+            <span className={`pill pill-sm ${estadoSimple.class}`}>{estadoSimple.label}</span>
+          </div>
+        }
+        width="min(1000px, 96vw)"
+        panelClassName="subscription-detail-modal"
+      >
+        <div style={{ maxHeight: "90vh", overflow: "auto" }}>
           {/* HEADER */}
           <div className="panel-header" style={{ justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <strong>Detalles de suscripción</strong>
-              <span className={`pill pill-sm ${estadoSimple.class}`}>{estadoSimple.label}</span>
-            </div>
             <div style={{ display: "flex", gap: 4 }}>
               <button
                 className="ghost btn-compact btn-icon-only btn-edit"
@@ -176,14 +184,6 @@ export function SubscriptionDetailModal({
                 tenantId={tenantId}
                 returnTo={returnTo}
               />
-              <button
-                className="ghost modal-close"
-                type="button"
-                onClick={onClose}
-                aria-label="Cerrar"
-              >
-                ×
-              </button>
             </div>
           </div>
 
@@ -460,7 +460,7 @@ export function SubscriptionDetailModal({
             </div>
           </div>
         </div>
-      </div>
+      </AppModal>
 
       {/* Modal de Editar (anidado) */}
       {editModalOpen && (
