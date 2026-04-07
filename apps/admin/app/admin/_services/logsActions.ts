@@ -7,6 +7,7 @@ import { reconcileWompiByReference, reconcileWompiTransaction } from "@suscripci
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment } from "@suscripciones/core/services/billingCycles";
 import { getSubscriptionPricingTotal } from "@suscripciones/core/lib/metadataSchemas";
+import { logger } from "@suscripciones/core/lib/logger";
 
 function normalizePhoneDigits(value: unknown): string {
   const digits = String(value || "").replace(/\D+/g, "");
@@ -220,7 +221,9 @@ export async function reconcilePayment(args: {
       reason: (reconcile as any)?.reason || null
     },
     "Sistema"
-  ).catch(() => {});
+  ).catch((err: any) => {
+    logger.warn({ err, paymentId: payment?.id || null, wompiTransactionId, reference }, "Fallo escribiendo systemLog de reconcile manual");
+  });
 
   if (!payment) {
     if (wompiTransactionId) {
@@ -230,7 +233,9 @@ export async function reconcilePayment(args: {
         "Reconciliar pago sin registro previo de Payment",
         { wompiTransactionId, ok: reconcile.ok, reason: (reconcile as any)?.reason || null },
         "Sistema"
-      ).catch(() => {});
+      ).catch((err: any) => {
+        logger.warn({ err, wompiTransactionId }, "Fallo escribiendo systemLog de reconcile sin payment");
+      });
     }
     return { ok: reconcile.ok, reconcile, payment: null };
   }
@@ -254,7 +259,9 @@ export async function reconcilePayment(args: {
       associationReason: "MANUAL_RECONCILE" as any,
       associatedBy: args.actorEmail ? String(args.actorEmail) : "system"
     }
-  }).catch(() => {});
+  }).catch((err: any) => {
+    logger.warn({ err, paymentId: payment.id }, "Fallo marcando associationReason tras reconcile manual");
+  });
 
   return { ok: reconcile.ok, reconcile, payment: refreshed };
 }
@@ -319,7 +326,9 @@ export async function associatePaymentToSubscription(args: {
         intervalCount: subscription.plan.intervalCount
       }
     }
-  ]).catch(() => {});
+  ]).catch((err: any) => {
+    logger.warn({ err, subscriptionId: subscription.id, paymentId: payment.id }, "Fallo asegurando ciclos antes de asociar pago manual");
+  });
 
   const now = new Date();
   let cycleToAttach = cycle;
@@ -347,7 +356,9 @@ export async function associatePaymentToSubscription(args: {
         cycleNumber: cycleToAttach.cycleNumber,
         subscriptionCycleKey: `${subscription.id}:${cycleToAttach.cycleNumber}`
       }
-    }).catch(() => {});
+    }).catch((err: any) => {
+      logger.warn({ err, paymentId: payment.id, subscriptionId: subscription.id, cycleId: cycleToAttach.id }, "Fallo actualizando ciclo del payment antes de asociarlo");
+    });
   }
 
   const targetWindowStart = cycleToAttach
@@ -439,7 +450,9 @@ export async function associatePaymentToSubscription(args: {
       actor: args.actorEmail || "system"
     },
     args.actorEmail || "Sistema"
-  ).catch(() => {});
+  ).catch((err: any) => {
+    logger.warn({ err, paymentId: payment.id, subscriptionId: subscription.id }, "Fallo escribiendo systemLog de asociacion manual");
+  });
 
   return { ok: true as const, updated: true as const };
 }
@@ -565,7 +578,9 @@ export async function autoAssociateUnlinkedPayments(args: {
           ],
           cyclesBack,
           2
-        ).catch(() => {});
+        ).catch((err: any) => {
+          logger.warn({ err, paymentId: payment.id, subscriptionId: subscription.id }, "Fallo asegurando ciclos para autoasociacion por referencia");
+        });
 
         const cycle = await resolveMatchCycle(subscription.id, refClass.cycle ?? null);
         if (!cycle) {
@@ -600,7 +615,9 @@ export async function autoAssociateUnlinkedPayments(args: {
           origin: payment.origin,
           associationReason: "SUB_REF" as any,
           associatedBy: args.actorEmail ? String(args.actorEmail) : "system"
-        }).catch(() => {});
+        }).catch((err: any) => {
+          logger.warn({ err, paymentId: payment.id, subscriptionId: subscription.id, cycleId: cycle.id }, "Fallo asociando pago a ciclo por referencia");
+        });
 
         associated += 1;
         continue;
@@ -729,7 +746,9 @@ export async function autoAssociateUnlinkedPayments(args: {
           ],
           cyclesBack,
           2
-        ).catch(() => {});
+        ).catch((err: any) => {
+          logger.warn({ err, paymentId: payment.id, subscriptionId: sub.id }, "Fallo asegurando ciclos para autoasociacion por identidad");
+        });
       }
 
       if (usableSubs.length > 1) {
@@ -796,7 +815,9 @@ export async function autoAssociateUnlinkedPayments(args: {
         origin: payment.origin,
         associationReason: "IDENTITY_MATCH" as any,
         associatedBy: args.actorEmail ? String(args.actorEmail) : "system"
-      }).catch(() => {});
+      }).catch((err: any) => {
+        logger.warn({ err, paymentId: payment.id, subscriptionId: selected.id, cycleId: selectedCycle.id }, "Fallo asociando pago a ciclo por identidad");
+      });
 
       associated += 1;
     } catch (err: any) {
@@ -873,7 +894,9 @@ export async function reconcilePendingPayments(args: { minutes?: number; take?: 
             associationReason: "MANUAL_RECONCILE" as any,
             associatedBy: "system"
           }
-        }).catch(() => {});
+        }).catch((err: any) => {
+          logger.warn({ err, paymentId: payment.id }, "Fallo marcando associationReason tras reconcile de pendientes");
+        });
       }
       else {
         skipped += 1;
@@ -894,7 +917,9 @@ export async function reconcilePendingPayments(args: { minutes?: number; take?: 
     "Reconciliar pendientes ejecutado",
     { minutes, take, scanned: pending.length, reconciled, skipped, failed },
     "Sistema"
-  ).catch(() => {});
+  ).catch((err: any) => {
+    logger.warn({ err, minutes, take, scanned: pending.length }, "Fallo escribiendo systemLog de reconcile de pendientes");
+  });
 
   return {
     ok: true,
