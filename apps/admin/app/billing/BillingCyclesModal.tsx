@@ -208,6 +208,12 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
         if (json.ok && Array.isArray(json.items)) setItems(json.items);
         // Remove associated candidate from list
         setCandidates((prev) => prev.filter((c) => c.payment.id !== candidate.payment.id));
+        // Close auto-modal after showing success
+        setTimeout(() => {
+          setAutoModalOpen(false);
+          setCandidates([]);
+          setAutoResult(null);
+        }, 1500);
       } else {
         setAutoResult({ ok: false, error: result.error || "association_failed" });
       }

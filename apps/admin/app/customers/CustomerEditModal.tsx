@@ -44,10 +44,12 @@ export function CustomerEditModal({
   const [tenantIds, setTenantIds] = useState<string[]>([]);
   const [primaryTenantId, setPrimaryTenantId] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !customer) return;
-    
+
+    setError(null);
     setName(customer.name || "");
     setEmail(customer.email || "");
     setPhone(customer.phone || "");
@@ -89,9 +91,12 @@ export function CustomerEditModal({
     if (returnTo) formData.set("returnTo", returnTo);
 
     setSaving(true);
+    setError(null);
     try {
       await updateCustomer(formData);
       onClose();
+    } catch (err: any) {
+      setError(err?.message || "Error guardando el contacto");
     } finally {
       setSaving(false);
     }
@@ -108,6 +113,11 @@ export function CustomerEditModal({
       panelClassName="customer-edit-modal"
       footer={
         <>
+          {error && (
+            <div style={{ flex: 1, color: "var(--danger)", fontSize: 12, fontWeight: 500 }}>
+              {error}
+            </div>
+          )}
           <button className="ghost btn-compact" type="button" onClick={onClose}>Cancelar</button>
           <PendingButton className="primary btn-compact" type="button" pendingText="Guardando..." onClick={handleSave} disabled={saving}>
             Guardar cambios

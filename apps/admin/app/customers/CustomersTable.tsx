@@ -854,13 +854,11 @@ export function CustomersTable({
                 const productId = resolveCustomerProductId(customer.id);
                 if (!productId) {
                   openNotify("fail", mapSendError("missing_product_for_customer"));
-                  closePayModal();
                   return;
                 }
                 const checkoutTemplate = findTemplateForProduct("PLAN", productId);
                 if (!checkoutTemplate) {
                   openNotify("fail", mapSendError("missing_checkout_for_product"));
-                  closePayModal();
                   return;
                 }
                 const payTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK");
@@ -868,7 +866,6 @@ export function CustomersTable({
                 if (!canSendPay) {
                   setSendError((prev) => ({ ...prev, [customer.id]: "missing_template" }));
                   openNotify("fail", mapSendError("missing_template"));
-                  closePayModal();
                   return;
                 }
                 setSendingPaymentId(customer.id);
@@ -894,7 +891,6 @@ export function CustomersTable({
                   if (!contentType.includes("application/json")) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
                     openNotify("fail", "Sesión vencida. Vuelve a iniciar sesión.");
-                    closePayModal();
                     return;
                   }
                   const json = await res.json().catch(() => ({}));
@@ -902,7 +898,6 @@ export function CustomersTable({
                     const msg = json?.error || "send_failed";
                     setSendError((prev) => ({ ...prev, [customer.id]: msg }));
                     openNotify("fail", mapSendError(msg));
-                    closePayModal();
                     return;
                   }
                   if (json?.publicUrl || json?.checkoutUrl) {
@@ -922,7 +917,6 @@ export function CustomersTable({
                   const msg = String(err?.message || "send_failed");
                   setSendError((prev) => ({ ...prev, [customer.id]: msg }));
                   openNotify("fail", mapSendError(msg));
-                  closePayModal();
                 } finally {
                   setSendingPaymentId(null);
                 }
@@ -1038,13 +1032,11 @@ export function CustomersTable({
                 const productId = resolveCustomerProductId(customer.id);
                 if (!productId) {
                   openNotify("fail", mapSendError("missing_product_for_customer"));
-                  closeCartModal();
                   return;
                 }
                 const checkoutTemplate = findTemplateForProduct("CART", productId);
                 if (!checkoutTemplate) {
                   openNotify("fail", mapSendError("missing_checkout_for_product"));
-                  closeCartModal();
                   return;
                 }
                 const notifTemplate = resolveNotificationTemplate(
@@ -1055,7 +1047,6 @@ export function CustomersTable({
                 if (!canSendNotif) {
                   setSendError((prev) => ({ ...prev, [customer.id]: "missing_template" }));
                   openNotify("fail", mapSendError("missing_template"));
-                  closeCartModal();
                   return;
                 }
                 setSendingCartId(customer.id);
@@ -1081,7 +1072,6 @@ export function CustomersTable({
                   if (!contentType.includes("application/json")) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
                     openNotify("fail", "Sesión vencida. Vuelve a iniciar sesión.");
-                    closeCartModal();
                     return;
                   }
                   const json = await res.json().catch(() => ({}));
@@ -1089,7 +1079,6 @@ export function CustomersTable({
                     const msg = json?.error || "send_failed";
                     setSendError((prev) => ({ ...prev, [customer.id]: msg }));
                     openNotify("fail", mapSendError(msg));
-                    closeCartModal();
                     return;
                   }
                   if (json?.link) {
@@ -1102,7 +1091,6 @@ export function CustomersTable({
                   const msg = String(err?.message || "send_failed");
                   setSendError((prev) => ({ ...prev, [customer.id]: msg }));
                   openNotify("fail", mapSendError(msg));
-                  closeCartModal();
                 } finally {
                   setSendingCartId(null);
                 }
@@ -1206,13 +1194,11 @@ export function CustomersTable({
                 const productId = resolveCustomerProductId(customer.id);
                 if (!productId) {
                   openNotify("fail", mapSendError("missing_product_for_customer"));
-                  closeTokenModal();
                   return;
                 }
                 const checkoutTemplate = findTemplateForProduct("SUBSCRIPTION", productId);
                 if (!checkoutTemplate) {
                   openNotify("fail", mapSendError("missing_checkout_for_product"));
-                  closeTokenModal();
                   return;
                 }
                 const notifTemplate = resolveNotificationTemplate("TOKENIZATION_LINK_CREATED");
@@ -1220,7 +1206,6 @@ export function CustomersTable({
                 if (!canSendNotif) {
                   setSendError((prev) => ({ ...prev, [customer.id]: "missing_template" }));
                   openNotify("fail", mapSendError("missing_template"));
-                  closeTokenModal();
                   return;
                 }
                 setSendingTokenId(customer.id);
@@ -1245,7 +1230,6 @@ export function CustomersTable({
                   if (!contentType.includes("application/json")) {
                     setSendError((prev) => ({ ...prev, [customer.id]: "auth_required" }));
                     openNotify("fail", mapSendError("auth_required"));
-                    closeTokenModal();
                     return;
                   }
                   const json = await res.json().catch(() => ({}));
@@ -1253,7 +1237,6 @@ export function CustomersTable({
                     const msg = json?.error || "send_failed";
                     setSendError((prev) => ({ ...prev, [customer.id]: msg }));
                     openNotify("fail", mapSendError(msg));
-                    closeTokenModal();
                     return;
                   }
                   if (json?.link) {
@@ -1266,7 +1249,6 @@ export function CustomersTable({
                   const msg = String(err?.message || "send_failed");
                   setSendError((prev) => ({ ...prev, [customer.id]: msg }));
                   openNotify("fail", mapSendError(msg));
-                  closeTokenModal();
                 } finally {
                   setSendingTokenId(null);
                 }
