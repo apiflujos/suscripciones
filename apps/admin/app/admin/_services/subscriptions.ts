@@ -1671,14 +1671,24 @@ export async function deleteSubscription(args: { subscriptionId: string; tenantI
     const paymentIds = payments.map((p: any) => p.id);
 
     if (paymentIds.length) {
-      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch(() => {});
+      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch((err: any) => {
+        logger.warn({ err, subscriptionId, paymentIds }, "Fallo limpiando payment attempts al borrar suscripcion");
+      });
     }
-    await prisma.chatwootMessage.deleteMany({ where: { subscriptionId } }).catch(() => {});
-    await prisma.paymentLink.deleteMany({ where: { subscriptionId } }).catch(() => {});
+    await prisma.chatwootMessage.deleteMany({ where: { subscriptionId } }).catch((err: any) => {
+      logger.warn({ err, subscriptionId }, "Fallo limpiando mensajes Chatwoot al borrar suscripcion");
+    });
+    await prisma.paymentLink.deleteMany({ where: { subscriptionId } }).catch((err: any) => {
+      logger.warn({ err, subscriptionId }, "Fallo limpiando payment links al borrar suscripcion");
+    });
     if (args.purgePayments) {
-      await prisma.payment.deleteMany({ where: { subscriptionId } }).catch(() => {});
+      await prisma.payment.deleteMany({ where: { subscriptionId } }).catch((err: any) => {
+        logger.warn({ err, subscriptionId }, "Fallo limpiando pagos al borrar suscripcion");
+      });
     }
-    await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId } }).catch(() => {});
+    await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId } }).catch((err: any) => {
+      logger.warn({ err, subscriptionId }, "Fallo limpiando tenants vinculados al borrar suscripcion");
+    });
   }
 
   await prisma.subscription.delete({ where: { id: subscriptionId } });
@@ -1713,8 +1723,12 @@ export async function mergeDuplicateSubscriptions(args: {
     const paymentsCount = await prisma.payment.count({ where: { subscriptionId: sub.id } });
     const linksCount = await prisma.paymentLink.count({ where: { subscriptionId: sub.id } });
     if (!paymentsCount && !linksCount) {
-      await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: sub.id } }).catch(() => {});
-      await prisma.subscription.delete({ where: { id: sub.id } }).catch(() => {});
+      await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: sub.id } }).catch((err: any) => {
+        logger.warn({ err, subscriptionId: sub.id, keepSubscriptionId: keepId }, "Fallo limpiando tenants al fusionar suscripciones duplicadas");
+      });
+      await prisma.subscription.delete({ where: { id: sub.id } }).catch((err: any) => {
+        logger.warn({ err, subscriptionId: sub.id, keepSubscriptionId: keepId }, "Fallo borrando suscripcion duplicada vacia");
+      });
     } else {
       const meta = (sub.metadata && typeof sub.metadata === "object" ? (sub.metadata as any) : {}) as any;
       await prisma.subscription.update({
