@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireApiSession } from "../../../_lib/requireApiSession";
 import { requireSaSessionFromCookie } from "../../../_lib/requireSaSession";
 import { executeSqlConsole } from "../../../../admin/_services/sqlConsole";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export async function POST(req: Request) {
   const auth = await requireApiSession(req, { roles: ["SUPER_ADMIN"] });
@@ -10,7 +11,10 @@ export async function POST(req: Request) {
   const sa = await requireSaSessionFromCookie();
   if (!sa.ok) return sa.response;
 
-  const body = await req.json().catch(() => null);
+  const body = await req.json().catch((err: any) => {
+    logger.warn({ err, actor: sa.sa.email }, "Body invalido en SQL console execute");
+    return null;
+  });
   const result = await executeSqlConsole(body);
   if (!result.ok) {
     return NextResponse.json(

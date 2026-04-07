@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiSession } from "../../../_lib/requireApiSession";
 import { resolveSmartViewIds, normalizeSmartViewScope, parseFiltersParam } from "@suscripciones/core/services/smartViews";
+import { logger } from "@suscripciones/core/lib/logger";
 import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
 
 type RouteContext = { params: Promise<{ scope: string }> };
@@ -19,7 +20,10 @@ export async function POST(req: Request, ctx: RouteContext) {
   const normalizedScope = normalizeSmartViewScope(String(scope || ""));
   if (!normalizedScope) return NextResponse.json({ error: "invalid_scope" }, { status: 400 });
 
-  const body = await req.json().catch(() => ({}));
+  const body = await req.json().catch((err: any) => {
+    logger.warn({ err, scope: normalizedScope }, "Body invalido resolviendo smart view");
+    return {};
+  });
   const viewId = String(body?.id || body?.viewId || "").trim();
   const rules = body?.filters ? parseFiltersParam(body?.filters) : null;
 

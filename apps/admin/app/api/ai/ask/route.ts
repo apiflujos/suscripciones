@@ -3,6 +3,7 @@ import { requireApiSession } from "../../_lib/requireApiSession";
 import { reqToCompat } from "../../../admin/_lib/reqCompat";
 import { coerceTenantId, getEffectiveTenantId } from "@suscripciones/core/services/tenantContext";
 import { queueAiAssistRequest } from "../../../admin/_services/ai";
+import { logger } from "@suscripciones/core/lib/logger";
 
 const askSchema = z.object({
   question: z.string().min(3).max(2000),
@@ -18,7 +19,10 @@ export async function POST(req: Request) {
   const auth = await requireApiSession(req);
   if (!auth.ok) return auth.response;
 
-  const body = await req.json().catch(() => null);
+  const body = await req.json().catch((err: any) => {
+    logger.warn({ err, actor: auth.session.sub || null }, "Body invalido en AI ask");
+    return null;
+  });
   const parsed = askSchema.safeParse(body);
   if (!parsed.success) {
     return Response.json({ error: "invalid_body", details: parsed.error.flatten() }, { status: 400 });

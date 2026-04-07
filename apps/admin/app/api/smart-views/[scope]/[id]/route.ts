@@ -8,6 +8,7 @@ import {
   normalizeSmartViewVisibility,
   setSmartViewItems
 } from "@suscripciones/core/services/smartViews";
+import { logger } from "@suscripciones/core/lib/logger";
 import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
 
 type RouteContext = { params: Promise<{ scope: string; id: string }> };
@@ -71,7 +72,10 @@ export async function PUT(req: Request, ctx: RouteContext) {
   if (!resolved.ok) return NextResponse.json({ error: "tenant_forbidden" }, { status: 403 });
   if (!resolved.tenantId) return NextResponse.json({ error: "tenant_required" }, { status: 400 });
 
-  const body = await req.json().catch(() => null);
+  const body = await req.json().catch((err: any) => {
+    logger.warn({ err, scope: normalizedScope, id }, "Body invalido actualizando smart view");
+    return null;
+  });
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "invalid_body", details: parsed.error.flatten() }, { status: 400 });
 
