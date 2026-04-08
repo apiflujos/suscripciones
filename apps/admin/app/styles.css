@@ -2621,35 +2621,42 @@ a {
 }
 
 .filtersSearch .ghost {
-  background: var(--panel);
-  border-color: var(--stroke);
+  background: transparent;
+  border: 1px solid var(--stroke);
   font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 8px;
 }
 
 .filtersSearch .btn-search {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 8px;
+  padding: 6px 10px;
   min-height: auto;
   margin-left: 0;
   flex-shrink: 0;
   cursor: pointer;
+  border: 1px solid var(--stroke);
+  background: var(--surface-2);
   border-radius: 8px;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .filtersSearch .btn-search:hover {
-  background: var(--surface-2);
+  background: var(--panel);
+  border-color: var(--primary);
 }
 
 .filtersSearch .btn-search svg {
-  opacity: 0.7;
+  color: var(--text-secondary);
   pointer-events: none;
+  width: 16px;
+  height: 16px;
 }
 
 .filtersSearch .btn-search:hover svg {
-  opacity: 1;
+  color: var(--primary);
 }
 
 .contacts-search-row {
