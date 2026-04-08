@@ -117,34 +117,11 @@ function iconStyle(size = 16) {
   return { width: size, height: size, display: "block", flex: "0 0 auto" } as const;
 }
 
-function SparkIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={iconStyle(16)} aria-hidden="true">
-      <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" />
-    </svg>
-  );
-}
-
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={iconStyle(16)} aria-hidden="true">
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.5-3.5" />
-    </svg>
-  );
-}
-
-function ChevronIcon({ expanded }: { expanded: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      style={{ ...iconStyle(14), transform: expanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }}
-      aria-hidden="true"
-    >
-      <path d="m6 9 6 6 6-6" />
     </svg>
   );
 }
@@ -404,9 +381,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                 type="button"
                 onClick={handleAutoAssociate}
                 title="Buscar y asociar pagos automáticamente"
-                style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
               >
-                <SparkIcon />
                 <span>Asociar pagos</span>
               </button>
             )}
@@ -466,38 +441,23 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                               <td style={{ textAlign: "left" }}><span className={`pill pill-sm ${punctual.class}`}>{punctual.label}</span></td>
                               <td style={{ textAlign: "left" }}><span className={`pill pill-sm ${origin.class}`}>{origin.label}</span></td>
                               <td style={{ textAlign: "center" }}>
-                                <div style={{ display: "flex", gap: 4, justifyContent: "center", alignItems: "center" }}>
-                                  {isPending && (
-                                    <button
-                                      className="ghost btn-compact btn-noicon"
-                                      type="button"
-                                      title="Buscar pago manualmente"
-                                      aria-label="Buscar pago manualmente"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedCycleForManual(cycle.id);
-                                        setSearchModalOpen(true);
-                                        setSearchResults([]);
-                                        setSearchQuery("");
-                                      }}
-                                    >
-                                      <SearchIcon />
-                                    </button>
-                                  )}
-                                  <span
-                                    className={`btn-icon-only ${isExpanded ? "active" : ""}`}
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      width: "24px",
-                                      height: "24px",
-                                      color: "var(--text-faint)"
+                                {isPending && (
+                                  <button
+                                    className="ghost btn-compact btn-noicon"
+                                    type="button"
+                                    title="Buscar pago manualmente"
+                                    aria-label="Buscar pago manualmente"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedCycleForManual(cycle.id);
+                                      setSearchModalOpen(true);
+                                      setSearchResults([]);
+                                      setSearchQuery("");
                                     }}
                                   >
-                                    <ChevronIcon expanded={isExpanded} />
-                                  </span>
-                                </div>
+                                    <SearchIcon />
+                                  </button>
+                                )}
                               </td>
                             </tr>
 
