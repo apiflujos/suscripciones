@@ -2627,13 +2627,20 @@ a {
 }
 
 .filtersSearch .btn-search {
-  display: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  min-height: auto;
+  margin-left: -4px;
 }
 
-.filtersSearch .btn-search {
-  background: var(--panel);
-  border-color: var(--stroke);
-  box-shadow: var(--btn-shadow-soft);
+.filtersSearch .btn-search svg {
+  opacity: 0.6;
+}
+
+.filtersSearch .btn-search:hover svg {
+  opacity: 1;
 }
 
 .contacts-search-row {
