@@ -28,6 +28,7 @@ type SuggestedPayment = {
   wompiTransactionId: string | null;
   origin: string | null;
   cycleNumber: number | null;
+  payerName?: string | null;
 };
 
 export type PaymentCycleSuggestion = {
@@ -42,6 +43,7 @@ export type PaymentCycleSuggestion = {
     wompiTransactionId: string | null;
     origin: string | null;
     cycleNumber: number | null;
+    payerName: string | null;
   };
   suggestedCycle: {
     id: string;
@@ -91,7 +93,8 @@ function serializePayment(payment: SuggestedPayment) {
     reference: payment.reference,
     wompiTransactionId: payment.wompiTransactionId,
     origin: payment.origin,
-    cycleNumber: payment.cycleNumber
+    cycleNumber: payment.cycleNumber,
+    payerName: payment.payerName || null
   };
 }
 
@@ -362,22 +365,65 @@ export async function listSubscriptionBillingCycles(args: { subscriptionId: stri
     logger.warn({ err, subscriptionId }, "Fallo asegurando ciclos antes de listar billing cycles");
   });
 
-  const items = await prisma.subscriptionBillingCycle.findMany({
+  const rawItems = await prisma.subscriptionBillingCycle.findMany({
     where: {
       subscriptionId,
       periodStartAt: { lte: new Date() }
     },
     orderBy: { periodStartAt: "desc" },
     take,
-    include: { 
-      subscription: { 
-        select: { 
+    include: {
+      subscription: {
+        select: {
           id: true,
-          plan: { select: { name: true, id: true } } 
-        } 
-      } 
+          plan: { select: { name: true, id: true } }
+        }
+      },
+      payment: {
+        select: {
+          id: true,
+          wompiTransactionId: true,
+          status: true,
+          amountInCents: true,
+          paidAt: true,
+          reference: true
+        }
+      }
     }
   });
+
+  // Calculate status dynamically: if payment exists → PAID, else check due date
+  const now = new Date();
+  const items = rawItems.map((cycle) => {
+    const hasPayment = cycle.paymentId != null;
+    const dueAt = cycle.dueAt || cycle.periodEndAt;
+    const isOverdue = !hasPayment && dueAt && dueAt.getTime() < now.getTime();
+
+    let status = "PENDING";
+    if (hasPayment) {
+      status = "PAID";
+    } else if (isOverdue) {
+      status = "FAILED";
+    } else if (cycle.status === "PAID") {
+      // Fallback: if DB says PAID but paymentId is null, trust DB
+      status = "PAID";
+    } else if (cycle.status === "FAILED") {
+      status = "FAILED";
+    }
+
+    return {
+      ...cycle,
+      status,
+      payment: cycle.payment ? {
+        id: cycle.payment.id,
+        transactionId: cycle.payment.wompiTransactionId,
+        amountInCents: cycle.payment.amountInCents,
+        paidAt: cycle.payment.paidAt,
+        reference: cycle.payment.reference
+      } : null
+    };
+  });
+
   return { ok: true as const, items };
 }
 
@@ -429,7 +475,10 @@ export async function searchSubscriptionPaymentCandidates(args: {
       ]
     },
     orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
-    take
+    take,
+    include: {
+      customer: { select: { name: true, email: true } }
+    }
   });
 
   return {
@@ -446,7 +495,8 @@ export async function searchSubscriptionPaymentCandidates(args: {
       reference: p.reference,
       origin: p.origin || null,
       associationReason: p.associationReason || null,
-      associatedBy: p.associatedBy || null
+      associatedBy: p.associatedBy || null,
+      payerName: p.customer?.name || null
     }))
   };
 }
@@ -510,24 +560,27 @@ export async function getSubscriptionAutoAssociationSuggestions(args: {
       },
       orderBy: [{ paidAt: "asc" }, { createdAt: "asc" }, { id: "asc" }],
       take: 50,
-      select: {
-        id: true,
-        amountInCents: true,
-        currency: true,
-        status: true,
-        paidAt: true,
-        createdAt: true,
-        reference: true,
-        wompiTransactionId: true,
-        origin: true,
-        cycleNumber: true
+      include: {
+        customer: { select: { name: true, email: true } }
       }
     })
   ]);
 
   const suggestions = buildUniquePaymentCycleSuggestions({
     cycles,
-    payments,
+    payments: payments.map((p) => ({
+      id: p.id,
+      amountInCents: p.amountInCents,
+      currency: p.currency,
+      status: p.status,
+      paidAt: p.paidAt,
+      createdAt: p.createdAt,
+      reference: p.reference,
+      wompiTransactionId: p.wompiTransactionId,
+      origin: p.origin,
+      cycleNumber: p.cycleNumber,
+      payerName: p.customer?.name || null
+    })),
     paymentTiming: subscription.paymentTiming as "EN_CURSO" | "ANTICIPADO",
     subscriptionId
   });

@@ -424,6 +424,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                         const origin = originLabel(cycle.origin);
                         const isExpanded = expandedCycle === cycle.id;
                         const isPending = cycle.status === "PENDING" || cycle.status === "FAILED";
+                        const hasPayment = cycle.paymentId || cycle.payment?.transactionId;
 
                         return (
                           <Fragment key={cycle.id}>
@@ -436,7 +437,13 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                               </td>
                               <td style={{ textAlign: "left" }}>{formatDateRange(cycle.periodStartAt, cycle.periodEndAt)}</td>
                               <td style={{ textAlign: "left" }}>{formatCivilDate(cycle.dueAt)}</td>
-                              <td style={{ textAlign: "left" }}>{cycle.paidAt ? <LocalDateTime value={cycle.paidAt} variant="short" /> : "—"}</td>
+                              <td style={{ textAlign: "left" }}>
+                                {cycle.paidAt ? (
+                                  <span title={cycle.payment?.transactionId || ""}>
+                                    <LocalDateTime value={cycle.paidAt} variant="short" />
+                                  </span>
+                                ) : "—"}
+                              </td>
                               <td style={{ textAlign: "left" }}><span className={`pill pill-sm ${status.class}`}>{status.label}</span></td>
                               <td style={{ textAlign: "left" }}><span className={`pill pill-sm ${punctual.class}`}>{punctual.label}</span></td>
                               <td style={{ textAlign: "left" }}><span className={`pill pill-sm ${origin.class}`}>{origin.label}</span></td>
@@ -522,7 +529,38 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                                     </div>
 
                                     {cycle.paymentId ? (
-                                      <form
+                                      <div style={{ marginTop: 16, padding: "12px 14px", background: "var(--surface-2)", borderRadius: 8 }}>
+                                        <div style={{ fontSize: "10px", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 8 }}>Pago Asociado</div>
+                                        <div style={{ display: "grid", gap: 6, fontSize: 12 }}>
+                                          {cycle.payment?.transactionId && (
+                                            <div>
+                                              <span style={{ color: "var(--text-faint)" }}>Transaction ID: </span>
+                                              <code style={{ fontSize: 11, wordBreak: "break-all" }}>{cycle.payment.transactionId}</code>
+                                            </div>
+                                          )}
+                                          {cycle.payment?.reference && (
+                                            <div>
+                                              <span style={{ color: "var(--text-faint)" }}>Referencia: </span>
+                                              <code style={{ fontSize: 11, wordBreak: "break-all" }}>{cycle.payment.reference}</code>
+                                            </div>
+                                          )}
+                                          {cycle.payment?.paidAt && (
+                                            <div>
+                                              <span style={{ color: "var(--text-faint)" }}>Pagado: </span>
+                                              {formatCivilDate(cycle.payment.paidAt)}
+                                            </div>
+                                          )}
+                                          {cycle.payment?.amountInCents && (
+                                            <div>
+                                              <span style={{ color: "var(--text-faint)" }}>Monto: </span>
+                                              {fmtMoney(cycle.payment.amountInCents, cycle.currency)}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ) : null}
+
+                                    <form
                                         action={movePaymentToCycle}
                                         className="cycle-move-form"
                                         style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 16 }}
@@ -682,6 +720,9 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                               {fmtMoney(suggestion.payment.amountInCents, suggestion.payment.currency)}
                             </div>
                             <div style={{ display: "grid", gap: 4, fontSize: 12, color: "var(--muted)" }}>
+                              {suggestion.payment.payerName ? (
+                                <div><strong>Titular:</strong> {suggestion.payment.payerName}</div>
+                              ) : null}
                               <div>Fecha de pago: {suggestion.payment.paidAt ? formatCivilDate(suggestion.payment.paidAt) : formatCivilDate(suggestion.payment.createdAt)}</div>
                               <div>Estado: {suggestion.payment.status}</div>
                               <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
