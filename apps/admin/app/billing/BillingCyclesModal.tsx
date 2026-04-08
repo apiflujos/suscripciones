@@ -529,61 +529,62 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                                     </div>
 
                                     {cycle.paymentId ? (
-                                      <div style={{ marginTop: 16, padding: "12px 14px", background: "var(--surface-2)", borderRadius: 8 }}>
-                                        <div style={{ fontSize: "10px", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 8 }}>Pago Asociado</div>
-                                        <div style={{ display: "grid", gap: 6, fontSize: 12 }}>
-                                          {cycle.payment?.transactionId && (
-                                            <div>
-                                              <span style={{ color: "var(--text-faint)" }}>Transaction ID: </span>
-                                              <code style={{ fontSize: 11, wordBreak: "break-all" }}>{cycle.payment.transactionId}</code>
-                                            </div>
-                                          )}
-                                          {cycle.payment?.reference && (
-                                            <div>
-                                              <span style={{ color: "var(--text-faint)" }}>Referencia: </span>
-                                              <code style={{ fontSize: 11, wordBreak: "break-all" }}>{cycle.payment.reference}</code>
-                                            </div>
-                                          )}
-                                          {cycle.payment?.paidAt && (
-                                            <div>
-                                              <span style={{ color: "var(--text-faint)" }}>Pagado: </span>
-                                              {formatCivilDate(cycle.payment.paidAt)}
-                                            </div>
-                                          )}
-                                          {cycle.payment?.amountInCents && (
-                                            <div>
-                                              <span style={{ color: "var(--text-faint)" }}>Monto: </span>
-                                              {fmtMoney(cycle.payment.amountInCents, cycle.currency)}
-                                            </div>
-                                          )}
+                                      <>
+                                        <div style={{ marginTop: 16, padding: "12px 14px", background: "var(--surface-2)", borderRadius: 8 }}>
+                                          <div style={{ fontSize: "10px", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 8 }}>Pago Asociado</div>
+                                          <div style={{ display: "grid", gap: 6, fontSize: 12 }}>
+                                            {cycle.payment?.transactionId && (
+                                              <div>
+                                                <span style={{ color: "var(--text-faint)" }}>Transaction ID: </span>
+                                                <code style={{ fontSize: 11, wordBreak: "break-all" }}>{cycle.payment.transactionId}</code>
+                                              </div>
+                                            )}
+                                            {cycle.payment?.reference && (
+                                              <div>
+                                                <span style={{ color: "var(--text-faint)" }}>Referencia: </span>
+                                                <code style={{ fontSize: 11, wordBreak: "break-all" }}>{cycle.payment.reference}</code>
+                                              </div>
+                                            )}
+                                            {cycle.payment?.paidAt && (
+                                              <div>
+                                                <span style={{ color: "var(--text-faint)" }}>Pagado: </span>
+                                                {formatCivilDate(cycle.payment.paidAt)}
+                                              </div>
+                                            )}
+                                            {cycle.payment?.amountInCents && (
+                                              <div>
+                                                <span style={{ color: "var(--text-faint)" }}>Monto: </span>
+                                                {fmtMoney(cycle.payment.amountInCents, cycle.currency)}
+                                              </div>
+                                            )}
+                                          </div>
                                         </div>
-                                      </div>
-                                    ) : null}
 
-                                    <form
-                                        action={movePaymentToCycle}
-                                        className="cycle-move-form"
-                                        style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 16 }}
-                                      >
-                                        <input type="hidden" name="csrf" value={csrfToken} />
-                                        <input type="hidden" name="paymentId" value={cycle.paymentId} />
-                                        <input type="hidden" name="subscriptionId" value={cycle.subscriptionId} />
-                                        <input type="hidden" name="tenantId" value={String(tenantId || "")} />
-                                        <input type="hidden" name="returnTo" value={returnTo} />
-                                        <select className="select select-sm" name="cycleId" defaultValue="">
-                                          <option value="">Mover pago a…</option>
-                                          {items
-                                            .filter((c) => c.id !== cycle.id && !c.paymentId)
-                                            .map((c) => (
-                                              <option key={`move-${cycle.id}-${c.id}`} value={c.id}>
-                                                Ciclo {c.cycleNumber} · {formatCivilDate(c.periodStartAt)} → {formatCivilDate(c.periodEndAt)}
-                                              </option>
-                                            ))}
-                                        </select>
-                                        <button className="ghost btn-compact btn-noicon" type="submit">
-                                          Mover pago
-                                        </button>
-                                      </form>
+                                        <form
+                                          action={movePaymentToCycle}
+                                          className="cycle-move-form"
+                                          style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 16 }}
+                                        >
+                                          <input type="hidden" name="csrf" value={csrfToken} />
+                                          <input type="hidden" name="paymentId" value={cycle.paymentId} />
+                                          <input type="hidden" name="subscriptionId" value={cycle.subscriptionId} />
+                                          <input type="hidden" name="tenantId" value={String(tenantId || "")} />
+                                          <input type="hidden" name="returnTo" value={returnTo} />
+                                          <select className="select select-sm" name="cycleId" defaultValue="">
+                                            <option value="">Mover pago a…</option>
+                                            {items
+                                              .filter((c) => c.id !== cycle.id && !c.paymentId)
+                                              .map((c) => (
+                                                <option key={`move-${cycle.id}-${c.id}`} value={c.id}>
+                                                  Ciclo {c.cycleNumber} · {formatCivilDate(c.periodStartAt)} → {formatCivilDate(c.periodEndAt)}
+                                                </option>
+                                              ))}
+                                          </select>
+                                          <button className="ghost btn-compact btn-noicon" type="submit">
+                                            Mover pago
+                                          </button>
+                                        </form>
+                                      </>
                                     ) : null}
 
                                     {/* IDs - Información técnica al final */}
