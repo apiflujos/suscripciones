@@ -167,9 +167,7 @@ export async function listPaymentLogs(args: {
           tenantId: true,
           customerId: true,
           status: true,
-          currentPeriodEndAt: true,
-          currentPeriodStartAt: true,
-          currentCycle: true,
+          startAt: true,
           cycleStartDay: true,
           paymentDay: true,
           paymentTiming: true,
@@ -182,9 +180,7 @@ export async function listPaymentLogs(args: {
     await ensureBillingCyclesForSubscriptions(
       activeSubscriptions.map((s) => ({
         id: s.id,
-        currentCycle: s.currentCycle,
-        currentPeriodStartAt: s.currentPeriodStartAt,
-        currentPeriodEndAt: s.currentPeriodEndAt,
+        startAt: s.startAt,
         cycleStartDay: (s as any).cycleStartDay ?? 1,
         paymentDay: (s as any).paymentDay ?? 1,
         paymentTiming: String((s as any).paymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",

@@ -16,3 +16,9 @@ export function getCheckoutBaseUrlsFromEnv(): { planBaseUrl: string | null; subs
     cartBaseUrl: `${base}/public/cart`
   };
 }
+
+export function getPublicReturnUrlFromEnv(): string | null {
+  const base = getPublicBaseUrlFromEnv();
+  if (!base) return null;
+  return `${base}/public/return`;
+}

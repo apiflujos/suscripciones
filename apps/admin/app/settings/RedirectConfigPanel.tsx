@@ -198,8 +198,8 @@ export function RedirectConfigPanel({
               </div>
               <div className="field">
                 <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  URL retorno débito automático
-                  <HelpTip text="Destino del botón 'Volver' después de tokenizar." />
+                  URL retorno público
+                  <HelpTip text="Destino del botón 'Volver' tras tokenizar y fallback de retorno de checkout." />
                 </label>
                 <input className="input" name="tokenizationReturnUrl" value={tokenReturnUrl} onChange={(e) => setTokenReturnUrl(e.target.value)} />
                 {returnInvalid ? <div className="field-hint" style={{ color: "var(--danger)" }}>URL inválida. Debe iniciar con http(s).</div> : null}

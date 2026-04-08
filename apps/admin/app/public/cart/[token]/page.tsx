@@ -2,24 +2,9 @@ import { PublicCheckoutLayout } from "../../_components/PublicCheckoutLayout";
 import { PublicAlert } from "../../_components/PublicAlert";
 import { PublicErrorPage } from "../../_components/PublicErrorPage";
 import { PUBLIC_COPY } from "../../_components/publicCopy";
+import { fetchPublicJsonAcrossBases, getPublicApiBases } from "../../_components/publicRuntime";
 
 export const dynamic = "force-dynamic";
-
-async function fetchCart(token: string) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  if (!apiBase) return { ok: false, status: 500, json: { error: "missing_next_public_api_base_url" } };
-  const res = await fetch(`${apiBase}/api/public/cart/${encodeURIComponent(token)}`, { cache: "no-store" });
-  const json = await res.json().catch(() => null);
-  return { ok: res.ok, status: res.status, json };
-}
-
-async function fetchCheckoutConfig() {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  if (!apiBase) return { ok: false, json: { error: "missing_next_public_api_base_url" } };
-  const res = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" });
-  const json = await res.json().catch(() => null);
-  return { ok: res.ok, json };
-}
 
 function formatMoney(cents: number, currency = "COP") {
   const major = Math.trunc(Number(cents || 0) / 100);
@@ -45,8 +30,9 @@ export default async function PublicCartPage({
 }) {
   const { token } = await params;
   const sp = searchParams ? await searchParams : {};
-  const cartRes = await fetchCart(token);
-  const configRes = await fetchCheckoutConfig();
+  const apiBases = await getPublicApiBases();
+  const cartRes = await fetchPublicJsonAcrossBases(`/api/public/cart/${encodeURIComponent(token)}`, apiBases);
+  const configRes = await fetchPublicJsonAcrossBases("/public/checkout-config", apiBases);
   const config = configRes.ok ? configRes.json?.config || {} : {};
   const template = cartRes.ok ? cartRes.json?.template || null : null;
   const tenant = cartRes.ok ? cartRes.json?.tenant || null : null;
@@ -132,7 +118,7 @@ export default async function PublicCartPage({
                     <div className="field-hint">{formatInterval(p.intervalUnit, p.intervalCount)}</div>
                   </div>
                 </div>
-                <form method="POST" action={`/api/public/cart/${encodeURIComponent(token)}/select`}>
+                <form method="POST" action={`/public/cart/${encodeURIComponent(token)}/select`}>
                   <input type="hidden" name="planId" value={p.id} />
                   <button className="primary btn-compact btn-noicon" type="submit">
                     Continuar

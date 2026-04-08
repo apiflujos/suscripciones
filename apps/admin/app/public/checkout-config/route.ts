@@ -1,6 +1,6 @@
 import { getCredential, getCredentialsBulk } from "@suscripciones/core/services/credentials";
 import { CredentialProvider } from "@prisma/client";
-import { getCheckoutBaseUrlsFromEnv } from "@suscripciones/core/services/publicBase";
+import { getCheckoutBaseUrlsFromEnv, getPublicReturnUrlFromEnv } from "@suscripciones/core/services/publicBase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +50,7 @@ export async function GET() {
   const envBases = getCheckoutBaseUrlsFromEnv();
   const storedPlanBaseUrl = String(parsed?.planBaseUrl || "").trim();
   const storedSubscriptionBaseUrl = String(parsed?.subscriptionBaseUrl || "").trim();
+  const storedReturnUrl = String(parsed?.tokenizationReturnUrl || "").trim();
   const wompiActiveEnv: "SANDBOX" | "PRODUCTION" = (() => {
     const fromDb = wompiCreds.get("ACTIVE_ENV");
     const normalized = String(fromDb || "PRODUCTION")
@@ -79,7 +80,8 @@ export async function GET() {
     tokenizationSuccessTitle: String(parsed?.tokenizationSuccessTitle || "").trim() || "",
     tokenizationSuccessMessage: String(parsed?.tokenizationSuccessMessage || "").trim() || "",
     tokenizationErrorMessage: String(parsed?.tokenizationErrorMessage || "").trim() || "",
-    tokenizationReturnUrl: String(parsed?.tokenizationReturnUrl || "").trim() || "",
+    tokenizationReturnUrl: storedReturnUrl || getPublicReturnUrlFromEnv() || "",
+    publicReturnUrl: getPublicReturnUrlFromEnv(),
     wompiActiveEnv,
     wompiPublicKey: wompiPublicKey || null,
     wompiApiBaseUrl: wompiApiBaseUrl || null

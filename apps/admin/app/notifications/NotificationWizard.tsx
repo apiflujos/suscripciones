@@ -491,8 +491,8 @@ export function NotificationWizard({
                     <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       <input type="checkbox" checked={atTimeEnabled} onChange={(e) => setAtTimeEnabled(e.target.checked)} />
                       <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-                        Enviar a hora exacta (UTC)
-                        <HelpTip text="Si activas esto, el envío se hace a la hora exacta (UTC) en la fecha calculada.\nEj: 1 día antes a las 09:00 UTC." />
+                        Enviar a hora exacta (hora local)
+                        <HelpTip text="Si activas esto, el envío se hace a la hora exacta de la zona horaria operativa de la app en la fecha calculada.\nEj: 1 día antes a las 09:00 hora local." />
                       </span>
                     </label>
                     {atTimeEnabled ? (

@@ -27,9 +27,6 @@ async function main() {
     await ensureBillingCyclesForSubscription({
       id: sub.id,
       startAt: sub.startAt,
-      currentCycle: sub.currentCycle,
-      currentPeriodStartAt: sub.currentPeriodStartAt,
-      currentPeriodEndAt: sub.currentPeriodEndAt,
       cycleStartDay: sub.cycleStartDay,
       paymentDay: sub.paymentDay,
       paymentTiming: sub.paymentTiming as any,

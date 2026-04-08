@@ -2,7 +2,7 @@ import { LogLevel, PaymentStatus, RetryJobType } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
 import { getNotificationsActiveEnv, getNotificationsConfig, NotificationTrigger } from "./notificationsConfig";
-import { getPaymentsConfig } from "./runtimeConfig";
+import { getAppTimeZone, getPaymentsConfig } from "./runtimeConfig";
 import { systemLog, SystemActor } from "./systemLog";
 import { subscriptionReminder } from "../jobs/handlers/subscriptionReminder";
 import { classifyReference } from "../webhooks/wompi/classifyReference";
@@ -33,26 +33,66 @@ function clampRunAt(runAt: Date, now: Date) {
   return runAt.getTime() < now.getTime() ? now : runAt;
 }
 
-function applyAtTimeUtc(date: Date, hhmm: string) {
-  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(hhmm || "").trim());
-  if (!m) return date;
-  const hours = Number(m[1]);
-  const minutes = Number(m[2]);
-  const d = new Date(date.getTime());
-  d.setUTCHours(hours, minutes, 0, 0);
-  return d;
+function getZonedParts(date: Date, timeZone: string) {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  });
+  const values = Object.fromEntries(
+    fmt
+      .formatToParts(date)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
+  ) as Record<string, string>;
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+    second: Number(values.second)
+  };
 }
 
-const BOGOTA_UTC_OFFSET_MS = -5 * 60 * 60 * 1000;
+function getTimeZoneOffsetMs(date: Date, timeZone: string) {
+  const parts = getZonedParts(date, timeZone);
+  const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second, 0);
+  return asUtc - date.getTime();
+}
 
-function applyAtTimeBogota(date: Date, hhmm: string) {
+function applyAtTimeInZone(date: Date, hhmm: string, timeZone: string) {
   const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(hhmm || "").trim());
   if (!m) return date;
   const hours = Number(m[1]);
   const minutes = Number(m[2]);
-  const bogota = new Date(date.getTime() + BOGOTA_UTC_OFFSET_MS);
-  bogota.setUTCHours(hours, minutes, 0, 0);
-  return new Date(bogota.getTime() - BOGOTA_UTC_OFFSET_MS);
+  const parts = getZonedParts(date, timeZone);
+  const guessUtcMs = Date.UTC(parts.year, parts.month - 1, parts.day, hours, minutes, 0, 0);
+  const firstPass = new Date(guessUtcMs - getTimeZoneOffsetMs(new Date(guessUtcMs), timeZone));
+  const finalOffset = getTimeZoneOffsetMs(firstPass, timeZone);
+  return new Date(guessUtcMs - finalOffset);
+}
+
+function filterRulesByPaymentType<T extends { conditions?: { requirePaymentTypeIn?: string[] } }>(rules: T[], paymentType?: string | null) {
+  const normalized = String(paymentType || "").trim().toUpperCase();
+  return rules.filter((rule) => {
+    const required = Array.isArray(rule.conditions?.requirePaymentTypeIn) ? rule.conditions?.requirePaymentTypeIn : [];
+    if (!required?.length) return true;
+    if (!normalized) return false;
+    return required.includes(normalized);
+  });
+}
+
+async function resolveScheduledRunAt(args: { base: Date; atTime?: string | null }) {
+  const atTime = String(args.atTime || "").trim();
+  if (!atTime) return args.base;
+  const timeZone = await getAppTimeZone().catch(() => "America/Bogota");
+  return applyAtTimeInZone(args.base, atTime, timeZone);
 }
 
 export async function scheduleSubscriptionDueNotifications(args: { subscriptionId: string; forceNow?: boolean; actor?: string }) {
@@ -88,7 +128,7 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = rule.atTimeUtc ? applyAtTimeBogota(runAtBase, String(rule.atTimeUtc)) : runAtBase;
+      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const existing = await prisma.retryJob.findFirst({
         where: {
@@ -172,7 +212,17 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
   if (!trigger) return { scheduled: 0 };
 
   const cfg = await getNotificationsConfig();
-  const rules = cfg.rules.filter((r) => r.enabled && r.trigger === trigger);
+  const billingState = payment.subscriptionId ? await resolveSubscriptionBillingState({ subscriptionId: payment.subscriptionId }).catch(() => null) : null;
+  const paymentType =
+    billingState?.subscription?.plan?.metadata?.collectionMode === "AUTO_LINK"
+      ? "LINK"
+      : payment.subscriptionId
+        ? "SUBSCRIPTION"
+        : "LINK";
+  const rules = filterRulesByPaymentType(
+    cfg.rules.filter((r) => r.enabled && r.trigger === trigger),
+    paymentType
+  );
   if (!rules.length) {
     return { scheduled: 0 };
   }
@@ -187,7 +237,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = rule.atTimeUtc ? applyAtTimeBogota(runAtBase, String(rule.atTimeUtc)) : runAtBase;
+      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload = {
         trigger,
@@ -245,7 +295,10 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
   if (!payment) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
 
   const cfg = await getNotificationsConfig();
-  const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "PAYMENT_LINK_CREATED");
+  const rules = filterRulesByPaymentType(
+    cfg.rules.filter((r) => r.enabled && r.trigger === "PAYMENT_LINK_CREATED"),
+    "LINK"
+  );
   if (!rules.length) {
     return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
   }
@@ -258,11 +311,11 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
   let sentNow = 0;
   const errors: string[] = [];
   for (const rule of rules) {
-    const offsetsSecondsBase = resolveOffsetsSeconds(rule as NotificationRule);
-    const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
-    for (const offsetSeconds of offsetsSeconds) {
-      const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = rule.atTimeUtc ? applyAtTimeBogota(runAtBase, String(rule.atTimeUtc)) : runAtBase;
+      const offsetsSecondsBase = resolveOffsetsSeconds(rule as NotificationRule);
+      const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
+      for (const offsetSeconds of offsetsSeconds) {
+        const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
+      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload = {
         trigger: "PAYMENT_LINK_CREATED" satisfies NotificationTrigger,
@@ -322,7 +375,10 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
   if (!customerId || !catalogUrl) return { scheduled: 0, sentNow: 0, rulesActive: false };
 
   const cfg = await getNotificationsConfig();
-  const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "CATALOG_LINK_CREATED");
+  const rules = filterRulesByPaymentType(
+    cfg.rules.filter((r) => r.enabled && r.trigger === "CATALOG_LINK_CREATED"),
+    args.paymentType || undefined
+  );
   if (!rules.length) {
     return { scheduled: 0, sentNow: 0, rulesActive: false };
   }
@@ -337,7 +393,7 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
     const offsetsSeconds = resolveOffsetsSeconds(rule as NotificationRule);
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = rule.atTimeUtc ? applyAtTimeBogota(runAtBase, String(rule.atTimeUtc)) : runAtBase;
+      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload = {
         trigger: "CATALOG_LINK_CREATED" satisfies NotificationTrigger,
@@ -359,10 +415,11 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
         });
         scheduled++;
       } else {
-        await subscriptionReminder(jobPayload).catch((err) => {
+        const result = await subscriptionReminder(jobPayload).catch((err) => {
           logger.warn({ err, customerId }, '[Notifications/Schedule] Fallo en envío inline de catalog link');
+          return { ok: false } as const;
         });
-        sentNow++;
+        if (result && "ok" in result && result.ok) sentNow++;
       }
     }
   }
@@ -391,7 +448,10 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
   if (!customerId || !tokenUrl) return { scheduled: 0, sentNow: 0, rulesActive: false };
 
   const cfg = await getNotificationsConfig();
-  const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "TOKENIZATION_LINK_CREATED");
+  const rules = filterRulesByPaymentType(
+    cfg.rules.filter((r) => r.enabled && r.trigger === "TOKENIZATION_LINK_CREATED"),
+    "SUBSCRIPTION"
+  );
   if (!rules.length) {
     return { scheduled: 0, sentNow: 0, rulesActive: false };
   }
@@ -407,7 +467,7 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = rule.atTimeUtc ? applyAtTimeBogota(runAtBase, String(rule.atTimeUtc)) : runAtBase;
+      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload = {
         trigger: "TOKENIZATION_LINK_CREATED" satisfies NotificationTrigger,
@@ -428,10 +488,11 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
         });
         scheduled++;
       } else {
-        await subscriptionReminder(jobPayload).catch((err) => {
+        const result = await subscriptionReminder(jobPayload).catch((err) => {
           logger.warn({ err, customerId, trigger: "TOKENIZATION_LINK_CREATED" }, "[Notifications/Schedule] Fallo en envío inline de tokenización");
+          return { ok: false } as const;
         });
-        sentNow++;
+        if (result && "ok" in result && result.ok) sentNow++;
       }
     }
   }

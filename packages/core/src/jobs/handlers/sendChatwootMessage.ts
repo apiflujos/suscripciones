@@ -317,6 +317,27 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     selectedInboxId = requestedInboxId;
   }
 
+  if (wantsTemplate && (!selectedChannel || !isWhatsappChannel(selectedChannel))) {
+    const errorMessage = "whatsapp_inbox_required";
+    await prisma.chatwootMessage.update({
+      where: { id: chatwootMessageId },
+      data: { status: MessageStatus.FAILED, errorMessage }
+    }).catch((updateErr) => {
+      logger.warn({ err: updateErr, chatwootMessageId }, "chatwoot.send: failed to update message status");
+    });
+    await systemLog(LogLevel.WARN, "chatwoot.send", "Plantilla WhatsApp omitida: inbox WhatsApp no disponible", {
+      actor: "job:sendChatwootMessage",
+      chatwootMessageId,
+      customerId: msg.customerId,
+      requestedInboxId: hasRequestedInbox ? requestedInboxId : null,
+      configuredInboxId: cfg.inboxId,
+      contactId
+    }).catch((err) => {
+      logger.warn({ err, chatwootMessageId }, "chatwoot.send: failed to write system log");
+    });
+    return;
+  }
+
   if (!sourceId) {
     try {
       const contactInfo = await client.getContact(contactId, selectedInboxId ?? cfg.inboxId);
@@ -499,7 +520,13 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       const isWhatsapp = isWhatsappChannel({ channelType, medium, provider });
       allowTemplate = isWhatsapp;
       if (!isWhatsapp) {
-        await systemLog(LogLevel.INFO, "chatwoot.send", "Template omitido: canal no WhatsApp", {
+        await prisma.chatwootMessage.update({
+          where: { id: chatwootMessageId },
+          data: { status: MessageStatus.FAILED, errorMessage: "whatsapp_channel_required" }
+        }).catch((updateErr) => {
+          logger.warn({ err: updateErr, chatwootMessageId }, "chatwoot.send: failed to update message status");
+        });
+        await systemLog(LogLevel.WARN, "chatwoot.send", "Template omitido: canal no WhatsApp", {
           actor: "job:sendChatwootMessage",
           chatwootMessageId,
           customerId: msg.customerId,
@@ -509,24 +536,30 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
         }).catch((logErr) => {
           logger.warn({ err: logErr, chatwootMessageId }, "chatwoot.send: failed to write system log");
         });
+        return;
       }
     } catch {
       allowTemplate = false;
+      await prisma.chatwootMessage.update({
+        where: { id: chatwootMessageId },
+        data: { status: MessageStatus.FAILED, errorMessage: "whatsapp_channel_lookup_failed" }
+      }).catch((updateErr) => {
+        logger.warn({ err: updateErr, chatwootMessageId }, "chatwoot.send: failed to update message status");
+      });
+      await systemLog(LogLevel.WARN, "chatwoot.send", "No se pudo validar canal WhatsApp para template", {
+        actor: "job:sendChatwootMessage",
+        chatwootMessageId,
+        customerId: msg.customerId
+      }).catch((logErr) => {
+        logger.warn({ err: logErr, chatwootMessageId }, "chatwoot.send: failed to write system log");
+      });
+      return;
     }
   }
   let sent: any;
   try {
     if (allowTemplate && templateParams) {
-      try {
-        sent = await client.sendTemplate(conversationId, { content: sanitizeInlineImages(msg.content), templateParams });
-      } catch (err: any) {
-        const errMsg = String(err?.message || "");
-        if (/content[_-]?type/i.test(errMsg) && /html/i.test(errMsg)) {
-          sent = await client.sendMessage(conversationId, sanitizeInlineImages(msg.content));
-        } else {
-          throw err;
-        }
-      }
+      sent = await client.sendTemplate(conversationId, { content: sanitizeInlineImages(msg.content), templateParams });
     } else if (attachmentUrl) {
       try {
         const attachment = await downloadAttachment(attachmentUrl);

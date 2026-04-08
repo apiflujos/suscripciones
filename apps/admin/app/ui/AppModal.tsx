@@ -62,9 +62,11 @@ export function AppModal({
         onKeyDown={panelOnKeyDown}
         tabIndex={panelTabIndex}
       >
-        <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-          <h3 style={{ margin: 0 }}>{title}</h3>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+        <div className="panel-header">
+          <div className="modal-header-main">
+            <h3>{title}</h3>
+          </div>
+          <div className="modal-header-actions">
             {headerActions}
             <button
               type="button"

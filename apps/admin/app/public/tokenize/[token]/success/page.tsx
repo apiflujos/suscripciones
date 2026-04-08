@@ -1,29 +1,15 @@
 import { PublicCheckoutLayout } from "../../../_components/PublicCheckoutLayout";
 import { PUBLIC_COPY } from "../../../_components/publicCopy";
+import { fetchPublicJsonAcrossBases, getPublicApiBases } from "../../../_components/publicRuntime";
 
 export const dynamic = "force-dynamic";
 
-async function fetchPublicToken(token: string) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  if (!apiBase) return { ok: false, status: 500, json: { error: "missing_next_public_api_base_url" } };
-  const res = await fetch(`${apiBase}/public/tokenization-links/${encodeURIComponent(token)}?allowUsed=1`, { cache: "no-store" });
-  const json = await res.json().catch(() => null);
-  return { ok: res.ok, status: res.status, json };
-}
-
-async function fetchCheckoutConfig() {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  if (!apiBase) return { ok: false, json: { error: "missing_next_public_api_base_url" } };
-  const res = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" });
-  const json = await res.json().catch(() => null);
-  return { ok: res.ok, json };
-}
-
 export default async function PublicTokenizeSuccessPage({ params }: { params: Promise<{ token: string }> }) {
   const { token: linkToken } = await params;
-  const configRes = await fetchCheckoutConfig();
+  const apiBases = await getPublicApiBases();
+  const configRes = await fetchPublicJsonAcrossBases("/public/checkout-config", apiBases);
   const config = configRes.ok ? configRes.json?.config || {} : {};
-  const tokenRes = await fetchPublicToken(linkToken);
+  const tokenRes = await fetchPublicJsonAcrossBases(`/public/tokenization-links/${encodeURIComponent(linkToken)}?allowUsed=1`, apiBases);
   const template = tokenRes.ok ? tokenRes.json?.template || null : null;
   const tenant = tokenRes.ok ? tokenRes.json?.tenant || null : null;
   const layout = (template?.layout || {}) as any;
@@ -59,7 +45,7 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
     contactEmail ||
     supportUrl.replace(/^https?:\/\//, "") ||
     "";
-  const redirectUrl = String(config?.tokenizationReturnUrl || "").trim() || "/";
+  const redirectUrl = String(config?.tokenizationReturnUrl || config?.publicReturnUrl || "").trim() || "/";
   const buttonLabel = "Volver";
 
   return (

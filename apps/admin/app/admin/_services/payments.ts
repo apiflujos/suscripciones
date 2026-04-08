@@ -1,11 +1,203 @@
 import "server-only";
 
-import { LogLevel, PaymentStatus } from "@prisma/client";
+import { BillingCycleStatus, LogLevel, PaymentStatus } from "@prisma/client";
 import { prisma } from "@suscripciones/database";
 import { reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { logger } from "@suscripciones/core/lib/logger";
-import { ensureBillingCyclesForSubscription } from "@suscripciones/core/services/billingCycles";
+import { ensureBillingCyclesForSubscription, findBestBillingCycleForPayment, resolveConfiguredCollectionCycle } from "@suscripciones/core/services/billingCycles";
+
+type SuggestedCycle = {
+  id: string;
+  cycleNumber: number;
+  periodStartAt: Date;
+  periodEndAt: Date;
+  dueAt: Date;
+  status: BillingCycleStatus | string;
+  paymentId?: string | null;
+};
+
+type SuggestedPayment = {
+  id: string;
+  amountInCents: number;
+  currency: string;
+  status: string;
+  paidAt: Date | null;
+  createdAt: Date;
+  reference: string | null;
+  wompiTransactionId: string | null;
+  origin: string | null;
+  cycleNumber: number | null;
+};
+
+export type PaymentCycleSuggestion = {
+  payment: {
+    id: string;
+    amountInCents: number;
+    currency: string;
+    status: string;
+    paidAt: string | null;
+    createdAt: string;
+    reference: string | null;
+    wompiTransactionId: string | null;
+    origin: string | null;
+    cycleNumber: number | null;
+  };
+  suggestedCycle: {
+    id: string;
+    cycleNumber: number;
+    periodStartAt: string;
+    periodEndAt: string;
+    dueAt: string;
+    status: string;
+  } | null;
+  alternativeCycles: Array<{
+    id: string;
+    cycleNumber: number;
+    periodStartAt: string;
+    periodEndAt: string;
+    dueAt: string;
+    status: string;
+  }>;
+  explanation: string;
+  reasonCode: "EN_CURSO" | "ANTICIPADO" | "REFERENCE_MATCH" | "FALLBACK";
+  requiresManualReview: boolean;
+};
+
+function paymentTimestamp(payment: SuggestedPayment) {
+  const dt = payment.paidAt || payment.createdAt;
+  return new Date(dt).getTime();
+}
+
+function serializeCycle(cycle: SuggestedCycle) {
+  return {
+    id: cycle.id,
+    cycleNumber: cycle.cycleNumber,
+    periodStartAt: new Date(cycle.periodStartAt).toISOString(),
+    periodEndAt: new Date(cycle.periodEndAt).toISOString(),
+    dueAt: new Date(cycle.dueAt).toISOString(),
+    status: String(cycle.status || "")
+  };
+}
+
+function serializePayment(payment: SuggestedPayment) {
+  return {
+    id: payment.id,
+    amountInCents: payment.amountInCents,
+    currency: payment.currency,
+    status: payment.status,
+    paidAt: payment.paidAt ? new Date(payment.paidAt).toISOString() : null,
+    createdAt: new Date(payment.createdAt).toISOString(),
+    reference: payment.reference,
+    wompiTransactionId: payment.wompiTransactionId,
+    origin: payment.origin,
+    cycleNumber: payment.cycleNumber
+  };
+}
+
+export function buildUniquePaymentCycleSuggestions(args: {
+  cycles: SuggestedCycle[];
+  payments: SuggestedPayment[];
+  paymentTiming: "EN_CURSO" | "ANTICIPADO";
+  subscriptionId: string;
+}) {
+  const openCycles = args.cycles
+    .filter((cycle) => !cycle.paymentId && String(cycle.status || "").toUpperCase() !== "PAID")
+    .sort((a, b) => a.cycleNumber - b.cycleNumber);
+  const availableCycleIds = new Set(openCycles.map((cycle) => cycle.id));
+
+  const payments = [...args.payments].sort((a, b) => {
+    const timeDiff = paymentTimestamp(a) - paymentTimestamp(b);
+    if (timeDiff !== 0) return timeDiff;
+    return String(a.id).localeCompare(String(b.id));
+  });
+
+  const suggestions: PaymentCycleSuggestion[] = [];
+
+  for (const payment of payments) {
+    const paymentAt = new Date(payment.paidAt || payment.createdAt);
+    const remainingCycles = openCycles.filter((cycle) => availableCycleIds.has(cycle.id));
+    const hintedByCycleNumber =
+      payment.cycleNumber != null
+        ? remainingCycles.find((cycle) => cycle.cycleNumber === payment.cycleNumber) || null
+        : null;
+    const hintedByReference =
+      payment.reference && payment.reference.includes(args.subscriptionId)
+        ? remainingCycles.find((cycle) => payment.reference?.trim().endsWith(`_${cycle.cycleNumber}`)) || null
+        : null;
+
+    let suggested: SuggestedCycle | null = (hintedByCycleNumber || hintedByReference || null) as SuggestedCycle | null;
+    let reasonCode: PaymentCycleSuggestion["reasonCode"] = hintedByCycleNumber || hintedByReference ? "REFERENCE_MATCH" : args.paymentTiming;
+    let requiresManualReview = false;
+
+    if (!suggested && remainingCycles.length) {
+      const configured = resolveConfiguredCollectionCycle({
+          cycles: remainingCycles,
+          asOf: paymentAt,
+          paymentTiming: args.paymentTiming
+        }) || null;
+      suggested = configured
+        ? {
+            id: String(configured.id),
+            cycleNumber: configured.cycleNumber,
+            periodStartAt: new Date(configured.periodStartAt),
+            periodEndAt: new Date(configured.periodEndAt),
+            dueAt: new Date(configured.dueAt),
+            status: String(configured.status || "PENDING"),
+            paymentId: configured.paymentId ?? null
+          }
+        : null;
+    }
+
+    if (!suggested && remainingCycles.length) {
+      const fallback = findBestBillingCycleForPayment({
+          cycles: remainingCycles,
+          paymentAt,
+          cycleNumberHint: payment.cycleNumber ?? null,
+          toleranceDays: 7
+        }) || null;
+      suggested = fallback
+        ? {
+            id: String(fallback.id),
+            cycleNumber: fallback.cycleNumber,
+            periodStartAt: new Date(fallback.periodStartAt),
+            periodEndAt: new Date(fallback.periodEndAt),
+            dueAt: new Date(fallback.dueAt),
+            status: String(fallback.status || "PENDING"),
+            paymentId: fallback.paymentId ?? null
+          }
+        : null;
+      reasonCode = "FALLBACK";
+      requiresManualReview = true;
+    }
+
+    if (suggested) {
+      availableCycleIds.delete(suggested.id);
+    } else {
+      requiresManualReview = true;
+    }
+
+    const explanation =
+      reasonCode === "REFERENCE_MATCH"
+        ? `Se sugiere por referencia o ciclo ya inferido del pago.`
+        : reasonCode === "ANTICIPADO"
+          ? `Pago anticipado: se propone el siguiente ciclo disponible según la fecha del pago.`
+          : reasonCode === "EN_CURSO"
+            ? `Pago en curso: se propone el ciclo activo para la fecha del pago.`
+            : `No hubo coincidencia clara por regla principal; se propone el ciclo libre más cercano y requiere revisión manual.`;
+
+    suggestions.push({
+      payment: serializePayment(payment),
+      suggestedCycle: suggested ? serializeCycle(suggested) : null,
+      alternativeCycles: remainingCycles.map(serializeCycle),
+      explanation,
+      reasonCode,
+      requiresManualReview
+    });
+  }
+
+  return suggestions;
+}
 
 async function reconcilePendingPaymentFromWompi(args: { paymentId: string; wompiTransactionId?: string | null; tenantId?: string | null }) {
   const txId = String(args.wompiTransactionId || "").trim();
@@ -256,6 +448,95 @@ export async function searchSubscriptionPaymentCandidates(args: {
       associationReason: p.associationReason || null,
       associatedBy: p.associatedBy || null
     }))
+  };
+}
+
+export async function getSubscriptionAutoAssociationSuggestions(args: {
+  subscriptionId: string;
+  tenantId?: string | null;
+}) {
+  const subscriptionId = String(args.subscriptionId || "").trim();
+  if (!subscriptionId) return { ok: false as const, status: 400, error: "invalid_subscription_id" as const };
+
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: {
+      tenantLinks: true,
+      plan: { select: { intervalUnit: true, intervalCount: true, priceInCents: true, currency: true } }
+    }
+  });
+  if (!subscription) return { ok: false as const, status: 404, error: "subscription_not_found" as const };
+  if (args.tenantId) {
+    const allowed =
+      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+    if (!allowed) return { ok: false as const, status: 404, error: "subscription_not_found" as const };
+  }
+
+  await ensureBillingCyclesForSubscription({
+    id: subscription.id,
+    startAt: subscription.startAt,
+    cycleStartDay: subscription.cycleStartDay,
+    paymentDay: subscription.paymentDay,
+    paymentTiming: subscription.paymentTiming as any,
+    graceDays: subscription.graceDays,
+    plan: {
+      intervalUnit: subscription.plan.intervalUnit,
+      intervalCount: subscription.plan.intervalCount
+    }
+  }).catch((err: any) => {
+    logger.warn({ err, subscriptionId }, "Fallo asegurando ciclos antes de sugerir asociaciones automáticas");
+  });
+
+  const [cycles, payments] = await Promise.all([
+    prisma.subscriptionBillingCycle.findMany({
+      where: {
+        subscriptionId,
+        periodStartAt: { lte: new Date() },
+        status: { in: [BillingCycleStatus.PENDING, BillingCycleStatus.FAILED] }
+      },
+      orderBy: [{ cycleNumber: "asc" }]
+    }),
+    prisma.payment.findMany({
+      where: {
+        customerId: subscription.customerId,
+        ...(args.tenantId ? { tenantId: args.tenantId } : {}),
+        status: PaymentStatus.APPROVED,
+        amountInCents: subscription.plan.priceInCents,
+        currency: subscription.plan.currency,
+        OR: [
+          { subscriptionId: null },
+          { subscriptionId, billingCycle: { is: null } }
+        ]
+      },
+      orderBy: [{ paidAt: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+      take: 50,
+      select: {
+        id: true,
+        amountInCents: true,
+        currency: true,
+        status: true,
+        paidAt: true,
+        createdAt: true,
+        reference: true,
+        wompiTransactionId: true,
+        origin: true,
+        cycleNumber: true
+      }
+    })
+  ]);
+
+  const suggestions = buildUniquePaymentCycleSuggestions({
+    cycles,
+    payments,
+    paymentTiming: subscription.paymentTiming as "EN_CURSO" | "ANTICIPADO",
+    subscriptionId
+  });
+
+  return {
+    ok: true as const,
+    pendingCyclesCount: cycles.length,
+    unlinkedPaymentsCount: payments.length,
+    suggestions
   };
 }
 

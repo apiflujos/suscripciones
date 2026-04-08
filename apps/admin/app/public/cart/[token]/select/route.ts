@@ -88,11 +88,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   });
   if (!customer) return Response.json({ error: "token_not_found" }, { status: 404 });
 
-  const body = await req.json().catch((err: any) => {
-    logger.warn({ err, token, customerId: customer.id }, "Body invalido en cart select");
-    return null;
-  });
-  const planId = String(body?.planId || "").trim();
+  const contentType = String(req.headers.get("content-type") || "").toLowerCase();
+  let planId = "";
+  if (contentType.includes("application/json")) {
+    const body = await req.json().catch((err: any) => {
+      logger.warn({ err, token, customerId: customer.id }, "Body invalido JSON en cart select");
+      return null;
+    });
+    planId = String(body?.planId || "").trim();
+  } else {
+    const form = await req.formData().catch((err: any) => {
+      logger.warn({ err, token, customerId: customer.id }, "Body invalido formData en cart select");
+      return null;
+    });
+    planId = String(form?.get("planId") || "").trim();
+  }
   if (!planId) return Response.json({ error: "missing_plan_id" }, { status: 400 });
 
   const meta = (customer.metadata ?? {}) as { cartLink?: CartLinkMeta };

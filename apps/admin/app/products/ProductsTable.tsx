@@ -403,6 +403,12 @@ export function ProductsTable({
 
   const paymentLinkTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK");
   const canSendPaymentLink = Boolean(paymentLinkTemplate?.chatwootTemplate?.name);
+  const hasCustomersToSend = Array.isArray(customers) && customers.length > 0;
+  const sendModalDisabledReason = !hasCustomersToSend
+    ? "No hay contactos disponibles para enviar este producto."
+    : !canSendPaymentLink
+      ? "No hay plantilla activa para link de pago en Notificaciones."
+      : "";
 
   function formatCustomerLabel(c: any) {
     return String(c?.name || c?.email || c?.phone || "Contacto").trim() || "Contacto";
@@ -440,6 +446,7 @@ export function ProductsTable({
   }
 
   function openSendModal(item: ProductRow) {
+    if (!hasCustomersToSend || !canSendPaymentLink) return;
     setSendProduct(item);
     setSendOpen(true);
     setSendCustomerId("");
@@ -539,7 +546,15 @@ export function ProductsTable({
 
         <div className="entity-card-actions">
           <div className="entity-card-actions-left">
-            <button className="ghost btn-compact btn-send btn-open btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openSendModal(p)}>
+            <button
+              className="ghost btn-compact btn-send btn-open btn-noicon"
+              type="button"
+              data-modal="true"
+              data-loader="off"
+              onClick={() => openSendModal(p)}
+              disabled={Boolean(sendModalDisabledReason)}
+              title={sendModalDisabledReason || "Enviar producto"}
+            >
               Enviar
             </button>
             <button className="ghost btn-compact btn-blue btn-create btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(p)}>
@@ -593,8 +608,9 @@ export function ProductsTable({
                   data-modal="true"
                   data-loader="off"
                   onClick={() => openSendModal(p)}
+                  disabled={Boolean(sendModalDisabledReason)}
                   aria-label="Enviar"
-                  title="Enviar"
+                  title={sendModalDisabledReason || "Enviar"}
                 />
                 <button
                   className="ghost btn-compact btn-icon-only btn-create"
@@ -799,10 +815,13 @@ export function ProductsTable({
                     className="primary btn-compact btn-send"
                     type="submit"
                     pendingText="Enviando..."
-                    disabled={!sendCustomerId || !canSendPaymentLink}
+                    disabled={!sendCustomerId || !canSendPaymentLink || !hasCustomersToSend}
                   >
                     Enviar link de pago
                   </PendingButton>
+                  {!hasCustomersToSend ? (
+                    <div className="field-hint ui-alert-danger">No hay contactos creados para enviar este producto.</div>
+                  ) : null}
                   {!sendCustomerId ? (
                     <div className="field-hint">Selecciona un contacto para habilitar el envío.</div>
                   ) : null}

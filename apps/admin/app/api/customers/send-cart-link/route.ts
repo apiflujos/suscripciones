@@ -71,10 +71,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "missing_public_base_url" }, { status: 500 });
   }
   const baseFromSettings =
-    String(checkoutConfig?.planBaseUrl || "").trim() ||
-    String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+    catalogType === "SUBSCRIPTION"
+      ? String(checkoutConfig?.subscriptionBaseUrl || "").trim()
+      : String(checkoutConfig?.planBaseUrl || "").trim() || String(checkoutConfig?.subscriptionBaseUrl || "").trim();
   const base = baseFromSettings.replace(/\/$/, "");
-  if (!base) return NextResponse.json({ ok: false, error: "missing_public_base_url" }, { status: 400 });
+  if (!base) {
+    return NextResponse.json(
+      { ok: false, error: catalogType === "SUBSCRIPTION" ? "missing_subscription_base_url" : "missing_public_base_url" },
+      { status: 400 }
+    );
+  }
 
   const selectedTemplate = await findCheckoutTemplateForProduct({ tenantId: tenantId || null, kind: "CART" as any, productId });
   if (!selectedTemplate) {

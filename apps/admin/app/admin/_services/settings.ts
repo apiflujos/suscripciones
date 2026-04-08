@@ -3,7 +3,7 @@ import "server-only";
 import { CredentialProvider } from "@prisma/client";
 import { getCredential, getCredentialsBulk } from "@suscripciones/core/services/credentials";
 import { getGlobalModuleAccess } from "@suscripciones/core/services/moduleAccess";
-import { getCheckoutBaseUrlsFromEnv } from "@suscripciones/core/services/publicBase";
+import { getCheckoutBaseUrlsFromEnv, getPublicReturnUrlFromEnv } from "@suscripciones/core/services/publicBase";
 import { logger } from "@suscripciones/core/lib/logger";
 import { ActiveEnv, maskSecret, toBool, toInt, deriveRetryUnitAndValue } from "../settings/_lib";
 
@@ -20,6 +20,7 @@ export async function getCheckoutConfig() {
   const envBases = getCheckoutBaseUrlsFromEnv();
   const storedPlanBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
   const storedSubscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+  const storedReturnUrl = String(checkoutConfig?.tokenizationReturnUrl || "").trim();
   const timeZone = String(checkoutConfig?.timeZone || checkoutConfig?.timezone || "").trim();
 
   return {
@@ -28,6 +29,7 @@ export async function getCheckoutConfig() {
     defaultUtmParams: String(checkoutConfig?.defaultUtmParams || ""),
     tokenExpiryHours: Number(checkoutConfig?.tokenExpiryHours || 24),
     timeZone: timeZone || "America/Bogota",
+    tokenizationReturnUrl: storedReturnUrl || getPublicReturnUrlFromEnv(),
     defaultPlanTemplateId: String(checkoutConfig?.defaultPlanTemplateId || "").trim(),
     defaultSubscriptionTemplateId: String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim(),
     defaultCartTemplateId: String(checkoutConfig?.defaultCartTemplateId || "").trim()

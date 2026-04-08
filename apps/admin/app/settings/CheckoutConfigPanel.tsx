@@ -204,7 +204,7 @@ export function CheckoutConfigPanel({
           />
         </div>
         <div className="field">
-          <label>URL de retorno (botón)</label>
+          <label>URL de retorno público</label>
           <input className="input" value={tokenReturnUrl} onChange={(e) => setTokenReturnUrl(e.target.value)} placeholder="https://tusitio.com" />
         </div>
       </div>

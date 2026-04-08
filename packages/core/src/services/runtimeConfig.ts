@@ -1,5 +1,6 @@
 import { CredentialProvider } from "@prisma/client";
 import { getCredential } from "./credentials";
+import { getPublicReturnUrlFromEnv } from "./publicBase";
 
 type ActiveEnv = "PRODUCTION" | "SANDBOX";
 
@@ -81,7 +82,15 @@ export async function getWompiRedirectUrl(): Promise<string | undefined> {
   const activeEnv = await getActiveEnv(CredentialProvider.WOMPI);
   const fromDb = await getCredentialForEnv(CredentialProvider.WOMPI, "REDIRECT_URL", activeEnv);
   if (fromDb) return fromDb;
-  return undefined;
+  const checkoutConfigRaw = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
+  try {
+    const parsed = checkoutConfigRaw ? JSON.parse(checkoutConfigRaw) : {};
+    const configured = String(parsed?.tokenizationReturnUrl || "").trim();
+    if (configured) return configured;
+  } catch {
+    // ignore malformed config and continue with env fallback
+  }
+  return getPublicReturnUrlFromEnv() || undefined;
 }
 
 export async function getShopifyForward(): Promise<{ url?: string; secret?: string; origin?: string }> {

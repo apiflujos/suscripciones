@@ -26,11 +26,11 @@ export function ReconcilePaymentModal({
       {open ? (
         <AppModal open={open} onClose={() => setOpen(false)} title="Reconciliar pago Wompi" width="min(520px, 96vw)">
           <>
-            <form action={action} style={{ display: "grid", gap: 10 }}>
+            <form action={action} className="modal-form-stack">
               <input type="hidden" name="csrf" value={csrfToken} />
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
 
-              <div className="muted" style={{ fontSize: 12 }}>
+              <div className="field-hint modal-note">
                 Ingresa al menos uno: Transacción, Referencia, Payment ID o Link id.
               </div>
 

@@ -55,10 +55,19 @@ export function TokenizationLinkModalButton({
   const tokenTemplate = resolveNotificationTemplate("TOKENIZATION_LINK_CREATED");
   const hasTemplate = Boolean(tokenTemplate);
   const canSend = hasTemplate;
+  const disabledReason = hasTemplate ? "" : "No hay plantilla activa para tokenización. Configúrala antes de enviar.";
 
   return (
     <>
-      <button className="ghost btn-compact btn-send btn-highlight" type="button" onClick={() => setOpen(true)} data-modal="true" data-loader="off">
+      <button
+        className="ghost btn-compact btn-send btn-highlight"
+        type="button"
+        onClick={() => setOpen(true)}
+        data-modal="true"
+        data-loader="off"
+        disabled={!canSend}
+        title={disabledReason || "Enviar tokenización"}
+      >
         Enviar tokenización
       </button>
       {open ? (

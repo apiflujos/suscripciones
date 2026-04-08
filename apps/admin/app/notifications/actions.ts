@@ -102,7 +102,7 @@ function formatOffsetName(offsetsSeconds: number[], atTimeUtc?: string) {
   });
   const uniq = Array.from(new Set(parts));
   const base = uniq.join(", ");
-  return atTimeUtc ? `${base} · ${atTimeUtc} UTC` : base;
+  return atTimeUtc ? `${base} · ${atTimeUtc} hora local` : base;
 }
 
 function toOffsetsSeconds(formData: FormData) {

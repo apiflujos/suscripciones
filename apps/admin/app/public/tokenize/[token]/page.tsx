@@ -5,65 +5,9 @@ import { PublicCheckoutLayout } from "../../_components/PublicCheckoutLayout";
 import { PublicAlert } from "../../_components/PublicAlert";
 import { PublicErrorPage } from "../../_components/PublicErrorPage";
 import { PUBLIC_COPY } from "../../_components/publicCopy";
-import { headers } from "next/headers";
-import { getPublicBaseUrlFromEnv } from "@suscripciones/core/services/publicBase";
-import { logger } from "@suscripciones/core/lib/logger";
+import { fetchPublicJsonAcrossBases, getPublicApiBases } from "../../_components/publicRuntime";
 
 export const dynamic = "force-dynamic";
-
-async function getRequestBase() {
-  const headerStore = await headers();
-  const forwardedProto = headerStore.get("x-forwarded-proto") || "https";
-  const forwardedHost = headerStore.get("x-forwarded-host") || headerStore.get("host");
-  if (!forwardedHost) return "";
-  return `${forwardedProto}://${forwardedHost}`;
-}
-
-async function fetchPublicToken(token: string, bases: string[]) {
-  const uniqueBases = Array.from(new Set(bases.map((base) => String(base || "").trim()).filter(Boolean)));
-  if (!uniqueBases.length) return { ok: false, status: 500, json: { error: "missing_next_public_api_base_url" } };
-  for (const apiBase of uniqueBases) {
-    try {
-      const res = await fetch(`${apiBase}/public/tokenization-links/${encodeURIComponent(token)}`, { cache: "no-store" });
-      const json = await res.json().catch(() => null);
-      if (res.ok && json?.ok) return { ok: true, status: res.status, json, apiBase };
-    } catch (err: any) {
-      logger.warn({ err, apiBase, token }, "Fallo consultando tokenization link en base candidata");
-    }
-  }
-  const lastBase = uniqueBases[uniqueBases.length - 1];
-  try {
-    const res = await fetch(`${lastBase}/public/tokenization-links/${encodeURIComponent(token)}`, { cache: "no-store" });
-    const json = await res.json().catch(() => null);
-    return { ok: res.ok, status: res.status, json };
-  } catch (err: any) {
-    logger.error({ err, apiBase: lastBase, token }, "Fallo definitivo consultando tokenization link");
-    return { ok: false, status: 0, json: { error: "fetch_failed" } };
-  }
-}
-
-async function fetchCheckoutConfig(bases: string[]) {
-  const uniqueBases = Array.from(new Set(bases.map((base) => String(base || "").trim()).filter(Boolean)));
-  if (!uniqueBases.length) return { ok: false, json: { error: "missing_next_public_api_base_url" } };
-  for (const apiBase of uniqueBases) {
-    try {
-      const res = await fetch(`${apiBase}/public/checkout-config`, { cache: "no-store" });
-      const json = await res.json().catch(() => null);
-      if (res.ok && json?.config) return { ok: true, json, apiBase };
-    } catch (err: any) {
-      logger.warn({ err, apiBase }, "Fallo consultando checkout config público en base candidata");
-    }
-  }
-  const lastBase = uniqueBases[uniqueBases.length - 1];
-  try {
-    const res = await fetch(`${lastBase}/public/checkout-config`, { cache: "no-store" });
-    const json = await res.json().catch(() => null);
-    return { ok: res.ok, json };
-  } catch (err: any) {
-    logger.error({ err, apiBase: lastBase }, "Fallo definitivo consultando checkout config público");
-    return { ok: false, json: { error: "fetch_failed" } };
-  }
-}
 
 export default async function PublicTokenizePage({
   params,
@@ -74,11 +18,9 @@ export default async function PublicTokenizePage({
 }) {
   const { token } = await params;
   const sp = (await searchParams) ?? {};
-  const requestBase = await getRequestBase();
-  const publicBase = getPublicBaseUrlFromEnv();
-  const apiBases = [requestBase, publicBase, process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "", process.env.NEXT_PUBLIC_API_BASE_URL || ""];
-  const tokenRes = await fetchPublicToken(token, apiBases);
-  const configRes = await fetchCheckoutConfig(apiBases);
+  const apiBases = await getPublicApiBases();
+  const tokenRes = await fetchPublicJsonAcrossBases(`/public/tokenization-links/${encodeURIComponent(token)}`, apiBases);
+  const configRes = await fetchPublicJsonAcrossBases("/public/checkout-config", apiBases);
   const config = configRes.ok ? configRes.json?.config || {} : {};
   const template = tokenRes.ok ? tokenRes.json?.template || null : null;
   const tenant = tokenRes.ok ? tokenRes.json?.tenant || null : null;

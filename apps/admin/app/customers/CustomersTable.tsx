@@ -252,6 +252,68 @@ export function CustomersTable({
     return template || null;
   }
 
+  function hasChatwootTemplate(template: any) {
+    return Boolean(String(template?.chatwootTemplate?.name || "").trim());
+  }
+
+  function resolveActionBlockReason(customer: CustomerRow, action: "PAYMENT" | "TOKEN" | "CATALOG_PLAN" | "CATALOG_SUBSCRIPTION") {
+    const customerId = String(customer.id || "").trim();
+    const productId = resolveCustomerProductId(customerId);
+    if (!productId) return "missing_product_for_customer";
+
+    if (action === "PAYMENT") {
+      return hasChatwootTemplate(resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK")) ? "" : "missing_template";
+    }
+
+    if (action === "TOKEN") {
+      if (!findTemplateForProduct("SUBSCRIPTION", productId)) return "missing_checkout_for_product";
+      if (missingSubBase) return "missing_subscription_base_url";
+      return hasChatwootTemplate(resolveNotificationTemplate("TOKENIZATION_LINK_CREATED")) ? "" : "missing_template";
+    }
+
+    if (!findTemplateForProduct("CART", productId)) return "missing_checkout_for_product";
+    if (action === "CATALOG_SUBSCRIPTION" && missingSubBase) return "missing_subscription_base_url";
+    if (action === "CATALOG_PLAN" && missingPublicBase) return "missing_public_base_url";
+    return hasChatwootTemplate(
+      resolveNotificationTemplate("CATALOG_LINK_CREATED", action === "CATALOG_SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN")
+    )
+      ? ""
+      : "missing_template";
+  }
+
+  function getCustomerActionState(customer: CustomerRow) {
+    const subInfo = subscriptionsByCustomer[String(customer.id)] || {};
+    const defaultCartMode: "PLAN" | "SUBSCRIPTION" = String(subInfo?.collectionMode || "") === "AUTO_DEBIT" ? "SUBSCRIPTION" : "PLAN";
+    const paymentError = resolveActionBlockReason(customer, "PAYMENT");
+    const tokenError = resolveActionBlockReason(customer, "TOKEN");
+    const catalogPlanError = resolveActionBlockReason(customer, "CATALOG_PLAN");
+    const catalogSubscriptionError = resolveActionBlockReason(customer, "CATALOG_SUBSCRIPTION");
+    const canSendCatalogPlan = !catalogPlanError;
+    const canSendCatalogSubscription = !catalogSubscriptionError;
+    const preferredCartMode: "PLAN" | "SUBSCRIPTION" =
+      defaultCartMode === "SUBSCRIPTION"
+        ? canSendCatalogSubscription
+          ? "SUBSCRIPTION"
+          : "PLAN"
+        : canSendCatalogPlan
+          ? "PLAN"
+          : "SUBSCRIPTION";
+
+    return {
+      canSendPayment: !paymentError,
+      paymentError,
+      canSendToken: !tokenError,
+      tokenError,
+      canSendCatalogPlan,
+      catalogPlanError,
+      canSendCatalogSubscription,
+      catalogSubscriptionError,
+      canSendCatalog: canSendCatalogPlan || canSendCatalogSubscription,
+      defaultCartMode,
+      preferredCartMode
+    };
+  }
+
   function renderNotificationPreview(template: any) {
     if (!template) return "No hay plantilla configurada en Notificaciones.";
     if (template?.content && String(template.content || "").trim() && String(template.content || "") !== "(template)") {
@@ -316,9 +378,14 @@ export function CustomersTable({
   }
 
   function openCartModal(customer: CustomerRow) {
+    const actionState = getCustomerActionState(customer);
+    if (!actionState.canSendCatalog) {
+      openNotify("fail", mapSendError(actionState.catalogPlanError || actionState.catalogSubscriptionError || "send_failed"));
+      return;
+    }
     lastActiveRef.current = document.activeElement as HTMLElement | null;
     setCartModalCustomer(customer);
-    setCartModalMode("PLAN");
+    setCartModalMode(actionState.preferredCartMode);
     setCartModalOpen(true);
     setSendError((prev) => ({ ...prev, [customer.id]: "" }));
     setSendOk((prev) => ({ ...prev, [customer.id]: "" }));
@@ -349,6 +416,11 @@ export function CustomersTable({
   }
 
   function openTokenModal(customer: CustomerRow) {
+    const actionState = getCustomerActionState(customer);
+    if (!actionState.canSendToken) {
+      openNotify("fail", mapSendError(actionState.tokenError || "send_failed"));
+      return;
+    }
     lastActiveRef.current = document.activeElement as HTMLElement | null;
     setTokenModalCustomer(customer);
     setTokenModalOpen(true);
@@ -363,6 +435,11 @@ export function CustomersTable({
   }
 
   function openPayModal(customer: CustomerRow) {
+    const actionState = getCustomerActionState(customer);
+    if (!actionState.canSendPayment) {
+      openNotify("fail", mapSendError(actionState.paymentError || "send_failed"));
+      return;
+    }
     lastActiveRef.current = document.activeElement as HTMLElement | null;
     setPayModalCustomer(customer);
     setPayAmount("");
@@ -515,6 +592,7 @@ export function CustomersTable({
           </div>
           {items.map((c) => {
             const subInfo = subscriptionsByCustomer[String(c.id)];
+            const actionState = getCustomerActionState(c);
             const ident =
               c?.metadata?.identificacion ||
               c?.metadata?.identificationNumber ||
@@ -576,16 +654,44 @@ export function CustomersTable({
                     {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
                     <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar contacto" title="Eliminar contacto" />
                   </form>
-                  <Link className="ghost btn-compact btn-noicon btn-blue contact-action-btn" href={`/customers/${c.id}/payment-method`}>
+                  <Link className="ghost btn-compact btn-noicon btn-blue contact-action-btn action-card" href={`/customers/${c.id}/payment-method`}>
                     {hasToken(c) ? "Actualizar tarjeta" : "Guardar tarjeta"}
                   </Link>
-                  <button className="ghost btn-compact btn-send btn-pay contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openPayModal(c)}>
+                  <button
+                    className="ghost btn-compact btn-pay contact-action-btn action-payment"
+                    type="button"
+                    data-modal="true"
+                    data-loader="off"
+                    onClick={() => openPayModal(c)}
+                    disabled={!actionState.canSendPayment}
+                    title={actionState.canSendPayment ? "Enviar link de pago" : mapSendError(actionState.paymentError)}
+                  >
                     Enviar link de pago
                   </button>
-                  <button className="ghost btn-compact btn-send btn-token contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openTokenModal(c)}>
+                  <button
+                    className="ghost btn-compact btn-token contact-action-btn action-token"
+                    type="button"
+                    data-modal="true"
+                    data-loader="off"
+                    onClick={() => openTokenModal(c)}
+                    disabled={!actionState.canSendToken}
+                    title={actionState.canSendToken ? "Enviar débito automático" : mapSendError(actionState.tokenError)}
+                  >
                     Enviar débito automático
                   </button>
-                  <button className="ghost btn-compact btn-send btn-open contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openCartModal(c)}>
+                  <button
+                    className="ghost btn-compact btn-open contact-action-btn action-catalog"
+                    type="button"
+                    data-modal="true"
+                    data-loader="off"
+                    onClick={() => openCartModal(c)}
+                    disabled={!actionState.canSendCatalog}
+                    title={
+                      actionState.canSendCatalog
+                        ? "Enviar catálogo"
+                        : mapSendError(actionState.catalogPlanError || actionState.catalogSubscriptionError)
+                    }
+                  >
                     Enviar catálogo
                   </button>
                   <details className="inline-detail">
@@ -609,6 +715,7 @@ export function CustomersTable({
           const link = latestLinks[String(c.id)];
           const formId = `send-link-${c.id}`;
           const subInfo = subscriptionsByCustomer[String(c.id)];
+          const actionState = getCustomerActionState(c);
           const ident =
             c?.metadata?.identificacion ||
             c?.metadata?.identificationNumber ||
@@ -759,13 +866,13 @@ export function CustomersTable({
                   <div className="paylink-header">
                     <span className="paylink-title">Pagos y débito automático</span>
                   </div>
-                  <div className="paylink-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
-                    <Link className="ghost btn-compact btn-noicon btn-blue btn-token contact-action-btn" href={`/customers/${c.id}/payment-method`}>
+                  <div className="paylink-actions paylink-actions-subscription">
+                    <Link className="ghost btn-compact btn-noicon btn-blue btn-token contact-action-btn action-card" href={`/customers/${c.id}/payment-method`}>
                       {hasToken(c) ? "Actualizar tarjeta" : "Guardar tarjeta"}
                     </Link>
                     {hasToken(c) ? (
                       <button
-                        className="ghost btn-compact btn-noicon btn-red contact-action-btn"
+                        className="ghost btn-compact btn-noicon btn-red contact-action-btn action-danger"
                         type="button"
                         onClick={async () => {
                           if (!window.confirm("¿Quitar el método de pago guardado?")) return;
@@ -792,16 +899,44 @@ export function CustomersTable({
                         {clearingTokenId === c.id ? "Quitando..." : "Quitar token"}
                       </button>
                     ) : null}
-                    <button className="ghost btn-compact btn-send btn-pay contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openPayModal(c)}>
+                    <button
+                      className="ghost btn-compact btn-pay contact-action-btn action-payment"
+                      type="button"
+                      data-modal="true"
+                      data-loader="off"
+                      onClick={() => openPayModal(c)}
+                      disabled={!actionState.canSendPayment}
+                      title={actionState.canSendPayment ? "Enviar link de pago" : mapSendError(actionState.paymentError)}
+                    >
                       Enviar link de pago
                     </button>
-                    <button className="ghost btn-compact btn-send btn-token contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openTokenModal(c)}>
+                    <button
+                      className="ghost btn-compact btn-token contact-action-btn action-token"
+                      type="button"
+                      data-modal="true"
+                      data-loader="off"
+                      onClick={() => openTokenModal(c)}
+                      disabled={!actionState.canSendToken}
+                      title={actionState.canSendToken ? "Enviar débito automático" : mapSendError(actionState.tokenError)}
+                    >
                       Enviar débito automático
                     </button>
-                    <button className="ghost btn-compact btn-send btn-open contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openCartModal(c)}>
+                    <button
+                      className="ghost btn-compact btn-open contact-action-btn action-catalog"
+                      type="button"
+                      data-modal="true"
+                      data-loader="off"
+                      onClick={() => openCartModal(c)}
+                      disabled={!actionState.canSendCatalog}
+                      title={
+                        actionState.canSendCatalog
+                          ? "Enviar catálogo"
+                          : mapSendError(actionState.catalogPlanError || actionState.catalogSubscriptionError)
+                      }
+                    >
                       Enviar catálogo
                     </button>
-                    <button className="ghost btn-compact btn-noicon btn-blue btn-create contact-action-btn" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(c)}>
+                    <button className="ghost btn-compact btn-noicon btn-blue btn-create contact-action-btn action-create" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(c)}>
                       Crear suscripción
                     </button>
                   </div>
@@ -1107,6 +1242,8 @@ export function CustomersTable({
                 const productName = productById.get(productId)?.name || "";
                 const missingProduct = !productId;
                 const missingCheckout = !checkoutTemplate;
+                const currentModeMissingBase = cartModalMode === "SUBSCRIPTION" ? missingSubBase : missingPublicBase;
+                const canSendCurrentMode = !missingProduct && !missingCheckout && !currentModeMissingBase && canSendNotif;
                 const isSending = sendingCartId === cartModalCustomer.id;
                 return (
                   <>
@@ -1133,9 +1270,11 @@ export function CustomersTable({
                     No hay checkout público para ese producto.
                   </div>
                 ) : null}
-                {missingPublicBase ? (
+                {currentModeMissingBase ? (
                   <div className="field-hint" style={{ color: "var(--danger)" }}>
-                    Falta configurar la URL pública base en Checkout público.
+                    {cartModalMode === "SUBSCRIPTION"
+                      ? "Falta configurar la URL base de suscripción en Checkout público."
+                      : "Falta configurar la URL pública base en Checkout público."}
                   </div>
                 ) : null}
               </div>
@@ -1171,7 +1310,7 @@ export function CustomersTable({
                 <button
                   className="primary btn-compact btn-send"
                   type="submit"
-                  disabled={isSending}
+                  disabled={isSending || !canSendCurrentMode}
                 >
                   {isSending ? "Enviando..." : "Enviar"}
                 </button>

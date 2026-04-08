@@ -213,6 +213,33 @@ npx prisma migrate dev --name descripcion_del_cambio
 npx prisma migrate deploy
 ```
 
+### Migración de Ciclos de Facturación (Importante)
+
+Si vienes de una versión anterior a los ciclos de facturación como source of truth:
+
+```bash
+# 1. Aplicar migraciones de schema primero
+npx prisma migrate deploy --schema ./packages/database/prisma/schema.prisma
+
+# 2. Ejecutar backfill para generar ciclos en suscripciones existentes
+npx tsx packages/core/src/scripts/backfill-billing-cycles.ts
+
+# 3. Verificar que no queden suscripciones sin ciclos
+# El script imprime un resumen como:
+# {
+#   "processed": 150,
+#   "touchedEmptySubscriptions": 12,
+#   "totalSubscriptions": 150,
+#   "subscriptionsWithoutCycles": 0  ← Debe ser 0
+# }
+```
+
+**⚠️ Notas importantes:**
+- Ejecutar el backfill **después** de aplicar las migraciones de schema
+- El script es idempotente: se puede ejecutar múltiples veces sin problema
+- En staging: verificar que `subscriptionsWithoutCycles` sea 0 antes de pasar a producción
+- Si hay suscripciones sin ciclos tras el backfill, revisar logs de errores
+
 ### Resetear Base de Datos (⚠️ PELIGRO)
 
 ```bash
@@ -297,6 +324,8 @@ pm2 flush
 - [ ] Build local exitoso
 - [ ] PM2 instalado (`pm2 -v`)
 - [ ] Permisos de ejecución en scripts (`chmod +x scripts/*.sh`)
+- [ ] **Backfill de ciclos ejecutado** (si hay suscripciones existentes)
+- [ ] **Verificar `subscriptionsWithoutCycles: 0`** tras backfill
 
 ---
 

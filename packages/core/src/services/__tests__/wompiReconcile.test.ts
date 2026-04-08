@@ -41,7 +41,9 @@ vi.mock('../runtimeConfig', () => ({
   getWompiApiBaseUrl: vi.fn(() => Promise.resolve('https://sandbox.wompi.co/v1')),
   getWompiCheckoutLinkBaseUrl: vi.fn(() => Promise.resolve('https://checkout.wompi.co/l/')),
   getWompiPrivateKey: vi.fn(() => Promise.resolve('test-private-key')),
-  getWompiPublicKey: vi.fn(() => Promise.resolve('test-public-key'))
+  getWompiPublicKey: vi.fn(() => Promise.resolve('test-public-key')),
+  getShopifyForward: vi.fn(() => Promise.resolve({})),
+  getShopifyForwardRetryConfig: vi.fn(() => Promise.resolve({ enabled: false, minutes: 5 }))
 }));
 
 vi.mock('../tenantContext', () => ({

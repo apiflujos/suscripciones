@@ -6,7 +6,7 @@
  *   - Duplicate prevention
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.setConfig({ testTimeout: 15000 });
 
@@ -71,6 +71,71 @@ vi.mock("../../services/systemLog", () => ({
 
 vi.mock("../../services/subscriptionMode", () => ({
   resolveSubscriptionCollectionMode: vi.fn(() => "AUTO_DEBIT")
+}));
+
+vi.mock("../../services/billingCycles", async () => ({
+  resolveSubscriptionBillingState: vi.fn(async ({ subscriptionId }: { subscriptionId: string }) => {
+    const { store } = await import("../../db/prisma");
+    const subscription = store.subscription[subscriptionId];
+    if (!subscription) return null;
+    const plan = store.plan?.[subscription.planId] || null;
+    const cycles = Object.values(store.subscriptionBillingCycle || {})
+      .filter((cycle: any) => cycle.subscriptionId === subscriptionId)
+      .sort((a: any, b: any) => Number(a.cycleNumber || 0) - Number(b.cycleNumber || 0));
+    const deriveCycleNumberFromDates = () => {
+      const startAt = subscription.startAt ? new Date(subscription.startAt) : null;
+      const periodStartAt = subscription.currentPeriodStartAt ? new Date(subscription.currentPeriodStartAt) : null;
+      const intervalUnit = String(plan?.intervalUnit || "MONTH").toUpperCase();
+      const intervalCount = Math.max(1, Number(plan?.intervalCount || 1));
+      if (!startAt || !periodStartAt) return Number(subscription.currentCycle || 1);
+      if (intervalUnit === "MONTH") {
+        const months =
+          (periodStartAt.getUTCFullYear() - startAt.getUTCFullYear()) * 12 +
+          (periodStartAt.getUTCMonth() - startAt.getUTCMonth());
+        return Math.max(1, Math.floor(months / intervalCount) + 1);
+      }
+      return Number(subscription.currentCycle || 1);
+    };
+    const derivedActiveCycle =
+      cycles.length === 0 && subscription.currentPeriodStartAt && subscription.currentPeriodEndAt
+        ? {
+            id: `derived-${subscriptionId}-${deriveCycleNumberFromDates()}`,
+            subscriptionId,
+            cycleNumber: deriveCycleNumberFromDates(),
+            periodStartAt: new Date(subscription.currentPeriodStartAt),
+            periodEndAt: new Date(subscription.currentPeriodEndAt),
+            dueAt: new Date(subscription.currentPeriodEndAt),
+            status: "PENDING",
+            paymentId: null
+          }
+        : null;
+    const now = Date.now();
+    const activeCycle =
+      cycles.find((cycle: any) => new Date(cycle.periodStartAt).getTime() <= now && now < new Date(cycle.periodEndAt).getTime()) ||
+      cycles.find((cycle: any) => Number(cycle.cycleNumber || 0) === Number(subscription.currentCycle || 0)) ||
+      derivedActiveCycle ||
+      cycles[0] ||
+      null;
+    const paymentTiming = String(subscription.paymentTiming || "EN_CURSO").toUpperCase();
+    const collectionCycle =
+      paymentTiming === "ANTICIPADO"
+        ? cycles.find((cycle: any) => Number(cycle.cycleNumber || 0) > Number(activeCycle?.cycleNumber || 0)) ||
+          (activeCycle
+            ? {
+                ...activeCycle,
+                cycleNumber: Number(activeCycle.cycleNumber || 0) + 1
+              }
+            : null)
+        : activeCycle || null;
+    return {
+      subscription: { ...subscription, ...(plan ? { plan } : {}) },
+      cycles,
+      activeCycle,
+      collectionCycle,
+      oldestUnpaidCycle: cycles.find((cycle: any) => !cycle.paymentId) || null
+    };
+  }),
+  syncSubscriptionBillingSnapshot: vi.fn(async () => null)
 }));
 
 vi.mock("../../services/wompiReconcile", () => ({
@@ -206,6 +271,17 @@ vi.mock("../../db/prisma", () => {
 });
 
 describe("Subscription Billing: Auto-debit validation", () => {
+  beforeEach(async () => {
+    const { store } = await import("../../db/prisma");
+    store.customer = {};
+    store.plan = {};
+    store.subscription = {};
+    store.payment = {};
+    store.paymentLink = {};
+    store.paymentAttempt = {};
+    store.subscriptionBillingCycle = {};
+  });
+
   it("should throw when customer has no payment source for AUTO_DEBIT", async () => {
     const { prisma, store } = await import("../../db/prisma");
     const { resolveSubscriptionCollectionMode } = await import("../../services/subscriptionMode");
@@ -302,6 +378,17 @@ describe("Subscription Billing: Auto-debit validation", () => {
 });
 
 describe("Subscription Billing: Payment link creation", () => {
+  beforeEach(async () => {
+    const { store } = await import("../../db/prisma");
+    store.customer = {};
+    store.plan = {};
+    store.subscription = {};
+    store.payment = {};
+    store.paymentLink = {};
+    store.paymentAttempt = {};
+    store.subscriptionBillingCycle = {};
+  });
+
   it("should throw when subscription is SUSPENDED", async () => {
     const { prisma, store } = await import("../../db/prisma");
 
@@ -392,6 +479,17 @@ describe("Subscription Billing: Payment link creation", () => {
 });
 
 describe("ensureExpiredSubscriptions", () => {
+  beforeEach(async () => {
+    const { store } = await import("../../db/prisma");
+    store.customer = {};
+    store.plan = {};
+    store.subscription = {};
+    store.payment = {};
+    store.paymentLink = {};
+    store.paymentAttempt = {};
+    store.subscriptionBillingCycle = {};
+  });
+
   it("should mark ACTIVE as PAST_DUE when grace period has passed", async () => {
     const { prisma, store } = await import("../../db/prisma");
 
@@ -430,6 +528,10 @@ describe("ensureExpiredSubscriptions", () => {
 
   it("should not mark ACTIVE as PAST_DUE when within grace period", async () => {
     const { prisma, store } = await import("../../db/prisma");
+    const now = Date.now();
+    const periodStartAt = new Date(now - 2 * 24 * 60 * 60 * 1000);
+    const periodEndAt = new Date(now + 28 * 24 * 60 * 60 * 1000);
+    const dueAt = new Date(now - 24 * 60 * 60 * 1000);
 
     // Subscription due yesterday, grace period 3 days — still within grace
     store.plan = { "plan-1": { id: "plan-1", tenantId: "tenant-1", name: "Plan", priceInCents: 10000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 } };
@@ -438,10 +540,11 @@ describe("ensureExpiredSubscriptions", () => {
       tenantId: "tenant-1",
       customerId: "cust-1",
       planId: "plan-1",
+      startAt: periodStartAt,
       status: "ACTIVE",
       currentCycle: 1,
-      currentPeriodStartAt: new Date("2026-04-01T00:00:00.000Z"),
-      currentPeriodEndAt: new Date("2026-05-01T00:00:00.000Z"),
+      currentPeriodStartAt: periodStartAt,
+      currentPeriodEndAt: periodEndAt,
       cycleStartDay: 1,
       paymentDay: 5,
       paymentTiming: "EN_CURSO",
@@ -451,9 +554,9 @@ describe("ensureExpiredSubscriptions", () => {
       id: "cycle-grace",
       subscriptionId: "sub-grace",
       cycleNumber: 1,
-      periodStartAt: new Date("2026-04-01T00:00:00.000Z"),
-      periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
-      dueAt: new Date("2026-04-05T00:00:00.000Z"),
+      periodStartAt,
+      periodEndAt,
+      dueAt,
       status: "PENDING",
       paymentId: null
     };

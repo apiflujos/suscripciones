@@ -54,7 +54,7 @@ export function PaymentCreateSubscriptionModal({
       {open ? (
         <AppModal open={open} onClose={() => setOpen(false)} title="Crear suscripción para asociar pago" maxWidth={980}>
           <>
-            <div className="field-hint" style={{ marginBottom: 12 }}>
+            <div className="field-hint modal-note">
               {customerName ? `El pago se asociará al contacto ${customerName}.` : "El pago recibido se asociará automáticamente a la suscripción creada."}
             </div>
             <NewBillingAssignmentForm

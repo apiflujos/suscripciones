@@ -2,52 +2,15 @@ import { PublicCheckoutLayout } from "../../_components/PublicCheckoutLayout";
 import { PublicAlert } from "../../_components/PublicAlert";
 import { PublicErrorPage } from "../../_components/PublicErrorPage";
 import { PUBLIC_COPY } from "../../_components/publicCopy";
-import { headers } from "next/headers";
-import { getPublicBaseUrlFromEnv } from "@suscripciones/core/services/publicBase";
-import { logger } from "@suscripciones/core/lib/logger";
+import { fetchPublicJsonAcrossBases, getPublicApiBases } from "../../_components/publicRuntime";
 
 export const dynamic = "force-dynamic";
 
-async function getRequestBase() {
-  const headerStore = await headers();
-  const forwardedProto = headerStore.get("x-forwarded-proto") || "https";
-  const forwardedHost = headerStore.get("x-forwarded-host") || headerStore.get("host");
-  if (!forwardedHost) return "";
-  return `${forwardedProto}://${forwardedHost}`;
-}
-
-async function fetchJsonAcrossBases(path: string, bases: string[]) {
-  const uniqueBases = Array.from(new Set(bases.map((base) => String(base || "").trim()).filter(Boolean)));
-  if (!uniqueBases.length) return { ok: false, status: 500, json: { error: "missing_public_base_url" } };
-
-  for (const apiBase of uniqueBases) {
-    try {
-      const res = await fetch(`${apiBase}${path}`, { cache: "no-store" });
-      const json = await res.json().catch(() => null);
-      if (res.ok) return { ok: true, status: res.status, json, apiBase };
-    } catch (err: any) {
-      logger.warn({ err, apiBase, path }, "Fallo consultando checkout público en base candidata");
-    }
-  }
-
-  const lastBase = uniqueBases[uniqueBases.length - 1];
-  try {
-    const res = await fetch(`${lastBase}${path}`, { cache: "no-store" });
-    const json = await res.json().catch(() => null);
-    return { ok: res.ok, status: res.status, json, apiBase: lastBase };
-  } catch (err: any) {
-    logger.error({ err, apiBase: lastBase, path }, "Fallo definitivo consultando checkout público");
-    return { ok: false, status: 0, json: { error: "fetch_failed" } };
-  }
-}
-
 export default async function PublicPlanPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const requestBase = await getRequestBase();
-  const publicBase = getPublicBaseUrlFromEnv();
-  const apiBases = [requestBase, publicBase, process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "", process.env.NEXT_PUBLIC_API_BASE_URL || ""];
-  const linkRes = await fetchJsonAcrossBases(`/public/payment-links/${encodeURIComponent(token)}`, apiBases);
-  const configRes = await fetchJsonAcrossBases("/public/checkout-config", apiBases);
+  const apiBases = await getPublicApiBases();
+  const linkRes = await fetchPublicJsonAcrossBases(`/public/payment-links/${encodeURIComponent(token)}`, apiBases);
+  const configRes = await fetchPublicJsonAcrossBases("/public/checkout-config", apiBases);
   const config = configRes.ok ? configRes.json?.config || {} : {};
   const template = linkRes.ok ? linkRes.json?.template || null : null;
   const tenant = linkRes.ok ? linkRes.json?.tenant || null : null;

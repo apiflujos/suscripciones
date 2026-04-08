@@ -2364,10 +2364,11 @@ a {
 .smartFilterModalPanel .btn-compact,
 .smartFilterModalPanel .btn,
 .smartFilterModalPanel .primary {
-  min-height: 28px !important;
-  height: 28px !important;
-  font-size: 11px !important;
-  padding: 0 10px !important;
+  min-height: 34px !important;
+  height: auto !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  padding: 6px 12px !important;
 }
 
 .smartViewsModalPanel .btn-compact:not(.btn-icon-only),
@@ -5295,6 +5296,26 @@ textarea.input {
   white-space: nowrap;
 }
 
+/* Los modales no deben heredar el compactado extremo de headers/tablas.
+   Aquí priorizamos legibilidad y botones con altura suficiente para texto real. */
+.modal-panel :is(.primary, .ghost, .btn, .btnLink).btn-compact:not(.btn-icon-only) {
+  min-height: 34px;
+  height: auto;
+  padding: 6px 12px;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: normal;
+  width: auto;
+  min-width: 0;
+}
+
+.modal-panel :is(.primary, .ghost, .btn, .btnLink).btn-compact.btn-icon-only {
+  min-height: 32px;
+  height: 32px;
+  min-width: 32px;
+  width: 32px;
+}
+
 /* Estandar global de iconos en botones */
 .btn-compact svg,
 .btn svg,
@@ -5497,9 +5518,72 @@ textarea.input {
 .contact-action-btn {
   display: inline-flex;
   align-items: center;
-  min-width: 110px !important;
+  min-width: 148px !important;
+  min-height: 34px !important;
+  padding: 6px 12px !important;
   justify-content: center;
   text-align: center;
+  line-height: 1.2 !important;
+  white-space: normal !important;
+  gap: 8px;
+  font-size: 12px !important;
+  font-weight: 700;
+}
+
+.contact-action-btn.action-card,
+.contact-action-btn.action-create {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.contact-action-btn.action-card:hover,
+.contact-action-btn.action-create:hover {
+  border-color: #93c5fd;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.contact-action-btn.action-payment {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.contact-action-btn.action-payment:hover {
+  border-color: #60a5fa;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.contact-action-btn.action-token {
+  border-color: #86efac;
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.contact-action-btn.action-token:hover {
+  border-color: #4ade80;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.contact-action-btn.action-catalog {
+  border-color: var(--stroke);
+  background: color-mix(in srgb, var(--panel) 92%, var(--primary-soft) 8%);
+  color: var(--text);
+}
+
+.contact-action-btn.action-danger {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.contact-action-btn.action-danger:hover {
+  border-color: #fca5a5;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .send-grid {
@@ -5568,9 +5652,15 @@ textarea.input {
 }
 
 .contact-paylink .paylink-actions {
+  display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   overflow: visible;
+}
+
+.paylink-actions-subscription {
+  align-items: stretch;
+  justify-content: flex-start;
 }
 
 .contact-paylink .delete-row {
@@ -5578,14 +5668,15 @@ textarea.input {
 }
 
 .contact-paylink .btn-compact {
-  height: 28px;
+  height: auto;
   display: inline-flex;
   align-items: center;
   min-width: 0;
   justify-content: center;
-  font-size: 11px;
-  line-height: 1;
-  padding: 0 10px;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 6px 12px;
+  min-height: 34px;
 }
 
 .contact-paylink .btn-compact.btn-noicon {
@@ -5721,13 +5812,18 @@ textarea.input {
 }
 
 .customersPage .billing-card .paylink-actions {
-  gap: 2px;
+  gap: 8px;
 }
 
 .customersPage .billing-card .contact-paylink .btn-compact,
 .customersPage .billing-card .contact-action-btn {
-  height: 28px;
+  height: auto;
   min-width: 0 !important;
+  min-height: 34px !important;
+}
+
+.customersPage .billing-card .paylink-actions > * {
+  flex: 0 1 auto;
 }
 
 .customersPage .billing-card .contact-right {
@@ -7666,14 +7762,10 @@ textarea.input {
   min-width: max-content;
 }
 
-.subscription-edit-modal .panel-header {
-  justify-content: space-between !important;
-}
-
 .subscription-edit-modal .btn-compact {
-  font-size: 13px;
-  padding: 0 14px;
-  height: 34px;
+  font-size: 12px;
+  padding: 6px 12px;
+  height: auto;
   min-height: 34px;
   line-height: 1.2;
   display: inline-flex;
@@ -7698,26 +7790,26 @@ textarea.input {
 .subscription-edit-modal .module-footer .primary,
 .subscription-edit-modal .module-footer .ghost,
 .subscription-edit-modal .module-footer .btn {
-  height: 38px !important;
-  min-height: 38px !important;
+  height: auto !important;
+  min-height: 36px !important;
   padding: 0 18px !important;
-  font-size: 13px !important;
+  font-size: 12px !important;
   line-height: 1.2 !important;
 }
 
 .subscription-edit-modal .card .btn-compact {
   height: 34px !important;
   min-height: 34px !important;
-  padding: 0 16px !important;
-  font-size: 13px !important;
+  padding: 6px 14px !important;
+  font-size: 12px !important;
   line-height: 1.2 !important;
 }
 
 .subscription-edit-modal .input,
 .subscription-edit-modal .select {
-  height: 34px;
-  min-height: 34px;
-  font-size: 13px;
+  height: auto;
+  min-height: 38px;
+  font-size: 12px;
   min-width: 0;
 }
 
@@ -7803,11 +7895,11 @@ textarea.input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 34px;
-  min-height: 34px;
-  padding: 0 12px;
+  height: auto;
+  min-height: 38px;
+  padding: 8px 12px;
   gap: 8px;
-  font-size: 13px;
+  font-size: 12px;
   min-width: 0;
   width: 100%;
 }
@@ -7828,10 +7920,10 @@ textarea.input {
 }
 
 .subscription-edit-modal .btn-icon-only {
-  width: 34px !important;
-  min-width: 34px !important;
-  height: 34px !important;
-  min-height: 34px !important;
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
 }
 
 .subscription-edit-modal .primary.btn-compact {
@@ -7877,7 +7969,7 @@ textarea.input {
 }
 
 .subscription-edit-modal {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .subscription-edit-modal .modal-body {
@@ -7898,8 +7990,9 @@ textarea.input {
 
 .subscription-edit-modal .input,
 .subscription-edit-modal .select {
-  height: 34px;
-  font-size: 13px;
+  height: auto;
+  min-height: 38px;
+  font-size: 12px;
 }
 
 .subscription-edit-modal .plan-option-item span:first-child {
@@ -7957,14 +8050,12 @@ textarea.input {
   overflow: auto;
 }
 
-.customer-edit-modal .panel-header {
-  justify-content: space-between !important;
-}
-
 .customer-edit-modal .btn-compact {
   font-size: 12px;
-  padding: 4px 10px;
-  white-space: nowrap;
+  padding: 6px 12px;
+  min-height: 34px;
+  line-height: 1.2;
+  white-space: normal;
 }
 
 .customer-edit-modal .primary.btn-compact {
@@ -7996,10 +8087,6 @@ textarea.input {
   width: min(700px, 96vw);
   max-height: 90vh;
   overflow: auto;
-}
-
-.customer-view-ficha-modal .panel-header {
-  justify-content: space-between !important;
 }
 
 .customer-view-ficha-modal .modal-body {
@@ -13087,6 +13174,10 @@ body.is-global-loading {
   min-width: 0;
 }
 
+.modal-panel > * {
+  min-width: 0;
+}
+
 .modal-panel-fixed {
   display: flex;
   flex-direction: column;
@@ -13559,23 +13650,41 @@ html[data-contrast="high"] .module-footer .ghost {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  padding-bottom: var(--space-2);
-  margin-bottom: var(--space-2);
+  gap: 12px;
+  flex-wrap: nowrap;
+  padding: 0 0 var(--space-3);
+  margin-bottom: var(--space-3);
   border-bottom: 1px solid var(--stroke);
+  min-height: 0;
 }
 
 .modal-panel .panel-header > * {
   min-width: 0;
 }
 
-.modal-panel .panel-header .ghost {
-  margin-left: auto;
+.modal-header-main {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  flex: 1 1 auto;
+}
+
+.modal-header-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.modal-panel .panel-header h3 {
+  margin: 0;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .panel-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text);
 }
@@ -13588,21 +13697,34 @@ html[data-contrast="high"] .module-footer .ghost {
 .modal-body {
   display: grid;
   gap: var(--space-5);
+  min-width: 0;
+  padding-right: 2px;
 }
 
 /* Modal - Textos uniformes */
+.modal-body .field,
+.modal-form-stack {
+  display: grid;
+  gap: 10px;
+}
+
 .modal-body .field {
   font-size: var(--text-base);
+  min-width: 0;
 }
 
 .modal-body .field label {
   font-size: var(--text-base);
   font-weight: 600;
+  line-height: 1.35;
 }
 
 .modal-body .select,
 .modal-body .input {
   font-size: var(--text-base);
+  min-height: 38px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .modal-body textarea {
@@ -13612,6 +13734,21 @@ html[data-contrast="high"] .module-footer .ghost {
 
 .modal-body .field-hint {
   font-size: var(--text-base);
+}
+
+.modal-note {
+  margin-bottom: 12px;
+  line-height: 1.45;
+}
+
+.modal-panel .module-footer {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-panel .module-footer :is(button, .btn, .ghost, .primary, .btn-compact):not(.btn-icon-only) {
+  min-height: 36px;
 }
 
 .modal-close {
@@ -13640,6 +13777,34 @@ html[data-contrast="high"] .module-footer .ghost {
   background: var(--primary-soft);
   border-color: var(--primary);
   color: var(--primary);
+}
+
+@media (max-width: 640px) {
+  .modal-panel {
+    width: min(100%, 100vw - 16px);
+    max-height: calc(100vh - 16px);
+    padding: 14px;
+  }
+
+  .modal-panel .panel-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .modal-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .modal-panel .module-footer {
+    justify-content: stretch;
+  }
+
+  .modal-panel .module-footer :is(button, .btn, .ghost, .primary, .btn-compact):not(.btn-icon-only) {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 .progress-row {

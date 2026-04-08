@@ -27,15 +27,23 @@ type BillingCycleItem = {
   } | null;
 };
 
-type PaymentCandidate = {
-  cycle: {
+type PaymentSuggestion = {
+  suggestedCycle: {
     id: string;
     cycleNumber: number;
     periodStartAt: string;
     periodEndAt: string;
     dueAt: string;
     status: string;
-  };
+  } | null;
+  alternativeCycles: Array<{
+    id: string;
+    cycleNumber: number;
+    periodStartAt: string;
+    periodEndAt: string;
+    dueAt: string;
+    status: string;
+  }>;
   payment: {
     id: string;
     amountInCents: number;
@@ -48,8 +56,9 @@ type PaymentCandidate = {
     origin: string | null;
     cycleNumber: number | null;
   };
-  score: number;
-  reasons: string[];
+  explanation: string;
+  reasonCode: "EN_CURSO" | "ANTICIPADO" | "REFERENCE_MATCH" | "FALLBACK";
+  requiresManualReview: boolean;
 };
 
 type Props = {
@@ -104,14 +113,76 @@ function formatDateRange(start: string, end: string) {
   );
 }
 
-function reasonLabel(reason: string) {
-  const map: Record<string, string> = {
-    monto_exact: "💰 Monto exacto",
-    en_rango: "📅 En rango del ciclo",
-    cerca_del_vencimiento: "⏰ Cerca del vencimiento",
-    referencia_coincide: "🏷️ Referencia coincide"
-  };
-  return map[reason] || reason;
+function iconStyle(size = 16) {
+  return { width: size, height: size, display: "block", flex: "0 0 auto" } as const;
+}
+
+function SparkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={iconStyle(16)} aria-hidden="true">
+      <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={iconStyle(16)} aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      style={{ ...iconStyle(14), transform: expanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }}
+      aria-hidden="true"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={iconStyle(16)} aria-hidden="true">
+      <path d="M10 13a5 5 0 0 0 7.07 0l2.12-2.12a5 5 0 1 0-7.07-7.07L10.7 5.23" />
+      <path d="M14 11a5 5 0 0 0-7.07 0L4.8 13.12a5 5 0 1 0 7.07 7.07l1.41-1.41" />
+    </svg>
+  );
+}
+
+function RepeatIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={iconStyle(16)} aria-hidden="true">
+      <path d="M17 2v6h-6" />
+      <path d="M7 22v-6h6" />
+      <path d="M20 11a8 8 0 0 0-13.66-5.66L5 7" />
+      <path d="M4 13a8 8 0 0 0 13.66 5.66L19 17" />
+    </svg>
+  );
+}
+
+function EmptyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" style={iconStyle(36)} aria-hidden="true">
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M8 3v4M16 3v4M4 10h16" />
+    </svg>
+  );
+}
+
+function autoReasonLabel(reason: PaymentSuggestion["reasonCode"]) {
+  if (reason === "ANTICIPADO") return "Pago anticipado";
+  if (reason === "REFERENCE_MATCH") return "Referencia o ciclo inferido";
+  if (reason === "FALLBACK") return "Revisión manual recomendada";
+  return "Pago en curso";
 }
 
 export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenantId, trigger, forceOpen, onOpenChange }: Props) {
@@ -123,7 +194,8 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
   // Auto-associate state
   const [autoModalOpen, setAutoModalOpen] = useState(false);
   const [autoLoading, setAutoLoading] = useState(false);
-  const [candidates, setCandidates] = useState<PaymentCandidate[]>([]);
+  const [suggestions, setSuggestions] = useState<PaymentSuggestion[]>([]);
+  const [selectedCycleByPayment, setSelectedCycleByPayment] = useState<Record<string, string>>({});
   const [autoAssociating, setAutoAssociating] = useState<string | null>(null);
   const [autoResult, setAutoResult] = useState<{ ok: boolean; message?: string; error?: string } | null>(null);
 
@@ -175,7 +247,8 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
   // Auto-associate handler
   const handleAutoAssociate = async () => {
     setAutoLoading(true);
-    setCandidates([]);
+    setSuggestions([]);
+    setSelectedCycleByPayment({});
     setAutoResult(null);
     setAutoModalOpen(true);
 
@@ -183,44 +256,66 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
       const res = await fetch(`/api/billing/cycle-candidates?subscriptionId=${encodeURIComponent(subscriptionId)}`);
       const json = await res.json();
 
-      if (!json.ok || !json.candidates) {
-        setCandidates([]);
+      if (!json.ok || !json.suggestions) {
+        setSuggestions([]);
         return;
       }
-      setCandidates(json.candidates);
+      const nextSuggestions = Array.isArray(json.suggestions) ? json.suggestions : [];
+      setSuggestions(nextSuggestions);
+      setSelectedCycleByPayment(
+        Object.fromEntries(
+          nextSuggestions
+            .filter((entry: PaymentSuggestion) => entry.suggestedCycle?.id)
+            .map((entry: PaymentSuggestion) => [entry.payment.id, String(entry.suggestedCycle?.id || "")])
+        )
+      );
     } catch {
-      setCandidates([]);
+      setSuggestions([]);
     } finally {
       setAutoLoading(false);
     }
   };
 
-  const handleConfirmAssociation = async (candidate: PaymentCandidate) => {
-    const key = `${candidate.cycle.id}-${candidate.payment.id}`;
+  const handleConfirmAssociation = async (suggestion: PaymentSuggestion) => {
+    const selectedCycleId = String(selectedCycleByPayment[suggestion.payment.id] || suggestion.suggestedCycle?.id || "").trim();
+    if (!selectedCycleId) {
+      setAutoResult({ ok: false, error: "selected_cycle_required" });
+      return;
+    }
+    const selectedCycle = suggestion.alternativeCycles.find((cycle) => cycle.id === selectedCycleId) || suggestion.suggestedCycle;
+    if (!selectedCycle) {
+      setAutoResult({ ok: false, error: "selected_cycle_not_found" });
+      return;
+    }
+    if (suggestion.suggestedCycle?.id && selectedCycle.id !== suggestion.suggestedCycle.id) {
+      const confirmed = window.confirm(`Este pago se moverá del ciclo sugerido ${suggestion.suggestedCycle.cycleNumber} al ciclo ${selectedCycle.cycleNumber}. ¿Continuar?`);
+      if (!confirmed) return;
+    }
+
+    const key = `${selectedCycle.id}-${suggestion.payment.id}`;
     setAutoAssociating(key);
     setAutoResult(null);
 
     const formData = new FormData();
     formData.set("csrf", csrfToken);
     formData.set("subscriptionId", subscriptionId);
-    formData.set("cycleId", candidate.cycle.id);
-    formData.set("paymentId", candidate.payment.id);
+    formData.set("cycleId", selectedCycle.id);
+    formData.set("paymentId", suggestion.payment.id);
     if (tenantId) formData.set("tenantId", tenantId);
 
     try {
       const result = await autoAssociatePaymentToCycle(formData);
       if (result.ok) {
-        setAutoResult({ ok: true, message: `Ciclo ${candidate.cycle.cycleNumber} asociado exitosamente` });
+        setAutoResult({ ok: true, message: `Pago asociado al ciclo ${selectedCycle.cycleNumber}.` });
         // Refresh cycles list
         const res = await fetch(`/api/billing/billing-cycles?subscriptionId=${encodeURIComponent(subscriptionId)}&take=36`);
         const json = await res.json();
         if (json.ok && Array.isArray(json.items)) setItems(json.items);
-        // Remove associated candidate from list
-        setCandidates((prev) => prev.filter((c) => c.payment.id !== candidate.payment.id));
+        setSuggestions((prev) => prev.filter((entry) => entry.payment.id !== suggestion.payment.id));
         // Close auto-modal after showing success
         setTimeout(() => {
           setAutoModalOpen(false);
-          setCandidates([]);
+          setSuggestions([]);
           setAutoResult(null);
         }, 1500);
       } else {
@@ -290,6 +385,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
       );
 
   const pendingCyclesCount = items.filter((c) => c.status === "PENDING" || c.status === "FAILED").length;
+  const autoOpenCycles = items.filter((c) => !c.paymentId && (c.status === "PENDING" || c.status === "FAILED"));
 
   return (
     <>
@@ -308,8 +404,10 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                 type="button"
                 onClick={handleAutoAssociate}
                 title="Buscar y asociar pagos automáticamente"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
               >
-                🔗 Asociar automáticamente
+                <SparkIcon />
+                <span>Asociar pagos</span>
               </button>
             )}
           </div>
@@ -325,7 +423,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                 </div>
               ) : items.length === 0 ? (
                 <div style={{ padding: "40px", textAlign: "center", color: "var(--text-faint)" }}>
-                  <div style={{ fontSize: "48px", marginBottom: "12px", opacity: 0.3 }}>📅</div>
+                  <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px", opacity: 0.35 }}><EmptyIcon /></div>
                   <div style={{ fontWeight: 600, marginBottom: "4px" }}>Sin ciclos registrados</div>
                   <div style={{ fontSize: "13px" }}>Esta suscripción aún no tiene ciclos de pago.</div>
                 </div>
@@ -374,6 +472,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                                       className="ghost btn-compact btn-noicon"
                                       type="button"
                                       title="Buscar pago manualmente"
+                                      aria-label="Buscar pago manualmente"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setSelectedCycleForManual(cycle.id);
@@ -382,7 +481,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                                         setSearchQuery("");
                                       }}
                                     >
-                                      🔍
+                                      <SearchIcon />
                                     </button>
                                   )}
                                   <span
@@ -393,12 +492,10 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                                       justifyContent: "center",
                                       width: "24px",
                                       height: "24px",
-                                      fontSize: "10px",
-                                      transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                                      transition: "transform 0.2s"
+                                      color: "var(--text-faint)"
                                     }}
                                   >
-                                    ▼
+                                    <ChevronIcon expanded={isExpanded} />
                                   </span>
                                 </div>
                               </td>
@@ -540,29 +637,38 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
       {/* ── MODAL: Auto-associate ── */}
       <AppModal
         open={autoModalOpen}
-        onClose={() => { setAutoModalOpen(false); setCandidates([]); setAutoResult(null); }}
-        title="Asociar pagos automáticamente"
-        width="min(700px, 96vw)"
+        onClose={() => { setAutoModalOpen(false); setSuggestions([]); setAutoResult(null); }}
+        title="Pagos detectados"
+        width="min(860px, 96vw)"
       >
         <div style={{ padding: "8px 0" }}>
           {autoLoading ? (
             <div style={{ padding: "40px", textAlign: "center", color: "var(--text-faint)" }}>
               <div className="loading-spinner" style={{ margin: "0 auto 12px" }} />
-              Buscando pagos no asociados...
+              Analizando pagos aprobados sin asociar...
             </div>
-          ) : candidates.length === 0 ? (
+          ) : suggestions.length === 0 ? (
             <div style={{ padding: "32px", textAlign: "center" }}>
-              <div style={{ fontSize: "36px", marginBottom: "12px", opacity: 0.3 }}>🔍</div>
-              <div style={{ fontWeight: 600, marginBottom: "4px" }}>No se encontraron pagos automáticos</div>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px", opacity: 0.35 }}><SearchIcon /></div>
+              <div style={{ fontWeight: 600, marginBottom: "4px" }}>No hay pagos sugeridos</div>
               <div style={{ fontSize: "13px", color: "var(--muted)" }}>
-                No hay pagos sin asociar que coincidan con los ciclos pendientes.
-                Puedes intentar la asociación manual desde el ciclo.
+                No se encontraron pagos únicos listos para asociar automáticamente.
+                Puedes buscar uno manualmente desde cada ciclo pendiente.
               </div>
             </div>
           ) : (
             <div style={{ display: "grid", gap: 12 }}>
-              <div className="field-hint" style={{ marginBottom: 8 }}>
-                Se encontraron <strong>{candidates.length}</strong> posible(s) coincidencia(s). Revisa y confirma cada asociación.
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: 8,
+                  marginBottom: 4
+                }}
+              >
+                <div className="field-hint">Pagos únicos detectados: <strong>{suggestions.length}</strong></div>
+                <div className="field-hint">Ciclos abiertos: <strong>{autoOpenCycles.length}</strong></div>
+                <div className="field-hint">Regla activa: <strong>{suggestions[0]?.reasonCode === "ANTICIPADO" ? "Pago adelantado" : "Pago en curso"}</strong></div>
               </div>
 
               {autoResult && (
@@ -574,67 +680,154 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                 </div>
               )}
 
-              {candidates.map((candidate, idx) => {
-                const key = `${candidate.cycle.id}-${candidate.payment.id}`;
+              {suggestions.map((suggestion) => {
+                const selectedCycleId = String(selectedCycleByPayment[suggestion.payment.id] || suggestion.suggestedCycle?.id || "");
+                const selectedCycle =
+                  suggestion.alternativeCycles.find((cycle) => cycle.id === selectedCycleId) || suggestion.suggestedCycle;
+                const key = `${selectedCycleId || "none"}-${suggestion.payment.id}`;
                 const isAssociating = autoAssociating === key;
 
                 return (
                   <div
                     key={key}
                     style={{
-                      padding: "12px 16px",
-                      background: "var(--panel-soft)",
+                      padding: "16px 18px",
+                      background: "linear-gradient(180deg, var(--panel-soft), color-mix(in srgb, var(--panel-soft) 84%, transparent))",
                       border: "1px solid var(--stroke)",
-                      borderRadius: 8
+                      borderRadius: 12
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 16, flexWrap: "wrap" }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                          <span className="pill pill-sm pill-warn">Ciclo {candidate.cycle.cycleNumber}</span>
-                          <span style={{ fontSize: 11, color: "var(--muted)" }}>
-                            {formatCivilDate(candidate.cycle.periodStartAt)} → {formatCivilDate(candidate.cycle.periodEndAt)}
-                          </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                          <span className="pill pill-sm pill-muted">{autoReasonLabel(suggestion.reasonCode)}</span>
+                          {suggestion.requiresManualReview ? (
+                            <span className="pill pill-sm pill-warn">Revisar antes de confirmar</span>
+                          ) : (
+                            <span className="pill pill-sm pill-ok">Sugerencia única</span>
+                          )}
                         </div>
 
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12 }}>
-                          <div>
-                            <div style={{ fontSize: 10, textTransform: "uppercase", color: "var(--text-faint)" }}>Pago</div>
-                            <div style={{ fontWeight: 500 }}>
-                              {fmtMoney(candidate.payment.amountInCents, candidate.payment.currency)}
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "minmax(0, 1.3fr) minmax(260px, 1fr)",
+                            gap: 14,
+                            alignItems: "start"
+                          }}
+                        >
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 11, textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 4 }}>Pago detectado</div>
+                            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>
+                              {fmtMoney(suggestion.payment.amountInCents, suggestion.payment.currency)}
                             </div>
-                            {candidate.payment.paidAt && (
-                              <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                                Pagado: <LocalDateTime value={candidate.payment.paidAt} variant="short" />
+                            <div style={{ display: "grid", gap: 4, fontSize: 12, color: "var(--muted)" }}>
+                              <div>Fecha de pago: {suggestion.payment.paidAt ? formatCivilDate(suggestion.payment.paidAt) : formatCivilDate(suggestion.payment.createdAt)}</div>
+                              <div>Estado: {suggestion.payment.status}</div>
+                              <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                                transaction_id: <code>{suggestion.payment.wompiTransactionId || "Sin transaction_id"}</code>
+                              </div>
+                              {suggestion.payment.reference ? (
+                                <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                                  Referencia: <code>{suggestion.payment.reference}</code>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 11, textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 4 }}>Sugerencia</div>
+                            {suggestion.suggestedCycle ? (
+                              <>
+                                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+                                  Este pago se sugiere para el ciclo {suggestion.suggestedCycle.cycleNumber}
+                                </div>
+                                <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>
+                                  {formatCivilDate(suggestion.suggestedCycle.periodStartAt)} → {formatCivilDate(suggestion.suggestedCycle.periodEndAt)}
+                                </div>
+                              </>
+                            ) : (
+                              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+                                No se pudo sugerir un ciclo automáticamente.
                               </div>
                             )}
-                          </div>
-                          <div>
-                            <div style={{ fontSize: 10, textTransform: "uppercase", color: "var(--text-faint)" }}>Coincidencia</div>
-                            <div style={{ fontWeight: 600, color: candidate.score >= 80 ? "var(--status-ok)" : "var(--status-warning)" }}>
-                              {candidate.score}%
+
+                            <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
+                              {suggestion.explanation}
                             </div>
-                            <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                              {candidate.reasons.map(reasonLabel).join(", ")}
+
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                              <select
+                                className="select select-sm"
+                                value={selectedCycleId}
+                                onChange={(e) =>
+                                  setSelectedCycleByPayment((prev) => ({
+                                    ...prev,
+                                    [suggestion.payment.id]: e.target.value
+                                  }))
+                                }
+                                style={{ minWidth: 240, maxWidth: "100%" }}
+                              >
+                                <option value="">Selecciona un ciclo</option>
+                                {suggestion.alternativeCycles.map((cycle) => (
+                                  <option key={`${suggestion.payment.id}-${cycle.id}`} value={cycle.id}>
+                                    Ciclo {cycle.cycleNumber} · {formatCivilDate(cycle.periodStartAt)} → {formatCivilDate(cycle.periodEndAt)}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                className="primary btn-compact"
+                                type="button"
+                                disabled={isAssociating || !selectedCycle}
+                                onClick={() => handleConfirmAssociation(suggestion)}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+                              >
+                                <LinkIcon />
+                                <span>{isAssociating ? "Asociando..." : "Confirmar asignación"}</span>
+                              </button>
                             </div>
                           </div>
                         </div>
-
-                        {candidate.payment.wompiTransactionId && (
-                          <div style={{ fontSize: 10, color: "var(--text-faint)", marginTop: 6 }}>
-                            Tx: <code>{candidate.payment.wompiTransactionId}</code>
-                          </div>
-                        )}
                       </div>
 
-                      <button
-                        className="primary btn-compact"
-                        type="button"
-                        disabled={isAssociating}
-                        onClick={() => handleConfirmAssociation(candidate)}
-                      >
-                        {isAssociating ? "Asociando..." : "✓ Confirmar"}
-                      </button>
+                      <div style={{ minWidth: 180 }}>
+                        <div
+                          style={{
+                            padding: "10px 12px",
+                            borderRadius: 10,
+                            background: "var(--panel)",
+                            border: "1px solid var(--stroke)"
+                          }}
+                        >
+                          <div style={{ fontSize: 11, textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 6 }}>Ciclo elegido</div>
+                          {selectedCycle ? (
+                            <>
+                              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Ciclo {selectedCycle.cycleNumber}</div>
+                              <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                                {formatCivilDate(selectedCycle.periodStartAt)} → {formatCivilDate(selectedCycle.periodEndAt)}
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ fontSize: 12, color: "var(--muted)" }}>Selecciona un ciclo manualmente.</div>
+                          )}
+                        </div>
+                        {suggestion.suggestedCycle && selectedCycle && selectedCycle.id !== suggestion.suggestedCycle.id ? (
+                          <button
+                            className="ghost btn-compact"
+                            type="button"
+                            style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 8 }}
+                            onClick={() =>
+                              setSelectedCycleByPayment((prev) => ({
+                                ...prev,
+                                [suggestion.payment.id]: suggestion.suggestedCycle?.id || ""
+                              }))
+                            }
+                          >
+                            <RepeatIcon />
+                            <span>Volver a sugerencia</span>
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 );
@@ -646,7 +839,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
             <button
               className="ghost btn-compact"
               type="button"
-              onClick={() => { setAutoModalOpen(false); setCandidates([]); setAutoResult(null); }}
+              onClick={() => { setAutoModalOpen(false); setSuggestions([]); setAutoResult(null); }}
             >
               Cerrar
             </button>
@@ -663,13 +856,13 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
       >
         <div style={{ padding: "8px 0" }}>
           <div className="field">
-            <label>Buscar pago</label>
+            <label>Buscar pago aprobado</label>
             <div style={{ display: "flex", gap: 8 }}>
               <input
                 className="input"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ID transacción, referencia o monto..."
+                placeholder="transaction_id, referencia, nombre o correo..."
                 onKeyDown={(e) => { if (e.key === "Enter") handleManualSearch(); }}
               />
               <button
@@ -677,8 +870,10 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                 type="button"
                 onClick={handleManualSearch}
                 disabled={!searchQuery.trim() || searchLoading}
+                style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
               >
-                {searchLoading ? "..." : "Buscar"}
+                <SearchIcon />
+                <span>{searchLoading ? "Buscando..." : "Buscar"}</span>
               </button>
             </div>
           </div>
@@ -707,7 +902,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                   <div style={{ fontSize: 13 }}>
                     <div style={{ fontWeight: 500 }}>{fmtMoney(p.amountInCents, p.currency)}</div>
                     <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                      {p.wompiTransactionId ? `Tx: ${p.wompiTransactionId}` : p.reference}
+                      {p.wompiTransactionId ? `transaction_id: ${p.wompiTransactionId}` : p.reference}
                     </div>
                     {p.paidAt && (
                       <div style={{ fontSize: 10, color: "var(--text-faint)" }}>

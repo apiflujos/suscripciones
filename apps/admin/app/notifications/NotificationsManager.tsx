@@ -54,7 +54,7 @@ function formatOffsets(offsets?: number[], atTimeUtc?: string) {
     const days = Math.round(hours / 24);
     return `${dir} ${days} d`;
   });
-  const time = atTimeUtc ? ` · ${atTimeUtc} UTC` : "";
+  const time = atTimeUtc ? ` · ${atTimeUtc} hora local` : "";
   return `${Array.from(new Set(parts)).join(", ")}${time}`;
 }
 
@@ -527,12 +527,12 @@ export function NotificationsManager({
               </div>
 
               <label className="field row">
-                <span>Enviar a hora exacta (UTC)</span>
+                <span>Enviar a hora exacta (hora local)</span>
                 <input type="checkbox" checked={!!ruleAtTimeUtc} onChange={(e) => setRuleAtTimeUtc(e.target.checked ? "09:00" : "")} />
               </label>
               {ruleAtTimeUtc ? (
                 <div className="field">
-                  <label>Hora UTC</label>
+                  <label>Hora local</label>
                   <input className="input" type="time" value={ruleAtTimeUtc} onChange={(e) => setRuleAtTimeUtc(e.target.value)} />
                 </div>
               ) : null}

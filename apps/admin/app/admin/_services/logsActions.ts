@@ -46,12 +46,12 @@ function parseDateEnd(value?: string | null) {
 }
 
 function estimateCyclesBack(args: {
-  currentPeriodStartAt: Date;
+  startAt: Date;
   intervalUnit: string;
   intervalCount: number;
   paymentAt: Date;
 }) {
-  const start = args.currentPeriodStartAt;
+  const start = args.startAt;
   const paymentAt = args.paymentAt;
   if (paymentAt.getTime() >= start.getTime()) return 12;
   const count = Math.max(1, Math.trunc(args.intervalCount || 1));
@@ -348,6 +348,12 @@ export async function associatePaymentToSubscription(args: {
       where: { subscriptionId_cycleNumber: { subscriptionId: subscription.id, cycleNumber: activeCycle?.cycleNumber ?? 1 } }
     });
   }
+  if (cycleToAttach?.paymentId && cycleToAttach.paymentId !== payment.id) {
+    return {
+      ok: false as const,
+      error: "cycle_already_has_payment" as const
+    };
+  }
 
   if (cycleToAttach) {
     await prisma.payment.update({
@@ -572,7 +578,7 @@ export async function autoAssociateUnlinkedPayments(args: {
         }
 
         const cyclesBack = estimateCyclesBack({
-          currentPeriodStartAt: subscription.startAt,
+          startAt: subscription.startAt,
           intervalUnit: subscription.plan.intervalUnit,
           intervalCount: subscription.plan.intervalCount,
           paymentAt
@@ -738,7 +744,7 @@ export async function autoAssociateUnlinkedPayments(args: {
 
       for (const sub of usableSubs) {
         const cyclesBack = estimateCyclesBack({
-          currentPeriodStartAt: sub.startAt,
+          startAt: sub.startAt,
           intervalUnit: sub.plan.intervalUnit,
           intervalCount: sub.plan.intervalCount,
           paymentAt

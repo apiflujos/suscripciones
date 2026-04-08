@@ -77,7 +77,8 @@ vi.mock("../../services/billingCycles", async (importOriginal) => {
     ...actual,
     attachPaymentToCycle: vi.fn(() => Promise.resolve({ ok: true })),
     attachPaymentToMatchingCycle: vi.fn(() => Promise.resolve({ ok: true })),
-    ensureBillingCyclesForSubscriptions: vi.fn(() => Promise.resolve())
+    ensureBillingCyclesForSubscriptions: vi.fn(() => Promise.resolve()),
+    syncSubscriptionBillingSnapshot: vi.fn(() => Promise.resolve(null))
   };
 });
 
@@ -184,6 +185,13 @@ function createMockPrisma() {
         return store.subscription[id];
       },
       findUnique: async ({ where }: any) => store.subscription[where.id] || null,
+      update: async ({ where, data }: any) => {
+        const existing = store.subscription[where.id];
+        if (!existing) return null;
+        const next = { ...existing, ...data, updatedAt: new Date() };
+        store.subscription[where.id] = next;
+        return next;
+      },
       updateMany: async ({ where, data }: any) => {
         const existing = store.subscription[where.id];
         if (!existing) return { count: 0 };
