@@ -1512,6 +1512,7 @@ export async function updateSubscriptionBillingSettings(args: {
   subscriptionId: string;
   tenantId?: string | null;
   startAt?: string;
+  collectionMode?: string;
   cycleStartDay?: number | string;
   paymentDay?: number | string;
   paymentTiming?: string;
@@ -1561,6 +1562,11 @@ export async function updateSubscriptionBillingSettings(args: {
 
   const effectiveEnd = addIntervalUtc(effectiveStart, normalized.unit as any, normalized.count);
 
+  // Normalize collectionMode if provided
+  const normalizedCollectionMode = args.collectionMode
+    ? String(args.collectionMode).trim().toUpperCase() === "AUTO_DEBIT" ? "AUTO_DEBIT" : "MANUAL_LINK"
+    : null;
+
   const updated = await prisma.subscription.update({
     where: { id: subscriptionId },
     data: {
@@ -1568,7 +1574,13 @@ export async function updateSubscriptionBillingSettings(args: {
       cycleStartDay: Math.max(1, Math.min(31, Math.trunc(cycleStartDay))),
       paymentDay: Math.max(1, Math.min(31, Math.trunc(paymentDay))),
       graceDays: Math.max(1, Math.min(5, Math.trunc(graceDays))),
-      paymentTiming
+      paymentTiming,
+      ...(normalizedCollectionMode ? {
+        metadata: {
+          ...(subscription.metadata as any || {}),
+          collectionMode: normalizedCollectionMode
+        }
+      } : {})
     }
   });
 
@@ -1577,7 +1589,8 @@ export async function updateSubscriptionBillingSettings(args: {
     cycleStartDay: updated.cycleStartDay,
     paymentDay: updated.paymentDay,
     paymentTiming: updated.paymentTiming,
-    graceDays: updated.graceDays
+    graceDays: updated.graceDays,
+    ...(normalizedCollectionMode ? { collectionMode: normalizedCollectionMode } : {})
   }, args.actor || "Sistema").catch((err: any) => {
     logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al actualizar reglas de ciclo");
   });

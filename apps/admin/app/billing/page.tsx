@@ -619,6 +619,7 @@ export default async function BillingPage({
                 graceDays={r.graceDays}
                 suspendDays={r.suspendDays || 15}
                 cancelDays={r.cancelDays || 30}
+                collectionMode={r.mode}
                 updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
                 deleteSubscription={deleteSubscription}
                 globalConfig={{ graceDays: 5, suspendDays: 15, cancelDays: 30 }}

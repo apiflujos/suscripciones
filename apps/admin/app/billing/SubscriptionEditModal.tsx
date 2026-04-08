@@ -39,6 +39,7 @@ export function SubscriptionEditModal({
   graceDays,
   suspendDays,
   cancelDays,
+  collectionMode,
   updateSubscriptionBillingSettings,
   deleteSubscription,
   globalConfig,
@@ -66,6 +67,7 @@ export function SubscriptionEditModal({
   graceDays: number;
   suspendDays: number;
   cancelDays: number;
+  collectionMode?: string;
   updateSubscriptionBillingSettings: (formData: FormData) => void | Promise<void>;
   deleteSubscription: (formData: FormData) => void | Promise<void>;
   globalConfig?: {
@@ -77,7 +79,9 @@ export function SubscriptionEditModal({
   cyclesTrigger?: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [subscriptionType, setSubscriptionType] = useState<"AUTO_DEBIT" | "LINK_PAYMENT">("AUTO_DEBIT");
+  const [subscriptionType, setSubscriptionType] = useState<"AUTO_DEBIT" | "LINK_PAYMENT">(
+    collectionMode === "AUTO_DEBIT" ? "AUTO_DEBIT" : "LINK_PAYMENT"
+  );
   const [products, setProducts] = useState<SubscriptionProduct[]>([]);
   const [intervalCount, setIntervalCount] = useState(Number(planIntervalCount || 1));
   const [intervalUnit, setIntervalUnit] = useState(String(planIntervalUnit || "MONTH"));
@@ -212,6 +216,7 @@ export function SubscriptionEditModal({
               {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
               <input type="hidden" name="graceDays" value={String(effectiveGraceDays)} />
+              <input type="hidden" name="collectionMode" value={subscriptionType === "AUTO_DEBIT" ? "AUTO_DEBIT" : "MANUAL_LINK"} />
               {/* 1. Tipo de suscripción */}
               <section className="card cardPad">
                 <div className="subscription-edit-type-row">

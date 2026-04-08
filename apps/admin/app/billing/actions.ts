@@ -586,6 +586,7 @@ export async function updateSubscriptionBillingSettings(formData: FormData) {
   const returnTo = mergeQuery(String(formData.get("returnTo") || "/billing"), {});
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
   const tenantId = String(formData.get("tenantId") || "").trim();
+  const collectionMode = String(formData.get("collectionMode") || "").trim();
   const cycleStartDay = String(formData.get("cycleStartDay") || "").trim();
   const paymentDay = String(formData.get("paymentDay") || "").trim();
   const paymentTiming = String(formData.get("paymentTiming") || "").trim();
@@ -598,6 +599,7 @@ export async function updateSubscriptionBillingSettings(formData: FormData) {
     const res = await updateSubscriptionBillingSettingsService({
       subscriptionId,
       tenantId: tenantId || null,
+      collectionMode: collectionMode || undefined,
       cycleStartDay,
       paymentDay,
       paymentTiming,
