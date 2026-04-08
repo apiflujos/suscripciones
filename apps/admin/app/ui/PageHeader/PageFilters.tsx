@@ -11,15 +11,6 @@ interface PageFiltersProps {
   initialFilters?: string;
 }
 
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }} aria-hidden="true">
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.5-3.5" />
-    </svg>
-  );
-}
-
 export function PageFilters({
   searchPlaceholder = "Buscar...",
   smartViewScope,
@@ -51,13 +42,11 @@ export function PageFilters({
               title={searchPlaceholder}
             />
             <button
-              className="ghost btn-compact btn-search"
+              className="ghost btn-icon-only btn-search"
               type="submit"
               aria-label="Buscar"
               title="Buscar"
-            >
-              <SearchIcon />
-            </button>
+            />
           </form>
 
           <div style={{ flex: "1 1 auto", minWidth: 200 }}>
