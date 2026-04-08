@@ -37,7 +37,6 @@ export function PageFilters({
             action={`/${smartViewScope}`}
             method="GET"
             className="filtersForm filtersSearch"
-            data-debounce-form="true"
           >
             {Object.entries(baseParams).map(([key, value]) => (
               <input key={key} type="hidden" name={key} value={value} />

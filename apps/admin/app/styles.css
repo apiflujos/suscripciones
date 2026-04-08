@@ -2615,7 +2615,7 @@ a {
 .filtersSearch .input {
   flex: 1;
   min-width: 0;
-  width: 100%;
+  width: auto;
   --field-icon: var(--icon-search);
   --field-padding-right: calc(var(--control-padding-x) + var(--btn-icon-size) + var(--space-1));
 }
@@ -2630,13 +2630,22 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  padding: 6px 8px;
   min-height: auto;
-  margin-left: -4px;
+  margin-left: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.filtersSearch .btn-search:hover {
+  background: var(--surface-2);
 }
 
 .filtersSearch .btn-search svg {
-  opacity: 0.6;
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .filtersSearch .btn-search:hover svg {
