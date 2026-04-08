@@ -518,13 +518,7 @@ export default async function BillingPage({
     const isSuspended = r.status === "SUSPENDED";
     const isInactive = isCanceled || isSuspended;
     const alreadyPaidCurrentPeriod = Boolean(r.lastPaidInCurrentPeriod);
-    const paymentStatus = getPaymentStatusLabel({
-      status: r.status,
-      paidAt: r.pagoAt,
-      periodStartAt: r.periodoInicioAt,
-      periodEndAt: r.periodoFinAt
-    });
-    
+
     // Botón de cobrar: SIEMPRE visible para débito automático (activo)
     // Es el botón más importante - poder cobrar!
     const showChargeButton = isAutoDebit && !isInactive;
