@@ -385,6 +385,8 @@ export default async function BillingPage({
         moneda: String(plan?.currency || "COP"),
         cada: fmtEvery(plan?.intervalUnit, plan?.intervalCount),
         pagoAt: s.lastPayment?.paidAt || null,
+        pagoTxId: s.lastPayment?.wompiTransactionId || null,
+        pagoMonto: s.lastPayment?.amountInCents || null,
         lastPaymentLink: s.lastPaymentLink || null,
         vencimientoAt: dueAtDate ? dueAtDate.toISOString() : null,
         periodoInicioAt: s.activeCycleStartAt || null,
@@ -684,7 +686,7 @@ export default async function BillingPage({
             <div className="billing-body-section billing-section-dates">
               <div className="billing-section-title">
                 Fecha de cobro
-                
+
               </div>
               <div className="billing-date-display">
                 <span>{formatCivilDate(r.vencimientoAt)}</span>
@@ -698,6 +700,31 @@ export default async function BillingPage({
                 Inicio ciclo: <strong>Día {r.cycleStartDay}</strong>
               </div>
             </div>
+
+            {/* Último pago */}
+            {r.pagoAt ? (
+              <div className="billing-body-section" style={{ borderTop: "1px solid var(--border-light)", paddingTop: "12px" }}>
+                <div className="billing-section-title">Último Pago</div>
+                <div style={{ fontSize: 13, display: "grid", gap: 4 }}>
+                  <div>
+                    <span style={{ color: "var(--muted)" }}>Fecha: </span>
+                    <strong>{formatCivilDate(r.pagoAt)}</strong>
+                  </div>
+                  {r.pagoMonto ? (
+                    <div>
+                      <span style={{ color: "var(--muted)" }}>Monto: </span>
+                      {fmtMoney(r.pagoMonto, r.moneda)}
+                    </div>
+                  ) : null}
+                  {r.pagoTxId ? (
+                    <div title={r.pagoTxId} style={{ wordBreak: "break-all" }}>
+                      <span style={{ color: "var(--muted)" }}>Tx ID: </span>
+                      <code style={{ fontSize: 11 }}>{r.pagoTxId}</code>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
           <div className="billing-body-side">
             <div className="billing-cost-panel">

@@ -384,13 +384,13 @@ export async function listSubscriptions(args: {
   const approvedPayments = await prisma.payment.findMany({
     where: { subscriptionId: { in: subscriptionIds }, status: PaymentStatus.APPROVED, paidAt: { not: null } },
     orderBy: { paidAt: "desc" },
-    select: { subscriptionId: true, paidAt: true, amountInCents: true, currency: true }
+    select: { subscriptionId: true, paidAt: true, amountInCents: true, currency: true, wompiTransactionId: true }
   });
 
-  const lastPaymentBySub = new Map<string, { paidAt: Date; amountInCents: number; currency: string }>();
+  const lastPaymentBySub = new Map<string, { paidAt: Date; amountInCents: number; currency: string; wompiTransactionId: string | null }>();
   for (const p of approvedPayments) {
     if (!p.subscriptionId || !p.paidAt) continue;
-    if (!lastPaymentBySub.has(p.subscriptionId)) lastPaymentBySub.set(p.subscriptionId, { paidAt: p.paidAt, amountInCents: p.amountInCents, currency: p.currency });
+    if (!lastPaymentBySub.has(p.subscriptionId)) lastPaymentBySub.set(p.subscriptionId, { paidAt: p.paidAt, amountInCents: p.amountInCents, currency: p.currency, wompiTransactionId: p.wompiTransactionId });
   }
 
   const latestLinks = await prisma.paymentLink.findMany({
