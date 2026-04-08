@@ -684,7 +684,7 @@ export default async function BillingPage({
                 Fecha de cobro
 
               </div>
-              <div className="billing-date-display">
+              <div className="billing-date-display" style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: "4px 0" }}>
                 <span>{formatCivilDate(r.vencimientoAt)}</span>
               </div>
               {r.periodoInicioAt && r.periodoFinAt ? (
