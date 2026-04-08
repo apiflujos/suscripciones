@@ -99,6 +99,29 @@
   flex: 0 0 280px !important;
 }
 
+/* Override for search forms with visible button */
+.page-filters-left .filtersForm.filtersSearch {
+  flex: 0 0 340px !important;
+}
+
+.page-filters-left .filtersForm.filtersSearch .input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 260px;
+}
+
+.page-filters-left .filtersForm.filtersSearch .btn-search {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .page-filters-right {
   display: flex;
   align-items: center;
