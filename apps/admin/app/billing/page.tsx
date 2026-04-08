@@ -518,6 +518,12 @@ export default async function BillingPage({
     const isSuspended = r.status === "SUSPENDED";
     const isInactive = isCanceled || isSuspended;
     const alreadyPaidCurrentPeriod = Boolean(r.lastPaidInCurrentPeriod);
+    const paymentStatus = getPaymentStatusLabel({
+      status: r.status,
+      paidAt: r.pagoAt,
+      periodStartAt: r.periodoInicioAt,
+      periodEndAt: r.periodoFinAt
+    });
     
     // Botón de cobrar: SIEMPRE visible para débito automático (activo)
     // Es el botón más importante - poder cobrar!
@@ -568,22 +574,12 @@ export default async function BillingPage({
               <div className="billing-header-meta-item billing-header-status-strip">
                 <span className="billing-header-label">
                   Estado
-                  
+
                 </span>
                 <div className="billing-status-line" role="group" aria-label="Estado">
-                  <span className={`pill pill-sm ${estadoSimple.class}`} title={`Estado: ${estadoSimple.label}`}>
-                    {estadoSimple.label}
+                  <span className={`pill pill-sm ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-bad" : "pill-warn"}`} title={`Ciclo: ${paymentStatus}`}>
+                    {paymentStatus}
                   </span>
-                  {r.inGrace ? (
-                    <span className="pill pill-sm pill-warn" title={`En gracia · ${r.daysLate} días`}>
-                      En gracia · {r.daysLate}d
-                    </span>
-                  ) : null}
-                  {r.inArrears ? (
-                    <span className="pill pill-sm pill-bad" title={`En mora · ${r.daysLate} días`}>
-                      En mora · {r.daysLate}d
-                    </span>
-                  ) : null}
                   {r.customerTokenized ? (
                     <span className="pill pill-sm pill-ok" title="Tarjeta tokenizada">
                       Tarjeta guardada
@@ -1066,7 +1062,7 @@ export default async function BillingPage({
                     </div>
                     <div className="billing-list-cell billing-list-product">
                       <a className="billing-list-link" href={productHref}>{r.planName || "—"}</a>
-                      <div className="billing-list-sub">{r.tipoTx || "—"} · {r.cada} · Suscripción {estadoSimple.label}</div>
+                      <div className="billing-list-sub">{r.tipoTx || "—"} · {r.cada}</div>
                     </div>
                     <div className="billing-list-cell billing-list-cutoff">
                       {formatCivilDate(r.vencimientoAt)}
@@ -1229,8 +1225,8 @@ export default async function BillingPage({
                                   </div>
                                   <div className="billing-kanban-sub">{r.tipoTx} · {r.cada}</div>
                                   <div className="billing-kanban-badges">
-                                    <span className={`pill pill-sm ${getEstadoSimple(r.status).class}`}>
-                                      {getEstadoSimple(r.status).label}
+                                    <span className={`pill pill-sm ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-bad" : "pill-warn"}`}>
+                                      {paymentStatus}
                                     </span>
                                   </div>
                                 </div>
