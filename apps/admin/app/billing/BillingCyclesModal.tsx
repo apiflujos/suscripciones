@@ -6,6 +6,16 @@ import { LocalDateTime } from "../ui/LocalDateTime";
 import { movePaymentToCycle, autoAssociatePaymentToCycle } from "./actions";
 import { formatCivilDate } from "./civilDate";
 
+type BillingCyclePayment = {
+  id: string;
+  transactionId: string | null;
+  reference: string | null;
+  amountInCents: number;
+  currency?: string;
+  paidAt: string | null;
+  payerName?: string | null;
+};
+
 type BillingCycleItem = {
   id: string;
   subscriptionId: string;
@@ -16,6 +26,7 @@ type BillingCycleItem = {
   status: "PENDING" | "PAID" | "FAILED" | "SKIPPED";
   paidAt?: string | null;
   paymentId?: string | null;
+  payment?: BillingCyclePayment | null;
   paidOnTime?: boolean | null;
   daysEarly?: number | null;
   daysLate?: number | null;
@@ -55,6 +66,7 @@ type PaymentSuggestion = {
     wompiTransactionId: string | null;
     origin: string | null;
     cycleNumber: number | null;
+    payerName: string | null;
   };
   explanation: string;
   reasonCode: "EN_CURSO" | "ANTICIPADO" | "REFERENCE_MATCH" | "FALLBACK";
@@ -424,7 +436,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                         const origin = originLabel(cycle.origin);
                         const isExpanded = expandedCycle === cycle.id;
                         const isPending = cycle.status === "PENDING" || cycle.status === "FAILED";
-                        const hasPayment = cycle.paymentId || cycle.payment?.transactionId;
+                        const hasPayment = cycle.paymentId;
 
                         return (
                           <Fragment key={cycle.id}>
@@ -476,21 +488,14 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                                     background: "var(--panel-soft)",
                                     borderBottom: "1px solid var(--stroke)"
                                   }}>
-                                    {/* Información principal - Nombres y estados */}
+                                    {/* Información principal - Estado y puntualidad */}
                                     <div style={{
                                       display: "grid",
-                                      gridTemplateColumns: "repeat(3, 1fr)",
-                                      gap: "16px",
+                                      gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                                      gap: "12px",
                                       fontSize: "12px",
                                       marginBottom: "16px"
                                     }}>
-                                      {cycle.subscription?.plan?.name && (
-                                        <div>
-                                          <div style={{ fontSize: "10px", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: "4px" }}>Plan</div>
-                                          <div style={{ fontSize: "13px", fontWeight: 600 }}>{cycle.subscription.plan.name}</div>
-                                        </div>
-                                      )}
-
                                       <div>
                                         <div style={{ fontSize: "10px", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: "4px" }}>Estado</div>
                                         <span className={`pill pill-sm ${status.class}`}>{status.label}</span>
@@ -528,33 +533,39 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                                       )}
                                     </div>
 
-                                    {cycle.paymentId ? (
+                                    {cycle.paymentId && cycle.payment ? (
                                       <>
-                                        <div style={{ marginTop: 16, padding: "12px 14px", background: "var(--surface-2)", borderRadius: 8 }}>
-                                          <div style={{ fontSize: "10px", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 8 }}>Pago Asociado</div>
+                                        <div style={{ padding: "12px 14px", background: "var(--surface-2)", borderRadius: 8 }}>
+                                          <div style={{ fontSize: "10px", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 8 }}>Datos del Pago</div>
                                           <div style={{ display: "grid", gap: 6, fontSize: 12 }}>
-                                            {cycle.payment?.transactionId && (
+                                            {cycle.payment.payerName && (
                                               <div>
-                                                <span style={{ color: "var(--text-faint)" }}>Transaction ID: </span>
+                                                <span style={{ color: "var(--text-faint)" }}>Pagador: </span>
+                                                <strong>{cycle.payment.payerName}</strong>
+                                              </div>
+                                            )}
+                                            {cycle.payment.transactionId && (
+                                              <div>
+                                                <span style={{ color: "var(--text-faint)" }}>Wompi Tx ID: </span>
                                                 <code style={{ fontSize: 11, wordBreak: "break-all" }}>{cycle.payment.transactionId}</code>
                                               </div>
                                             )}
-                                            {cycle.payment?.reference && (
+                                            {cycle.payment.reference && (
                                               <div>
                                                 <span style={{ color: "var(--text-faint)" }}>Referencia: </span>
                                                 <code style={{ fontSize: 11, wordBreak: "break-all" }}>{cycle.payment.reference}</code>
                                               </div>
                                             )}
-                                            {cycle.payment?.paidAt && (
+                                            {cycle.payment.paidAt && (
                                               <div>
-                                                <span style={{ color: "var(--text-faint)" }}>Pagado: </span>
+                                                <span style={{ color: "var(--text-faint)" }}>Fecha de pago: </span>
                                                 {formatCivilDate(cycle.payment.paidAt)}
                                               </div>
                                             )}
-                                            {cycle.payment?.amountInCents && (
+                                            {cycle.payment.amountInCents && (
                                               <div>
                                                 <span style={{ color: "var(--text-faint)" }}>Monto: </span>
-                                                {fmtMoney(cycle.payment.amountInCents, cycle.currency)}
+                                                <strong>{fmtMoney(cycle.payment.amountInCents, cycle.payment.currency || "COP")}</strong>
                                               </div>
                                             )}
                                           </div>
@@ -721,9 +732,9 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                               {fmtMoney(suggestion.payment.amountInCents, suggestion.payment.currency)}
                             </div>
                             <div style={{ display: "grid", gap: 4, fontSize: 12, color: "var(--muted)" }}>
-                              {suggestion.payment.payerName ? (
-                                <div><strong>Titular:</strong> {suggestion.payment.payerName}</div>
-                              ) : null}
+                              {suggestion.payment.payerName && (
+                                <div><strong>Pagador:</strong> {suggestion.payment.payerName}</div>
+                              )}
                               <div>Fecha de pago: {suggestion.payment.paidAt ? formatCivilDate(suggestion.payment.paidAt) : formatCivilDate(suggestion.payment.createdAt)}</div>
                               <div>Estado: {suggestion.payment.status}</div>
                               <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
@@ -903,6 +914,9 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                 >
                   <div style={{ fontSize: 13 }}>
                     <div style={{ fontWeight: 500 }}>{fmtMoney(p.amountInCents, p.currency)}</div>
+                    {p.payerName && (
+                      <div style={{ fontSize: 11, fontWeight: 500 }}>{p.payerName}</div>
+                    )}
                     <div style={{ fontSize: 11, color: "var(--muted)" }}>
                       {p.wompiTransactionId ? `transaction_id: ${p.wompiTransactionId}` : p.reference}
                     </div>

@@ -386,7 +386,8 @@ export async function listSubscriptionBillingCycles(args: { subscriptionId: stri
           status: true,
           amountInCents: true,
           paidAt: true,
-          reference: true
+          reference: true,
+          customer: { select: { name: true } }
         }
       }
     }
@@ -418,8 +419,10 @@ export async function listSubscriptionBillingCycles(args: { subscriptionId: stri
         id: cycle.payment.id,
         transactionId: cycle.payment.wompiTransactionId,
         amountInCents: cycle.payment.amountInCents,
+        currency: cycle.payment.currency,
         paidAt: cycle.payment.paidAt,
-        reference: cycle.payment.reference
+        reference: cycle.payment.reference,
+        payerName: cycle.payment.customer?.name || null
       } : null
     };
   });

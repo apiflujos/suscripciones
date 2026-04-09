@@ -585,6 +585,24 @@ export default async function BillingPage({
                   )}
                 </div>
               </div>
+
+              <div className="billing-header-meta-item">
+                <span className="billing-header-label">
+                  Tipo de cobro
+
+                </span>
+                <span className={`pill pill-sm ${String(r.tipoTx || "").includes("Débito") ? "pill-ok" : "pill-muted"}`}>
+                  {r.tipoTx || "—"}
+                </span>
+              </div>
+
+              <div className="billing-header-meta-item">
+                <span className="billing-header-label">
+                  Periodicidad
+
+                </span>
+                <span className="pill pill-sm pill-muted">{r.cada}</span>
+              </div>
             </div>
           </div>
           <div className="billing-header-right">
@@ -647,7 +665,7 @@ export default async function BillingPage({
                 </div>
               </div>
             </div>
-            
+
             {/* Producto */}
             <div className="billing-body-section">
               <div className="billing-section-title">Producto</div>
@@ -671,7 +689,7 @@ export default async function BillingPage({
                 </div>
               </div>
             </div>
-            
+
             {/* Fecha de cobro - READ ONLY */}
             <div className="billing-body-section billing-section-dates">
               <div className="billing-section-title">
@@ -1024,6 +1042,7 @@ export default async function BillingPage({
               <div className="billing-list-header">
                 <span>Datos personales</span>
                 <span>Producto</span>
+                <span>Suscripción</span>
                 <span>Fecha de corte</span>
                 <span>Estado</span>
                 <span>Acciones</span>
@@ -1056,6 +1075,8 @@ export default async function BillingPage({
                     </div>
                     <div className="billing-list-cell billing-list-product">
                       <a className="billing-list-link" href={productHref}>{r.planName || "—"}</a>
+                    </div>
+                    <div className="billing-list-cell billing-list-product">
                       <div className="billing-list-sub">{r.tipoTx || "—"} · {r.cada}</div>
                     </div>
                     <div className="billing-list-cell billing-list-cutoff">
@@ -1175,6 +1196,12 @@ export default async function BillingPage({
                           const isCanceled = r.status === "CANCELED";
                           const isSuspended = r.status === "SUSPENDED";
                           const isInactive = isCanceled || isSuspended;
+                          const itemPaymentStatus = getPaymentStatusLabel({
+                            status: r.status,
+                            paidAt: r.pagoAt,
+                            periodStartAt: r.periodoInicioAt,
+                            periodEndAt: r.periodoFinAt
+                          });
                           return (
                             <div key={`kanban-item-${r.id}`} className="billing-kanban-card">
                               <SubscriptionDetailModalWrapper
@@ -1219,8 +1246,8 @@ export default async function BillingPage({
                                   </div>
                                   <div className="billing-kanban-sub">{r.tipoTx} · {r.cada}</div>
                                   <div className="billing-kanban-badges">
-                                    <span className={`pill pill-sm ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-bad" : "pill-warn"}`}>
-                                      {paymentStatus}
+                                    <span className={`pill pill-sm ${itemPaymentStatus === "Pagado" ? "pill-ok" : itemPaymentStatus === "En mora" ? "pill-bad" : "pill-warn"}`}>
+                                      {itemPaymentStatus}
                                     </span>
                                   </div>
                                 </div>

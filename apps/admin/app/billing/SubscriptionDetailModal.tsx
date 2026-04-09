@@ -247,11 +247,9 @@ export function SubscriptionDetailModal({
                   <div>
                     <div className="billing-value" style={{ fontSize: 14 }}>{subscription.planName}</div>
                     <div className="field-hint" style={{ marginTop: 4 }}>
-                    <span className={`pill pill-sm ${String(subscription.tipoTx || "").includes("Débito") ? "pill-ok" : "pill-muted"}`}>
-                      {subscription.tipoTx || "—"}
-                    </span>
+                      {subscription.tipoTx || "—"} · {subscription.cada}
+                    </div>
                   </div>
-                </div>
                 </div>
               </div>
             </div>
@@ -317,7 +315,7 @@ export function SubscriptionDetailModal({
             {/* Configuración */}
             <div className="card cardPad" style={{ padding: 12 }}>
               <div className="billing-section-title" style={{ marginBottom: 8 }}>Configuración</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
                 <div>
                   <div className="field-hint">Días de gracia</div>
                   <div className="contact-value">{subscription.graceDays} días</div>
@@ -329,12 +327,6 @@ export function SubscriptionDetailModal({
                 <div>
                   <div className="field-hint">Cancelar después de</div>
                   <div className="contact-value">{subscription.cancelDays || 30} días</div>
-                </div>
-                <div>
-                  <div className="field-hint">Tipo de cobro</div>
-                  <div className="contact-value">
-                    {String(subscription.paymentTiming || "").toUpperCase() === "ANTICIPADO" ? "Adelantado" : "En curso"}
-                  </div>
                 </div>
               </div>
             </div>
