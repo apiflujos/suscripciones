@@ -1,4 +1,4 @@
-# 🚀 Guía de Deploy - Suscripciones API
+# 🚀 Guía de Deploy - Suscripciones
 
 ## 📋 Requisitos Previos
 
@@ -32,7 +32,7 @@ WOMPI_PRIVATE_KEY="wompi_private_key"
 WOMPI_PUBLIC_KEY="wompi_public_key"
 WOMPI_INTEGRITY_SECRET="wompi_integrity_secret"
 
-# Chatwoot/CentralCom
+# Chatwoot / WhatsApp
 CHATWOOT_ACCESS_TOKEN="chatwoot_token"
 CHATWOOT_INBOX_ID="inbox_id"
 CHATWOOT_API_URL="https://chatwoot-url.com"
@@ -42,14 +42,13 @@ REALTIME_PUBLISH_URL="http://localhost:3000"
 REALTIME_PUBLISH_TOKEN="realtime_token"
 
 # Ports
-API_PORT=3001
 PORT=3002
 ```
 
 ### 2. Instalar Dependencias
 
 ```bash
-npm ci --production
+npm ci
 ```
 
 ### 3. Generar Prisma Client
@@ -121,24 +120,22 @@ pm2 restart ecosystem.config.js --update-env
 pm2 status
 
 # Ver logs
-pm2 logs crm-sus-api --lines 50
 pm2 logs crm-sus-admin --lines 50
 pm2 logs crm-sus-jobs --lines 50
 
 # Ver detalles de un servicio
-pm2 show crm-sus-api
+pm2 show crm-sus-admin
 ```
 
 ---
 
 ## 📊 Servicios PM2
 
-El `ecosystem.config.js` configura 3 servicios:
+El `ecosystem.config.js` configura 2 servicios:
 
 | Servicio | Puerto | Función |
 |----------|--------|---------|
-| `crm-sus-api` | 3001 | API REST + Webhooks |
-| `crm-sus-admin` | 3002 | Admin Dashboard (Next.js) |
+| `crm-sus-admin` | 3002 | Next.js (UI + API + Webhooks) |
 | `crm-sus-jobs` | - | Background Jobs |
 
 ---
@@ -152,7 +149,7 @@ El `ecosystem.config.js` configura 3 servicios:
 pm2 logs
 
 # Ver logs de un servicio específico
-pm2 logs crm-sus-api
+pm2 logs crm-sus-admin
 
 # Ver logs en tiempo real
 pm2 logs --lines 100
@@ -168,7 +165,7 @@ pm2 flush
 pm2 restart all
 
 # Reiniciar servicio específico
-pm2 restart crm-sus-api
+pm2 restart crm-sus-admin
 
 # Reiniciar con variables de entorno actualizadas
 pm2 restart ecosystem.config.js --update-env
@@ -181,7 +178,7 @@ pm2 restart ecosystem.config.js --update-env
 pm2 stop all
 
 # Detener servicio específico
-pm2 stop crm-sus-api
+pm2 stop crm-sus-admin
 ```
 
 ### Monitoreo
@@ -191,7 +188,7 @@ pm2 stop crm-sus-api
 pm2 status
 
 # Ver detalles
-pm2 show crm-sus-api
+pm2 show crm-sus-admin
 
 # Monitoreo en tiempo real
 pm2 monit
@@ -260,13 +257,13 @@ npx prisma db seed
 
 ```bash
 # Ver logs de error
-pm2 logs crm-sus-api --err
+pm2 logs crm-sus-admin --err
 
 # Ver detalles del servicio
-pm2 show crm-sus-api
+pm2 show crm-sus-admin
 
 # Verificar variables de entorno
-pm2 restart crm-sus-api --update-env
+pm2 restart crm-sus-admin --update-env
 ```
 
 ### Error de Base de Datos

@@ -47,6 +47,8 @@ type SubscriptionDetail = {
   manualMarkPaidEnabled?: boolean;
   chargeDue?: boolean;
   lastPaidInCurrentPeriod?: boolean;
+  currentCheckoutUrl?: string | null;
+  currentTokenUrl?: string | null;
 };
 
 export function SubscriptionDetailModalWrapper({
@@ -61,8 +63,8 @@ export function SubscriptionDetailModalWrapper({
   markSubscriptionPaidManual,
   unmarkSubscriptionPaidManual,
   mergeDuplicateSubscriptions,
-  sendCentralComPaymentLink,
-  sendCentralComTokenizationLink,
+  sendWhatsAppPaymentLink,
+  sendWhatsAppTokenizationLink,
   updateSubscriptionTenants,
   changeSubscriptionPlan,
   updateSubscriptionBillingSettings,
@@ -85,8 +87,8 @@ export function SubscriptionDetailModalWrapper({
   markSubscriptionPaidManual: (formData: FormData) => void | Promise<void>;
   unmarkSubscriptionPaidManual: (formData: FormData) => void | Promise<void>;
   mergeDuplicateSubscriptions: (formData: FormData) => void | Promise<void>;
-  sendCentralComPaymentLink: (formData: FormData) => void | Promise<void>;
-  sendCentralComTokenizationLink: (formData: FormData) => void | Promise<void>;
+  sendWhatsAppPaymentLink: (formData: FormData) => void | Promise<void>;
+  sendWhatsAppTokenizationLink: (formData: FormData) => void | Promise<void>;
   updateSubscriptionTenants: (formData: FormData) => void | Promise<void>;
   changeSubscriptionPlan: (formData: FormData) => void | Promise<void>;
   updateSubscriptionBillingSettings: (formData: FormData) => void | Promise<void>;
@@ -157,8 +159,8 @@ export function SubscriptionDetailModalWrapper({
           markSubscriptionPaidManual={markSubscriptionPaidManual}
           unmarkSubscriptionPaidManual={unmarkSubscriptionPaidManual}
           mergeDuplicateSubscriptions={mergeDuplicateSubscriptions}
-          sendCentralComPaymentLink={sendCentralComPaymentLink}
-          sendCentralComTokenizationLink={sendCentralComTokenizationLink}
+          sendWhatsAppPaymentLink={sendWhatsAppPaymentLink}
+          sendWhatsAppTokenizationLink={sendWhatsAppTokenizationLink}
           updateSubscriptionTenants={updateSubscriptionTenants}
           changeSubscriptionPlan={changeSubscriptionPlan}
           updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}

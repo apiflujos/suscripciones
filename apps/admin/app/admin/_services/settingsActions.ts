@@ -420,6 +420,7 @@ export async function updateCheckoutConfig(input: unknown) {
   const payload = {
     planBaseUrl: parsed.data.planBaseUrl || "",
     subscriptionBaseUrl: parsed.data.subscriptionBaseUrl || "",
+    cartBaseUrl: parsed.data.cartBaseUrl || "",
     defaultUtmParams: parsed.data.defaultUtmParams || "",
     tokenExpiryHours: parsed.data.tokenExpiryHours || undefined,
     defaultPlanTemplateId: parsed.data.defaultPlanTemplateId || "",

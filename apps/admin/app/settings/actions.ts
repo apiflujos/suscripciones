@@ -684,6 +684,7 @@ export async function updateCheckoutConfig(formData: FormData) {
 
   setString("planBaseUrl");
   setString("subscriptionBaseUrl");
+  setString("cartBaseUrl");
   setString("defaultUtmParams");
   setNumber("tokenExpiryHours");
   setString("defaultPlanTemplateId");

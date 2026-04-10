@@ -4,33 +4,8 @@ import { getCheckoutConfig } from "../../../../admin/_services/settings";
 import { createWompiPaymentSource, consumeTokenizationLink, updateCustomerProfile } from "../../../../admin/_services/customers";
 import { createSubscription } from "../../../../admin/_services/subscriptions";
 import { verifyPublicToken } from "../../../../../lib/publicTokens";
+import { resolveTokenizationRedirectBase } from "../../../../lib/tokenizationRedirect";
 import { logger } from "@suscripciones/core/lib/logger";
-
-function getRedirectBase(req: Request) {
-  const envBase =
-    String(process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "").trim() ||
-    String(process.env.NEXT_PUBLIC_REDIRECT_BASE_URL || "").trim();
-  if (envBase) return envBase.replace(/\/+$/, "");
-  const forwardedProto = req.headers.get("x-forwarded-proto");
-  const forwardedHost = req.headers.get("x-forwarded-host");
-  const host = forwardedHost || req.headers.get("host");
-  if (host) {
-    const proto = forwardedProto || "https";
-    return `${proto}://${host}`;
-  }
-  return new URL(req.url).origin;
-}
-
-function normalizeRedirectBase(raw: string) {
-  const input = String(raw || "").trim().replace(/\/+$/g, "");
-  if (!input) return "";
-  try {
-    const parsed = new URL(input);
-    return parsed.origin;
-  } catch {
-    return input.replace(/\/public\/(plan|suscripcion)(\/.*)?$/i, "");
-  }
-}
 
 function detectToken(formData: FormData): string {
   const direct =
@@ -56,22 +31,35 @@ function tokenToType(token: string): "CARD" | "NEQUI" | "PSE" {
 
 export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
   const { token: linkToken } = await ctx.params;
+  const requestRedirectBase = resolveTokenizationRedirectBase({
+    requestUrl: req.url,
+    forwardedProto: req.headers.get("x-forwarded-proto"),
+    forwardedHost: req.headers.get("x-forwarded-host"),
+    host: req.headers.get("host"),
+    envPublicBaseUrl: String(process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "").trim(),
+    envRedirectBaseUrl: String(process.env.NEXT_PUBLIC_REDIRECT_BASE_URL || "").trim()
+  });
   const jwt = await verifyPublicToken(linkToken, "tokenization");
   if (!jwt) {
-    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=unauthorized`, getRedirectBase(req)));
+    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=unauthorized`, requestRedirectBase));
   }
-  let redirectBase = getRedirectBase(req);
-
+  let checkoutConfig: any = {};
   try {
-    const checkoutConfig = await getCheckoutConfig();
-    const configBase = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
-    const normalized = normalizeRedirectBase(configBase);
-    if (normalized) redirectBase = normalized;
+    checkoutConfig = await getCheckoutConfig();
   } catch (err: any) {
-    logger.warn({ err, linkToken }, "Fallo resolviendo base de redirección para tokenización pública");
-    const msg = err?.message ? String(err.message) : "missing_next_public_api_base_url";
-    return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(msg)}`, redirectBase));
+    logger.warn({ err, linkToken }, "Fallo resolviendo configuracion de redireccion para tokenizacion publica");
   }
+
+  let redirectBase = resolveTokenizationRedirectBase({
+    requestUrl: req.url,
+    subscriptionBaseUrl: String(checkoutConfig?.subscriptionBaseUrl || "").trim(),
+    planBaseUrl: String(checkoutConfig?.planBaseUrl || "").trim(),
+    forwardedProto: req.headers.get("x-forwarded-proto"),
+    forwardedHost: req.headers.get("x-forwarded-host"),
+    host: req.headers.get("host"),
+    envPublicBaseUrl: String(process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "").trim(),
+    envRedirectBaseUrl: String(process.env.NEXT_PUBLIC_REDIRECT_BASE_URL || "").trim()
+  });
 
   const customer = await prisma.customer.findFirst({
     where: { metadata: { path: ["tokenizationLink", "token"], equals: linkToken } as any }
@@ -82,6 +70,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
 
   const meta = (customer.metadata ?? {}) as any;
   const link = meta?.tokenizationLink ?? {};
+  redirectBase = resolveTokenizationRedirectBase({
+    requestUrl: req.url,
+    storedLinkUrl: String(link?.url || "").trim(),
+    subscriptionBaseUrl: String(checkoutConfig?.subscriptionBaseUrl || "").trim(),
+    planBaseUrl: String(checkoutConfig?.planBaseUrl || "").trim(),
+    forwardedProto: req.headers.get("x-forwarded-proto"),
+    forwardedHost: req.headers.get("x-forwarded-host"),
+    host: req.headers.get("host"),
+    envPublicBaseUrl: String(process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "").trim(),
+    envRedirectBaseUrl: String(process.env.NEXT_PUBLIC_REDIRECT_BASE_URL || "").trim()
+  });
   const usedAt = String(link?.usedAt || "").trim();
   const expiresAt = link?.expiresAt ? new Date(link.expiresAt) : null;
   if (usedAt) {

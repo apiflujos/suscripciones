@@ -16,7 +16,7 @@ Se cerraron los frentes principales de estabilidad en:
 - La programación de cobros, recordatorios y reintentos usa `dueAt` como referencia principal.
 - La conciliación de pagos contra ciclos quedó más consistente para pagos tardíos y anticipados.
 - El worker y `healthz` reportan mejor el estado operativo.
-- La base pública para checkout/tokenización quedó alineada con múltiples fallbacks válidos.
+- La lógica de checkout público quedó endurecida: si un flujo requiere checkout y no existe uno válido, el sistema bloquea el envío.
 - Los modales principales del admin fueron estandarizados con `AppModal`.
 - Los buscadores de productos quedaron unificados sobre productos activos.
 - El código principal de `apps/admin/app` y `packages/core/src` quedó sin `catch(() => {})` remanentes, excluyendo scripts.
@@ -72,7 +72,10 @@ Se cerraron los frentes principales de estabilidad en:
 - envío desde billing
 - envío desde products
 - recordatorios automáticos con plantilla correcta
-- fallback y errores quedan visibles en logs
+- errores visibles en UI y logs
+- los cobros se envían solo con plantilla WhatsApp activa
+- si falta plantilla o checkout público válido, el envío debe bloquearse
+- desde `contacts`, sin producto asociado, solo se permite catálogo
 
 ### UI/UX admin
 

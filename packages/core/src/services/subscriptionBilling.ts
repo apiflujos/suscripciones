@@ -16,12 +16,14 @@ import {
   getWompiPublicKey,
   getWompiRedirectUrl
 } from "./runtimeConfig";
+import { getNotificationsConfig } from "./notificationsConfig";
 import { schedulePaymentLinkNotifications } from "./notificationsScheduler";
 import { publishRealtime } from "./realtimePublisher";
 import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
 import { reconcileWompiTransaction } from "./wompiReconcile";
 import { getExpectedSubscriptionTotalInCents, getPlanCollectionMode } from "../lib/metadataSchemas";
 import { resolveSubscriptionBillingState } from "./billingCycles";
+import { createPublicCheckoutLink } from "./publicCheckoutLinks";
 
 const PAYMENT_LINK_LOCK_PREFIX = "payment-link";
 const AUTO_DEBIT_LOCK_PREFIX = "auto-debit";
@@ -105,6 +107,79 @@ function replaceVars(input: string, vars: Record<string, string>) {
     .replaceAll("{monto}", vars.monto)
     .replaceAll("{periodicidad}", vars.periodicidad)
     .replaceAll("{fecha_expira}", vars.fecha_expira);
+}
+
+async function resolvePlanCheckoutTemplateId(args: {
+  tenantId: string;
+  subscriptionMetadata?: unknown;
+  planMetadata?: unknown;
+}): Promise<string | null> {
+  const tenantId = String(args.tenantId || "").trim();
+  if (!tenantId) return null;
+
+  const explicitTemplateId = String((args.subscriptionMetadata as any)?.templateId || "").trim();
+  if (explicitTemplateId) {
+    const explicit = await prisma.publicCheckoutTemplate.findUnique({ where: { id: explicitTemplateId } }).catch(() => null);
+    if (explicit && explicit.active !== false && String(explicit.kind || "").toUpperCase() === "PLAN") {
+      return String(explicit.id);
+    }
+  }
+
+  const productId = String((args.planMetadata as any)?.catalog?.itemId || "").trim();
+  const templates = await prisma.publicCheckoutTemplate.findMany({
+    where: { tenantId, active: true, kind: "PLAN" as any },
+    orderBy: { updatedAt: "desc" }
+  });
+  if (!templates.length) return null;
+
+  const extractProductId = (entry: any) => {
+    if (!entry) return "";
+    if (typeof entry === "string") return String(entry).trim();
+    if (typeof entry === "object") return String(entry?.id || "").trim();
+    return "";
+  };
+
+  if (productId) {
+    const match = templates.find((t) => {
+      const list = Array.isArray((t as any)?.productIds) ? (t as any).productIds : [];
+      return list.some((entry: any) => String(extractProductId(entry)) === productId);
+    });
+    if (match?.id) return String(match.id);
+  }
+
+  try {
+    const rawCfg = await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG");
+    const cfg = rawCfg ? JSON.parse(rawCfg) : {};
+    const defaultTemplateId = String(cfg?.defaultPlanTemplateId || "").trim();
+    if (!defaultTemplateId) return null;
+    const fallback = templates.find((t) => String((t as any)?.id || "").trim() === defaultTemplateId) || null;
+    return fallback?.id ? String(fallback.id) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function hasUsableSubscriptionPaymentLinkNotification(): Promise<boolean> {
+  try {
+    const cfg = await getNotificationsConfig();
+    const rules = Array.isArray((cfg as any)?.rules) ? (cfg as any).rules : [];
+    const templates = Array.isArray((cfg as any)?.templates) ? (cfg as any).templates : [];
+    const candidates = rules.filter((rule: any) => {
+      if (!rule?.enabled || String(rule?.trigger || "") !== "PAYMENT_LINK_CREATED") return false;
+      const types = Array.isArray(rule?.conditions?.requirePaymentTypeIn) ? rule.conditions.requirePaymentTypeIn : [];
+      return !types.length || types.includes("SUBSCRIPTION");
+    });
+    const rule = candidates[0] || null;
+    if (!rule) return false;
+    const template = templates.find((item: any) => String(item?.id || "") === String(rule?.templateId || ""));
+    return Boolean(
+      template &&
+        String(template?.channel || "").toUpperCase() === "CHATWOOT" &&
+        String(template?.chatwootTemplate?.name || "").trim()
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function readSubscriptionTotalInCents(subscriptionMeta: unknown, fallback: number, planMeta?: unknown): number {
@@ -282,7 +357,22 @@ export async function handleSubscriptionPaymentFailure(subscriptionId: string, e
 export async function createPaymentLinkForSubscription(args: {
   subscriptionId: string;
   amountInCentsOverride?: number;
-}): Promise<{ paymentId: string; wompiPaymentLinkId: string; checkoutUrl: string }> {
+  sendNotifications?: boolean;
+}): Promise<{
+  paymentId: string;
+  wompiPaymentLinkId: string;
+  checkoutUrl: string;
+  notificationsScheduled: number;
+  notificationsSent: number;
+  notificationsRulesActive: boolean;
+  chatwootError: string | null;
+}> {
+  const emptyNotificationResult = {
+    notificationsScheduled: 0,
+    notificationsSent: 0,
+    notificationsRulesActive: false,
+    chatwootError: null as string | null
+  };
   const sub = await prisma.subscription.findUnique({
     where: { id: args.subscriptionId },
     include: { plan: true, customer: true }
@@ -362,7 +452,8 @@ export async function createPaymentLinkForSubscription(args: {
     return {
       paymentId: payment.id,
       wompiPaymentLinkId: payment.wompiPaymentLinkId,
-      checkoutUrl: payment.checkoutUrl
+      checkoutUrl: payment.checkoutUrl,
+      ...emptyNotificationResult
     };
   }
 
@@ -379,7 +470,8 @@ export async function createPaymentLinkForSubscription(args: {
         return {
           paymentId: payment.id,
           wompiPaymentLinkId: existing.wompiPaymentLinkId,
-          checkoutUrl: existing.checkoutUrl
+          checkoutUrl: existing.checkoutUrl,
+          ...emptyNotificationResult
         };
       }
     }
@@ -415,7 +507,8 @@ export async function createPaymentLinkForSubscription(args: {
       return {
         paymentId: payment.id,
         wompiPaymentLinkId: existing.wompiPaymentLinkId,
-        checkoutUrl: existing.checkoutUrl
+        checkoutUrl: existing.checkoutUrl,
+        ...emptyNotificationResult
       };
     }
 
@@ -572,8 +665,55 @@ export async function createPaymentLinkForSubscription(args: {
     throw new Error("payment_link_not_created");
   }
 
-  await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch((err) => {
+  if (args.sendNotifications === false) {
+    if (!updated.checkoutUrl) throw new Error("checkout_url_missing");
+    return {
+      paymentId: updated.id,
+      wompiPaymentLinkId: created.id,
+      checkoutUrl: updated.checkoutUrl,
+      ...emptyNotificationResult
+    };
+  }
+
+  const shouldNotify = await hasUsableSubscriptionPaymentLinkNotification();
+  if (!shouldNotify) {
+    if (!updated.checkoutUrl) throw new Error("checkout_url_missing");
+    return {
+      paymentId: updated.id,
+      wompiPaymentLinkId: created.id,
+      checkoutUrl: updated.checkoutUrl,
+      ...emptyNotificationResult
+    };
+  }
+
+  const publicTemplateId = await resolvePlanCheckoutTemplateId({
+    tenantId,
+    subscriptionMetadata: sub.metadata,
+    planMetadata: sub.plan?.metadata
+  }).catch(() => null);
+  if (!publicTemplateId) {
+    throw new Error("missing_checkout_for_product");
+  }
+
+  const publicCheckout = await createPublicCheckoutLink({
+    customerId: sub.customerId,
+    templateId: publicTemplateId,
+    checkoutUrl: updated.checkoutUrl
+  }).catch((err) => {
+    logIgnored(err, "payment link: failed to create public checkout before notifications", {
+      subscriptionId: sub.id,
+      paymentId: updated.id,
+      templateId: publicTemplateId
+    });
+    return null;
+  });
+  if (!String(publicCheckout?.url || "").trim()) {
+    throw new Error("public_checkout_create_failed");
+  }
+
+  const scheduledInfo = await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch((err) => {
     logIgnored(err, "payment link: failed to schedule notifications", { paymentId: updated.id });
+    return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
   });
 
   const chatwoot = await getChatwootConfig();
@@ -584,7 +724,15 @@ export async function createPaymentLinkForSubscription(args: {
   }
 
   if (!updated.checkoutUrl) throw new Error("checkout_url_missing");
-  return { paymentId: updated.id, wompiPaymentLinkId: created.id, checkoutUrl: updated.checkoutUrl };
+  return {
+    paymentId: updated.id,
+    wompiPaymentLinkId: created.id,
+    checkoutUrl: updated.checkoutUrl,
+    notificationsScheduled: scheduledInfo?.scheduled ?? 0,
+    notificationsSent: scheduledInfo?.sentNow ?? 0,
+    notificationsRulesActive: scheduledInfo?.rulesActive ?? false,
+    chatwootError: scheduledInfo?.errors?.[0] || null
+  };
 }
 
 export async function createAutoDebitTransactionForSubscription(args: {

@@ -98,6 +98,7 @@ export function CheckoutTemplatesPanel({
   const [allowSelect, setAllowSelect] = useState(true);
   const [productIds, setProductIds] = useState<ProductSelection[]>([]);
   const [tenantId, setTenantId] = useState("");
+  const [productQuery, setProductQuery] = useState("");
   const [expiryHours, setExpiryHours] = useState("24");
   const [logoUrl, setLogoUrl] = useState("");
   const [publicTitle, setPublicTitle] = useState("");
@@ -127,7 +128,7 @@ export function CheckoutTemplatesPanel({
 
   function normalizeSelections(raw: any): ProductSelection[] {
     if (!Array.isArray(raw)) return [];
-    const parsed = raw
+    return raw
       .map((entry: any) => {
         if (typeof entry === "string") return { id: entry, mode: "AUTO_LINK" as const };
         const id = String(entry?.id || "").trim();
@@ -137,7 +138,6 @@ export function CheckoutTemplatesPanel({
         return { id, mode };
       })
       .filter(Boolean) as ProductSelection[];
-    return parsed.length ? [parsed[0]] : [];
   }
 
   function resetWizard() {
@@ -150,6 +150,7 @@ export function CheckoutTemplatesPanel({
     setAllowSelect(true);
     setProductIds([]);
     setTenantId("");
+    setProductQuery("");
     setExpiryHours("24");
     setLogoUrl("");
     setPublicTitle("");
@@ -177,6 +178,7 @@ export function CheckoutTemplatesPanel({
     setAllowSelect(Boolean(t.allowProductSelect));
     setProductIds(normalizeSelections(t.productIds));
     setTenantId(String(t.tenantId || ""));
+    setProductQuery("");
     setExpiryHours(t.expiryHours ? String(t.expiryHours) : "24");
     setLogoUrl(t.logoUrl || "");
     setPublicTitle(t.publicTitle || "");
@@ -228,7 +230,7 @@ export function CheckoutTemplatesPanel({
   const formAction = editing ? actions.update : actions.create;
   const selectedKind = (editing ? editing.kind : kind) || "";
   const isCart = selectedKind === "CART";
-  const isProductsValid = productIds.length === 1;
+  const isProductsValid = productIds.length > 0;
   const missingKind = !selectedKind;
   const missingName = !name.trim();
   const requireTenant = Array.isArray(tenants) && tenants.length > 0;
@@ -236,7 +238,15 @@ export function CheckoutTemplatesPanel({
   const missingProducts = !isProductsValid;
   const [localError, setLocalError] = useState<string>("");
 
-  const filteredProducts = useMemo(() => products, [products]);
+  const filteredProducts = useMemo(() => {
+    const needle = productQuery.trim().toLowerCase();
+    if (!needle) return products;
+    return products.filter((product) => {
+      const sku = String(product.sku || product.metadata?.sku || "").trim();
+      const haystack = [product.name, sku, product.id].filter(Boolean).join(" ").toLowerCase();
+      return haystack.includes(needle);
+    });
+  }, [productQuery, products]);
 
   useEffect(() => {
     if (requireTenant && tenants.length === 1 && !tenantId) {
@@ -245,11 +255,10 @@ export function CheckoutTemplatesPanel({
   }, [requireTenant, tenants, tenantId]);
 
   useEffect(() => {
-    if (selectedKind !== "CART" && (allowSelect || productIds.length)) {
+    if (selectedKind !== "CART" && allowSelect) {
       setAllowSelect(false);
-      setProductIds([]);
     }
-  }, [selectedKind, allowSelect, productIds.length]);
+  }, [selectedKind, allowSelect]);
 
   const inlineMsg = (key: string) => {
     if (inlineState.action !== key) return null;
@@ -282,6 +291,27 @@ export function CheckoutTemplatesPanel({
         return (
           <div className="field-hint" style={{ color: "var(--danger)" }}>
             Faltan datos obligatorios. Completa los campos requeridos.
+          </div>
+        );
+      }
+      if (inlineState.errorText?.startsWith("tenant_required")) {
+        return (
+          <div className="field-hint" style={{ color: "var(--danger)" }}>
+            Debes seleccionar un canal de ventas para la plantilla.
+          </div>
+        );
+      }
+      if (inlineState.errorText?.startsWith("product_required")) {
+        return (
+          <div className="field-hint" style={{ color: "var(--danger)" }}>
+            Debes asociar al menos un producto a la plantilla.
+          </div>
+        );
+      }
+      if (inlineState.errorText?.startsWith("max_one_product")) {
+        return (
+          <div className="field-hint" style={{ color: "var(--danger)" }}>
+            Link de pago y débito automático solo pueden tener un producto asociado.
           </div>
         );
       }
@@ -603,13 +633,22 @@ export function CheckoutTemplatesPanel({
               <div style={{ display: "grid", gap: 10 }}>
                 <div className="field" ref={productsRef}>
                   <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    Producto asociado
-                    <HelpTip text="Cada checkout público solo puede asociarse a un producto." />
+                    {isCart ? "Productos disponibles" : "Producto asociado"}
+                    <HelpTip text={isCart ? "Selecciona los productos disponibles en el checkout público." : "Cada checkout público solo puede asociarse a un producto."} />
                   </label>
+                  <input
+                    className="input"
+                    type="search"
+                    value={productQuery}
+                    onChange={(e) => setProductQuery(e.target.value)}
+                    placeholder="Buscar producto por nombre o SKU..."
+                    aria-label="Buscar producto"
+                    style={{ marginBottom: 8 }}
+                  />
                   <div style={{ display: "grid", gap: 8 }}>
                     {filteredProducts.map((p) => {
-                      const selection = productIds[0];
-                      const activeItem = String(selection?.id || "") === String(p.id);
+                      const selection = productIds.find((item) => String(item.id) === String(p.id));
+                      const activeItem = Boolean(selection);
                       const currentMode = selection?.mode || "AUTO_LINK";
                       const productMode = String((p as any)?.collectionMode || "AUTO_LINK").toUpperCase() === "AUTO_DEBIT" ? "AUTO_DEBIT" : "AUTO_LINK";
                       return (
@@ -620,12 +659,20 @@ export function CheckoutTemplatesPanel({
                         >
                           <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
                             <input
-                              type="radio"
+                              type={isCart ? "checkbox" : "radio"}
                               name="templateProduct"
                               checked={activeItem}
                               onChange={() => {
                                 const resolvedMode = isCart ? "AUTO_LINK" : productMode;
-                                setProductIds([{ id: p.id, mode: resolvedMode }]);
+                                if (isCart) {
+                                  setProductIds((current) =>
+                                    activeItem
+                                      ? current.filter((item) => String(item.id) !== String(p.id))
+                                      : [...current, { id: p.id, mode: resolvedMode }]
+                                  );
+                                } else {
+                                  setProductIds([{ id: p.id, mode: resolvedMode }]);
+                                }
                               }}
                             />
                             <span>{p.name}</span>
@@ -641,7 +688,9 @@ export function CheckoutTemplatesPanel({
                                 disabled={!activeItem}
                                 onChange={(e) => {
                                   const nextMode = String(e.target.value || "AUTO_LINK").toUpperCase() === "AUTO_DEBIT" ? "AUTO_DEBIT" : "AUTO_LINK";
-                                  setProductIds([{ id: p.id, mode: nextMode }]);
+                                  setProductIds((current) =>
+                                    current.map((item) => (String(item.id) === String(p.id) ? { ...item, mode: nextMode } : item))
+                                  );
                                 }}
                               >
                                 <option value="AUTO_LINK">Link de pago</option>
@@ -653,6 +702,9 @@ export function CheckoutTemplatesPanel({
                       );
                     })}
                   </div>
+                  {filteredProducts.length === 0 ? (
+                    <div className="field-hint">No hay productos que coincidan con la búsqueda.</div>
+                  ) : null}
                   {!isProductsValid ? (
                     <div className="field-hint" style={{ color: "var(--danger)" }}>
                       Debes seleccionar un producto.
@@ -722,7 +774,9 @@ export function CheckoutTemplatesPanel({
                     <div>
                       <strong>Productos:</strong>{" "}
                       {productIds.length
-                        ? `${productById.get(productIds[0].id)?.name || "—"}${isCart ? ` (${productIds[0].mode === "AUTO_DEBIT" ? "Débito automático" : "Link de pago"})` : ""}`
+                        ? productIds
+                            .map((item) => `${productById.get(item.id)?.name || "—"}${isCart ? ` (${item.mode === "AUTO_DEBIT" ? "Débito automático" : "Link de pago"})` : ""}`)
+                            .join(", ")
                         : "—"}
                     </div>
                     <div><strong>Expiración:</strong> {expiryHours ? `${expiryHours}h` : "Nunca"}</div>
@@ -744,6 +798,7 @@ export function CheckoutTemplatesPanel({
                 type="button" 
                 data-loader="off" 
                 onClick={() => setStepIndex(Math.max(0, stepIndex - 1))}
+                disabled={stepIndex === 0}
                 title="Volver al paso anterior"
                 aria-label="Atrás"
               >

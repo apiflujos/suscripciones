@@ -14,6 +14,7 @@ type PaymentLinkMeta = {
   expiresAt?: string;
   templateId?: string;
   checkoutUrl?: string;
+  tenantId?: string;
 };
 
 export async function GET(req: Request, ctx: { params: Promise<{ token: string }> }) {
@@ -64,10 +65,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
 
   const templateId = String(link?.templateId || "").trim();
   let template = templateId ? await prisma.publicCheckoutTemplate.findUnique({ where: { id: templateId } }) : null;
-  if (!template && customer.tenantId) {
+  const tenantFromLink = String(link?.tenantId || "").trim();
+  if (!template && (tenantFromLink || customer.tenantId)) {
     template = await prisma.publicCheckoutTemplate.findFirst({
       where: {
-        tenantId: customer.tenantId,
+        tenantId: tenantFromLink || customer.tenantId,
         active: true,
         kind: "PLAN"
       },
@@ -75,7 +77,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
     });
   }
 
-  const tenant = await getTenantBrand(template?.tenantId || customer.tenantId || null);
+  const tenant = await getTenantBrand(template?.tenantId || tenantFromLink || customer.tenantId || null);
 
   return new Response(
     JSON.stringify({

@@ -3,17 +3,6 @@
 import { redirect } from "next/navigation";
 import { assertCsrfToken } from "../lib/csrf";
 import { createCustomer as createCustomerService, updateCustomerProfile, deleteCustomerProfile } from "../admin/_services/customers";
-import { createManualOrderForAdmin } from "../admin/_services/orders";
-import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
-import { logger } from "@suscripciones/core/lib/logger";
-
-function pesosToCents(input: string): number {
-  const digits = String(input || "").replace(/[^\d-]/g, "");
-  if (!digits) return 0;
-  const pesos = Number(digits);
-  if (!Number.isFinite(pesos)) return 0;
-  return Math.trunc(pesos) * 100;
-}
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
@@ -87,45 +76,6 @@ export async function createCustomer(formData: FormData) {
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     redirect(mergeQuery(returnTo, { error: String(err?.message || "create_customer_failed"), ...(tenantId ? { tenantId } : {}) }));
-  }
-}
-
-export async function sendPaymentLinkForCustomer(formData: FormData) {
-  await assertCsrfToken(formData);
-  const customerId = String(formData.get("customerId") || "").trim();
-  const amountInCents = pesosToCents(String(formData.get("amount") || ""));
-  if (!customerId || amountInCents <= 0) {
-    return redirect(`/customers?error=${encodeURIComponent("monto_invalido")}`);
-  }
-
-  try {
-    const cfg = await getNotificationsConfigForEnv("PRODUCTION").catch((err: any) => {
-      logger.warn({ err, customerId }, "Fallo cargando configuracion de notificaciones en sendPaymentLinkForCustomer");
-      return null;
-    });
-    if (!cfg) return redirect(`/customers?error=${encodeURIComponent("missing_template")}`);
-    const rules = Array.isArray((cfg as any)?.rules) ? (cfg as any).rules : [];
-    const templates = Array.isArray((cfg as any)?.templates) ? (cfg as any).templates : [];
-    const match = rules.find((r: any) => r?.enabled && r?.trigger === "PAYMENT_LINK_CREATED");
-    const tpl = match ? templates.find((t: any) => String(t?.id || "") === String(match?.templateId || "")) : null;
-    if (!tpl || !String((tpl as any)?.chatwootTemplate?.name || "").trim()) {
-      return redirect(`/customers?error=${encodeURIComponent("missing_template")}`);
-    }
-    const reference = `CONTACT_${customerId.slice(0, 6)}_${Date.now()}`;
-    const customerName = String(formData.get("customerName") || "").trim() || "Cliente";
-    const orderRes = await createManualOrderForAdmin({
-      customerId,
-      reference,
-      currency: "COP",
-      lineItems: [{ name: `Pago de ${customerName}`, quantity: 1, unitPriceInCents: amountInCents }],
-      sendChatwoot: true,
-      source: "MANUAL"
-    });
-    if (!orderRes.ok) throw new Error(orderRes.error);
-    redirect("/customers?paymentLink=sent");
-  } catch (err: any) {
-    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(`/customers?error=${encodeURIComponent(err?.message || "create_payment_link_failed")}`);
   }
 }
 

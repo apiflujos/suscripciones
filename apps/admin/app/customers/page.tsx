@@ -120,14 +120,6 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
   return map;
 }
 
-async function fetchCartTemplates(tenantId?: string) {
-  const items = await listCheckoutTemplates({ tenantId: tenantId || null });
-  return items
-    .filter((t) => String(t?.kind || "") === "CART" && Boolean(t?.active))
-    .map((t) => ({ id: String(t?.id || ""), name: String(t?.name || "") }))
-    .filter((t) => t.id && t.name);
-}
-
 async function fetchProducts(tenantId?: string) {
   return listCatalogProducts({ tenantId: tenantId || null, take: 300 });
 }
@@ -211,10 +203,9 @@ export default async function CustomersPage({
   const checkoutConfig = settingsRes?.checkoutConfig || {};
   const notificationsConfig = notificationsRes?.config || null;
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
-  const [latestLinks, subscriptionsByCustomer, cartTemplates] = await Promise.all([
+  const [latestLinks, subscriptionsByCustomer] = await Promise.all([
     fetchPaymentLinks(q, resolvedTenantId || "", items.map((c) => String(c.id))),
-    fetchCustomerSubscriptions(resolvedTenantId || ""),
-    fetchCartTemplates(resolvedTenantId || "")
+    fetchCustomerSubscriptions(resolvedTenantId || "")
   ]);
   const latestLinksObj = Object.fromEntries(latestLinks.entries());
 
@@ -254,27 +245,37 @@ export default async function CustomersPage({
     };
     return (
       <div className="pagination pagination-indicator">
-        <a
-          className="page-link page-nav"
-          href={`/customers?${new URLSearchParams({
-            ...baseParams,
-            page: String(Math.max(1, currentPage - 1))
-          })}`}
-          aria-disabled={currentPage <= 1}
-        >
-          Anterior
-        </a>
+        {currentPage <= 1 ? (
+          <span className="page-link page-nav" aria-disabled="true">
+            Anterior
+          </span>
+        ) : (
+          <a
+            className="page-link page-nav"
+            href={`/customers?${new URLSearchParams({
+              ...baseParams,
+              page: String(Math.max(1, currentPage - 1))
+            })}`}
+          >
+            Anterior
+          </a>
+        )}
         <div className="pagination-pages" style={{ display: "none" }} />
-        <a
-          className="page-link page-nav"
-          href={`/customers?${new URLSearchParams({
-            ...baseParams,
-            page: String(currentPage + 1)
-          })}`}
-          aria-disabled={!hasNext}
-        >
-          Siguiente
-        </a>
+        {!hasNext ? (
+          <span className="page-link page-nav" aria-disabled="true">
+            Siguiente
+          </span>
+        ) : (
+          <a
+            className="page-link page-nav"
+            href={`/customers?${new URLSearchParams({
+              ...baseParams,
+              page: String(currentPage + 1)
+            })}`}
+          >
+            Siguiente
+          </a>
+        )}
       </div>
     );
   };
@@ -389,9 +390,9 @@ export default async function CustomersPage({
 
           <CustomersTable
             items={items.map((c) => ({ ...c, tenantName: tenantById.get(String(c.tenantId || "")) || "—" }))}
+            currentTenantId={resolvedTenantId || tenantId}
             latestLinks={latestLinksObj}
             subscriptionsByCustomer={subscriptionsByCustomer}
-            cartTemplates={cartTemplates}
             products={productsRes?.items ?? []}
             empresas={empresas}
             checkoutTemplates={templatesRes?.items ?? []}

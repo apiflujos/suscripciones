@@ -103,7 +103,7 @@ export default async function WhatsappNotificationsListPage({
             </form>
           )}
           smartViews={<div />}
-          configHref="http://localhost:3002/settings?tab=notificaciones-whatsapp"
+          configHref="/settings?tab=notificaciones-whatsapp"
           summary={(
             <ListCsvActions
               exportHref={`/api/list-csv?${new URLSearchParams({ scope: "notifications", ...baseParams }).toString()}`}
@@ -172,26 +172,36 @@ export default async function WhatsappNotificationsListPage({
 
         <div className="pagination pagination-indicator" style={{ marginTop: 8 }}>
           <div className="pagination-summary">{summaryText}</div>
-          <a
-            className="page-link page-nav"
-            href={`/notifications/list?${new URLSearchParams({
-              ...baseParams,
-              page: String(Math.max(1, currentPage - 1))
-            })}`}
-            aria-disabled={!hasPrev}
-          >
-            Anterior
-          </a>
-          <a
-            className="page-link page-nav"
-            href={`/notifications/list?${new URLSearchParams({
-              ...baseParams,
-              page: String(currentPage + 1)
-            })}`}
-            aria-disabled={!hasNext}
-          >
-            Siguiente
-          </a>
+          {!hasPrev ? (
+            <span className="page-link page-nav" aria-disabled="true">
+              Anterior
+            </span>
+          ) : (
+            <a
+              className="page-link page-nav"
+              href={`/notifications/list?${new URLSearchParams({
+                ...baseParams,
+                page: String(Math.max(1, currentPage - 1))
+              })}`}
+            >
+              Anterior
+            </a>
+          )}
+          {!hasNext ? (
+            <span className="page-link page-nav" aria-disabled="true">
+              Siguiente
+            </span>
+          ) : (
+            <a
+              className="page-link page-nav"
+              href={`/notifications/list?${new URLSearchParams({
+                ...baseParams,
+                page: String(currentPage + 1)
+              })}`}
+            >
+              Siguiente
+            </a>
+          )}
           </div>
         </div>
       </section>

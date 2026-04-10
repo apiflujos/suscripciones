@@ -263,6 +263,12 @@ Checklist funcional mínimo:
 - crear o asociar un pago
 - verificar que el worker sigue levantando jobs
 
+Checklist adicional de mensajería y checkout:
+- en `Settings > Connections`, Wompi y Chatwoot deben quedar conectados
+- en `Settings > Notificaciones WhatsApp`, cada evento operativo debe tener plantilla WhatsApp activa
+- en `Settings > Checkout público`, deben existir URLs base y templates activos para link de pago, suscripción y catálogo según el caso
+- validar un envío manual y uno automático confirmando que no se envíe nada si falta plantilla o checkout público
+
 Verificación SQL recomendada después de esta migración:
 ```sql
 SELECT column_name

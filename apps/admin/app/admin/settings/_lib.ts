@@ -86,6 +86,7 @@ export const aiDeleteSchema = z.object({
 export const checkoutConfigUpdateSchema = z.object({
   planBaseUrl: z.string().url().optional().or(z.literal("")),
   subscriptionBaseUrl: z.string().url().optional().or(z.literal("")),
+  cartBaseUrl: z.string().url().optional().or(z.literal("")),
   defaultUtmParams: z.string().optional().or(z.literal("")),
   tokenExpiryHours: z.coerce.number().int().positive().optional(),
   defaultPlanTemplateId: z.string().optional().or(z.literal("")),

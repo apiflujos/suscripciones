@@ -3,23 +3,17 @@ import { CredentialProvider, PlanIntervalUnit, SubscriptionStatus } from "@prism
 import { addIntervalUtc } from "@suscripciones/core/lib/dates";
 import { createPaymentLinkForSubscription } from "@suscripciones/core/services/subscriptionBilling";
 import { scheduleSubscriptionDueNotifications } from "@suscripciones/core/services/notificationsScheduler";
+import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
 import { getCredential } from "@suscripciones/core/services/credentials";
-import { getCheckoutBaseUrlsFromEnv } from "@suscripciones/core/services/publicBase";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import { getPaymentsConfig } from "@suscripciones/core/services/runtimeConfig";
 import { computeBillingCycleDueAt, ensureBillingCyclesForSubscription } from "@suscripciones/core/services/billingCycles";
-import { signPublicToken, verifyPublicToken } from "../../../../../lib/publicTokens";
+import { verifyPublicToken } from "../../../../../lib/publicTokens";
 import { logger } from "@suscripciones/core/lib/logger";
+import { findCheckoutTemplateForProductOrDefault, listCheckoutSelectableProducts } from "../../../../admin/_services/checkoutTemplates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-type CheckoutConfig = {
-  planBaseUrl?: string;
-  subscriptionBaseUrl?: string;
-  defaultUtmParams?: string;
-  tokenExpiryHours?: number;
-};
 
 type CartLinkMeta = {
   token?: string;
@@ -29,6 +23,7 @@ type CartLinkMeta = {
 
 type PlanMetadata = {
   collectionMode?: string;
+  catalog?: { itemId?: string };
 };
 
 type PlanPublic = {
@@ -42,38 +37,6 @@ type PlanPublic = {
   tenantId?: string | null;
   tenantLinks?: Array<{ tenantId?: string | null }>;
 };
-
-function parseCheckoutConfig(raw: string | null) {
-  let parsed: CheckoutConfig | null = null;
-  try {
-    const json = raw ? JSON.parse(raw) : null;
-    parsed = json && typeof json === "object" ? (json as CheckoutConfig) : null;
-  } catch (err: any) {
-    logger.warn({ err }, "Fallo parseando checkout config en cart select");
-    parsed = null;
-  }
-  const envBases = getCheckoutBaseUrlsFromEnv();
-  const planBaseUrl = String(parsed?.planBaseUrl || envBases.planBaseUrl || "").trim();
-  const subscriptionBaseUrl = String(parsed?.subscriptionBaseUrl || envBases.subscriptionBaseUrl || "").trim();
-  const defaultUtmParams = String(parsed?.defaultUtmParams || "").trim();
-  const tokenExpiryHours = Number(parsed?.tokenExpiryHours || 24);
-  return { planBaseUrl, subscriptionBaseUrl, defaultUtmParams, tokenExpiryHours };
-}
-
-function normalizeCheckoutBase(raw: string, kind: "plan" | "suscripcion") {
-  const base = String(raw || "").trim().replace(/\/+$/g, "");
-  if (!base) return "";
-  const suffix = kind === "plan" ? "/public/plan" : "/public/suscripcion";
-  if (base.toLowerCase().endsWith(suffix)) return base.slice(0, -suffix.length);
-  return base;
-}
-
-function buildPublicUrl(base: string, path: string, utm: string) {
-  const normalized = base.replace(/\/$/, "");
-  const url = `${normalized}${path.startsWith("/") ? "" : "/"}${path}`;
-  if (!utm) return url;
-  return `${url}${url.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}`;
-}
 
 export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
   const params = await ctx.params;
@@ -128,7 +91,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
 
   const templateProducts = parseTemplateProducts(template.productIds);
   const selectedTemplateProduct = templateProducts.find((p) => String(p.id) === planId);
-  if (!selectedTemplateProduct) {
+  const selectableProducts = await listCheckoutSelectableProducts({ template });
+  const isSelectableProduct = (selectableProducts.items || []).some((item: any) => String(item?.id || "") === planId);
+  if (!isSelectableProduct) {
     return Response.json({ error: "plan_not_allowed" }, { status: 400 });
   }
 
@@ -139,48 +104,46 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   if (!plan) return Response.json({ error: "plan_not_found" }, { status: 404 });
 
   const rawConfig = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
-  const cfg = parseCheckoutConfig(rawConfig);
-  const templateExpiryHours = Number.isFinite(Number((template as any)?.expiryHours)) ? Number((template as any).expiryHours) : NaN;
-  const configExpiryHours = Number.isFinite(cfg.tokenExpiryHours) ? Number(cfg.tokenExpiryHours) : NaN;
-  const expiryHours =
-    Number.isFinite(templateExpiryHours) && templateExpiryHours > 0
-      ? Math.min(Math.max(Math.trunc(templateExpiryHours), 1), 168)
-      : Number.isFinite(configExpiryHours) && configExpiryHours > 0
-        ? Math.min(Math.max(Math.trunc(configExpiryHours), 1), 168)
-        : 24;
+  let cfg: any = {};
+  try {
+    cfg = rawConfig ? JSON.parse(rawConfig) : {};
+  } catch (err: any) {
+    logger.warn({ err }, "Fallo parseando checkout config en cart select");
+    cfg = {};
+  }
   const collectionMode = String(
     selectedTemplateProduct?.mode || (plan.metadata as PlanMetadata | null)?.collectionMode || "MANUAL_LINK"
   ).toUpperCase();
+  const productId = String((plan.metadata as PlanMetadata | null)?.catalog?.itemId || "").trim();
+  const scopeTenantId = String(template.tenantId || plan.tenantId || "").trim() || null;
 
   if (collectionMode === "AUTO_DEBIT") {
-    const base = normalizeCheckoutBase(cfg.subscriptionBaseUrl, "suscripcion");
-    if (!base) return Response.json({ error: "missing_subscription_base_url" }, { status: 400 });
-    const linkToken = await signPublicToken({
-      sub: customer.id,
-      scope: "tokenization",
-      ttlSeconds: expiryHours * 60 * 60
+    const checkoutTemplate = await findCheckoutTemplateForProductOrDefault({
+      tenantId: scopeTenantId,
+      kind: "SUBSCRIPTION" as any,
+      productId,
+      defaultTemplateId: String(cfg?.defaultSubscriptionTemplateId || "").trim()
     });
-    const nextUrl = buildPublicUrl(base, `/public/suscripcion/${linkToken}`, cfg.defaultUtmParams);
-    const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
-    const nextMeta = {
-      ...meta,
-      tokenizationLink: {
-        url: nextUrl,
-        token: linkToken,
-        planId,
-        tenantId: template.tenantId,
-        kind: "SUBSCRIPTION",
-        templateId: null,
-        createdAt: new Date().toISOString(),
-        expiresAt,
-        usedAt: null
-      }
-    };
-    await prisma.customer.update({ where: { id: customer.id }, data: { metadata: nextMeta as any } });
-    return Response.json({ ok: true, nextUrl, kind: "SUBSCRIPTION" });
+    if (!checkoutTemplate) return Response.json({ error: "missing_checkout_for_product" }, { status: 400 });
+    if (!String(cfg?.subscriptionBaseUrl || "").trim()) {
+      return Response.json({ error: "missing_subscription_base_url" }, { status: 400 });
+    }
+    const created = await createPublicCheckoutLink({
+      customerId: customer.id,
+      templateId: String((checkoutTemplate as any).id || ""),
+      planId
+    });
+    if (!created?.url) return Response.json({ error: "public_checkout_create_failed" }, { status: 500 });
+    return Response.json({ ok: true, nextUrl: created.url, kind: "SUBSCRIPTION" });
   }
 
   const startAt = new Date();
+  const manualCheckoutTemplate = await findCheckoutTemplateForProductOrDefault({
+    tenantId: scopeTenantId,
+    kind: "PLAN" as any,
+    productId,
+    defaultTemplateId: String(cfg?.defaultPlanTemplateId || "").trim()
+  });
   const periodEnd = addIntervalUtc(startAt, plan.intervalUnit, plan.intervalCount);
   const paymentsConfig = await getPaymentsConfig().catch(() => null);
   const cycleStartDay = Math.max(1, Math.min(31, Math.trunc(paymentsConfig?.defaultCycleStartDay || 1)));
@@ -209,7 +172,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       paymentDay,
       paymentTiming,
       graceDays,
-      metadata: { templateId: null }
+      metadata: { templateId: String((manualCheckoutTemplate as any)?.id || "") || null }
     }
   });
 
@@ -264,32 +227,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err: any) => {
     logger.warn({ err, subscriptionId: subscription.id }, "Fallo programando notificaciones de vencimiento desde cart select");
   });
-  const linkCreated = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
-  const base = normalizeCheckoutBase(cfg.planBaseUrl, "plan");
-  if (!base) return Response.json({ error: "missing_plan_base_url" }, { status: 400 });
-  const linkToken = await signPublicToken({
-    sub: customer.id,
-    scope: "payment",
-    ttlSeconds: expiryHours * 60 * 60
+  const linkCreated = await createPaymentLinkForSubscription({ subscriptionId: subscription.id, sendNotifications: false });
+  const checkoutTemplate = manualCheckoutTemplate;
+  if (!checkoutTemplate) return Response.json({ error: "missing_checkout_for_product" }, { status: 400 });
+  if (!String(cfg?.planBaseUrl || "").trim()) return Response.json({ error: "missing_plan_base_url" }, { status: 400 });
+  const created = await createPublicCheckoutLink({
+    customerId: customer.id,
+    templateId: String((checkoutTemplate as any).id || ""),
+    checkoutUrl: linkCreated.checkoutUrl
   });
-  const publicUrl = buildPublicUrl(base, `/public/plan/${linkToken}`, cfg.defaultUtmParams);
-  const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
-
-  const nextMeta = {
-    ...meta,
-    paymentLink: {
-      url: publicUrl,
-      token: linkToken,
-      checkoutUrl: linkCreated.checkoutUrl,
-      kind: "PLAN",
-      templateId: null,
-      utmParams: cfg.defaultUtmParams || null,
-      createdAt: new Date().toISOString(),
-      expiresAt,
-      usedAt: null
-    }
-  };
-  await prisma.customer.update({ where: { id: customer.id }, data: { metadata: nextMeta as any } });
-
-  return Response.json({ ok: true, nextUrl: publicUrl, kind: "PLAN" });
+  if (!created?.url) return Response.json({ error: "public_checkout_create_failed" }, { status: 500 });
+  return Response.json({ ok: true, nextUrl: created.url, kind: "PLAN" });
 }

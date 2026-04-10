@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireApiSession } from "../../_lib/requireApiSession";
 import { getCheckoutConfig } from "../../../admin/_services/settings";
-import { findCheckoutTemplateForProduct } from "../../../admin/_services/checkoutTemplates";
-import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
+import { findCheckoutTemplateForProductOrDefault } from "../../../admin/_services/checkoutTemplates";
+import { getCustomerById } from "../../../admin/_services/customers";
 import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
-import { signPublicToken } from "../../../../lib/publicTokens";
+import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
 import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
 import { logger } from "@suscripciones/core/lib/logger";
+import { isNotificationTemplateConfigured } from "../../../lib/notificationTemplate";
 
 export async function POST(req: Request) {
   const auth = await requireApiSession(req);
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
       const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === "TOKENIZATION_LINK_CREATED");
       const rule = candidates[0] || null;
       const tpl = rule ? templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || "")) : null;
-      if (!tpl || !String(tpl?.chatwootTemplate?.name || "").trim()) {
+      if (!isNotificationTemplateConfigured(tpl)) {
         return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
       }
     } else {
@@ -44,70 +45,46 @@ export async function POST(req: Request) {
     }
 
     const checkoutConfig = await getCheckoutConfig();
-    const selected = await findCheckoutTemplateForProduct({
+    const selected = await findCheckoutTemplateForProductOrDefault({
       tenantId: String(body?.tenantId || "").trim() || null,
       kind: "SUBSCRIPTION" as any,
-      productId
+      productId,
+      defaultTemplateId: String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim()
     });
     const resolvedTemplateId = selected ? String((selected as any).id || "") : "";
     if (!resolvedTemplateId) return NextResponse.json({ ok: false, error: "missing_checkout_for_product" }, { status: 400 });
-    const baseFromSettings = String(checkoutConfig.subscriptionBaseUrl || "").trim();
-    const base = baseFromSettings.replace(/\/$/, "");
-    if (!base) return NextResponse.json({ ok: false, error: "missing_subscription_base_url" }, { status: 400 });
-
-    const ensureHttps = (value: string) => {
-      if (!value) return value;
-      if (/^https?:\/\//i.test(value)) return value;
-      return `https://${value.replace(/^\/+/, "")}`;
-    };
-
-    const expiryHours = Number(checkoutConfig?.tokenExpiryHours || 24);
-    const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
-    const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
-    const linkToken = await signPublicToken({ sub: customerId, scope: "tokenization", ttlSeconds: hours * 60 * 60 });
-    const normalized = ensureHttps(base).replace(/\/$/, "");
-    const hasSubPath = /\/public\/suscripcion$/i.test(normalized);
-    const link = `${normalized}${hasSubPath ? "" : "/public/suscripcion"}/${linkToken}`;
+    if (!String(checkoutConfig.subscriptionBaseUrl || "").trim()) {
+      return NextResponse.json({ ok: false, error: "missing_subscription_base_url" }, { status: 400 });
+    }
 
     const existing = await getCustomerById(customerId);
     if (!existing) return NextResponse.json({ ok: false, error: "customer_not_found" }, { status: 404 });
-    const prevMeta = (existing?.metadata ?? {}) as any;
 
-    const nextMeta = {
-      ...prevMeta,
-      tokenizationLink: {
-        url: link,
-        token: linkToken,
-        ...(prevMeta?.tokenizationLink?.token ? { previousToken: prevMeta.tokenizationLink.token } : {}),
-        ...(prevMeta?.tokenizationLink?.expiresAt ? { previousExpiresAt: prevMeta.tokenizationLink.expiresAt } : {}),
-        ...(prevMeta?.tokenizationLink?.usedAt ? { previousUsedAt: prevMeta.tokenizationLink.usedAt } : {}),
-        ...(prevMeta?.tokenizationLink?.createdAt ? { previousCreatedAt: prevMeta.tokenizationLink.createdAt } : {}),
-        ...(resolvedTemplateId ? { templateId: resolvedTemplateId } : {}),
-        createdAt: new Date().toISOString(),
-        expiresAt,
-        usedAt: null
-      }
-    };
-    const stored = await updateCustomerMetadata({ customerId, metadata: nextMeta });
-    if (!stored) {
-      logger.error({ customerId, productId }, "No se pudo guardar metadata de tokenization link");
-      return NextResponse.json({ ok: false, error: "store_failed" }, { status: 500 });
+    const created = await createPublicCheckoutLink({
+      customerId,
+      templateId: resolvedTemplateId
+    });
+    if (!created?.url) {
+      logger.error({ customerId, productId, templateId: resolvedTemplateId }, "No se pudo crear checkout publico de tokenizacion");
+      return NextResponse.json({ ok: false, error: "public_checkout_create_failed" }, { status: 500 });
     }
 
     const schedule = await scheduleTokenizationLinkNotifications({
       customerId,
-      tokenUrl: link,
+      tokenUrl: created.url,
       forceNow: true,
       actor: auth.session.sub
     });
     const rulesActive = Boolean(schedule?.rulesActive);
+    const chatwootError = String((schedule as any)?.errors?.[0] || "").trim() || null;
 
     return NextResponse.json({
       ok: true,
-      link,
+      link: created.url,
       notificationsScheduled: schedule?.scheduled ?? 0,
       notificationsSent: schedule?.sentNow ?? 0,
-      notificationsRulesActive: rulesActive
+      notificationsRulesActive: rulesActive,
+      chatwootError
     });
   } catch (err: any) {
     logger.error({ err, actor: auth.session.sub }, "Fallo en send-tokenization-link");

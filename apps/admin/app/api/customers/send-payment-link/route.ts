@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { requireApiSession } from "../../_lib/requireApiSession";
 import { createManualOrder } from "../../../admin/_services/orders";
 import { getCheckoutConfig } from "../../../admin/_services/settings";
-import { findCheckoutTemplateForProduct } from "../../../admin/_services/checkoutTemplates";
-import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
-import { signPublicToken } from "../../../../lib/publicTokens";
+import { findCheckoutTemplateForProductOrDefault } from "../../../admin/_services/checkoutTemplates";
+import { getCustomerById } from "../../../admin/_services/customers";
+import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
 import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
+import { schedulePaymentLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { logger } from "@suscripciones/core/lib/logger";
+import { isNotificationTemplateConfigured } from "../../../lib/notificationTemplate";
 
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");
@@ -55,11 +57,29 @@ export async function POST(req: Request) {
     });
     const rule = filtered[0] || null;
     const tpl = rule ? templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || "")) : null;
-    if (!tpl || !String(tpl?.chatwootTemplate?.name || "").trim()) {
+    if (!isNotificationTemplateConfigured(tpl)) {
       return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
     }
   } else {
     return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
+  }
+
+  const checkoutConfig = await getCheckoutConfig().catch((err: any) => {
+    logger.error({ err, customerId, tenantId, productId }, "Fallo cargando checkout config para payment link");
+    return null;
+  });
+  if (!checkoutConfig || !String(checkoutConfig?.planBaseUrl || "").trim()) {
+    return NextResponse.json({ ok: false, error: "missing_plan_base_url" }, { status: 400 });
+  }
+  const selected = await findCheckoutTemplateForProductOrDefault({
+    tenantId: tenantId || null,
+    kind: "PLAN" as any,
+    productId,
+    defaultTemplateId: String(checkoutConfig?.defaultPlanTemplateId || "").trim()
+  });
+  const resolvedTemplateId = selected ? String((selected as any).id || "") : "";
+  if (!resolvedTemplateId) {
+    return NextResponse.json({ ok: false, error: "missing_checkout_for_product" }, { status: 400 });
   }
 
   const reference = `CONTACT_${customerId.slice(0, 6)}_${Date.now()}`;
@@ -71,7 +91,7 @@ export async function POST(req: Request) {
       currency: "COP",
       lineItems: [{ name: `Pago de ${customerName}`, quantity: 1, unitPriceInCents: amountInCents }],
       ...(tenantId ? { tenantId } : {}),
-      sendChatwoot: true,
+      sendChatwoot: false,
       source: "MANUAL"
     }
   });
@@ -80,53 +100,39 @@ export async function POST(req: Request) {
   }
 
   const checkoutUrl = String(orderResult.checkoutUrl || "").trim();
-  const rulesActive = Boolean(orderResult.notificationsRulesActive);
   let publicUrl: string | null = null;
-  let resolvedTemplateId = "";
   try {
-    const checkoutConfig = await getCheckoutConfig();
-    const expiryHours = Number(checkoutConfig?.tokenExpiryHours || 24);
-    const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
-    const baseFromSettings = String(checkoutConfig?.planBaseUrl || "").trim();
-    const selected = await findCheckoutTemplateForProduct({ tenantId: tenantId || null, kind: "PLAN" as any, productId });
-    resolvedTemplateId = selected ? String((selected as any).id || "") : "";
-    const templateName = selected ? String((selected as any).name || "") : null;
-
-    if (baseFromSettings && resolvedTemplateId) {
-      const tokenValue = await signPublicToken({ sub: customerId, scope: "payment", ttlSeconds: hours * 60 * 60 });
-      const normalized = baseFromSettings.replace(/\/$/, "");
-      const hasPlanPath = /\/public\/plan$/i.test(normalized);
-      const baseUrl = `${normalized}${hasPlanPath ? "" : "/public/plan"}/${tokenValue}`;
-      const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
-      publicUrl = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
-
-      const customer = await getCustomerById(customerId);
-      if (!customer) return NextResponse.json({ ok: false, error: "customer_not_found" }, { status: 404 });
-      const prevMeta =
-        customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {};
-      const nextMeta = {
-        ...prevMeta,
-        paymentLink: {
-          url: publicUrl,
-          token: tokenValue,
-          checkoutUrl,
-          kind: "PLAN",
-          templateId: resolvedTemplateId || null,
-          templateName: templateName || null,
-          utmParams: checkoutConfig?.defaultUtmParams || null,
-          createdAt: new Date().toISOString(),
-          expiresAt: new Date(Date.now() + hours * 60 * 60 * 1000).toISOString(),
-          usedAt: null
-        }
-      };
-      await updateCustomerMetadata({ customerId, metadata: nextMeta });
-    }
+    const customer = await getCustomerById(customerId);
+    if (!customer) return NextResponse.json({ ok: false, error: "customer_not_found" }, { status: 404 });
+    const created = await createPublicCheckoutLink({
+      customerId,
+      templateId: resolvedTemplateId,
+      checkoutUrl
+    });
+    publicUrl = String(created?.url || "").trim() || null;
   } catch (err: any) {
     logger.warn(
       { err, customerId, tenantId, productId, checkoutUrl, resolvedTemplateId },
       "Fallo generando o guardando public payment link"
     );
   }
+  if (!publicUrl) {
+    return NextResponse.json({ ok: false, error: "public_checkout_create_failed" }, { status: 500 });
+  }
+
+  const paymentId = String((orderResult as any)?.payment?.id || "").trim();
+  if (!paymentId) {
+    return NextResponse.json({ ok: false, error: "request_failed" }, { status: 500 });
+  }
+  const schedule = await schedulePaymentLinkNotifications({
+    paymentId,
+    forceNow: true,
+    actor: auth.session.sub
+  }).catch((err: any) => {
+    logger.error({ err, actor: auth.session.sub, customerId, paymentId }, "Fallo programando o enviando payment link");
+    throw err;
+  });
+  const chatwootError = String((schedule as any)?.errors?.[0] || "").trim() || null;
 
   return NextResponse.json({
     ok: true,
@@ -134,9 +140,9 @@ export async function POST(req: Request) {
     publicUrl,
     hasPublicCheckout: Boolean(publicUrl),
     checkoutTemplateId: resolvedTemplateId || null,
-    notificationsScheduled: typeof orderResult.notificationsScheduled === "number" ? orderResult.notificationsScheduled : null,
-    notificationsSent: typeof orderResult.notificationsSent === "number" ? orderResult.notificationsSent : null,
-    notificationsRulesActive: rulesActive,
-    chatwootError: (orderResult as any)?.chatwootError || null
+    notificationsScheduled: schedule?.scheduled ?? 0,
+    notificationsSent: schedule?.sentNow ?? 0,
+    notificationsRulesActive: Boolean(schedule?.rulesActive),
+    chatwootError
   });
 }

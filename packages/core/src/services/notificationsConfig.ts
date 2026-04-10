@@ -147,9 +147,16 @@ function isTokenizationTemplate(template: NotificationsConfig["templates"][numbe
   return values.some((v) => v.toLowerCase().includes("tokeniz") || v.toLowerCase().includes("tokenizacion"));
 }
 
+function hasUsableWhatsAppTemplate(template: NotificationsConfig["templates"][number] | undefined | null): boolean {
+  if (!template) return false;
+  if (String(template.channel || "").toUpperCase() !== "CHATWOOT") return false;
+  return Boolean(String(template.chatwootTemplate?.name || "").trim());
+}
+
 function normalizeNotificationsConfig(cfg: NotificationsConfig): NotificationsConfig {
   const templates = Array.isArray(cfg.templates) ? cfg.templates : [];
-  const templateById = new Map(templates.map((t) => [String(t.id), t]));
+  const validTemplates = templates.filter((t) => hasUsableWhatsAppTemplate(t));
+  const templateById = new Map(validTemplates.map((t) => [String(t.id), t]));
   const rules = Array.isArray(cfg.rules) ? cfg.rules : [];
   const nextRules = rules.map((rule) => {
     const next = { ...rule, conditions: rule.conditions ? { ...rule.conditions } : undefined } as typeof rule;
@@ -165,7 +172,7 @@ function normalizeNotificationsConfig(cfg: NotificationsConfig): NotificationsCo
     return next;
   });
   const activeRuleIds = new Set(nextRules.map((r) => String(r.templateId)));
-  const filteredTemplates = templates.filter((t) => activeRuleIds.has(String(t.id)));
+  const filteredTemplates = validTemplates.filter((t) => activeRuleIds.has(String(t.id)));
   const filteredTemplateIds = new Set(filteredTemplates.map((t) => String(t.id)));
   const filteredRules = nextRules.filter((r) => filteredTemplateIds.has(String(r.templateId)));
   return { ...cfg, templates: filteredTemplates, rules: filteredRules };
@@ -173,7 +180,7 @@ function normalizeNotificationsConfig(cfg: NotificationsConfig): NotificationsCo
 
 export async function setNotificationsConfig(cfg: unknown, opts?: { environment?: ActiveEnv }) {
   const env = opts?.environment || (await getCommsActiveEnv());
-  const normalized = notificationsConfigSchema.parse(cfg);
+  const normalized = normalizeNotificationsConfig(notificationsConfigSchema.parse(cfg));
   await setCredential(CredentialProvider.CHATWOOT, keyForEnv(env), JSON.stringify(normalized));
   return normalized;
 }

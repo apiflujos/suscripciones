@@ -7,6 +7,7 @@ import { signPublicToken } from "./publicTokens";
 type CheckoutConfig = {
   planBaseUrl?: string;
   subscriptionBaseUrl?: string;
+  cartBaseUrl?: string;
   tokenExpiryHours?: number;
   defaultUtmParams?: string;
 };
@@ -34,6 +35,8 @@ function normalizeBase(base: string, kind: PublicCheckoutKind) {
 export async function createPublicCheckoutLink(args: {
   customerId: string;
   templateId: string;
+  checkoutUrl?: string | null;
+  planId?: string | null;
 }): Promise<
   | {
       url: string;
@@ -63,7 +66,12 @@ export async function createPublicCheckoutLink(args: {
   const envBases = getCheckoutBaseUrlsFromEnv();
   const planBase = String(cfg.planBaseUrl || "").trim() || envBases.planBaseUrl || "";
   const subscriptionBase = String(cfg.subscriptionBaseUrl || "").trim() || envBases.subscriptionBaseUrl || "";
-  const cartBase = String((cfg as any).cartBaseUrl || "").trim() || envBases.cartBaseUrl || "";
+  const cartBase =
+    String(cfg.cartBaseUrl || "").trim() ||
+    envBases.cartBaseUrl ||
+    planBase ||
+    subscriptionBase ||
+    "";
   const base =
     template.kind === "SUBSCRIPTION"
       ? subscriptionBase
@@ -80,12 +88,66 @@ export async function createPublicCheckoutLink(args: {
       ? Math.min(Math.max(Math.trunc(expiryFromCfg), 1), 168)
       : 24;
 
-  const scope = template.kind === "SUBSCRIPTION" ? "tokenization" : "payment";
+  const scope = template.kind === "SUBSCRIPTION" ? "tokenization" : template.kind === "CART" ? "cart" : "payment";
   const token = await signPublicToken({ sub: customerId, scope, ttlSeconds: hours * 60 * 60 });
   const baseUrl = normalizeBase(base, template.kind);
   const rawUrl = `${baseUrl}/${token}`;
   const utm = String(template.utmParams || cfg.defaultUtmParams || "").trim();
   const url = utm ? `${rawUrl}${rawUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : rawUrl;
+  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+
+  const customer = await prisma.customer.findUnique({
+    where: { id: customerId },
+    select: { metadata: true }
+  });
+  if (!customer) return null;
+
+  const prevMeta = customer.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? (customer.metadata as any) : {};
+  const commonLink = {
+    token,
+    url,
+    templateId: template.id,
+    kind: template.kind,
+    createdAt: new Date().toISOString(),
+    expiresAt,
+    usedAt: null,
+    utmParams: utm || null
+  };
+  const nextMeta =
+    template.kind === "SUBSCRIPTION"
+      ? {
+          ...prevMeta,
+          tokenizationLink: {
+            ...(prevMeta?.tokenizationLink || {}),
+            ...commonLink,
+            tenantId: template.tenantId || null,
+            planId: args.planId ?? prevMeta?.tokenizationLink?.planId ?? null
+          }
+        }
+      : template.kind === "CART"
+        ? {
+            ...prevMeta,
+            cartLink: {
+              ...(prevMeta?.cartLink || {}),
+              ...commonLink,
+              tenantId: template.tenantId || null
+            }
+          }
+        : {
+            ...prevMeta,
+            paymentLink: {
+              ...(prevMeta?.paymentLink || {}),
+              ...commonLink,
+              tenantId: template.tenantId || null,
+              checkoutUrl: args.checkoutUrl ?? prevMeta?.paymentLink?.checkoutUrl ?? null,
+              templateName: template.name
+            }
+          };
+
+  await prisma.customer.update({
+    where: { id: customerId },
+    data: { metadata: nextMeta as any }
+  });
 
   return {
     url,
@@ -93,7 +155,7 @@ export async function createPublicCheckoutLink(args: {
     templateId: template.id,
     templateName: template.name,
     kind: template.kind,
-    expiresAt: new Date(Date.now() + hours * 60 * 60 * 1000).toISOString(),
+    expiresAt,
     utmParams: utm || null
   };
 }

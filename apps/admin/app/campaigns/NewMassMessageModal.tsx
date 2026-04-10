@@ -176,7 +176,7 @@ function WaTemplateFields({
           No hay plantillas disponibles. Sincroniza para cargarlas.
           {syncError && String(syncError).includes("chatwoot_not_configured") ? (
             <div style={{ marginTop: 6 }}>
-              <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp">
+              <a className="ghost btn-compact" href="/settings?tab=connections&open=central">
                 Configurar Chatwoot
               </a>
             </div>

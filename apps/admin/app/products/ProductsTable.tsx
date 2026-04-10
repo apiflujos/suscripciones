@@ -2,7 +2,6 @@
 
 import { useMemo, useRef, useState, useEffect } from "react";
 import { AppModal } from "../ui/AppModal";
-import { ViewLinksModal } from "../ui/ViewLinksModal";
 import { sendProductToCustomer, updateProduct } from "./actions";
 import { HelpTip } from "../ui/HelpTip";
 import { VariantsEditor } from "./VariantsEditor";
@@ -11,6 +10,7 @@ import { DeleteProductButton } from "./DeleteProductButton";
 import { PendingButton } from "../ui/PendingButton";
 import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
 import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, normalizeSupportedCurrency } from "../lib/currencies";
+import { isNotificationTemplateConfigured, renderNotificationTemplatePreview } from "../lib/notificationTemplate";
 
 function formatCurrencyInput(input: string, currency: string): string {
   const digits = String(input || "").replace(/[^\d]/g, "");
@@ -65,6 +65,8 @@ export function ProductsTable({
   empresas,
   notificationTemplates,
   notificationRules,
+  checkoutTemplates,
+  checkoutConfig,
   createCustomer,
   createPlanAndSubscription,
   returnTo
@@ -78,6 +80,8 @@ export function ProductsTable({
   empresas: any[];
   notificationTemplates?: any[];
   notificationRules?: any[];
+  checkoutTemplates?: any[];
+  checkoutConfig?: any;
   createCustomer: (formData: FormData) => Promise<void>;
   createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
   returnTo?: string;
@@ -96,8 +100,6 @@ export function ProductsTable({
   const [txError, setTxError] = useState("");
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planModalProduct, setPlanModalProduct] = useState<ProductRow | null>(null);
-  const [viewLinksOpen, setViewLinksOpen] = useState(false);
-  const [viewLinksItems, setViewLinksItems] = useState<any[]>([]);
 
   const [kind, setKind] = useState<"PRODUCT" | "SERVICE">("PRODUCT");
   const [name, setName] = useState("");
@@ -207,26 +209,6 @@ export function ProductsTable({
     setTxProduct(null);
     setTxItems([]);
     setTxError("");
-    setTimeout(() => lastActiveRef.current?.focus(), 0);
-  }
-
-  function openViewLinks(item: ProductRow) {
-    lastActiveRef.current = document.activeElement as HTMLElement | null;
-    const links: Array<{ label: string; url: string; isValid: boolean }> = [];
-
-    links.push({
-      label: "Link de pago",
-      url: `${window.location.origin}/public/plan/${item.id}`,
-      isValid: true
-    });
-    
-    setViewLinksItems(links);
-    setViewLinksOpen(true);
-  }
-
-  function closeViewLinks() {
-    setViewLinksOpen(false);
-    setViewLinksItems([]);
     setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
@@ -383,6 +365,56 @@ export function ProductsTable({
     }),
     [notificationTemplates, notificationRules]
   );
+  const publicCheckoutTemplates = useMemo(() => (Array.isArray(checkoutTemplates) ? checkoutTemplates : []), [checkoutTemplates]);
+  const planBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
+  const missingPlanBase = !planBaseUrl;
+
+  function extractTemplateProductId(entry: any) {
+    if (!entry) return "";
+    if (typeof entry === "string") return String(entry).trim();
+    if (typeof entry === "object") return String(entry?.id || "").trim();
+    return "";
+  }
+
+  function templateMatchesProduct(template: any, productId: string) {
+    const list = Array.isArray(template?.productIds) ? template.productIds : [];
+    return list.some((entry: any) => String(extractTemplateProductId(entry)) === String(productId));
+  }
+
+  function templateMatchesTenant(template: any, tenantId?: string | null) {
+    const resolvedTenantId = String(tenantId || "").trim();
+    if (!resolvedTenantId) return true;
+    const templateTenantId = String(template?.tenantId || "").trim();
+    return !templateTenantId || templateTenantId === resolvedTenantId;
+  }
+
+  function findPlanTemplateForProduct(product: ProductRow) {
+    const productId = String(product?.id || "").trim();
+    const tenantId = String(product?.tenantId || product?.tenantIds?.[0] || "").trim();
+    const candidates = publicCheckoutTemplates.filter((template: any) => {
+      return Boolean(template?.active) && String(template?.kind || "") === "PLAN" && templateMatchesTenant(template, tenantId);
+    });
+    const exactTenantMatch =
+      candidates.find((template: any) => String(template?.tenantId || "").trim() === tenantId && templateMatchesProduct(template, productId)) || null;
+    if (exactTenantMatch) return exactTenantMatch;
+    const productMatch = candidates.find((template: any) => templateMatchesProduct(template, productId)) || null;
+    if (productMatch) return productMatch;
+    const defaultTemplateId = String(checkoutConfig?.defaultPlanTemplateId || "").trim();
+    if (!defaultTemplateId) return null;
+    const exactDefault =
+      candidates.find((template: any) => String(template?.tenantId || "").trim() === tenantId && String(template?.id || "").trim() === defaultTemplateId) || null;
+    if (exactDefault) return exactDefault;
+    return candidates.find((template: any) => String(template?.id || "").trim() === defaultTemplateId) || null;
+  }
+
+  function resolveSendModalDisabledReason(product?: ProductRow | null) {
+    if (!hasCustomersToSend) return "No hay contactos disponibles para enviar este producto.";
+    if (!canSendPaymentLink) return "Falta una plantilla WhatsApp activa para link de pago en Notificaciones.";
+    if (!product) return "";
+    if (!findPlanTemplateForProduct(product)) return "No hay checkout público de link de pago asociado a este producto.";
+    if (missingPlanBase) return "Falta configurar la URL base de link de pago en Checkout público.";
+    return "";
+  }
 
   function resolveNotificationTemplate(trigger: string, paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK") {
     const rules = Array.isArray(notificationsConfig?.rules) ? notificationsConfig.rules : [];
@@ -402,13 +434,8 @@ export function ProductsTable({
   }
 
   const paymentLinkTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK");
-  const canSendPaymentLink = Boolean(paymentLinkTemplate?.chatwootTemplate?.name);
+  const canSendPaymentLink = isNotificationTemplateConfigured(paymentLinkTemplate);
   const hasCustomersToSend = Array.isArray(customers) && customers.length > 0;
-  const sendModalDisabledReason = !hasCustomersToSend
-    ? "No hay contactos disponibles para enviar este producto."
-    : !canSendPaymentLink
-      ? "No hay plantilla activa para link de pago en Notificaciones."
-      : "";
 
   function formatCustomerLabel(c: any) {
     return String(c?.name || c?.email || c?.phone || "Contacto").trim() || "Contacto";
@@ -427,26 +454,13 @@ export function ProductsTable({
     setSendSearch(label);
   }
 
-  function renderNotificationPreview(template: any) {
-    if (!template) return "No hay plantilla configurada en Notificaciones.";
-    if (template?.content && String(template.content || "").trim() && String(template.content || "") !== "(template)") {
-      return String(template.content || "").trim();
-    }
-    const name = String(template?.chatwootTemplate?.name || "").trim();
-    const lang = String(template?.chatwootTemplate?.language || "").trim();
-    const params = template?.chatwootTemplate?.processed_params?.body || [];
-    if (!name) return "Plantilla configurada en CentralCom.";
-    const paramText = Array.isArray(params) && params.length ? params.map((p: any) => String(p?.value || "")).join(" | ") : "—";
-    return `Plantilla WhatsApp: ${name}${lang ? ` (${lang})` : ""}\nParámetros: ${paramText}`;
-  }
-
   function isPublicImage(url?: string | null) {
     const value = String(url || "").trim();
     return /^https?:\/\//i.test(value);
   }
 
   function openSendModal(item: ProductRow) {
-    if (!hasCustomersToSend || !canSendPaymentLink) return;
+    if (resolveSendModalDisabledReason(item)) return;
     setSendProduct(item);
     setSendOpen(true);
     setSendCustomerId("");
@@ -552,13 +566,23 @@ export function ProductsTable({
               data-modal="true"
               data-loader="off"
               onClick={() => openSendModal(p)}
-              disabled={Boolean(sendModalDisabledReason)}
-              title={sendModalDisabledReason || "Enviar producto"}
+              disabled={Boolean(resolveSendModalDisabledReason(p))}
+              title={resolveSendModalDisabledReason(p) || "Enviar producto"}
             >
               Enviar
             </button>
             <button className="ghost btn-compact btn-blue btn-create btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(p)}>
               Crear suscripción
+            </button>
+            <button
+              className="ghost btn-compact btn-history btn-noicon"
+              type="button"
+              data-modal="true"
+              data-loader="off"
+              onClick={() => openTransactions(p)}
+              title="Historial de transacciones"
+            >
+              Historial
             </button>
           </div>
           <div className="entity-card-actions-right" />
@@ -608,9 +632,9 @@ export function ProductsTable({
                   data-modal="true"
                   data-loader="off"
                   onClick={() => openSendModal(p)}
-                  disabled={Boolean(sendModalDisabledReason)}
+                  disabled={Boolean(resolveSendModalDisabledReason(p))}
                   aria-label="Enviar"
-                  title={sendModalDisabledReason || "Enviar"}
+                  title={resolveSendModalDisabledReason(p) || "Enviar"}
                 />
                 <button
                   className="ghost btn-compact btn-icon-only btn-create"
@@ -681,6 +705,12 @@ export function ProductsTable({
               <input type="hidden" name="productId" value={sendProduct.id} />
               <input type="hidden" name="customerId" value={sendCustomerId} />
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+              {(() => {
+                const checkoutTemplate = findPlanTemplateForProduct(sendProduct);
+                const missingCheckout = !checkoutTemplate;
+                const disabledReason = resolveSendModalDisabledReason(sendProduct);
+                return (
+                  <>
 
               <div className="send-product-left">
                 <div className="send-product-card">
@@ -801,21 +831,37 @@ export function ProductsTable({
 
               <div className="send-product-right">
                 <div className="field">
+                  <label>Checkout público</label>
+                  {missingCheckout ? (
+                    <div className="field-hint ui-alert-danger">
+                      No hay checkout público de link de pago asociado a este producto.
+                    </div>
+                  ) : null}
+                  {missingPlanBase ? (
+                    <div className="field-hint ui-alert-danger">
+                      Falta configurar la URL base de link de pago en Checkout público.
+                    </div>
+                  ) : null}
+                  {!missingCheckout && !missingPlanBase ? (
+                    <div className="field-hint">Se usará el checkout público configurado para este producto.</div>
+                  ) : null}
+                </div>
+                <div className="field">
                   <label>Notificación configurada</label>
                   <textarea
                     className="input"
                     rows={12}
                     readOnly
-                    value={renderNotificationPreview(paymentLinkTemplate)}
+                    value={renderNotificationTemplatePreview(paymentLinkTemplate)}
                   />
-                  <div className="field-hint">Se usa la plantilla configurada en Notificaciones (link de pago).</div>
+                  <div className="field-hint">Se usa la plantilla WhatsApp activa de Notificaciones para link de pago.</div>
                 </div>
                 <div className="send-product-actions">
                   <PendingButton
                     className="primary btn-compact btn-send"
                     type="submit"
                     pendingText="Enviando..."
-                    disabled={!sendCustomerId || !canSendPaymentLink || !hasCustomersToSend}
+                    disabled={!sendCustomerId || Boolean(disabledReason)}
                   >
                     Enviar link de pago
                   </PendingButton>
@@ -827,9 +873,9 @@ export function ProductsTable({
                   ) : null}
                   {!canSendPaymentLink ? (
                     <div className="field-hint ui-alert-danger">
-                      No hay plantilla activa para link de pago en Notificaciones.
+                      Falta una plantilla WhatsApp activa para link de pago en Notificaciones.
                       <div style={{ marginTop: 6 }}>
-                        <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=payment_link_created">
+                        <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp&env=PRODUCTION">
                           Configurar plantilla
                         </a>
                       </div>
@@ -837,6 +883,9 @@ export function ProductsTable({
                   ) : null}
                 </div>
               </div>
+                  </>
+                );
+              })()}
           </form>
         ) : null}
       </AppModal>
@@ -1186,10 +1235,6 @@ export function ProductsTable({
           </div>
         ) : null}
       </AppModal>
-
-      {viewLinksOpen ? (
-        <ViewLinksModal links={viewLinksItems} onClose={closeViewLinks} />
-      ) : null}
     </>
   );
 }

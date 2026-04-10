@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { AppModal } from "../ui/AppModal";
+import { isNotificationTemplateConfigured, renderNotificationTemplatePreview } from "../lib/notificationTemplate";
 
 export function TokenizationLinkModalButton({
   customerId,
@@ -12,6 +13,7 @@ export function TokenizationLinkModalButton({
   returnTo,
   notificationTemplates,
   notificationRules,
+  blockedReason = "",
   action
 }: {
   customerId: string;
@@ -21,6 +23,7 @@ export function TokenizationLinkModalButton({
   returnTo: string;
   notificationTemplates?: any[];
   notificationRules?: any[];
+  blockedReason?: string;
   action: (formData: FormData) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -39,23 +42,12 @@ export function TokenizationLinkModalButton({
     return template || null;
   }
 
-  function renderNotificationPreview(template: any) {
-    if (!template) return "No hay plantilla configurada en Notificaciones.";
-    if (template?.content && String(template.content || "").trim() && String(template.content || "") !== "(template)") {
-      return String(template.content || "").trim();
-    }
-    const name = String(template?.chatwootTemplate?.name || "").trim();
-    const lang = String(template?.chatwootTemplate?.language || "").trim();
-    const params = template?.chatwootTemplate?.processed_params?.body || [];
-    if (!name) return "Plantilla configurada en CentralCom.";
-    const paramText = Array.isArray(params) && params.length ? params.map((p: any) => String(p?.value || "")).join(" | ") : "—";
-    return `Plantilla WhatsApp: ${name}${lang ? ` (${lang})` : ""}\nParámetros: ${paramText}`;
-  }
-
   const tokenTemplate = resolveNotificationTemplate("TOKENIZATION_LINK_CREATED");
-  const hasTemplate = Boolean(tokenTemplate);
-  const canSend = hasTemplate;
-  const disabledReason = hasTemplate ? "" : "No hay plantilla activa para tokenización. Configúrala antes de enviar.";
+  const hasTemplate = isNotificationTemplateConfigured(tokenTemplate);
+  const canSend = hasTemplate && !blockedReason;
+  const disabledReason = !hasTemplate
+    ? "Falta una plantilla WhatsApp activa para débito automático en Notificaciones."
+    : blockedReason;
 
   return (
     <>
@@ -65,7 +57,6 @@ export function TokenizationLinkModalButton({
         onClick={() => setOpen(true)}
         data-modal="true"
         data-loader="off"
-        disabled={!canSend}
         title={disabledReason || "Enviar tokenización"}
       >
         Enviar tokenización
@@ -81,8 +72,8 @@ export function TokenizationLinkModalButton({
               {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
               <div className="field">
                 <label>Notificación configurada</label>
-                <textarea className="input" rows={6} readOnly value={renderNotificationPreview(tokenTemplate)} />
-                <div className="field-hint">Se enviará usando las reglas activas de Notificaciones (tokenización).</div>
+                <textarea className="input" rows={6} readOnly value={renderNotificationTemplatePreview(tokenTemplate)} />
+                <div className="field-hint">Se enviará usando la plantilla WhatsApp activa de Notificaciones para débito automático.</div>
               </div>
               <div className="module-footer">
                 <button 
@@ -108,13 +99,16 @@ export function TokenizationLinkModalButton({
               </div>
               {!hasTemplate ? (
                 <div className="field-hint ui-alert-warn">
-                  No hay plantilla activa para tokenización. Configura una plantilla para habilitar el envío.
+                  Falta una plantilla WhatsApp activa para débito automático en Notificaciones. Configúrala antes de enviar.
                   <div style={{ marginTop: 6 }}>
-                    <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=tokenization_link_created">
+                    <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp&env=PRODUCTION">
                       Configurar plantilla
                     </a>
                   </div>
                 </div>
+              ) : null}
+              {blockedReason ? (
+                <div className="field-hint ui-alert-warn">{blockedReason}</div>
               ) : null}
             </form>
           </>

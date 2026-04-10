@@ -8,6 +8,7 @@ import { AppModal } from "../ui/AppModal";
 type CheckoutConfig = {
   planBaseUrl?: string | null;
   subscriptionBaseUrl?: string | null;
+  cartBaseUrl?: string | null;
   defaultUtmParams?: string | null;
   planWompiTitle?: string | null;
   planWompiDescription?: string | null;
@@ -57,21 +58,22 @@ export function RedirectConfigPanel({
 }) {
   const [open, setOpen] = useState(false);
   const [publicBaseUrl, setPublicBaseUrl] = useState<string>(() => {
-    const existing = String(defaults.planBaseUrl || defaults.subscriptionBaseUrl || "").trim();
-    if (existing) return existing.replace(/\/public\/(plan|suscripcion).*/i, "");
+    const existing = String(defaults.planBaseUrl || defaults.subscriptionBaseUrl || defaults.cartBaseUrl || "").trim();
+    if (existing) return existing.replace(/\/public\/(plan|suscripcion|cart).*/i, "");
     const base = String(appPublicBaseUrl || "").trim();
     return base || "";
   });
   const [planBaseUrl, setPlanBaseUrl] = useState<string>(String(defaults.planBaseUrl || ""));
   const [subscriptionBaseUrl, setSubscriptionBaseUrl] = useState<string>(String(defaults.subscriptionBaseUrl || ""));
+  const [cartBaseUrl, setCartBaseUrl] = useState<string>(String(defaults.cartBaseUrl || ""));
   const [tokenReturnUrl, setTokenReturnUrl] = useState<string>(String(defaults.tokenizationReturnUrl || ""));
   const [tokenSuccessTitle, setTokenSuccessTitle] = useState<string>(String(defaults.tokenizationSuccessTitle || "Gracias"));
   const [tokenSuccessMessage, setTokenSuccessMessage] = useState<string>(String(defaults.tokenizationSuccessMessage || "Tu método de pago quedó guardado correctamente."));
   const [tokenErrorMessage, setTokenErrorMessage] = useState<string>(String(defaults.tokenizationErrorMessage || "No pudimos guardar tu método de pago. Intenta nuevamente."));
   const [defaultUtmParams, setDefaultUtmParams] = useState<string>(String(defaults.defaultUtmParams || ""));
   const [lastDerivedBase, setLastDerivedBase] = useState<string>(() => {
-    const existing = String(defaults.planBaseUrl || defaults.subscriptionBaseUrl || "").trim();
-    return existing ? existing.replace(/\/public\/(plan|suscripcion).*/i, "") : "";
+    const existing = String(defaults.planBaseUrl || defaults.subscriptionBaseUrl || defaults.cartBaseUrl || "").trim();
+    return existing ? existing.replace(/\/public\/(plan|suscripcion|cart).*/i, "") : "";
   });
 
   useEffect(() => {
@@ -86,7 +88,7 @@ export function RedirectConfigPanel({
     }
   }, [appPublicBaseUrl, publicBaseUrl]);
 
-  const urlsReady = Boolean(planBaseUrl && subscriptionBaseUrl && tokenReturnUrl);
+  const urlsReady = Boolean(planBaseUrl && subscriptionBaseUrl && cartBaseUrl && tokenReturnUrl);
   const tokenMessagesReady = Boolean(tokenSuccessTitle && tokenSuccessMessage && tokenErrorMessage);
 
   useEffect(() => {
@@ -95,17 +97,20 @@ export function RedirectConfigPanel({
     const prevBase = normalizeBaseUrl(lastDerivedBase);
     const shouldSyncPlan = !planBaseUrl || (prevBase && planBaseUrl === `${prevBase}/public/plan`);
     const shouldSyncSub = !subscriptionBaseUrl || (prevBase && subscriptionBaseUrl === `${prevBase}/public/suscripcion`);
+    const shouldSyncCart = !cartBaseUrl || (prevBase && cartBaseUrl === `${prevBase}/public/cart`);
     const shouldSyncReturn = !tokenReturnUrl || (prevBase && tokenReturnUrl === `${prevBase}/public/return`);
     if (shouldSyncPlan) setPlanBaseUrl(`${base}/public/plan`);
     if (shouldSyncSub) setSubscriptionBaseUrl(`${base}/public/suscripcion`);
+    if (shouldSyncCart) setCartBaseUrl(`${base}/public/cart`);
     if (shouldSyncReturn) setTokenReturnUrl(`${base}/public/return`);
     if (!defaultUtmParams) setDefaultUtmParams("utm_source=apiflujos&utm_medium=checkout&utm_campaign=mdv");
     if (base !== prevBase) setLastDerivedBase(base);
-  }, [publicBaseUrl, appPublicBaseUrl, planBaseUrl, subscriptionBaseUrl, tokenReturnUrl, defaultUtmParams, lastDerivedBase]);
+  }, [publicBaseUrl, appPublicBaseUrl, planBaseUrl, subscriptionBaseUrl, cartBaseUrl, tokenReturnUrl, defaultUtmParams, lastDerivedBase]);
 
   const publicBaseNormalized = useMemo(() => normalizeBaseUrl(publicBaseUrl), [publicBaseUrl]);
   const planInvalid = planBaseUrl ? !isValidUrl(planBaseUrl) : false;
   const subInvalid = subscriptionBaseUrl ? !isValidUrl(subscriptionBaseUrl) : false;
+  const cartInvalid = cartBaseUrl ? !isValidUrl(cartBaseUrl) : false;
   const returnInvalid = tokenReturnUrl ? !isValidUrl(tokenReturnUrl) : false;
 
   return (
@@ -126,7 +131,7 @@ export function RedirectConfigPanel({
       <div className="saved-conn-meta" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
         <div className="saved-conn-meta-item">
           <span className="saved-conn-meta-label">URLs públicas</span>
-          <span className="saved-conn-meta-value">{planBaseUrl && subscriptionBaseUrl ? "Configuradas" : "—"}</span>
+          <span className="saved-conn-meta-value">{planBaseUrl && subscriptionBaseUrl && cartBaseUrl ? "Configuradas" : "—"}</span>
         </div>
         <div className="saved-conn-meta-item">
           <span className="saved-conn-meta-label">UTM por defecto</span>
@@ -160,6 +165,9 @@ export function RedirectConfigPanel({
                       Suscripción: {publicBaseNormalized}/public/suscripcion
                     </div>
                     <div className="muted" style={{ fontSize: 12 }}>
+                      Catálogo: {publicBaseNormalized}/public/cart
+                    </div>
+                    <div className="muted" style={{ fontSize: 12 }}>
                       Retorno tokenización: {publicBaseNormalized}/public/return
                     </div>
                   </div>
@@ -188,6 +196,14 @@ export function RedirectConfigPanel({
                 </label>
                 <input className="input" name="subscriptionBaseUrl" value={subscriptionBaseUrl} onChange={(e) => setSubscriptionBaseUrl(e.target.value)} />
                 {subInvalid ? <div className="field-hint" style={{ color: "var(--danger)" }}>URL inválida. Debe iniciar con http(s).</div> : null}
+              </div>
+              <div className="field">
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  Base URL Catálogo
+                  <HelpTip text="Se usa para los catálogos públicos y la selección de productos." />
+                </label>
+                <input className="input" name="cartBaseUrl" value={cartBaseUrl} onChange={(e) => setCartBaseUrl(e.target.value)} />
+                {cartInvalid ? <div className="field-hint" style={{ color: "var(--danger)" }}>URL inválida. Debe iniciar con http(s).</div> : null}
               </div>
               <div className="field">
                 <label style={{ display: "flex", alignItems: "center", gap: 6 }}>

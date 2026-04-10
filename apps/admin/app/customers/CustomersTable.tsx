@@ -6,8 +6,8 @@ import { deleteCustomer, updateCustomer } from "./actions";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
 import { AppModal } from "../ui/AppModal";
-import { ViewLinksModal } from "../ui/ViewLinksModal";
 import { CustomerEditModal } from "./CustomerEditModal";
+import { isNotificationTemplateConfigured, renderNotificationTemplatePreview } from "../lib/notificationTemplate";
 
 function formatCopFromCents(cents: number) {
   const pesos = Math.trunc(Number(cents || 0) / 100);
@@ -53,9 +53,9 @@ type CustomerRow = {
 export function CustomersTable({
   items,
   view = "cards",
+  currentTenantId,
   latestLinks,
   subscriptionsByCustomer,
-  cartTemplates,
   products,
   empresas,
   checkoutTemplates,
@@ -70,9 +70,9 @@ export function CustomersTable({
 }: {
   items: CustomerRow[];
   view?: "cards" | "list";
+  currentTenantId?: string;
   latestLinks: Record<string, LatestLink>;
   subscriptionsByCustomer: Record<string, { hasPlan: boolean; planName?: string; status?: string; collectionMode?: string; subscriptionId?: string; productId?: string; planId?: string }>;
-  cartTemplates: Array<{ id: string; name: string }>;
   products: any[];
   empresas: any[];
   checkoutTemplates: any[];
@@ -100,7 +100,6 @@ export function CustomersTable({
     message: "",
     status: "ok"
   });
-  const [linkOverrides, setLinkOverrides] = useState<Record<string, { payment?: string; token?: string; cart?: string }>>({});
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planModalCustomer, setPlanModalCustomer] = useState<CustomerRow | null>(null);
   const [cartModalOpen, setCartModalOpen] = useState(false);
@@ -108,8 +107,6 @@ export function CustomersTable({
   const [cartModalMode, setCartModalMode] = useState<"PLAN" | "SUBSCRIPTION">("PLAN");
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [payModalCustomer, setPayModalCustomer] = useState<CustomerRow | null>(null);
-  const [viewLinksOpen, setViewLinksOpen] = useState(false);
-  const [viewLinksItems, setViewLinksItems] = useState<any[]>([]);
   const [viewFichaOpen, setViewFichaOpen] = useState(false);
   const [viewFichaCustomer, setViewFichaCustomer] = useState<CustomerRow | null>(null);
   const [payAmount, setPayAmount] = useState("");
@@ -118,36 +115,12 @@ export function CustomersTable({
   const [clearingTokenId, setClearingTokenId] = useState<string | null>(null);
   const [tokenStateByCustomer, setTokenStateByCustomer] = useState<Record<string, boolean>>({});
   const planBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
+  const cartBaseUrl = String(checkoutConfig?.cartBaseUrl || "").trim();
   const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
-  const publicBaseUrl = String(checkoutConfig?.planBaseUrl || checkoutConfig?.subscriptionBaseUrl || "").trim();
+  const publicBaseUrl = String(checkoutConfig?.planBaseUrl || checkoutConfig?.cartBaseUrl || checkoutConfig?.subscriptionBaseUrl || "").trim();
+  const missingPlanBase = !planBaseUrl;
   const missingSubBase = !subscriptionBaseUrl;
   const missingPublicBase = !publicBaseUrl;
-
-  function ensureHttps(value: string) {
-    if (!value) return value;
-    if (/^https?:\/\//i.test(value)) return value;
-    return `https://${value.replace(/^\/+/, "")}`;
-  }
-
-  function normalizePublicUrl(rawUrl: string, base: string, path: string, token?: string) {
-    const cleaned = String(rawUrl || "").trim();
-    if (cleaned) {
-      if (/^https?:\/\//i.test(cleaned)) return cleaned;
-      if (cleaned.startsWith("/")) {
-        const normalizedBase = ensureHttps(base).replace(/\/$/, "");
-        return normalizedBase ? `${normalizedBase}${cleaned}` : cleaned;
-      }
-      return ensureHttps(cleaned);
-    }
-    const cleanToken = String(token || "").trim();
-    const normalizedBase = ensureHttps(base).replace(/\/$/, "");
-    if (!cleanToken || !normalizedBase) return "";
-    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    if (normalizedBase.endsWith(normalizedPath)) {
-      return `${normalizedBase}/${cleanToken}`;
-    }
-    return `${normalizedBase}${normalizedPath}/${cleanToken}`;
-  }
 
   const lastActiveRef = useRef<HTMLElement | null>(null);
 
@@ -178,29 +151,8 @@ export function CustomersTable({
     return `${a}${b}`.toUpperCase();
   }
 
-  function getTokenLink(customer: CustomerRow) {
-    const meta = customer.metadata ?? {};
-    const raw =
-      meta?.tokenizationLink?.url ||
-      meta?.wompi?.tokenizationLink?.url ||
-      "";
-    const token =
-      meta?.tokenizationLink?.token ||
-      meta?.wompi?.tokenizationLink?.token ||
-      "";
-    return normalizePublicUrl(raw, subscriptionBaseUrl, "/public/suscripcion", token);
-  }
-
-  function getCartLink(customer: CustomerRow) {
-    const meta = customer.metadata ?? {};
-    const raw = meta?.cartLink?.url || "";
-    const token = meta?.cartLink?.token || "";
-    const catalogType = String(meta?.cartLink?.catalogType || "").toUpperCase();
-    const base =
-      catalogType === "SUBSCRIPTION"
-        ? subscriptionBaseUrl
-        : planBaseUrl || publicBaseUrl;
-    return normalizePublicUrl(raw, base, "/public/cart", token);
+  function resolveEffectiveTenantId(customer: CustomerRow) {
+    return String(currentTenantId || customer.tenantId || customer.tenantIds?.[0] || "").trim();
   }
 
   const productById = useMemo(() => {
@@ -228,9 +180,39 @@ export function CustomersTable({
     return list.some((entry: any) => String(extractTemplateProductId(entry)) === String(productId));
   }
 
-  function findTemplateForProduct(kind: "PLAN" | "SUBSCRIPTION" | "CART", productId: string) {
-    if (!productId) return null;
-    return checkoutTemplates.find((t: any) => String(t?.kind || "") === kind && templateMatchesProduct(t, productId)) || null;
+  function templateMatchesTenant(template: any, tenantId?: string | null) {
+    const resolvedTenantId = String(tenantId || "").trim();
+    if (!resolvedTenantId) return true;
+    const templateTenantId = String(template?.tenantId || "").trim();
+    return !templateTenantId || templateTenantId === resolvedTenantId;
+  }
+
+  function getDefaultTemplateIdForKind(kind: "PLAN" | "SUBSCRIPTION" | "CART") {
+    if (kind === "PLAN") return String(checkoutConfig?.defaultPlanTemplateId || "").trim();
+    if (kind === "SUBSCRIPTION") return String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim();
+    return String(checkoutConfig?.defaultCartTemplateId || "").trim();
+  }
+
+  function findTemplateForCustomer(kind: "PLAN" | "SUBSCRIPTION" | "CART", customer: CustomerRow, productId: string) {
+    const effectiveTenantId = resolveEffectiveTenantId(customer);
+    const candidates = checkoutTemplates.filter((t: any) => {
+      return Boolean(t?.active) && String(t?.kind || "") === kind && templateMatchesTenant(t, effectiveTenantId);
+    });
+
+    if (productId) {
+      const exactTenantMatch =
+        candidates.find((t: any) => String(t?.tenantId || "").trim() === effectiveTenantId && templateMatchesProduct(t, productId)) || null;
+      if (exactTenantMatch) return exactTenantMatch;
+      const productMatch = candidates.find((t: any) => templateMatchesProduct(t, productId)) || null;
+      if (productMatch) return productMatch;
+    }
+
+    const defaultTemplateId = getDefaultTemplateIdForKind(kind);
+    if (!defaultTemplateId) return null;
+    const exactDefault =
+      candidates.find((t: any) => String(t?.tenantId || "").trim() === effectiveTenantId && String(t?.id || "").trim() === defaultTemplateId) || null;
+    if (exactDefault) return exactDefault;
+    return candidates.find((t: any) => String(t?.id || "").trim() === defaultTemplateId) || null;
   }
 
 
@@ -252,29 +234,28 @@ export function CustomersTable({
     return template || null;
   }
 
-  function hasChatwootTemplate(template: any) {
-    return Boolean(String(template?.chatwootTemplate?.name || "").trim());
-  }
-
   function resolveActionBlockReason(customer: CustomerRow, action: "PAYMENT" | "TOKEN" | "CATALOG_PLAN" | "CATALOG_SUBSCRIPTION") {
     const customerId = String(customer.id || "").trim();
     const productId = resolveCustomerProductId(customerId);
-    if (!productId) return "missing_product_for_customer";
 
     if (action === "PAYMENT") {
-      return hasChatwootTemplate(resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK")) ? "" : "missing_template";
+      if (!productId) return "missing_product_for_customer";
+      if (!findTemplateForCustomer("PLAN", customer, productId)) return "missing_checkout_for_product";
+      if (missingPlanBase) return "missing_plan_base_url";
+      return isNotificationTemplateConfigured(resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK")) ? "" : "missing_template";
     }
 
     if (action === "TOKEN") {
-      if (!findTemplateForProduct("SUBSCRIPTION", productId)) return "missing_checkout_for_product";
+      if (!productId) return "missing_product_for_customer";
+      if (!findTemplateForCustomer("SUBSCRIPTION", customer, productId)) return "missing_checkout_for_product";
       if (missingSubBase) return "missing_subscription_base_url";
-      return hasChatwootTemplate(resolveNotificationTemplate("TOKENIZATION_LINK_CREATED")) ? "" : "missing_template";
+      return isNotificationTemplateConfigured(resolveNotificationTemplate("TOKENIZATION_LINK_CREATED")) ? "" : "missing_template";
     }
 
-    if (!findTemplateForProduct("CART", productId)) return "missing_checkout_for_product";
+    if (!findTemplateForCustomer("CART", customer, productId)) return productId ? "missing_checkout_for_product" : "missing_cart_template";
     if (action === "CATALOG_SUBSCRIPTION" && missingSubBase) return "missing_subscription_base_url";
     if (action === "CATALOG_PLAN" && missingPublicBase) return "missing_public_base_url";
-    return hasChatwootTemplate(
+    return isNotificationTemplateConfigured(
       resolveNotificationTemplate("CATALOG_LINK_CREATED", action === "CATALOG_SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN")
     )
       ? ""
@@ -312,19 +293,6 @@ export function CustomersTable({
       defaultCartMode,
       preferredCartMode
     };
-  }
-
-  function renderNotificationPreview(template: any) {
-    if (!template) return "No hay plantilla configurada en Notificaciones.";
-    if (template?.content && String(template.content || "").trim() && String(template.content || "") !== "(template)") {
-      return String(template.content || "").trim();
-    }
-    const name = String(template?.chatwootTemplate?.name || "").trim();
-    const lang = String(template?.chatwootTemplate?.language || "").trim();
-    const params = template?.chatwootTemplate?.processed_params?.body || [];
-    if (!name) return "Plantilla configurada en CentralCom.";
-    const paramText = Array.isArray(params) && params.length ? params.map((p: any) => String(p?.value || "")).join(" | ") : "—";
-    return `Plantilla WhatsApp: ${name}${lang ? ` (${lang})` : ""}\nParámetros: ${paramText}`;
   }
 
 
@@ -478,6 +446,27 @@ export function CustomersTable({
     }
   }
 
+  async function clearCustomerPaymentSource(customerId: string) {
+    if (!window.confirm("¿Quitar el método de pago guardado?")) return;
+    setClearingTokenId(customerId);
+    try {
+      const res = await fetch("/api/customers/clear-payment-source", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ customerId })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        openNotify("fail", mapSendError(json?.error || "request_failed"));
+        return;
+      }
+      setTokenStateByCustomer((prev) => ({ ...prev, [String(customerId)]: false }));
+      openNotify("ok", "Método de pago removido.");
+    } finally {
+      setClearingTokenId(null);
+    }
+  }
+
   function mapSendError(code: string) {
     const normalized = String(code || "").trim();
     switch (normalized) {
@@ -496,76 +485,54 @@ export function CustomersTable({
       case "missing_checkout_for_product":
         return "No hay un checkout público asociado al producto de este contacto.";
       case "missing_product_for_customer":
-        return "Este contacto no tiene un producto asociado para enviar el checkout.";
+        return "Este contacto no tiene un producto o suscripción asociada. Solo puedes enviar catálogo hasta que el cliente elija qué producto contratar.";
       case "missing_template":
-        return "No hay plantilla activa para este envío.";
+        return "Falta una plantilla WhatsApp activa en Notificaciones para este envío.";
+      case "customer_phone_required":
+        return "El contacto no tiene teléfono. Agrégalo antes de enviar el mensaje.";
+      case "missing_customer_fields":
+        return "El contacto debe tener nombre, email y teléfono para enviarlo por Chatwoot.";
+      case "monto_invalido":
+      case "invalid_amount":
+        return "Debes ingresar un monto válido para el link de pago.";
+      case "whatsapp_inbox_required":
+        return "No hay un inbox de WhatsApp disponible para enviar esta plantilla.";
+      case "whatsapp_channel_required":
+        return "El canal seleccionado no es de WhatsApp y la plantilla no se puede enviar.";
+      case "whatsapp_channel_lookup_failed":
+        return "No se pudo validar el canal de WhatsApp en Chatwoot.";
+      case "chatwoot not configured":
+      case "chatwoot_not_configured":
+        return "Chatwoot no está configurado para este entorno.";
+      case "contact not found/created":
+      case "contact_not_found":
+        return "No se pudo crear o encontrar el contacto en Chatwoot.";
+      case "chatwoot_conversation_missing":
+        return "No se pudo abrir la conversación en Chatwoot.";
       case "no_rules":
-        return "No hay plantillas activas en Notificaciones para este envío.";
+        return "Falta una plantilla WhatsApp activa en Notificaciones para este envío.";
       case "invalid_body":
         return "Faltan datos obligatorios. Revisa la configuración.";
       case "invalid_payload":
         return "No se pudo preparar el link. Revisa la configuración del checkout.";
+      case "invalid_json":
+        return "No se pudo procesar la solicitud. Intenta nuevamente.";
       case "auth_required":
         return "Sesión vencida. Vuelve a iniciar sesión.";
+      case "customer_not_found":
+        return "No se encontró el contacto para este envío.";
+      case "public_checkout_create_failed":
+        return "No se pudo generar el checkout público para este envío.";
       case "store_failed":
         return "No se pudo guardar el link en el contacto.";
       case "centralcom_failed":
-        return "CentralCom no pudo enviar el mensaje. Revisa la configuración de conexiones.";
+        return "No se pudo enviar el mensaje de WhatsApp. Revisa la configuración de Chatwoot.";
       case "request_failed":
       case "send_failed":
         return "No se pudo enviar el mensaje. Intenta nuevamente.";
       default:
         return normalized || "No se pudo enviar el mensaje.";
     }
-  }
-
-  function openViewLinks(customer: CustomerRow) {
-    lastActiveRef.current = document.activeElement as HTMLElement | null;
-    const links: Array<{
-      label: string;
-      url: string;
-      sentAt?: string;
-      expiresAt?: string;
-      usedAt?: string;
-      isValid: boolean;
-    }> = [];
-
-    // Payment link from latestLinks
-    const latestLink = latestLinks[String(customer.id)];
-    if (latestLink?.checkoutUrl) {
-      links.push({
-        label: "Link de pago",
-        url: latestLink.checkoutUrl,
-        sentAt: latestLink.createdAt,
-        isValid: latestLink.chatwootStatus !== "failed"
-      });
-    }
-
-    // Tokenization link from metadata
-    const tokenMeta = (customer.metadata?.tokenizationLink as any) || {};
-    if (tokenMeta?.url) {
-      const usedAt = tokenMeta.usedAt ? Date.parse(String(tokenMeta.usedAt)) : NaN;
-      const expiresAt = tokenMeta.expiresAt ? Date.parse(String(tokenMeta.expiresAt)) : NaN;
-      const now = Date.now();
-      const isValid = !Number.isFinite(usedAt) && (!Number.isFinite(expiresAt) || expiresAt > now);
-      links.push({
-        label: "Link de tokenización",
-        url: tokenMeta.url,
-        sentAt: tokenMeta.createdAt,
-        expiresAt: tokenMeta.expiresAt,
-        usedAt: tokenMeta.usedAt,
-        isValid
-      });
-    }
-
-    setViewLinksItems(links);
-    setViewLinksOpen(true);
-  }
-
-  function closeViewLinks() {
-    setViewLinksOpen(false);
-    setViewLinksItems([]);
-    setTimeout(() => lastActiveRef.current?.focus(), 0);
   }
 
   function openViewFicha(customer: CustomerRow) {
@@ -650,13 +617,26 @@ export function CustomersTable({
                   >
                     <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="id" value={c.id} />
-                    <input type="hidden" name="tenantId" value={c.tenantId || ""} />
+                    <input type="hidden" name="tenantId" value={resolveEffectiveTenantId(c)} />
                     {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
                     <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar contacto" title="Eliminar contacto" />
                   </form>
                   <Link className="ghost btn-compact btn-noicon btn-blue contact-action-btn action-card" href={`/customers/${c.id}/payment-method`}>
                     {hasToken(c) ? "Actualizar tarjeta" : "Guardar tarjeta"}
                   </Link>
+                  {hasToken(c) ? (
+                    <button
+                      className="ghost btn-compact btn-noicon btn-red contact-action-btn action-danger"
+                      type="button"
+                      onClick={() => {
+                        void clearCustomerPaymentSource(c.id);
+                      }}
+                      disabled={clearingTokenId === c.id}
+                      title={clearingTokenId === c.id ? "Quitando token" : "Quitar token"}
+                    >
+                      {clearingTokenId === c.id ? "Quitando..." : "Quitar token"}
+                    </button>
+                  ) : null}
                   <button
                     className="ghost btn-compact btn-pay contact-action-btn action-payment"
                     type="button"
@@ -693,6 +673,9 @@ export function CustomersTable({
                     }
                   >
                     Enviar catálogo
+                  </button>
+                  <button className="ghost btn-compact btn-noicon btn-blue btn-create contact-action-btn action-create" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(c)}>
+                    Crear suscripción
                   </button>
                   <details className="inline-detail">
                     <summary className="ghost btn-compact btn-icon-only btn-view" aria-label="Ver más" title="Ver más" />
@@ -777,7 +760,7 @@ export function CustomersTable({
                   >
                     <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="id" value={c.id} />
-                    <input type="hidden" name="tenantId" value={c.tenantId || ""} />
+                    <input type="hidden" name="tenantId" value={resolveEffectiveTenantId(c)} />
                     {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
                     <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar contacto" title="Eliminar contacto" />
                   </form>
@@ -874,25 +857,8 @@ export function CustomersTable({
                       <button
                         className="ghost btn-compact btn-noicon btn-red contact-action-btn action-danger"
                         type="button"
-                        onClick={async () => {
-                          if (!window.confirm("¿Quitar el método de pago guardado?")) return;
-                          setClearingTokenId(c.id);
-                          try {
-                            const res = await fetch("/api/customers/clear-payment-source", {
-                              method: "POST",
-                              headers: { "content-type": "application/json" },
-                              body: JSON.stringify({ customerId: c.id })
-                            });
-                            const json = await res.json().catch(() => ({}));
-                            if (!res.ok || !json?.ok) {
-                              openNotify("fail", mapSendError(json?.error || "request_failed"));
-                              return;
-                            }
-                            setTokenStateByCustomer((prev) => ({ ...prev, [String(c.id)]: false }));
-                            openNotify("ok", "Método de pago removido.");
-                          } finally {
-                            setClearingTokenId(null);
-                          }
+                        onClick={() => {
+                          void clearCustomerPaymentSource(c.id);
                         }}
                         disabled={clearingTokenId === c.id}
                       >
@@ -950,6 +916,11 @@ export function CustomersTable({
                     <div className="paylink-error">{sendError[c.id]}</div>
                   ) : null}
                   {sendOk[c.id] ? <div className="paylink-success">Link enviado.</div> : null}
+                  {!hasPlan ? (
+                    <div className="field-hint">
+                      Sin suscripción activa, desde contactos solo se puede enviar catálogo. El link de pago o débito automático se habilitan cuando exista un producto asociado.
+                    </div>
+                  ) : null}
               </div>
             </div>
           );
@@ -965,7 +936,7 @@ export function CustomersTable({
             empresas={empresas}
             catalogItems={products}
             csrfToken={csrfToken}
-            tenantId={planModalCustomer?.tenantId || ""}
+            tenantId={resolveEffectiveTenantId(planModalCustomer)}
             tenants={tenants}
             defaultOpen
             forceOpen
@@ -991,13 +962,8 @@ export function CustomersTable({
                   openNotify("fail", mapSendError("missing_product_for_customer"));
                   return;
                 }
-                const checkoutTemplate = findTemplateForProduct("PLAN", productId);
-                if (!checkoutTemplate) {
-                  openNotify("fail", mapSendError("missing_checkout_for_product"));
-                  return;
-                }
                 const payTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK");
-                const canSendPay = Boolean(payTemplate?.chatwootTemplate?.name);
+                const canSendPay = isNotificationTemplateConfigured(payTemplate);
                 if (!canSendPay) {
                   setSendError((prev) => ({ ...prev, [customer.id]: "missing_template" }));
                   openNotify("fail", mapSendError("missing_template"));
@@ -1016,7 +982,7 @@ export function CustomersTable({
                       customerId: customer.id,
                       customerName: customer.name || "",
                       amount: payAmount,
-                      tenantId: customer.tenantId || "",
+                      tenantId: resolveEffectiveTenantId(customer),
                       productId
                     }),
                     signal: controller.signal
@@ -1035,14 +1001,10 @@ export function CustomersTable({
                     openNotify("fail", mapSendError(msg));
                     return;
                   }
-                  if (json?.publicUrl || json?.checkoutUrl) {
-                    const nextUrl = String(json?.publicUrl || json?.checkoutUrl || "");
-                    setLinkOverrides((prev) => ({ ...prev, [customer.id]: { ...(prev[customer.id] || {}), payment: nextUrl } }));
-                  }
                   const chatErr = String(json?.chatwootError || "").trim();
                   if (chatErr) {
-                    setSendError((prev) => ({ ...prev, [customer.id]: "centralcom_failed" }));
-                    openNotify("fail", `CentralCom no pudo enviar el mensaje: ${chatErr}`);
+                    setSendError((prev) => ({ ...prev, [customer.id]: chatErr }));
+                    openNotify("fail", mapSendError(chatErr));
                     return;
                   }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
@@ -1059,12 +1021,13 @@ export function CustomersTable({
             >
               {(() => {
                 const payTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK");
-                const canSendPay = Boolean(payTemplate?.chatwootTemplate?.name);
+                const canSendPay = isNotificationTemplateConfigured(payTemplate);
                 const productId = resolveCustomerProductId(payModalCustomer.id);
-                const checkoutTemplate = productId ? findTemplateForProduct("PLAN", productId) : null;
+                const checkoutTemplate = productId ? findTemplateForCustomer("PLAN", payModalCustomer, productId) : null;
                 const productName = productById.get(productId)?.name || "";
                 const missingProduct = !productId;
                 const missingCheckout = !checkoutTemplate;
+                const missingPaymentBase = missingPlanBase;
                 const isSending = sendingPaymentId === payModalCustomer.id;
                 return (
                   <>
@@ -1088,13 +1051,13 @@ export function CustomersTable({
                   </div>
                 ) : null}
                 {missingCheckout ? (
-                  <div className="field-hint" style={{ color: "var(--status-warning)" }}>
-                    No hay checkout público para ese producto. Se enviará el checkout interno de pago.
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    No hay checkout público de link de pago asociado al producto de este contacto.
                   </div>
                 ) : null}
-                {missingPublicBase ? (
-                  <div className="field-hint" style={{ color: "var(--status-warning)" }}>
-                    Falta configurar la URL base de checkout público. Se enviará el checkout interno de pago.
+                {missingPaymentBase ? (
+                  <div className="field-hint" style={{ color: "var(--danger)" }}>
+                    Falta configurar la URL base de link de pago en Checkout público.
                   </div>
                 ) : null}
               </div>
@@ -1104,16 +1067,16 @@ export function CustomersTable({
                   className="input"
                   rows={4}
                   readOnly
-                  value={renderNotificationPreview(payTemplate)}
+                  value={renderNotificationTemplatePreview(payTemplate)}
                   style={{ whiteSpace: "pre-wrap" }}
                 />
-                <div className="field-hint">Se usa la plantilla configurada en Notificaciones.</div>
+                <div className="field-hint">Se usa la plantilla WhatsApp activa de Notificaciones para link de pago.</div>
               </div>
               {!canSendPay ? (
                 <div className="paylink-error">
                   {mapSendError("missing_template")}
                   <div style={{ marginTop: 6 }}>
-                    <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=payment_link_created">
+                    <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp&env=PRODUCTION">
                       Configurar plantilla
                     </a>
                   </div>
@@ -1124,7 +1087,7 @@ export function CustomersTable({
                   {mapSendError(sendError[payModalCustomer.id])}
                   {sendError[payModalCustomer.id] === "missing_template" || sendError[payModalCustomer.id] === "no_rules" ? (
                     <div style={{ marginTop: 6 }}>
-                      <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=payment_link_created">
+                      <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp&env=PRODUCTION">
                         Configurar plantilla
                       </a>
                     </div>
@@ -1143,7 +1106,9 @@ export function CustomersTable({
                     isSending ||
                     !payAmount ||
                     !canSendPay ||
-                    missingProduct
+                    missingProduct ||
+                    missingCheckout ||
+                    missingPaymentBase
                   }
                 >
                   {isSending ? "Enviando..." : "Enviar"}
@@ -1165,20 +1130,16 @@ export function CustomersTable({
                 const customer = cartModalCustomer;
                 if (!customer) return;
                 const productId = resolveCustomerProductId(customer.id);
-                if (!productId) {
-                  openNotify("fail", mapSendError("missing_product_for_customer"));
-                  return;
-                }
-                const checkoutTemplate = findTemplateForProduct("CART", productId);
+                const checkoutTemplate = findTemplateForCustomer("CART", customer, productId);
                 if (!checkoutTemplate) {
-                  openNotify("fail", mapSendError("missing_checkout_for_product"));
+                  openNotify("fail", mapSendError(productId ? "missing_checkout_for_product" : "missing_cart_template"));
                   return;
                 }
                 const notifTemplate = resolveNotificationTemplate(
                   "CATALOG_LINK_CREATED",
                   cartModalMode === "SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN"
                 );
-                const canSendNotif = Boolean(notifTemplate?.chatwootTemplate?.name);
+                const canSendNotif = isNotificationTemplateConfigured(notifTemplate);
                 if (!canSendNotif) {
                   setSendError((prev) => ({ ...prev, [customer.id]: "missing_template" }));
                   openNotify("fail", mapSendError("missing_template"));
@@ -1196,8 +1157,8 @@ export function CustomersTable({
                     body: JSON.stringify({
                       customerId: customer.id,
                       customerName: customer.name || "",
-                      tenantId: customer.tenantId || "",
-                      productId,
+                      tenantId: resolveEffectiveTenantId(customer),
+                      ...(productId ? { productId } : {}),
                       catalogType: cartModalMode
                     }),
                     signal: controller.signal
@@ -1216,8 +1177,11 @@ export function CustomersTable({
                     openNotify("fail", mapSendError(msg));
                     return;
                   }
-                  if (json?.link) {
-                    setLinkOverrides((prev) => ({ ...prev, [customer.id]: { ...(prev[customer.id] || {}), cart: json.link } }));
+                  const chatErr = String(json?.chatwootError || "").trim();
+                  if (chatErr) {
+                    setSendError((prev) => ({ ...prev, [customer.id]: chatErr }));
+                    openNotify("fail", mapSendError(chatErr));
+                    return;
                   }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
                   openNotify("ok", "El catálogo fue enviado correctamente.");
@@ -1236,14 +1200,16 @@ export function CustomersTable({
                   "CATALOG_LINK_CREATED",
                   cartModalMode === "SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN"
                 );
-                const canSendNotif = Boolean(notifTemplate?.chatwootTemplate?.name);
+                const canSendNotif = isNotificationTemplateConfigured(notifTemplate);
                 const productId = resolveCustomerProductId(cartModalCustomer.id);
-                const checkoutTemplate = productId ? findTemplateForProduct("CART", productId) : null;
+                const checkoutTemplate = productId ? findTemplateForCustomer("CART", cartModalCustomer, productId) : null;
+                const fallbackCartTemplate = !productId ? findTemplateForCustomer("CART", cartModalCustomer, "") : checkoutTemplate;
+                const effectiveCheckoutTemplate = checkoutTemplate || fallbackCartTemplate;
                 const productName = productById.get(productId)?.name || "";
                 const missingProduct = !productId;
-                const missingCheckout = !checkoutTemplate;
+                const missingCheckout = !effectiveCheckoutTemplate;
                 const currentModeMissingBase = cartModalMode === "SUBSCRIPTION" ? missingSubBase : missingPublicBase;
-                const canSendCurrentMode = !missingProduct && !missingCheckout && !currentModeMissingBase && canSendNotif;
+                const canSendCurrentMode = !missingCheckout && !currentModeMissingBase && canSendNotif;
                 const isSending = sendingCartId === cartModalCustomer.id;
                 return (
                   <>
@@ -1259,15 +1225,15 @@ export function CustomersTable({
               </div>
               <div className="field">
                 <label>Checkout asociado</label>
-                <div className="field-hint">Producto: {productName || "—"}</div>
+                <div className="field-hint">Producto actual: {productName || "Sin producto asociado"}</div>
                 {missingProduct ? (
-                  <div className="field-hint" style={{ color: "var(--danger)" }}>
-                    El contacto no tiene un producto asociado.
+                  <div className="field-hint">
+                    El contacto no tiene producto asociado todavía. El cliente lo elegirá dentro del catálogo público.
                   </div>
                 ) : null}
                 {missingCheckout ? (
                   <div className="field-hint" style={{ color: "var(--danger)" }}>
-                    No hay checkout público para ese producto.
+                    {missingProduct ? "No hay una plantilla de catálogo por defecto para este canal." : "No hay checkout público para ese producto."}
                   </div>
                 ) : null}
                 {currentModeMissingBase ? (
@@ -1284,18 +1250,20 @@ export function CustomersTable({
                   className="input"
                   rows={4}
                   readOnly
-                  value={renderNotificationPreview(
+                  value={renderNotificationTemplatePreview(
                     resolveNotificationTemplate("CATALOG_LINK_CREATED", cartModalMode === "SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN")
                   )}
                   style={{ whiteSpace: "pre-wrap" }}
                 />
-                <div className="field-hint">Se usa la plantilla configurada en Notificaciones.</div>
+                <div className="field-hint">
+                  Se usa la plantilla WhatsApp activa de Notificaciones para {cartModalMode === "SUBSCRIPTION" ? "débito automático" : "link de pago"}.
+                </div>
               </div>
               {!canSendNotif ? (
                 <div className="paylink-error">
                   {mapSendError("missing_template")}
                   <div style={{ marginTop: 6 }}>
-                    <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=catalog_link_created">
+                    <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp&env=PRODUCTION">
                       Configurar plantilla
                     </a>
                   </div>
@@ -1335,13 +1303,13 @@ export function CustomersTable({
                   openNotify("fail", mapSendError("missing_product_for_customer"));
                   return;
                 }
-                const checkoutTemplate = findTemplateForProduct("SUBSCRIPTION", productId);
+                const checkoutTemplate = findTemplateForCustomer("SUBSCRIPTION", customer, productId);
                 if (!checkoutTemplate) {
                   openNotify("fail", mapSendError("missing_checkout_for_product"));
                   return;
                 }
                 const notifTemplate = resolveNotificationTemplate("TOKENIZATION_LINK_CREATED");
-                const canSendNotif = Boolean(notifTemplate?.chatwootTemplate?.name);
+                const canSendNotif = isNotificationTemplateConfigured(notifTemplate);
                 if (!canSendNotif) {
                   setSendError((prev) => ({ ...prev, [customer.id]: "missing_template" }));
                   openNotify("fail", mapSendError("missing_template"));
@@ -1359,7 +1327,7 @@ export function CustomersTable({
                     body: JSON.stringify({
                       customerId: customer.id,
                       customerName: customer.name || "",
-                      tenantId: customer.tenantId || "",
+                      tenantId: resolveEffectiveTenantId(customer),
                       productId
                     }),
                     signal: controller.signal
@@ -1378,8 +1346,11 @@ export function CustomersTable({
                     openNotify("fail", mapSendError(msg));
                     return;
                   }
-                  if (json?.link) {
-                    setLinkOverrides((prev) => ({ ...prev, [customer.id]: { ...(prev[customer.id] || {}), token: json.link } }));
+                  const chatErr = String(json?.chatwootError || "").trim();
+                  if (chatErr) {
+                    setSendError((prev) => ({ ...prev, [customer.id]: chatErr }));
+                    openNotify("fail", mapSendError(chatErr));
+                    return;
                   }
                   setSendOk((prev) => ({ ...prev, [customer.id]: "sent" }));
                   openNotify("ok", "El link de débito automático fue enviado correctamente.");
@@ -1395,9 +1366,9 @@ export function CustomersTable({
             >
               {(() => {
                 const notifTemplate = resolveNotificationTemplate("TOKENIZATION_LINK_CREATED");
-                const canSendNotif = Boolean(notifTemplate?.chatwootTemplate?.name);
+                const canSendNotif = isNotificationTemplateConfigured(notifTemplate);
                 const productId = resolveCustomerProductId(tokenModalCustomer.id);
-                const checkoutTemplate = productId ? findTemplateForProduct("SUBSCRIPTION", productId) : null;
+                const checkoutTemplate = productId ? findTemplateForCustomer("SUBSCRIPTION", tokenModalCustomer, productId) : null;
                 const productName = productById.get(productId)?.name || "";
                 const missingProduct = !productId;
                 const missingCheckout = !checkoutTemplate;
@@ -1429,16 +1400,16 @@ export function CustomersTable({
                   className="input"
                   rows={4}
                   readOnly
-                  value={renderNotificationPreview(resolveNotificationTemplate("TOKENIZATION_LINK_CREATED"))}
+                  value={renderNotificationTemplatePreview(resolveNotificationTemplate("TOKENIZATION_LINK_CREATED"))}
                   style={{ whiteSpace: "pre-wrap" }}
                 />
-                <div className="field-hint">Se usa la plantilla configurada en Notificaciones.</div>
+                <div className="field-hint">Se usa la plantilla WhatsApp activa de Notificaciones para débito automático.</div>
               </div>
               {!canSendNotif ? (
                 <div className="paylink-error">
                   {mapSendError("missing_template")}
                   <div style={{ marginTop: 6 }}>
-                    <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=tokenization_link_created">
+                    <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp&env=PRODUCTION">
                       Configurar plantilla
                     </a>
                   </div>
@@ -1449,7 +1420,7 @@ export function CustomersTable({
                   {mapSendError(sendError[tokenModalCustomer.id])}
                   {sendError[tokenModalCustomer.id] === "missing_template" ? (
                     <div style={{ marginTop: 6 }}>
-                      <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=tokenization_link_created">
+                      <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp&env=PRODUCTION">
                         Configurar plantilla
                       </a>
                     </div>
@@ -1464,7 +1435,7 @@ export function CustomersTable({
                 <button
                   className="primary btn-compact btn-send"
                   type="submit"
-                  disabled={isSending}
+                  disabled={isSending || missingProduct || missingCheckout || missingSubBase || !canSendNotif}
                 >
                   {isSending ? "Enviando..." : "Enviar"}
                 </button>
@@ -1476,10 +1447,6 @@ export function CustomersTable({
         ) : null}
       </AppModal>
 
-
-      {viewLinksOpen ? (
-        <ViewLinksModal links={viewLinksItems} onClose={closeViewLinks} />
-      ) : null}
 
       <AppModal
         open={Boolean(viewFichaOpen && viewFichaCustomer)}

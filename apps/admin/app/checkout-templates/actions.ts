@@ -67,7 +67,7 @@ export async function createCheckoutTemplate(formData: FormData) {
     if (!productIds.length) {
       return redirectWith("checkout_template_create", "fail", "product_required");
     }
-    if (productIds.length > 1) {
+    if (kind !== "CART" && productIds.length > 1) {
       return redirectWith("checkout_template_create", "fail", "max_one_product");
     }
     const expiryHoursRaw = String(formData.get("expiryHours") || "").trim();
@@ -120,7 +120,7 @@ export async function updateCheckoutTemplate(formData: FormData) {
     if (!productIds.length) {
       return redirectWith("checkout_template_update", "fail", "product_required");
     }
-    if (productIds.length > 1) {
+    if (kind !== "CART" && productIds.length > 1) {
       return redirectWith("checkout_template_update", "fail", "max_one_product");
     }
     const expiryHoursRaw = String(formData.get("expiryHours") || "").trim();

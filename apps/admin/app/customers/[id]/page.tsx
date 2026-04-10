@@ -1067,9 +1067,15 @@ export default async function CustomerDetailPage({
               <Link className="ghost btn-compact" href={`/customers/${customer.id}?logsPage=${logsPage + 1}`} data-loader="off">
                 Mes anterior
               </Link>
-              <Link className="ghost btn-compact" href={`/customers/${customer.id}?logsPage=${Math.max(1, logsPage - 1)}`} aria-disabled={logsPage <= 1} data-loader="off">
-                Más reciente
-              </Link>
+              {logsPage <= 1 ? (
+                <span className="ghost btn-compact" aria-disabled="true">
+                  Más reciente
+                </span>
+              ) : (
+                <Link className="ghost btn-compact" href={`/customers/${customer.id}?logsPage=${Math.max(1, logsPage - 1)}`} data-loader="off">
+                  Más reciente
+                </Link>
+              )}
             </div>
           </div>
           {logs.length ? (

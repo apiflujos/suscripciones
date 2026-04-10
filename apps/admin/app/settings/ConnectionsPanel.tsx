@@ -176,8 +176,8 @@ export function ConnectionsPanel({
             <img src="/brand/logo_vertical.svg" alt="Logo" data-theme-logo="vertical" />
           </div>
           <div className="conn-body">
-            <div className="conn-title">CentralCom</div>
-            <div className="conn-sub">Comunicaciones</div>
+            <div className="conn-title">Chatwoot · WhatsApp</div>
+            <div className="conn-sub">Mensajería y plantillas</div>
           </div>
           <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
             <span>{commsProduction?.baseUrl ? "Activo" : "Inactivo"}</span>
@@ -217,7 +217,7 @@ export function ConnectionsPanel({
       </div>
       <div className="panel module" style={{ marginTop: 12 }}>
         <div className="panelHeaderRow" style={{ justifyContent: "space-between", gap: 8 }}>
-          <strong>CentralCom · Plantillas WhatsApp</strong>
+          <strong>Chatwoot · Plantillas WhatsApp</strong>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button className="ghost btn-compact" type="button" onClick={syncWhatsappTemplates} disabled={templatesSync.running} data-loader="off">
               {templatesSync.running ? "Sincronizando..." : "Sincronizar plantillas"}
@@ -321,12 +321,12 @@ export function ConnectionsPanel({
       <AppModal
         open={open === "central"}
         onClose={() => setOpen(null)}
-        title="CentralCom"
+        title="Chatwoot"
         panelClassName="modal-panel-fixed"
       >
         <div className="panel module">
           <div className="panelHeaderRow">
-            <strong>CentralCom · Chatwoot</strong>
+            <strong>Chatwoot · WhatsApp</strong>
           </div>
           <form action={actions.updateChatwoot} style={{ display: "grid", gap: 10 }}>
             <input type="hidden" name="csrf" value={csrfToken} />
@@ -334,7 +334,7 @@ export function ConnectionsPanel({
             <input type="hidden" name="environment" value="PRODUCTION" />
             <div className="field">
               <label>URL base</label>
-              <input className="input" name="baseUrl" placeholder="https://central.tu-dominio.com" defaultValue={commsProduction?.baseUrl || ""} />
+              <input className="input" name="baseUrl" placeholder="https://chatwoot.tu-dominio.com" defaultValue={commsProduction?.baseUrl || ""} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
               <div className="field">

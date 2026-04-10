@@ -1,6 +1,6 @@
 import { activateSubscription, cancelSubscription, deleteSubscription, mergeDuplicateSubscriptions, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
-import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, sendCentralComPaymentLink, sendCentralComTokenizationLink, updateSubscriptionTenants, updateSubscriptionBillingSettings, markSubscriptionPaidManual, unmarkSubscriptionPaidManual, setBillingChargeDate } from "./actions";
+import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, sendWhatsAppPaymentLink, sendWhatsAppTokenizationLink, updateSubscriptionTenants, updateSubscriptionBillingSettings, markSubscriptionPaidManual, unmarkSubscriptionPaidManual, setBillingChargeDate } from "./actions";
 import { ManualChargeButton } from "./ManualChargeButton";
 import { ManualMarkPaidButton } from "./ManualMarkPaidButton";
 import { ManualUnmarkPaidButton } from "./ManualUnmarkPaidButton";
@@ -12,6 +12,7 @@ import { listCatalogProducts } from "../admin/_services/products";
 import { listEmpresas } from "../admin/_services/companies";
 import { listTenants } from "../admin/_services/tenants";
 import { getAdminSettings } from "../admin/_services/settings";
+import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
 import { resolveTenantId } from "../admin/_services/tenantResolver";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { getCsrfToken } from "../lib/csrf";
@@ -33,6 +34,8 @@ import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notif
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
 import { PageToolbar } from "../ui/PageToolbar";
 import { formatCivilDate } from "./civilDate";
+import { normalizeErrorParam } from "../lib/errorParam";
+import { MISSING_WHATSAPP_TEMPLATE_MESSAGE } from "../lib/notificationTemplate";
 
 export const dynamic = "force-dynamic";
 
@@ -271,6 +274,25 @@ function splitPlanDisplay(value: unknown) {
   };
 }
 
+function extractTemplateProductId(entry: any) {
+  if (!entry) return "";
+  if (typeof entry === "string") return String(entry).trim();
+  if (typeof entry === "object") return String(entry?.id || "").trim();
+  return "";
+}
+
+function templateMatchesProduct(template: any, productId: string) {
+  const list = Array.isArray(template?.productIds) ? template.productIds : [];
+  return list.some((entry: any) => String(extractTemplateProductId(entry)) === String(productId));
+}
+
+function templateMatchesTenant(template: any, tenantId?: string | null) {
+  const resolvedTenantId = String(tenantId || "").trim();
+  if (!resolvedTenantId) return true;
+  const templateTenantId = String(template?.tenantId || "").trim();
+  return !templateTenantId || templateTenantId === resolvedTenantId;
+}
+
 export default async function BillingPage({
   searchParams
 }: {
@@ -295,7 +317,6 @@ export default async function BillingPage({
   const chargeDateScheduled = typeof sp.chargeDateScheduled === "string" ? sp.chargeDateScheduled : "";
   const tenantsUpdated = typeof sp.tenantsUpdated === "string" ? sp.tenantsUpdated : "";
   const central = typeof sp.central === "string" ? sp.central : "";
-  const centralMode = typeof sp.centralMode === "string" ? sp.centralMode : "";
   const error = typeof sp.error === "string" ? sp.error : "";
   const crear = typeof sp.crear === "string" ? sp.crear : "";
   const selectCustomerId = typeof sp.selectCustomerId === "string" ? sp.selectCustomerId : "";
@@ -354,7 +375,7 @@ export default async function BillingPage({
   const ids = usingSmartFilters && resolvedIds && resolvedIds.length === 0 ? ["__none__"] : resolvedIds || [];
   if (ids.length) subParams.set("ids", ids.join(","));
 
-  const [subs, customers, products, empresasRes, tenantsRes, settings, notificationsConfig] = await Promise.all([
+  const [subs, customers, products, empresasRes, tenantsRes, settings, notificationsConfig, checkoutTemplatesRaw] = await Promise.all([
     listSubscriptions({
       tenantId: resolvedTenantId || undefined,
       take: Number(subParams.get("take") || 50),
@@ -370,7 +391,8 @@ export default async function BillingPage({
     listEmpresas({ tenantId: resolvedTenantId || undefined, take: 200 }),
     listTenants(),
     getAdminSettings(),
-    getNotificationsConfigForEnv("PRODUCTION").catch(() => ({ templates: [], rules: [] }))
+    getNotificationsConfigForEnv("PRODUCTION").catch(() => ({ templates: [], rules: [] })),
+    listCheckoutTemplates({ tenantId: resolvedTenantId || null }).catch(() => [])
   ]);
 
   const subItems = (subs.items ?? []) as any[];
@@ -385,7 +407,9 @@ export default async function BillingPage({
   const checkoutConfig = settings?.checkoutConfig || {};
   const notificationsTemplates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
   const notificationsRules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
+  const checkoutTemplates = Array.isArray(checkoutTemplatesRaw) ? checkoutTemplatesRaw : [];
   const subscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+  const planBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
   const planOptions: PlanOption[] = productItems.map((p: any): PlanOption => {
     const kind = String(p?.kind || "").toUpperCase() === "SERVICE" ? "SERVICE" : "PRODUCT";
     const requiresShipping = kind === "PRODUCT" && (p?.requiresShipping === true || p?.requiresShipping == null);
@@ -446,6 +470,7 @@ export default async function BillingPage({
         planIntervalUnit: String(plan?.intervalUnit || "MONTH"),
         planIntervalCount: Number(plan?.intervalCount || 1),
         tenantId: String(s.tenantId || plan?.tenantId || ""),
+        productId: String((plan?.metadata as any)?.catalog?.itemId || ""),
         tenantIds,
         customerId: String(s.customerId || ""),
         customerName: String(customer?.name || customer?.email || s.customerId || "—"),
@@ -521,6 +546,42 @@ export default async function BillingPage({
       return ad - bd;
     });
 
+  const findCheckoutTemplateForRow = (kind: "PLAN" | "SUBSCRIPTION", row: any) => {
+    const tenantId = String(row?.tenantId || "").trim();
+    const productId = String(row?.productId || "").trim();
+    const candidates = checkoutTemplates.filter((template: any) => {
+      return Boolean(template?.active) && String(template?.kind || "") === kind && templateMatchesTenant(template, tenantId);
+    });
+    if (productId) {
+      const exactTenantMatch =
+        candidates.find((template: any) => String(template?.tenantId || "").trim() === tenantId && templateMatchesProduct(template, productId)) || null;
+      if (exactTenantMatch) return exactTenantMatch;
+      const productMatch = candidates.find((template: any) => templateMatchesProduct(template, productId)) || null;
+      if (productMatch) return productMatch;
+    }
+    const defaultTemplateId =
+      kind === "PLAN"
+        ? String(checkoutConfig?.defaultPlanTemplateId || "").trim()
+        : String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim();
+    if (!defaultTemplateId) return null;
+    const exactDefault =
+      candidates.find((template: any) => String(template?.tenantId || "").trim() === tenantId && String(template?.id || "").trim() === defaultTemplateId) || null;
+    if (exactDefault) return exactDefault;
+    return candidates.find((template: any) => String(template?.id || "").trim() === defaultTemplateId) || null;
+  };
+
+  const getPaymentLinkBlockedReason = (row: any) => {
+    if (!findCheckoutTemplateForRow("PLAN", row)) return "No hay checkout público de link de pago asociado al producto de esta suscripción.";
+    if (!planBaseUrl) return "Falta configurar la URL base de link de pago en Checkout público.";
+    return "";
+  };
+
+  const getTokenizationBlockedReason = (row: any) => {
+    if (!findCheckoutTemplateForRow("SUBSCRIPTION", row)) return "No hay checkout público de débito automático asociado al producto de esta suscripción.";
+    if (!subscriptionBaseUrl) return "Falta configurar la URL base de suscripción en Checkout público.";
+    return "";
+  };
+
   const duplicateCountByKey = rows.reduce((acc, row) => {
     const key = `${row.customerId}:${row.planId}`;
     if (!row.customerId || !row.planId) return acc;
@@ -560,7 +621,7 @@ export default async function BillingPage({
     ...(filters ? { filters } : {})
   };
 
-  const resolveRowTokenUrl = (r: any) => {
+  const resolveRowTokenUrl = (r: any, transientUrl = "") => {
     const tokenMeta = (r.customerMetadata?.tokenizationLink as any) || {};
     const tokenMetaUrl = String(tokenMeta?.url || "").trim();
     const tokenMetaUsedAt = tokenMeta?.usedAt ? Date.parse(String(tokenMeta.usedAt)) : NaN;
@@ -570,17 +631,29 @@ export default async function BillingPage({
       Boolean(tokenMetaUrl) &&
       !Number.isFinite(tokenMetaUsedAt) &&
       (!Number.isFinite(tokenMetaExpiresAt) || tokenMetaExpiresAt > now);
-    return tokenUrl || (tokenMetaValid ? tokenMetaUrl : "");
+    return transientUrl || (tokenMetaValid ? tokenMetaUrl : "");
+  };
+
+  const matchesTransientSubscription = (r: any) => {
+    if (actionSubscriptionId) return actionSubscriptionId === r.id;
+    return Boolean(checkoutCustomerId && checkoutCustomerId === r.customerId);
+  };
+
+  const resolveRowCheckoutUrl = (r: any) => {
+    if (!checkoutUrl) return "";
+    return matchesTransientSubscription(r) ? checkoutUrl : "";
   };
 
   const renderBillingCard = (r: any) => {
     const isAutoDebit = r.mode === "AUTO_DEBIT";
-    const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
+    const rowCheckoutUrl = resolveRowCheckoutUrl(r);
+    const scopedTokenUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "";
     // Leer URL de tokenización del metadata del customer
-    const rowTokenUrl = resolveRowTokenUrl(r);
-    const sentForRow = central === "sent" && checkoutCustomerId && checkoutCustomerId === r.customerId;
-    const sentTokenForRow = Boolean(sentForRow && rowTokenUrl);
-    const sentPaymentForRow = Boolean(sentForRow && !rowTokenUrl);
+    const rowTokenUrl = resolveRowTokenUrl(r, scopedTokenUrl);
+    const sentForRow = central === "sent" && matchesTransientSubscription(r);
+    const createdPaymentForRow = central === "created" && Boolean(rowCheckoutUrl);
+    const sentTokenForRow = Boolean(sentForRow && rowTokenUrl && !rowCheckoutUrl);
+    const sentPaymentForRow = Boolean(sentForRow && rowCheckoutUrl);
     const chargedForRow = chargeStatus === "ok" && actionSubscriptionId === r.id;
     const chargeDateScheduledForRow = chargeDateScheduled && actionSubscriptionId === r.id;
     const tenantsUpdatedForRow = tenantsUpdated && actionSubscriptionId === r.id;
@@ -592,6 +665,8 @@ export default async function BillingPage({
     const isSuspended = r.status === "SUSPENDED";
     const isInactive = isCanceled || isSuspended;
     const alreadyPaidCurrentPeriod = Boolean(r.lastPaidInCurrentPeriod);
+    const paymentLinkBlockedReason = getPaymentLinkBlockedReason(r);
+    const tokenizationBlockedReason = getTokenizationBlockedReason(r);
 
     // Botón de cobrar: SIEMPRE visible para débito automático (activo)
     // Es el botón más importante - poder cobrar!
@@ -628,10 +703,7 @@ export default async function BillingPage({
     const totalLabel = fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda);
     const baseLabel = fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda);
     const shippingLabel = r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : "Gratis";
-    const contactMeta = [r.customerEmail || "", r.identificacion && r.identificacion !== "—" ? r.identificacion : "", r.customerPhone || ""]
-      .filter(Boolean)
-      .join(" · ") || "—";
-    
+
     return (
         <div className="billing-card">
           <div className="billing-header">
@@ -821,7 +893,9 @@ export default async function BillingPage({
                 defaultAmountPesos={Math.trunc(Number(r.totalInCents || r.montoInCents || 0) / 100)}
                 notificationTemplates={notificationsTemplates}
                 notificationRules={notificationsRules}
-                action={sendCentralComPaymentLink}
+                paymentType="SUBSCRIPTION"
+                blockedReason={paymentLinkBlockedReason}
+                action={sendWhatsAppPaymentLink}
               />
             ) : null}
             {showTokenizationLink ? (
@@ -844,7 +918,8 @@ export default async function BillingPage({
                   returnTo={returnTo}
                   notificationTemplates={notificationsTemplates}
                   notificationRules={notificationsRules}
-                  action={sendCentralComTokenizationLink}
+                  blockedReason={tokenizationBlockedReason}
+                  action={sendWhatsAppTokenizationLink}
                 />
               )
             ) : null}
@@ -896,12 +971,24 @@ export default async function BillingPage({
               </>
             )}
           </div>
-          {(sentForRow || chargedForRow || chargeDateScheduledForRow) ? (
+          {(sentTokenForRow || sentPaymentForRow || createdPaymentForRow || chargedForRow || chargeDateScheduledForRow) ? (
             <div className="field-hint billing-action-feedback">
               {sentTokenForRow ? <span>Link de tarjeta enviado.</span> : null}
               {sentPaymentForRow ? <span>Link de pago enviado.</span> : null}
+              {createdPaymentForRow ? <span>Link de pago creado.</span> : null}
               {chargedForRow ? <span>Cobro manual enviado.</span> : null}
               {chargeDateScheduledForRow ? <span>Fecha de pago actualizada.</span> : null}
+              {rowCheckoutUrl ? (
+                <a
+                  className="ghost btn-compact btn-send btn-highlight"
+                  href={rowCheckoutUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Abrir link de pago"
+                >
+                  Abrir link
+                </a>
+              ) : null}
             </div>
           ) : null}
           {tenantsUpdatedForRow ? <div className="field-hint">Canales actualizados.</div> : null}
@@ -913,11 +1000,11 @@ export default async function BillingPage({
   const errorMessage = (() => {
     const code = String(error || "").trim();
     if (!code) return "";
-    if (code === "missing_template") return "Falta configurar una plantilla activa en Notificaciones para este envío.";
+    if (code === "missing_template") return MISSING_WHATSAPP_TEMPLATE_MESSAGE;
     if (code === "empresa_no_encontrada") return "No se encontró la empresa seleccionada.";
     if (code === "empresa_sin_contacto_principal") return "La empresa no tiene contacto principal.";
     if (code === "missing_contact_or_company_or_product") return "Selecciona un contacto/empresa y un producto.";
-    return code;
+    return normalizeErrorParam(code) || code;
   })();
 
   return (
@@ -1017,7 +1104,7 @@ export default async function BillingPage({
               showKanban
             />
           )}
-          configHref="http://localhost:3002/settings?tab=cobros"
+          configHref="/settings?tab=cobros"
           summary={(
             <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="payments" allowImport={false} />
           )}
@@ -1111,7 +1198,9 @@ export default async function BillingPage({
                             ...r,
                             inGrace: r.inGrace,
                             inArrears: r.inArrears,
-                            daysLate: r.daysLate
+                            daysLate: r.daysLate,
+                            currentCheckoutUrl: resolveRowCheckoutUrl(r),
+                            currentTokenUrl: resolveRowTokenUrl(r, checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "")
                           }}
                           csrfToken={csrfToken}
                           returnTo={returnTo}
@@ -1123,8 +1212,8 @@ export default async function BillingPage({
                           markSubscriptionPaidManual={markSubscriptionPaidManual}
                           unmarkSubscriptionPaidManual={unmarkSubscriptionPaidManual}
                           mergeDuplicateSubscriptions={mergeDuplicateSubscriptions}
-                          sendCentralComPaymentLink={sendCentralComPaymentLink}
-                          sendCentralComTokenizationLink={sendCentralComTokenizationLink}
+                          sendWhatsAppPaymentLink={sendWhatsAppPaymentLink}
+                          sendWhatsAppTokenizationLink={sendWhatsAppTokenizationLink}
                           updateSubscriptionTenants={updateSubscriptionTenants}
                           changeSubscriptionPlan={changeSubscriptionPlan}
                           updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
@@ -1135,21 +1224,35 @@ export default async function BillingPage({
                           activateSubscription={activateSubscription}
                         />
                         {!isInactive && !isAutoDebit ? (
-                          <PaymentLinkModalButton
-                            subscriptionId={r.id}
-                            customerId={r.customerId}
-                            tenantId={r.tenantId}
-                            csrfToken={csrfToken}
-                            returnTo={returnTo}
-                            defaultAmountPesos={Math.trunc(Number(r.totalInCents || r.montoInCents || 0) / 100)}
-                            notificationTemplates={notificationsTemplates}
-                            notificationRules={notificationsRules}
-                            action={sendCentralComPaymentLink}
-                          />
+                          resolveRowCheckoutUrl(r) ? (
+                            <a
+                              className="ghost btn-compact btn-send btn-highlight"
+                              href={resolveRowCheckoutUrl(r)}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Abrir link de pago"
+                            >
+                              Abrir link
+                            </a>
+                          ) : (
+                            <PaymentLinkModalButton
+                              subscriptionId={r.id}
+                              customerId={r.customerId}
+                              tenantId={r.tenantId}
+                              csrfToken={csrfToken}
+                              returnTo={returnTo}
+                              defaultAmountPesos={Math.trunc(Number(r.totalInCents || r.montoInCents || 0) / 100)}
+                              notificationTemplates={notificationsTemplates}
+                              notificationRules={notificationsRules}
+                              paymentType="SUBSCRIPTION"
+                              blockedReason={getPaymentLinkBlockedReason(r)}
+                              action={sendWhatsAppPaymentLink}
+                            />
+                          )
                         ) : null}
                         {isAutoDebit && !isInactive ? (
                           (() => {
-                            const rowTokenUrl = resolveRowTokenUrl(r);
+                            const rowTokenUrl = resolveRowTokenUrl(r, checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "");
                             return rowTokenUrl ? (
                               <a
                                 className="ghost btn-compact btn-send btn-highlight"
@@ -1169,7 +1272,8 @@ export default async function BillingPage({
                                 returnTo={returnTo}
                                 notificationTemplates={notificationsTemplates}
                                 notificationRules={notificationsRules}
-                                action={sendCentralComTokenizationLink}
+                                blockedReason={getTokenizationBlockedReason(r)}
+                                action={sendWhatsAppTokenizationLink}
                               />
                             );
                           })()
@@ -1224,7 +1328,9 @@ export default async function BillingPage({
                                   ...r,
                                   inGrace: r.inGrace,
                                   inArrears: r.inArrears,
-                                  daysLate: r.daysLate
+                                  daysLate: r.daysLate,
+                                  currentCheckoutUrl: resolveRowCheckoutUrl(r),
+                                  currentTokenUrl: resolveRowTokenUrl(r, checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "")
                                 }}
                                 csrfToken={csrfToken}
                                 returnTo={returnTo}
@@ -1236,8 +1342,8 @@ export default async function BillingPage({
                                 markSubscriptionPaidManual={markSubscriptionPaidManual}
                                 unmarkSubscriptionPaidManual={unmarkSubscriptionPaidManual}
                                 mergeDuplicateSubscriptions={mergeDuplicateSubscriptions}
-                                sendCentralComPaymentLink={sendCentralComPaymentLink}
-                                sendCentralComTokenizationLink={sendCentralComTokenizationLink}
+                                sendWhatsAppPaymentLink={sendWhatsAppPaymentLink}
+                                sendWhatsAppTokenizationLink={sendWhatsAppTokenizationLink}
                                 updateSubscriptionTenants={updateSubscriptionTenants}
                                 changeSubscriptionPlan={changeSubscriptionPlan}
                                 updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
@@ -1268,21 +1374,35 @@ export default async function BillingPage({
                               </SubscriptionDetailModalWrapper>
                               <div className="billing-kanban-card-actions">
                                 {!isInactive && !isAutoDebit ? (
-                                  <PaymentLinkModalButton
-                                    subscriptionId={r.id}
-                                    customerId={r.customerId}
-                                    tenantId={r.tenantId}
-                                    csrfToken={csrfToken}
-                                    returnTo={returnTo}
-                                    defaultAmountPesos={Math.trunc(Number(r.totalInCents || r.montoInCents || 0) / 100)}
-                                    notificationTemplates={notificationsTemplates}
-                                    notificationRules={notificationsRules}
-                                    action={sendCentralComPaymentLink}
-                                  />
+                                  resolveRowCheckoutUrl(r) ? (
+                                    <a
+                                      className="ghost btn-compact btn-send btn-highlight"
+                                      href={resolveRowCheckoutUrl(r)}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      title="Abrir link de pago"
+                                    >
+                                      Abrir link
+                                    </a>
+                                  ) : (
+                                    <PaymentLinkModalButton
+                                      subscriptionId={r.id}
+                                      customerId={r.customerId}
+                                      tenantId={r.tenantId}
+                                      csrfToken={csrfToken}
+                                      returnTo={returnTo}
+                                      defaultAmountPesos={Math.trunc(Number(r.totalInCents || r.montoInCents || 0) / 100)}
+                                      notificationTemplates={notificationsTemplates}
+                                      notificationRules={notificationsRules}
+                                      paymentType="SUBSCRIPTION"
+                                      blockedReason={getPaymentLinkBlockedReason(r)}
+                                      action={sendWhatsAppPaymentLink}
+                                    />
+                                  )
                                 ) : null}
                                 {isAutoDebit && !isInactive ? (
                                   (() => {
-                                    const rowTokenUrl = resolveRowTokenUrl(r);
+                                    const rowTokenUrl = resolveRowTokenUrl(r, checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "");
                                     return rowTokenUrl ? (
                                       <a
                                         className="ghost btn-compact btn-send btn-highlight"
@@ -1302,7 +1422,8 @@ export default async function BillingPage({
                                         returnTo={returnTo}
                                         notificationTemplates={notificationsTemplates}
                                         notificationRules={notificationsRules}
-                                        action={sendCentralComTokenizationLink}
+                                        blockedReason={getTokenizationBlockedReason(r)}
+                                        action={sendWhatsAppTokenizationLink}
                                       />
                                     );
                                   })()
@@ -1343,27 +1464,37 @@ export default async function BillingPage({
             }
             return (
               <div className="pagination pagination-indicator">
-                <a
-                  className="page-link page-nav"
-                  href={`/billing?${new URLSearchParams({
-                    ...paginationBase,
-                    page: String(Math.max(1, currentPage - 1))
-                  })}`}
-                  aria-disabled={currentPage <= 1}
-                >
-                  Anterior
-                </a>
+                {currentPage <= 1 ? (
+                  <span className="page-link page-nav" aria-disabled="true">
+                    Anterior
+                  </span>
+                ) : (
+                  <a
+                    className="page-link page-nav"
+                    href={`/billing?${new URLSearchParams({
+                      ...paginationBase,
+                      page: String(Math.max(1, currentPage - 1))
+                    })}`}
+                  >
+                    Anterior
+                  </a>
+                )}
                 <div className="pagination-pages" style={{ display: "none" }} />
-                <a
-                  className="page-link page-nav"
-                  href={`/billing?${new URLSearchParams({
-                    ...paginationBase,
-                    page: String(currentPage + 1)
-                  })}`}
-                  aria-disabled={!hasNext}
-                >
-                  Siguiente
-                </a>
+                {!hasNext ? (
+                  <span className="page-link page-nav" aria-disabled="true">
+                    Siguiente
+                  </span>
+                ) : (
+                  <a
+                    className="page-link page-nav"
+                    href={`/billing?${new URLSearchParams({
+                      ...paginationBase,
+                      page: String(currentPage + 1)
+                    })}`}
+                  >
+                    Siguiente
+                  </a>
+                )}
               </div>
             );
           })()}

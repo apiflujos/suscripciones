@@ -8,6 +8,8 @@ import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
 import { listCatalogProducts } from "../admin/_services/products";
+import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
+import { getAdminSettings } from "../admin/_services/settings";
 import { PageToolbar } from "../ui/PageToolbar";
 import "./page-header.css";
 import { listTenants } from "../admin/_services/tenants";
@@ -81,11 +83,13 @@ export default async function ProductsPage({
     q: q.trim(),
     ids
   });
-  const [tenants, customersRes, empresasRes, notificationsConfig] = await Promise.all([
+  const [tenants, customersRes, empresasRes, notificationsConfig, templates, settings] = await Promise.all([
     listTenants(),
     listCustomers({ take: 200, tenantId: effectiveTenantId }),
     listEmpresas({ tenantId: effectiveTenantId, take: 200 }),
-    getNotificationsConfigForEnv("PRODUCTION").catch(() => ({ templates: [], rules: [] }))
+    getNotificationsConfigForEnv("PRODUCTION").catch(() => ({ templates: [], rules: [] })),
+    listCheckoutTemplates({ tenantId: effectiveTenantId || null }).catch(() => []),
+    getAdminSettings().catch(() => null)
   ]);
 
   const productItems = (products.items ?? []) as any[];
@@ -97,6 +101,8 @@ export default async function ProductsPage({
   const empresas = (empresasRes?.items ?? []) as any[];
   const notificationsTemplates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
   const notificationsRules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
+  const checkoutTemplates = Array.isArray(templates) ? templates : [];
+  const checkoutConfig = (settings as any)?.checkoutConfig || {};
 
   return (
     <main className="page pageWide productsPage">
@@ -212,6 +218,8 @@ export default async function ProductsPage({
               empresas={empresas}
               notificationTemplates={notificationsTemplates}
               notificationRules={notificationsRules}
+              checkoutTemplates={checkoutTemplates}
+              checkoutConfig={checkoutConfig}
               createCustomer={createCustomerFromBilling}
               createPlanAndSubscription={createPlanAndSubscription}
               returnTo={returnTo}
@@ -246,27 +254,37 @@ export default async function ProductsPage({
               };
               return (
                 <div className="pagination pagination-indicator">
-                  <a
-                    className="page-link page-nav"
-                    href={`/products?${new URLSearchParams({
-                      ...baseParams,
-                      page: String(Math.max(1, currentPage - 1))
-                    })}`}
-                    aria-disabled={currentPage <= 1}
-                  >
-                    Anterior
-                  </a>
+                  {currentPage <= 1 ? (
+                    <span className="page-link page-nav" aria-disabled="true">
+                      Anterior
+                    </span>
+                  ) : (
+                    <a
+                      className="page-link page-nav"
+                      href={`/products?${new URLSearchParams({
+                        ...baseParams,
+                        page: String(Math.max(1, currentPage - 1))
+                      })}`}
+                    >
+                      Anterior
+                    </a>
+                  )}
                   <div className="pagination-pages" style={{ display: "none" }} />
-                  <a
-                    className="page-link page-nav"
-                    href={`/products?${new URLSearchParams({
-                      ...baseParams,
-                      page: String(currentPage + 1)
-                    })}`}
-                    aria-disabled={!hasNext}
-                  >
-                    Siguiente
-                  </a>
+                  {!hasNext ? (
+                    <span className="page-link page-nav" aria-disabled="true">
+                      Siguiente
+                    </span>
+                  ) : (
+                    <a
+                      className="page-link page-nav"
+                      href={`/products?${new URLSearchParams({
+                        ...baseParams,
+                        page: String(currentPage + 1)
+                      })}`}
+                    >
+                      Siguiente
+                    </a>
+                  )}
                 </div>
               );
             })()}

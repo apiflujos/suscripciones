@@ -1,6 +1,7 @@
-import { ChatwootMessageType, LogLevel, MessageStatus, PaymentStatus, RetryJobType, SubscriptionStatus, PublicCheckoutKind } from "@prisma/client";
+import { ChatwootMessageType, CredentialProvider, LogLevel, MessageStatus, PaymentStatus, RetryJobType, SubscriptionStatus, PublicCheckoutKind } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../../db/prisma";
+import { getCredential } from "../../services/credentials";
 import { getNotificationsConfig, notificationTriggerSchema } from "../../services/notificationsConfig";
 import { createPaymentLinkForSubscription } from "../../services/subscriptionBilling";
 import { systemLog } from "../../services/systemLog";
@@ -83,6 +84,10 @@ function extractTemplatePaths(input: any): string[] {
   return Array.from(new Set(out));
 }
 
+function hasUsableNotificationTemplate(template: any) {
+  return Boolean(String(template?.chatwootTemplate?.name || "").trim());
+}
+
 async function resolveAutoCheckoutTemplateId(args: {
   tenantId: string;
   trigger: string;
@@ -118,12 +123,30 @@ async function resolveAutoCheckoutTemplateId(args: {
     });
     resolvedProductId = String((plan?.metadata as any)?.catalog?.itemId || "");
   }
-  if (!resolvedProductId) return null;
-  const match = byKind.find((t) => {
-    const list = Array.isArray(t.productIds) ? t.productIds : [];
-    return list.some((entry: any) => String(extractProductId(entry)) === String(resolvedProductId));
-  });
-  return match?.id ? String(match.id) : null;
+  if (resolvedProductId) {
+    const match = byKind.find((t) => {
+      const list = Array.isArray(t.productIds) ? t.productIds : [];
+      return list.some((entry: any) => String(extractProductId(entry)) === String(resolvedProductId));
+    });
+    if (match?.id) return String(match.id);
+  }
+
+  let defaultTemplateId = "";
+  try {
+    const rawCfg = await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG");
+    const cfg = rawCfg ? JSON.parse(rawCfg) : {};
+    defaultTemplateId =
+      desired === PublicCheckoutKind.CART
+        ? String(cfg?.defaultCartTemplateId || "").trim()
+        : desired === PublicCheckoutKind.SUBSCRIPTION
+          ? String(cfg?.defaultSubscriptionTemplateId || "").trim()
+          : String(cfg?.defaultPlanTemplateId || "").trim();
+  } catch {
+    defaultTemplateId = "";
+  }
+  if (!defaultTemplateId) return null;
+  const fallback = byKind.find((t) => String(t?.id || "").trim() === defaultTemplateId) || null;
+  return fallback?.id ? String(fallback.id) : null;
 }
 
 function renderAny(input: any, ctx: any): any {
@@ -357,14 +380,7 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     return { ok: false, skipped: true, error: "chatwoot_type_missing" };
   }
 
-  const requiresWhatsappTemplate = [
-    "PAYMENT_LINK_CREATED",
-    "TOKENIZATION_LINK_CREATED",
-    "PAYMENT_APPROVED",
-    "PAYMENT_DECLINED",
-    "CATALOG_LINK_CREATED"
-  ].includes(parsed.data.trigger);
-  if (requiresWhatsappTemplate && !String(template.chatwootTemplate?.name || "").trim()) {
+  if (!hasUsableNotificationTemplate(template)) {
     await systemLog(LogLevel.WARN, "notifications.dispatch", "Plantilla WhatsApp no configurada", {
       ruleId: rule.id,
       templateId: template.id,
@@ -384,7 +400,7 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
       .catch(() => null as any);
     if (!effectivePayment?.checkoutUrl) {
       try {
-        const created = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
+        const created = await createPaymentLinkForSubscription({ subscriptionId: subscription.id, sendNotifications: false });
         effectivePayment = await prisma.payment.findUnique({ where: { id: created.paymentId }, include: { customer: true, subscription: true } });
       } catch (err: any) {
         await systemLog(LogLevel.WARN, "notifications.dispatch", "ensurePaymentLink failed; continuing without link", {
@@ -447,7 +463,7 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
   const checkoutIds = Array.from(
     new Set(
       templatePaths
-        .filter((p) => p.startsWith("checkoutPublicToken.") || p.startsWith("checkoutPublicName."))
+        .filter((p) => p.startsWith("checkoutPublicToken.") || p.startsWith("checkoutPublicName.") || p.startsWith("checkoutPublicUrl."))
         .map((p) => p.split(".")[1])
         .filter(Boolean)
     )
@@ -482,7 +498,12 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
         });
         return { ok: false, skipped: true, error: "checkout_auto_missing" };
       }
-      const created = await createPublicCheckoutLink({ customerId: customer.id, templateId: targetId }).catch((err: any) => {
+      const created = await createPublicCheckoutLink({
+        customerId: customer.id,
+        templateId: targetId,
+        checkoutUrl: effectivePayment?.checkoutUrl || meta?.paymentLink?.checkoutUrl || null,
+        planId: subscription?.planId || payment?.subscription?.planId || null
+      }).catch((err: any) => {
         logger.warn({ err, customerId: customer.id, templateId: targetId }, "subscriptionReminder: fallo creando checkout público");
         return null;
       });
@@ -511,8 +532,29 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     }
   }
   const centsToPesos = (value?: number | null) => Math.trunc(Number(value || 0) / 100);
-  const tokenizationUrl = parsed.data.tokenUrl || meta?.tokenizationLink?.url || "";
-  const catalogUrl = parsed.data.catalogUrl || meta?.cartLink?.url || "";
+  const autoPlanUrl = String(checkoutPublicUrl.AUTO_PLAN || "").trim();
+  const autoSubscriptionUrl = String(checkoutPublicUrl.AUTO_SUBSCRIPTION || "").trim();
+  const autoCartUrl = String(checkoutPublicUrl.AUTO_CART || "").trim();
+  const effectivePaymentLink = autoPlanUrl
+    ? {
+        ...(meta?.paymentLink ?? {}),
+        url: autoPlanUrl
+      }
+    : (meta?.paymentLink ?? null);
+  const effectiveTokenizationLink = autoSubscriptionUrl
+    ? {
+        ...(meta?.tokenizationLink ?? {}),
+        url: autoSubscriptionUrl
+      }
+    : (meta?.tokenizationLink ?? null);
+  const effectiveCartLink = autoCartUrl
+    ? {
+        ...(meta?.cartLink ?? {}),
+        url: autoCartUrl
+      }
+    : (meta?.cartLink ?? null);
+  const tokenizationUrl = parsed.data.tokenUrl || String(effectiveTokenizationLink?.url || "").trim() || "";
+  const catalogUrl = parsed.data.catalogUrl || String(effectiveCartLink?.url || "").trim() || "";
   const subscriptionTemplate = subscription
       ? {
         ...subscription,
@@ -545,9 +587,9 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     checkoutPublicToken,
     checkoutPublicName,
     checkoutPublicUrl,
-    paymentLink: meta?.paymentLink ?? null,
-    tokenizationLink: meta?.tokenizationLink ?? null,
-    cartLink: meta?.cartLink ?? null,
+    paymentLink: effectivePaymentLink,
+    tokenizationLink: effectiveTokenizationLink,
+    cartLink: effectiveCartLink,
     tokenization: tokenizationUrl ? { url: tokenizationUrl } : null,
     catalog: catalogUrl ? { url: catalogUrl } : null,
     paymentType
@@ -635,6 +677,18 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     }
   });
 
+  if (parsed?.data?.trigger === "PAYMENT_DECLINED" && subscription) {
+    // Optional: mark past-due for visibility (best-effort).
+    if (subscription.status !== SubscriptionStatus.CANCELED && subscription.status !== SubscriptionStatus.EXPIRED) {
+      await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: { status: SubscriptionStatus.PAST_DUE }
+      }).catch((err: any) => {
+        logger.warn({ err, subscriptionId: subscription.id }, "subscriptionReminder: fallo marcando suscripción en PAST_DUE");
+      });
+    }
+  }
+
   if (parsed.data.immediateSend) {
     try {
       await sendChatwootMessage(created.id);
@@ -680,17 +734,4 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     });
     return { ok: true, queued: true };
   }
-
-  if (parsed?.data?.trigger === "PAYMENT_DECLINED" && subscription) {
-    // Optional: mark past-due for visibility (best-effort).
-    if (subscription.status !== SubscriptionStatus.CANCELED && subscription.status !== SubscriptionStatus.EXPIRED) {
-      await prisma.subscription.update({
-        where: { id: subscription.id },
-        data: { status: SubscriptionStatus.PAST_DUE }
-      }).catch((err: any) => {
-        logger.warn({ err, subscriptionId: subscription.id }, "subscriptionReminder: fallo marcando suscripción en PAST_DUE");
-      });
-    }
-  }
-  return { ok: true };
 }

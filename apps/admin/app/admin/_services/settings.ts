@@ -20,12 +20,14 @@ export async function getCheckoutConfig() {
   const envBases = getCheckoutBaseUrlsFromEnv();
   const storedPlanBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
   const storedSubscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+  const storedCartBaseUrl = String(checkoutConfig?.cartBaseUrl || "").trim();
   const storedReturnUrl = String(checkoutConfig?.tokenizationReturnUrl || "").trim();
   const timeZone = String(checkoutConfig?.timeZone || checkoutConfig?.timezone || "").trim();
 
   return {
     planBaseUrl: storedPlanBaseUrl || envBases.planBaseUrl,
     subscriptionBaseUrl: storedSubscriptionBaseUrl || envBases.subscriptionBaseUrl,
+    cartBaseUrl: storedCartBaseUrl || envBases.cartBaseUrl,
     defaultUtmParams: String(checkoutConfig?.defaultUtmParams || ""),
     tokenExpiryHours: Number(checkoutConfig?.tokenExpiryHours || 24),
     timeZone: timeZone || "America/Bogota",
@@ -194,6 +196,7 @@ export async function getAdminSettings() {
   const envBases = getCheckoutBaseUrlsFromEnv();
   const storedPlanBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
   const storedSubscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();
+  const storedCartBaseUrl = String(checkoutConfig?.cartBaseUrl || "").trim();
   let autoDebitConfigRaw: any = {};
   try {
     autoDebitConfigRaw = wompiCreds.get("AUTO_DEBIT_CONFIG") ? JSON.parse(String(wompiCreds.get("AUTO_DEBIT_CONFIG"))) : {};
@@ -267,6 +270,7 @@ export async function getAdminSettings() {
     checkoutConfig: {
       planBaseUrl: storedPlanBaseUrl || envBases.planBaseUrl,
       subscriptionBaseUrl: storedSubscriptionBaseUrl || envBases.subscriptionBaseUrl,
+      cartBaseUrl: storedCartBaseUrl || envBases.cartBaseUrl,
       defaultUtmParams: checkoutConfig.defaultUtmParams || "",
       defaultPlanTemplateId: String(checkoutConfig?.defaultPlanTemplateId || "").trim(),
       defaultSubscriptionTemplateId: String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim(),

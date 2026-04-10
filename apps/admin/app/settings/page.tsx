@@ -139,7 +139,6 @@ export default async function SettingsPage({
   const envRaw = String(sp.env || "");
   const env = envRaw.toUpperCase() === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
   const notifSaved = typeof sp.saved === "string" ? sp.saved : "";
-  const notifScheduled = typeof sp.scheduled === "string" ? sp.scheduled : "";
   const notifError = typeof sp.error === "string" ? sp.error : "";
   const openTenant = String(sp.openTenant || "").trim();
   const templateKind = String(sp.kind || "").toUpperCase();
@@ -275,7 +274,6 @@ export default async function SettingsPage({
         <WhatsappNotificationsPanel
           env={env}
           saved={notifSaved}
-          scheduled={notifScheduled}
           error={notifError}
         />
       ) : null}
@@ -418,7 +416,7 @@ export default async function SettingsPage({
                 <div className="saved-conn-card">
                   <div className="saved-conn-header">
                     <div>
-                      <strong>Central · Chatwoot</strong>
+                      <strong>Chatwoot · WhatsApp</strong>
                       <div className="saved-conn-sub">{commsProduction?.baseUrl && commsProduction?.accountId && commsProduction?.inboxId ? "Configurada" : "Sin configurar"}</div>
                     </div>
                     <span

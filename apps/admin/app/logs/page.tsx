@@ -259,14 +259,14 @@ function normalizeLogMessage(message: any) {
   const m = String(message || "");
   if (m === "Shopify settings updated") return "Configuración de reenvío actualizada";
   if (m === "Wompi settings updated") return "Credenciales de Wompi actualizadas";
-  if (m === "Chatwoot settings updated") return "Credenciales de CentralCom actualizadas";
+  if (m === "Chatwoot settings updated") return "Credenciales de Chatwoot actualizadas";
   return m;
 }
 
 function normalizeJobType(type: any) {
   const v = String(type || "");
   if (v === "SUBSCRIPTION_REMINDER") return "Notificación programada";
-  if (v === "SEND_CHATWOOT_MESSAGE") return "Mensaje CentralCom";
+  if (v === "SEND_CHATWOOT_MESSAGE") return "Mensaje WhatsApp";
   if (v === "FORWARD_WOMPI_TO_SHOPIFY") return "Forward a Shopify";
   if (v === "PROCESS_WOMPI_EVENT") return "Procesar evento Wompi";
   if (v === "PAYMENT_RETRY") return "Reintento de pago";
@@ -613,27 +613,37 @@ export default async function LogsPage({
       component: (
       <div className="pagination pagination-indicator">
         {showSummary ? <div className="pagination-summary">{summaryText}</div> : null}
-        <a
-          className="page-link page-nav"
-          href={`${routeBase}?${new URLSearchParams({
-            ...baseParams,
-            page: String(Math.max(1, currentPage - 1))
-          })}`}
-          aria-disabled={currentPage <= 1}
-        >
-          Anterior
-        </a>
+        {currentPage <= 1 ? (
+          <span className="page-link page-nav" aria-disabled="true">
+            Anterior
+          </span>
+        ) : (
+          <a
+            className="page-link page-nav"
+            href={`${routeBase}?${new URLSearchParams({
+              ...baseParams,
+              page: String(Math.max(1, currentPage - 1))
+            })}`}
+          >
+            Anterior
+          </a>
+        )}
         <div className="pagination-pages" style={{ display: "none" }} />
-        <a
-          className="page-link page-nav"
-          href={`${routeBase}?${new URLSearchParams({
-            ...baseParams,
-            page: String(currentPage + 1)
-          })}`}
-          aria-disabled={!hasNext}
-        >
-          Siguiente
-        </a>
+        {!hasNext ? (
+          <span className="page-link page-nav" aria-disabled="true">
+            Siguiente
+          </span>
+        ) : (
+          <a
+            className="page-link page-nav"
+            href={`${routeBase}?${new URLSearchParams({
+              ...baseParams,
+              page: String(currentPage + 1)
+            })}`}
+          >
+            Siguiente
+          </a>
+        )}
       </div>
       )
     };

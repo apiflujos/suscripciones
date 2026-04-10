@@ -221,7 +221,7 @@ Agregada sección completa "Migración de Ciclos de Facturación" en DEPLOY.md q
    git pull origin main
 
    # 2. Instalar dependencias
-   npm ci --production
+   npm ci
 
    # 3. Generar Prisma Client
    npx prisma generate --schema ./packages/database/prisma/schema.prisma

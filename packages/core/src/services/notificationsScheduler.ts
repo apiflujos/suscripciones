@@ -295,9 +295,10 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
   if (!payment) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
 
   const cfg = await getNotificationsConfig();
+  const paymentType = payment.subscriptionId ? "SUBSCRIPTION" : "LINK";
   const rules = filterRulesByPaymentType(
     cfg.rules.filter((r) => r.enabled && r.trigger === "PAYMENT_LINK_CREATED"),
-    "LINK"
+    paymentType
   );
   if (!rules.length) {
     return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
@@ -359,6 +360,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
       environment: await getNotificationsActiveEnv(),
       paymentId: payment.id,
       customerId: payment.customerId,
+      paymentType,
       scheduled
     },
     args.actor || SystemActor.SYSTEM
@@ -372,7 +374,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
 export async function scheduleCatalogLinkNotifications(args: { customerId: string; catalogUrl: string; forceNow?: boolean; paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK" | ""; actor?: string }) {
   const customerId = String(args.customerId || "").trim();
   const catalogUrl = String(args.catalogUrl || "").trim();
-  if (!customerId || !catalogUrl) return { scheduled: 0, sentNow: 0, rulesActive: false };
+  if (!customerId || !catalogUrl) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
 
   const cfg = await getNotificationsConfig();
   const rules = filterRulesByPaymentType(
@@ -380,7 +382,7 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
     args.paymentType || undefined
   );
   if (!rules.length) {
-    return { scheduled: 0, sentNow: 0, rulesActive: false };
+    return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
   }
 
   const now = new Date();
@@ -388,9 +390,11 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
   const anchorIso = anchorAt.toISOString();
   let scheduled = 0;
   let sentNow = 0;
+  const errors: string[] = [];
 
   for (const rule of rules) {
-    const offsetsSeconds = resolveOffsetsSeconds(rule as NotificationRule);
+    const offsetsSecondsBase = resolveOffsetsSeconds(rule as NotificationRule);
+    const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
@@ -417,9 +421,10 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
       } else {
         const result = await subscriptionReminder(jobPayload).catch((err) => {
           logger.warn({ err, customerId }, '[Notifications/Schedule] Fallo en envío inline de catalog link');
-          return { ok: false } as const;
+          return { ok: false, error: err?.message ? String(err.message) : "unknown_error" } as const;
         });
         if (result && "ok" in result && result.ok) sentNow++;
+        else if (result && "ok" in result && !result.ok) errors.push((result as any).error || "chatwoot_send_failed");
       }
     }
   }
@@ -432,20 +437,22 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
       trigger: "CATALOG_LINK_CREATED",
       environment: await getNotificationsActiveEnv(),
       customerId,
-      scheduled
+      scheduled,
+      sentNow,
+      errorsCount: errors.length
     },
     args.actor || SystemActor.SYSTEM
   ).catch((err) => {
     logger.warn({ err, customerId }, '[Notifications/Schedule] Fallo creando systemLog');
   });
 
-  return { scheduled, sentNow, rulesActive: true };
+  return { scheduled, sentNow, rulesActive: true, errors };
 }
 
 export async function scheduleTokenizationLinkNotifications(args: { customerId: string; tokenUrl: string; forceNow?: boolean; actor?: string }) {
   const customerId = String(args.customerId || "").trim();
   const tokenUrl = String(args.tokenUrl || "").trim();
-  if (!customerId || !tokenUrl) return { scheduled: 0, sentNow: 0, rulesActive: false };
+  if (!customerId || !tokenUrl) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
 
   const cfg = await getNotificationsConfig();
   const rules = filterRulesByPaymentType(
@@ -453,7 +460,7 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
     "SUBSCRIPTION"
   );
   if (!rules.length) {
-    return { scheduled: 0, sentNow: 0, rulesActive: false };
+    return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
   }
 
   const now = new Date();
@@ -461,6 +468,7 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
   const anchorIso = anchorAt.toISOString();
   let scheduled = 0;
   let sentNow = 0;
+  const errors: string[] = [];
 
   for (const rule of rules) {
     const offsetsSecondsBase = resolveOffsetsSeconds(rule as NotificationRule);
@@ -490,27 +498,36 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
       } else {
         const result = await subscriptionReminder(jobPayload).catch((err) => {
           logger.warn({ err, customerId, trigger: "TOKENIZATION_LINK_CREATED" }, "[Notifications/Schedule] Fallo en envío inline de tokenización");
-          return { ok: false } as const;
+          return { ok: false, error: err?.message ? String(err.message) : "unknown_error" } as const;
         });
         if (result && "ok" in result && result.ok) sentNow++;
+        else if (result && "ok" in result && !result.ok) errors.push((result as any).error || "chatwoot_send_failed");
       }
     }
   }
 
+  const logMessage = args.forceNow
+    ? sentNow > 0
+      ? "Notificaciones enviadas"
+      : "Notificaciones sin entrega"
+    : "Notificaciones programadas";
+
   await systemLog(
     LogLevel.INFO,
     "notifications.schedule",
-    args.forceNow ? "Notificaciones enviadas" : "Notificaciones programadas",
+    logMessage,
     {
       trigger: "TOKENIZATION_LINK_CREATED",
       environment: await getNotificationsActiveEnv(),
       customerId,
-      scheduled
+      scheduled,
+      sentNow,
+      errorsCount: errors.length
     },
     args.actor || SystemActor.SYSTEM
   ).catch((err) => {
     logger.warn({ err, customerId }, "[Notifications/Schedule] Fallo creando systemLog de tokenización");
   });
 
-  return { scheduled, sentNow, rulesActive: true };
+  return { scheduled, sentNow, rulesActive: true, errors };
 }

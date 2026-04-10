@@ -7,9 +7,6 @@ import {
   notificationsConfigSchema,
   setNotificationsConfig
 } from "@suscripciones/core/services/notificationsConfig";
-import { scheduleSubscriptionDueNotifications } from "@suscripciones/core/services/notificationsScheduler";
-import { cookies } from "next/headers";
-import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -43,198 +40,6 @@ async function requireCsrf(formData: FormData, environment: "PRODUCTION" | "SAND
   }
 }
 
-function slugifyId(input: string) {
-  return String(input || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 48);
-}
-
-async function getActorEmail() {
-  const c = await cookies();
-  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
-  const session = await verifyAdminSessionToken(sessionToken);
-  return session?.email || undefined;
-}
-
-function chatwootTypeForTrigger(trigger: string) {
-  if (trigger === "SUBSCRIPTION_DUE") return "EXPIRY_WARNING";
-  if (trigger === "PAYMENT_LINK_CREATED") return "PAYMENT_LINK";
-  if (trigger === "CATALOG_LINK_CREATED") return "PAYMENT_LINK";
-  if (trigger === "TOKENIZATION_LINK_CREATED") return "PAYMENT_LINK";
-  if (trigger === "PAYMENT_APPROVED") return "PAYMENT_CONFIRMED";
-  if (trigger === "PAYMENT_DECLINED") return "PAYMENT_FAILED";
-  return "EXPIRY_WARNING";
-}
-
-function triggerLabel(trigger: string) {
-  if (trigger === "SUBSCRIPTION_DUE") return "Recordatorio de pago";
-  if (trigger === "PAYMENT_LINK_CREATED") return "Envío de link de pago";
-  if (trigger === "CATALOG_LINK_CREATED") return "Envío de catálogo";
-  if (trigger === "TOKENIZATION_LINK_CREATED") return "Envío de tokenización";
-  if (trigger === "PAYMENT_APPROVED") return "Pago aprobado";
-  if (trigger === "PAYMENT_DECLINED") return "Pago rechazado";
-  return "Notificación";
-}
-
-function paymentTypeLabel(paymentType: string) {
-  if (paymentType === "PLAN") return "Link de pago";
-  if (paymentType === "SUBSCRIPTION") return "Suscripción";
-  if (paymentType === "LINK") return "Link de pago";
-  return "";
-}
-
-function formatOffsetName(offsetsSeconds: number[], atTimeUtc?: string) {
-  if (!offsetsSeconds.length) return "inmediato";
-  const parts = offsetsSeconds.map((sec) => {
-    const s = Number(sec);
-    if (!Number.isFinite(s) || s === 0) return "inmediato";
-    const dir = s < 0 ? "antes" : "después";
-    const abs = Math.abs(s);
-    const minutes = Math.round(abs / 60);
-    if (minutes < 60) return `${minutes} min ${dir}`;
-    const hours = Math.round(minutes / 60);
-    if (hours < 24) return `${hours} h ${dir}`;
-    const days = Math.round(hours / 24);
-    return `${days} d ${dir}`;
-  });
-  const uniq = Array.from(new Set(parts));
-  const base = uniq.join(", ");
-  return atTimeUtc ? `${base} · ${atTimeUtc} hora local` : base;
-}
-
-function toOffsetsSeconds(formData: FormData) {
-  const raw = formData.getAll("offsetSeconds");
-  const offsets = raw
-    .map((v) => Number(String(v)))
-    .filter((n) => Number.isFinite(n))
-    .map((n) => Math.trunc(n as number));
-  return offsets.length ? offsets : [0];
-}
-
-export async function createNotification(formData: FormData): Promise<{ ok: true } | { ok: false; error: string }> {
-  const environment = normalizeEnv(formData.get("environment"));
-  await requireCsrf(formData, environment);
-  const trigger = String(formData.get("trigger") || "").trim();
-  const title = String(formData.get("title") || "").trim();
-  const templateKind = String(formData.get("templateKind") || "").trim();
-  const message = String(formData.get("message") || "").trim();
-  const ensurePaymentLink = String(formData.get("ensurePaymentLink") || "").trim() === "1";
-  const paymentTypeRaw = String(formData.get("paymentType") || "ANY").trim().toUpperCase();
-  const paymentType = trigger === "PAYMENT_APPROVED" ? "ANY" : paymentTypeRaw;
-  const atTimeUtc = String(formData.get("atTimeUtc") || "").trim();
-
-  const waTemplateName = String(formData.get("waTemplateName") || "").trim();
-  const waLanguage = String(formData.get("waLanguage") || "").trim();
-  const waParams = formData
-    .getAll("waParam")
-    .map((v) => String(v || "").trim())
-    .filter(Boolean);
-  const waBodyParams = formData
-    .getAll("waBodyParam")
-    .map((v) => String(v || "").trim())
-    .filter(Boolean);
-  const waHeaderParams = formData
-    .getAll("waHeaderParam")
-    .map((v) => String(v || "").trim())
-    .filter(Boolean);
-  const waButtonParams = formData
-    .getAll("waButtonParam")
-    .map((v) => String(v || "").trim())
-    .filter(Boolean);
-
-  const allowedTriggers = new Set([
-    "SUBSCRIPTION_DUE",
-    "PAYMENT_LINK_CREATED",
-    "CATALOG_LINK_CREATED",
-    "TOKENIZATION_LINK_CREATED",
-    "PAYMENT_APPROVED",
-    "PAYMENT_DECLINED"
-  ]);
-  if (!allowedTriggers.has(trigger)) return { ok: false, error: "invalid_trigger" };
-
-  const offsetsSeconds = toOffsetsSeconds(formData);
-
-  const isText = templateKind === "TEXT";
-  const isWhatsAppTemplate = templateKind === "WHATSAPP_TEMPLATE";
-  if (!isText && !isWhatsAppTemplate) return { ok: false, error: "invalid_template_kind" };
-
-  if (isText && !message) return { ok: false, error: "missing_message" };
-  if (isWhatsAppTemplate && (!waTemplateName || !waLanguage)) return { ok: false, error: "missing_template_fields" };
-
-  const timeOk = !atTimeUtc || /^([01]\d|2[0-3]):[0-5]\d$/.test(atTimeUtc);
-  if (!timeOk) return { ok: false, error: "invalid_time" };
-
-  try {
-    const config = await getNotificationsConfig(environment);
-    const baseConfig = config && typeof config === "object" ? config : { version: 1, templates: [], rules: [] };
-    const templates = Array.isArray(baseConfig?.templates) ? baseConfig.templates.slice() : [];
-    const rules = Array.isArray(baseConfig?.rules) ? baseConfig.rules.slice() : [];
-
-    const chatwootType = chatwootTypeForTrigger(trigger);
-    const paymentSuffix = paymentType && paymentType !== "ANY" ? paymentTypeLabel(paymentType) : "Todos";
-    const offsetName = formatOffsetName(offsetsSeconds, atTimeUtc);
-    const baseName = title || `${triggerLabel(trigger)} · ${offsetName}${paymentType === "ANY" ? "" : ` · ${paymentSuffix}`}`;
-
-    const base = slugifyId(baseName) || "notif";
-    let templateId = `tpl_${base}`;
-    let i = 2;
-    while (templates.some((t: any) => String(t.id) === templateId)) templateId = `tpl_${base}_${i++}`;
-
-    const template: any = {
-      id: templateId,
-      name: baseName,
-      channel: "CHATWOOT",
-      chatwootType
-    };
-
-    if (isText) {
-      template.content = message;
-    } else {
-      template.content = "(template)";
-      const bodyParams = waBodyParams.length ? waBodyParams : waParams;
-      template.chatwootTemplate = {
-        name: waTemplateName,
-        language: waLanguage,
-        processed_params: buildProcessedParams({
-          bodyParams,
-          headerParams: waHeaderParams,
-          buttonParams: waButtonParams
-        })
-      };
-    }
-
-    templates.push(template);
-
-    const ruleId = `rule_${Date.now()}`;
-    const rule: any = {
-      id: ruleId,
-      name: baseName,
-      enabled: true,
-      trigger,
-      templateId,
-      offsetsSeconds,
-      ...(atTimeUtc ? { atTimeUtc } : {})
-    };
-    if (trigger === "SUBSCRIPTION_DUE") {
-      rule.ensurePaymentLink = ensurePaymentLink;
-      rule.conditions = { skipIfSubscriptionStatusIn: ["CANCELED"] };
-    }
-    if (paymentType && paymentType !== "ANY" && trigger !== "PAYMENT_APPROVED") {
-      rule.conditions = { ...(rule.conditions || {}), requirePaymentTypeIn: [paymentType] };
-    }
-    rules.push(rule);
-
-    const next = { version: 1, ...(baseConfig || {}), templates, rules };
-    await putNotificationsConfig(environment, next);
-
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: toShortErrorMessage(err) };
-  }
-}
 
 export async function saveNotificationsConfig(formData: FormData) {
   const environment = String(formData.get("environment") || "").trim().toUpperCase();
@@ -294,8 +99,7 @@ function buildProcessedParams(args: { bodyParams?: string[]; headerParams?: stri
 }
 
 function normalizeTemplatePayload(formData: FormData) {
-  const templateKind = String(formData.get("templateKind") || "TEXT").trim().toUpperCase();
-  const content = String(formData.get("content") || "").trim();
+  const templateKind = String(formData.get("templateKind") || "WHATSAPP_TEMPLATE").trim().toUpperCase();
   const waTemplateName = String(formData.get("waTemplateName") || "").trim();
   const waLanguage = String(formData.get("waLanguage") || "es").trim();
   const waParamsRaw = String(formData.get("waParams") || "").trim();
@@ -307,10 +111,7 @@ function normalizeTemplatePayload(formData: FormData) {
   const headerParams = waHeaderParamsRaw ? parsePipeParams(waHeaderParamsRaw) : [];
   const buttonParams = waButtonParamsRaw ? parsePipeParams(waButtonParamsRaw) : [];
 
-  if (templateKind === "TEXT") {
-    if (!content) throw new Error("missing_message");
-    return { kind: "TEXT" as const, content };
-  }
+  if (templateKind !== "WHATSAPP_TEMPLATE") throw new Error("invalid_template_kind");
   if (!waTemplateName || !waLanguage) throw new Error("missing_template_fields");
   return {
     kind: "WHATSAPP_TEMPLATE" as const,
@@ -364,7 +165,8 @@ export async function saveRealtime(formData: FormData) {
       name: meta.label,
       channel: "CHATWOOT",
       chatwootType: meta.chatwootType,
-      ...(tplPayload.kind === "TEXT" ? { content: tplPayload.content } : { content: tplPayload.content, chatwootTemplate: tplPayload.chatwootTemplate })
+      content: tplPayload.content,
+      chatwootTemplate: tplPayload.chatwootTemplate
     });
 
     const ruleId = `rule_rt_${key}`;
@@ -422,7 +224,8 @@ export async function saveReminder(formData: FormData) {
       name: tplName,
       channel: "CHATWOOT",
       chatwootType: "EXPIRY_WARNING",
-      ...(tplPayload.kind === "TEXT" ? { content: tplPayload.content } : { content: tplPayload.content, chatwootTemplate: tplPayload.chatwootTemplate })
+      content: tplPayload.content,
+      chatwootTemplate: tplPayload.chatwootTemplate
     });
 
     const ruleIdBase = kind === "MORA" ? "rule_reminder_mora" : "rule_reminder_due";
@@ -453,155 +256,6 @@ export async function saveReminder(formData: FormData) {
   }
 }
 
-export async function addTextTemplate(formData: FormData) {
-  const environment = normalizeEnv(formData.get("environment"));
-  await requireCsrf(formData, environment);
-  const name = String(formData.get("name") || "").trim();
-  const chatwootType = String(formData.get("chatwootType") || "").trim();
-  const content = String(formData.get("content") || "").trim();
-  if (!name || !chatwootType || !content) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=missing_fields`);
-
-  try {
-    const config = await getNotificationsConfig(environment);
-    const templates = Array.isArray(config?.templates) ? config.templates.slice() : [];
-    const base = slugifyId(name) || "template";
-    let id = `tpl_${base}`;
-    let i = 2;
-    while (templates.some((t: any) => String(t.id) === id)) {
-      id = `tpl_${base}_${i++}`;
-    }
-    templates.push({
-      id,
-      name,
-      channel: "CHATWOOT",
-      chatwootType,
-      content
-    });
-    const next = { ...(config || {}), templates };
-    await putNotificationsConfig(environment, next);
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
-  } catch (err) {
-    if (isNextRedirect(err)) throw err;
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
-  }
-}
-
-export async function addWhatsAppTemplate(formData: FormData) {
-  const environment = normalizeEnv(formData.get("environment"));
-  await requireCsrf(formData, environment);
-  const name = String(formData.get("name") || "").trim();
-  const chatwootType = String(formData.get("chatwootType") || "").trim();
-  const templateName = String(formData.get("templateName") || "").trim();
-  const language = String(formData.get("language") || "").trim();
-  const bodyParams = Array.from({ length: 10 })
-    .map((_, idx) => String(formData.get(`bodyParam${idx + 1}`) || "").trim())
-    .filter(Boolean);
-
-  if (!name || !chatwootType || !templateName || !language) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=missing_fields`);
-
-  try {
-    const config = await getNotificationsConfig(environment);
-    const templates = Array.isArray(config?.templates) ? config.templates.slice() : [];
-    const base = slugifyId(name) || "template";
-    let id = `tpl_${base}`;
-    let i = 2;
-    while (templates.some((t: any) => String(t.id) === id)) {
-      id = `tpl_${base}_${i++}`;
-    }
-    templates.push({
-      id,
-      name,
-      channel: "CHATWOOT",
-      chatwootType,
-      chatwootTemplate: {
-        name: templateName,
-        language,
-        processed_params: bodyParams.length ? { body: bodyParams.map((v, idx) => ({ key: String(idx + 1), value: v })) } : undefined
-      }
-    });
-    const next = { ...(config || {}), templates };
-    await putNotificationsConfig(environment, next);
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
-  } catch (err) {
-    if (isNextRedirect(err)) throw err;
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
-  }
-}
-
-export async function deleteTemplate(formData: FormData) {
-  const environment = normalizeEnv(formData.get("environment"));
-  await requireCsrf(formData, environment);
-  const templateId = String(formData.get("templateId") || "").trim();
-  if (!templateId) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=missing_template_id`);
-  try {
-    const config = await getNotificationsConfig(environment);
-    const templates = Array.isArray(config?.templates) ? config.templates.filter((t: any) => String(t.id) !== templateId) : [];
-    const rules = Array.isArray(config?.rules) ? config.rules.filter((r: any) => String(r.templateId) !== templateId) : [];
-    const next = { ...(config || {}), templates, rules };
-    await putNotificationsConfig(environment, next);
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
-  } catch (err) {
-    if (isNextRedirect(err)) throw err;
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
-  }
-}
-
-function offsetSecondsFromForm(formData: FormData) {
-  const dir = String(formData.get("direction") || "after").trim();
-  const amount = Number(String(formData.get("amount") || "0").trim());
-  const unit = String(formData.get("unit") || "minutes").trim();
-  const baseSeconds =
-    unit === "seconds" ? amount :
-    unit === "minutes" ? amount * 60 :
-    unit === "hours" ? amount * 60 * 60 :
-    unit === "days" ? amount * 24 * 60 * 60 :
-    amount * 60;
-  const signed = dir === "before" ? -baseSeconds : baseSeconds;
-  if (!Number.isFinite(signed)) return 0;
-  return Math.trunc(signed);
-}
-
-export async function addRule(formData: FormData) {
-  const environment = normalizeEnv(formData.get("environment"));
-  await requireCsrf(formData, environment);
-  const name = String(formData.get("name") || "").trim();
-  const trigger = String(formData.get("trigger") || "").trim();
-  const templateId = String(formData.get("templateId") || "").trim();
-  const ensurePaymentLink = String(formData.get("ensurePaymentLink") || "").trim() === "1";
-  const enabled = String(formData.get("enabled") || "").trim() !== "0";
-  const offsetSeconds = offsetSecondsFromForm(formData);
-  if (!name || !trigger || !templateId) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=missing_fields`);
-
-  try {
-    const config = await getNotificationsConfig(environment);
-    const rules = Array.isArray(config?.rules) ? config.rules.slice() : [];
-    const id = `rule_${Date.now()}`;
-    const normalizedTrigger = String(trigger || "").trim();
-    if (enabled && normalizedTrigger) {
-      for (let i = 0; i < rules.length; i++) {
-        if (String(rules[i]?.trigger || "") === normalizedTrigger) {
-          rules[i] = { ...rules[i], enabled: false };
-        }
-      }
-    }
-    rules.push({
-      id,
-      name,
-      enabled,
-      trigger,
-      templateId,
-      offsetsSeconds: [offsetSeconds],
-      ...(trigger === "SUBSCRIPTION_DUE" ? { ensurePaymentLink, conditions: { skipIfSubscriptionStatusIn: ["CANCELED"] } } : {})
-    });
-    const next = { ...(config || {}), rules };
-    await putNotificationsConfig(environment, next);
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
-  } catch (err) {
-    if (isNextRedirect(err)) throw err;
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
-  }
-}
-
 export async function toggleRule(formData: FormData) {
   const environment = normalizeEnv(formData.get("environment"));
   await requireCsrf(formData, environment);
@@ -626,184 +280,6 @@ export async function toggleRule(formData: FormData) {
     const next = { ...(config || {}), rules };
     await putNotificationsConfig(environment, next);
     redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
-  } catch (err) {
-    if (isNextRedirect(err)) throw err;
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
-  }
-}
-
-export async function deleteRule(formData: FormData) {
-  const environment = normalizeEnv(formData.get("environment"));
-  await requireCsrf(formData, environment);
-  const ruleId = String(formData.get("ruleId") || "").trim();
-  if (!ruleId) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=missing_rule_id`);
-  try {
-    const config = await getNotificationsConfig(environment);
-    const rules = Array.isArray(config?.rules) ? config.rules.filter((r: any) => String(r.id) !== ruleId) : [];
-    const next = { ...(config || {}), rules };
-    await putNotificationsConfig(environment, next);
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
-  } catch (err) {
-    if (isNextRedirect(err)) throw err;
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
-  }
-}
-
-export async function updateTemplate(formData: FormData) {
-  const environment = normalizeEnv(formData.get("environment"));
-  await requireCsrf(formData, environment);
-  const templateId = String(formData.get("templateId") || "").trim();
-  if (!templateId) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=missing_template_id`);
-
-  const name = String(formData.get("name") || "").trim();
-  const channel = String(formData.get("channel") || "CHATWOOT").trim().toUpperCase();
-  const chatwootType = String(formData.get("chatwootType") || "").trim();
-  const content = String(formData.get("content") || "").trim();
-  const waTemplateName = String(formData.get("waTemplateName") || "").trim();
-  const waLanguage = String(formData.get("waLanguage") || "").trim();
-  const waParamsRaw = String(formData.get("waParams") || "").trim();
-  const waBodyParamsRaw = String(formData.get("waBodyParams") || "").trim();
-  const waHeaderParamsRaw = String(formData.get("waHeaderParams") || "").trim();
-  const waButtonParamsRaw = String(formData.get("waButtonParams") || "").trim();
-  const legacyBodyParams = waParamsRaw ? parsePipeParams(waParamsRaw) : [];
-  const bodyParams = waBodyParamsRaw ? parsePipeParams(waBodyParamsRaw) : legacyBodyParams;
-  const headerParams = waHeaderParamsRaw ? parsePipeParams(waHeaderParamsRaw) : [];
-  const buttonParams = waButtonParamsRaw ? parsePipeParams(waButtonParamsRaw) : [];
-  const metaTemplateName = String(formData.get("metaTemplateName") || "").trim();
-  const metaLanguage = String(formData.get("metaLanguage") || "").trim();
-  const metaComponentsRaw = String(formData.get("metaComponents") || "").trim();
-
-  if (!name) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=missing_name`);
-
-  try {
-    const config = await getNotificationsConfig(environment);
-    const templates = Array.isArray(config?.templates) ? config.templates.slice() : [];
-    const idx = templates.findIndex((t: any) => String(t.id) === templateId);
-    if (idx === -1) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=template_not_found`);
-
-    const next: any = { ...templates[idx] };
-    next.name = name;
-    next.channel = channel === "META" ? "META" : "CHATWOOT";
-
-    if (next.channel === "META") {
-      if (!metaTemplateName || !metaLanguage) {
-        return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=missing_meta_fields`);
-      }
-      let components: any = undefined;
-      if (metaComponentsRaw) {
-        try {
-          components = JSON.parse(metaComponentsRaw);
-        } catch {
-          return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=invalid_meta_components`);
-        }
-      }
-      next.meta = {
-        templateName: metaTemplateName,
-        language: metaLanguage,
-        components
-      };
-      next.chatwootType = undefined;
-      next.content = undefined;
-      next.chatwootTemplate = undefined;
-    } else {
-      next.chatwootType = chatwootType || next.chatwootType || "PAYMENT_LINK";
-      if (waTemplateName) {
-        next.content = "(template)";
-        next.chatwootTemplate = {
-          name: waTemplateName,
-          language: waLanguage || "es",
-          processed_params: buildProcessedParams({ bodyParams, headerParams, buttonParams })
-        };
-      } else {
-        if (!content) {
-          return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=missing_message`);
-        }
-        next.content = content;
-        next.chatwootTemplate = undefined;
-      }
-      next.meta = undefined;
-    }
-
-    templates[idx] = next;
-    const updated = { ...(config || {}), templates };
-    await putNotificationsConfig(environment, updated);
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
-  } catch (err) {
-    if (isNextRedirect(err)) throw err;
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
-  }
-}
-
-export async function updateRule(formData: FormData) {
-  const environment = normalizeEnv(formData.get("environment"));
-  await requireCsrf(formData, environment);
-  const ruleId = String(formData.get("ruleId") || "").trim();
-  if (!ruleId) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=missing_rule_id`);
-
-  const name = String(formData.get("name") || "").trim();
-  const trigger = String(formData.get("trigger") || "").trim();
-  const templateId = String(formData.get("templateId") || "").trim();
-  const enabled = String(formData.get("enabled") || "").trim() === "1";
-  const paymentTypeRaw = String(formData.get("paymentType") || "ANY").trim().toUpperCase();
-  const paymentType = trigger === "PAYMENT_APPROVED" ? "ANY" : paymentTypeRaw;
-  const ensurePaymentLink = String(formData.get("ensurePaymentLink") || "").trim() === "1";
-  const atTimeUtc = String(formData.get("atTimeUtc") || "").trim();
-  const offsetsSeconds = toOffsetsSeconds(formData);
-
-  if (!name || !trigger || !templateId) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=missing_fields`);
-
-  try {
-    const config = await getNotificationsConfig(environment);
-    const rules = Array.isArray(config?.rules) ? config.rules.slice() : [];
-    const idx = rules.findIndex((r: any) => String(r.id) === ruleId);
-    if (idx === -1) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=rule_not_found`);
-
-    const next: any = { ...rules[idx] };
-    next.name = name;
-    next.trigger = trigger;
-    next.templateId = templateId;
-    next.enabled = enabled;
-    next.offsetsSeconds = offsetsSeconds;
-    next.atTimeUtc = atTimeUtc || undefined;
-    if (trigger === "SUBSCRIPTION_DUE") {
-      next.ensurePaymentLink = ensurePaymentLink;
-      next.conditions = { ...(next.conditions || {}), skipIfSubscriptionStatusIn: ["CANCELED"] };
-    }
-    if (paymentType && paymentType !== "ANY" && trigger !== "PAYMENT_APPROVED") {
-      next.conditions = { ...(next.conditions || {}), requirePaymentTypeIn: [paymentType] };
-    } else if (next.conditions) {
-      const { requirePaymentTypeIn, ...rest } = next.conditions;
-      next.conditions = Object.keys(rest).length ? rest : undefined;
-    }
-
-    if (enabled && trigger) {
-      for (let i = 0; i < rules.length; i++) {
-        if (i !== idx && shouldDisableRule(trigger, paymentType, rules[i])) {
-          rules[i] = { ...rules[i], enabled: false };
-        }
-      }
-    }
-    rules[idx] = next;
-    const updated = { ...(config || {}), rules };
-    await putNotificationsConfig(environment, updated);
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
-  } catch (err) {
-    if (isNextRedirect(err)) throw err;
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
-  }
-}
-
-export async function scheduleSubscription(formData: FormData) {
-  const environment = normalizeEnv(formData.get("environment"));
-  await requireCsrf(formData, environment);
-  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
-  const forceNow = String(formData.get("forceNow") || "").trim() === "1";
-  if (!subscriptionId) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=missing_subscription_id`);
-
-  try {
-    const actor = await getActorEmail();
-    const result = await scheduleSubscriptionDueNotifications({ subscriptionId, forceNow, actor });
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&scheduled=${encodeURIComponent(String(result?.scheduled ?? 0))}`);
   } catch (err) {
     if (isNextRedirect(err)) throw err;
     redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);

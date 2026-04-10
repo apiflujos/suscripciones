@@ -699,7 +699,7 @@ export async function createSubscription(args: {
   }
 }
 
-export async function createSubscriptionPaymentLink(args: { subscriptionId: string; tenantId?: string | null; amountInCents?: number }) {
+export async function createSubscriptionPaymentLink(args: { subscriptionId: string; tenantId?: string | null; amountInCents?: number; sendNotifications?: boolean }) {
   const subscriptionId = String(args.subscriptionId || "").trim();
   if (!subscriptionId) return { ok: false, status: 400, error: "invalid_id" as const };
   if (args.tenantId) {
@@ -712,7 +712,8 @@ export async function createSubscriptionPaymentLink(args: { subscriptionId: stri
   try {
     const link = await createPaymentLinkForSubscription({
       subscriptionId,
-      amountInCentsOverride: args.amountInCents
+      amountInCentsOverride: args.amountInCents,
+      sendNotifications: args.sendNotifications
     });
     
     return { ok: true, ...link };

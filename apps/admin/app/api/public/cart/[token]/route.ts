@@ -5,6 +5,7 @@ import { systemLog } from "@suscripciones/core/services/systemLog";
 import { tokenMeta } from "@suscripciones/core/lib/tokenMeta";
 import { logger } from "@suscripciones/core/lib/logger";
 import { verifyPublicToken } from "../../../../../lib/publicTokens";
+import { listCheckoutSelectableProducts } from "../../../../admin/_services/checkoutTemplates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -109,9 +110,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
   };
 
   const templateProducts = parseTemplateProducts(template.productIds);
-  const productIds = templateProducts.map((p) => p.id).filter(Boolean);
-  const plans = productIds.length ? await prisma.subscriptionPlan.findMany({ where: { id: { in: productIds } } }) : [];
-  const plansTyped = plans as PlanPublic[];
+  const selectableProducts = await listCheckoutSelectableProducts({ template });
+  const plansTyped = (selectableProducts.items || []) as unknown as PlanPublic[];
   const modeById = new Map(templateProducts.map((p) => [String(p.id), String(p.mode || "").toUpperCase()]));
 
   const tenant = await getTenantBrand(template?.tenantId || customer.tenantId || null);
@@ -135,7 +135,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
         publicDescription: template.publicDescription || null,
         wompiTitle: template.wompiTitle || null,
         wompiDescription: template.wompiDescription || null,
-        layout: template.layout || null
+        layout: template.layout || null,
+        allowProductSelect: Boolean(template.allowProductSelect)
       },
       products: plansTyped.map((p) => ({
         id: p.id,

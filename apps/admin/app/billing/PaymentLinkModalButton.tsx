@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
 import { AppModal } from "../ui/AppModal";
+import { isNotificationTemplateConfigured, renderNotificationTemplatePreview } from "../lib/notificationTemplate";
 
 export function PaymentLinkModalButton({
   subscriptionId,
@@ -14,6 +15,8 @@ export function PaymentLinkModalButton({
   defaultAmountPesos,
   notificationTemplates,
   notificationRules,
+  paymentType = "LINK",
+  blockedReason = "",
   action
 }: {
   subscriptionId: string;
@@ -24,6 +27,8 @@ export function PaymentLinkModalButton({
   defaultAmountPesos?: number;
   notificationTemplates?: any[];
   notificationRules?: any[];
+  paymentType?: "LINK" | "SUBSCRIPTION";
+  blockedReason?: string;
   action: (formData: FormData) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -50,22 +55,17 @@ export function PaymentLinkModalButton({
     return template || null;
   }
 
-  function renderNotificationPreview(template: any) {
-    if (!template) return "No hay plantilla configurada en Notificaciones.";
-    if (template?.content && String(template.content || "").trim() && String(template.content || "") !== "(template)") {
-      return String(template.content || "").trim();
-    }
-    const name = String(template?.chatwootTemplate?.name || "").trim();
-    const lang = String(template?.chatwootTemplate?.language || "").trim();
-    const params = template?.chatwootTemplate?.processed_params?.body || [];
-    if (!name) return "Plantilla configurada en CentralCom.";
-    const paramText = Array.isArray(params) && params.length ? params.map((p: any) => String(p?.value || "")).join(" | ") : "—";
-    return `Plantilla WhatsApp: ${name}${lang ? ` (${lang})` : ""}\nParámetros: ${paramText}`;
-  }
-
-  const paymentLinkTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK");
-  const hasTemplate = Boolean(paymentLinkTemplate);
-  const canSend = hasTemplate;
+  const paymentLinkTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", paymentType);
+  const hasTemplate = isNotificationTemplateConfigured(paymentLinkTemplate);
+  const canSend = hasTemplate && !blockedReason;
+  const templateHint =
+    paymentType === "SUBSCRIPTION"
+      ? "Se enviará usando la plantilla WhatsApp activa de Notificaciones para link de pago de suscripción."
+      : "Se enviará usando la plantilla WhatsApp activa de Notificaciones para link de pago.";
+  const missingTemplateText =
+    paymentType === "SUBSCRIPTION"
+      ? "Falta una plantilla WhatsApp activa para link de pago de suscripción en Notificaciones. Configúrala antes de enviar."
+      : "Falta una plantilla WhatsApp activa para link de pago en Notificaciones. Configúrala antes de enviar.";
 
   useEffect(() => {
     if (!open) return;
@@ -102,8 +102,8 @@ export function PaymentLinkModalButton({
               </div>
               <div className="field">
                 <label>Notificación configurada</label>
-                <textarea className="input" rows={6} readOnly value={renderNotificationPreview(paymentLinkTemplate)} />
-                <div className="field-hint">Se enviará usando las reglas activas de Notificaciones (link de pago).</div>
+                <textarea className="input" rows={6} readOnly value={renderNotificationTemplatePreview(paymentLinkTemplate)} />
+                <div className="field-hint">{templateHint}</div>
               </div>
               <label className="field" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <input type="checkbox" name="sendNow" value="1" defaultChecked={canSend} disabled={!canSend} />
@@ -126,19 +126,23 @@ export function PaymentLinkModalButton({
                   pendingText="Enviando..." 
                   title="Enviar link de pago"
                   aria-label="Enviar link"
+                  disabled={!canSend}
                 >
                   Enviar link
                 </PendingButton>
               </div>
               {!hasTemplate ? (
                 <div className="field-hint ui-alert-warn">
-                  No hay plantilla activa para link de pago. Configura una plantilla para habilitar el envío por WhatsApp.
+                  {missingTemplateText}
                   <div style={{ marginTop: 6 }}>
-                    <a className="ghost btn-compact" href="/notifications?env=PRODUCTION&open=payment_link_created">
+                    <a className="ghost btn-compact" href="/settings?tab=notificaciones-whatsapp&env=PRODUCTION">
                       Configurar plantilla
                     </a>
                   </div>
                 </div>
+              ) : null}
+              {blockedReason ? (
+                <div className="field-hint ui-alert-warn">{blockedReason}</div>
               ) : null}
             </form>
           </>

@@ -22,6 +22,12 @@ El módulo de pagos gestiona la creación, seguimiento y conciliación de pagos 
 1. **Manual Link**: Genera link de pago que se envía al cliente
 2. **Auto Debit**: Cobra automáticamente usando tokenización de tarjeta
 
+### Reglas operativas vigentes
+
+- Los envíos de cobro usan solo **plantillas WhatsApp** configuradas en Notificaciones.
+- Si el flujo depende de checkout público, no se envía nada si falta plantilla o falta checkout público válido.
+- Desde `contacts`, sin producto o suscripción asociada, solo se permite enviar catálogo.
+
 **Archivos principales:**
 - `packages/core/src/services/subscriptionBilling.ts` - Creación de links y auto-debit
 - `packages/core/src/services/wompiReconcile.ts` - Conciliación de transacciones
@@ -193,6 +199,7 @@ Crea un link de pago en Wompi para una suscripción específica.
 {
   subscriptionId: string;
   amountInCentsOverride?: number;
+  sendNotifications?: boolean;
 }
 ```
 
@@ -214,8 +221,10 @@ Crea un link de pago en Wompi para una suscripción específica.
 4. Adquiere lock advisory para evitar duplicados
 5. Crea Payment Link en Wompi
 6. Libera lock
-7. Programa notificaciones
-8. Sincroniza atributos Chatwoot
+7. Si `sendNotifications === false`, retorna el link sin notificar
+8. Si existe regla activa de `PAYMENT_LINK_CREATED`, exige checkout público válido para ese producto
+9. Crea o actualiza el checkout público antes de disparar la notificación
+10. Programa notificaciones solo si existe plantilla WhatsApp activa y regla habilitada
 
 **Lock Advisory:**
 

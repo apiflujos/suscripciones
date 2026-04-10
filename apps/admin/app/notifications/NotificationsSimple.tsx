@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
 import { AppModal } from "../ui/AppModal";
+import { isNotificationTemplateConfigured } from "../lib/notificationTemplate";
 
 type Env = "PRODUCTION" | "SANDBOX";
 
@@ -31,14 +32,6 @@ type ChatwootTemplate = {
   category?: string;
   status?: string;
   components?: any[];
-};
-
-type PublicCheckoutTemplate = {
-  id: string;
-  name: string;
-  kind?: string | null;
-  active?: boolean | null;
-  expiryHours?: number | null;
 };
 
 type Rule = {
@@ -137,10 +130,6 @@ function insertAtCursor(el: HTMLInputElement | HTMLTextAreaElement, text: string
 function autoResizeTextarea(el: HTMLTextAreaElement) {
   el.style.height = "auto";
   el.style.height = `${el.scrollHeight}px`;
-}
-
-function isTemplateConfigured(template: Template | null | undefined) {
-  return Boolean(String(template?.chatwootTemplate?.name || "").trim());
 }
 
 function WaTemplateFields({
@@ -403,7 +392,6 @@ export function NotificationsSimple({
   csrfToken,
   templates,
   rules,
-  checkoutTemplates,
   paymentsConfig,
   actions
 }: {
@@ -411,7 +399,6 @@ export function NotificationsSimple({
   csrfToken: string;
   templates: Template[];
   rules: Rule[];
-  checkoutTemplates: PublicCheckoutTemplate[];
   paymentsConfig?: { notifyWhatsappForUnlinkedPayments?: boolean | null } | null;
   actions: {
     saveRealtime: (formData: FormData) => void;
@@ -593,8 +580,8 @@ export function NotificationsSimple({
     ...pendingRealtime.map((rt) => {
       const rule = rulesByKey.get(rt.key);
       const tpl = templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
-      const kindLabel = "Plantilla";
-      const isConfigured = Boolean(rule && tpl?.chatwootTemplate?.name);
+      const kindLabel = "Plantilla WhatsApp";
+      const isConfigured = Boolean(rule && isNotificationTemplateConfigured(tpl));
       const statusLabel = isConfigured ? (rule?.enabled ? "Activa" : "Inactiva") : "No configurada";
       const statusPill = isConfigured ? (rule?.enabled ? "pill-green" : "pill-muted") : "pill-muted";
       return {
@@ -611,8 +598,8 @@ export function NotificationsSimple({
     ...REMINDER_TYPES.map((rt) => {
       const rule = getReminderRule(rt.kind, rt.paymentType);
       const tpl = getReminderTemplate(rt.kind, rt.paymentType);
-      const kindLabel = "Plantilla";
-      const isConfigured = Boolean(rule && isTemplateConfigured(tpl));
+      const kindLabel = "Plantilla WhatsApp";
+      const isConfigured = Boolean(rule && isNotificationTemplateConfigured(tpl));
       const statusLabel = isConfigured ? (rule?.enabled ? "Activa" : "Inactiva") : "No configurada";
       const statusPill = isConfigured && rule?.enabled ? "pill-green" : "pill-muted";
       return {
@@ -758,7 +745,7 @@ export function NotificationsSimple({
             data-loader="off"
           >
             <input type="hidden" name="csrf" value={csrfToken} />
-            <input type="hidden" name="returnTo" value="/notifications" />
+            <input type="hidden" name="returnTo" value="/settings?tab=notificaciones-whatsapp" />
             <div className="toggleRow">
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -811,6 +798,7 @@ export function NotificationsSimple({
                 <div className="field row" style={{ justifyContent: "space-between" }}>
                   <div className="muted">Tipo: Plantilla (WhatsApp)</div>
                 </div>
+                <div className="field-hint">Solo se aceptan plantillas WhatsApp activas. No se usan mensajes libres en estos envíos.</div>
                 <WaTemplateFields
                   templates={waTemplates}
                   defaultName={waName}
@@ -837,7 +825,7 @@ export function NotificationsSimple({
                     className="primary btn-compact btn-save"
                     type="submit"
                     pendingText="Guardando..."
-                    title="Guardar plantilla de recordatorio"
+                    title="Guardar notificación"
                     aria-label="Guardar cambios"
                   >
                     Guardar
@@ -863,6 +851,7 @@ export function NotificationsSimple({
             <div className="field row" style={{ justifyContent: "space-between" }}>
               <div className="muted">Tipo: Plantilla (WhatsApp)</div>
             </div>
+            <div className="field-hint">Solo se aceptan plantillas WhatsApp activas. No se usan mensajes libres en estos envíos.</div>
             <WaTemplateFields
               templates={waTemplates}
               defaultName={activeReminder?.template?.chatwootTemplate?.name || ""}

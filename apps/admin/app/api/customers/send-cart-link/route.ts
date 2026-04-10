@@ -1,25 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireApiSession } from "../../_lib/requireApiSession";
 import { getCheckoutConfig } from "../../../admin/_services/settings";
-import { findCheckoutTemplateForProduct } from "../../../admin/_services/checkoutTemplates";
+import { findCheckoutTemplateForProductOrDefault } from "../../../admin/_services/checkoutTemplates";
 import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
 import { scheduleCatalogLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
-import { signPublicToken } from "../../../../lib/publicTokens";
+import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
 import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
 import { logger } from "@suscripciones/core/lib/logger";
-
-function ensureHttps(value: string) {
-  if (!value) return value;
-  if (/^https?:\/\//i.test(value)) return value;
-  return `https://${value.replace(/^\/+/, "")}`;
-}
-
-function buildPublicUrl(base: string, path: string, utm: string) {
-  const normalized = ensureHttps(base).replace(/\/$/, "");
-  const url = `${normalized}${path.startsWith("/") ? "" : "/"}${path}`;
-  if (!utm) return url;
-  return `${url}${url.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}`;
-}
+import { isNotificationTemplateConfigured } from "../../../lib/notificationTemplate";
 
 export async function POST(req: Request) {
   const auth = await requireApiSession(req);
@@ -39,7 +27,6 @@ export async function POST(req: Request) {
   const catalogTypeRaw = String(body?.catalogType || "").trim().toUpperCase();
   const catalogType = catalogTypeRaw === "SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN";
   if (!customerId) return NextResponse.json({ ok: false, error: "missing_customer_id" }, { status: 400 });
-  if (!productId) return NextResponse.json({ ok: false, error: "missing_product_for_customer" }, { status: 400 });
 
   const notificationsConfig = await getNotificationsConfig().catch((err: any) => {
     logger.warn({ err, customerId, tenantId, productId, catalogType }, "Fallo cargando configuracion de notificaciones para cart link");
@@ -56,7 +43,7 @@ export async function POST(req: Request) {
     });
     const rule = filtered[0] || null;
     const tpl = rule ? templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || "")) : null;
-    if (!tpl || !String(tpl?.chatwootTemplate?.name || "").trim()) {
+    if (!isNotificationTemplateConfigured(tpl)) {
       return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
     }
   } else {
@@ -70,45 +57,40 @@ export async function POST(req: Request) {
   if (!checkoutConfig) {
     return NextResponse.json({ ok: false, error: "missing_public_base_url" }, { status: 500 });
   }
-  const baseFromSettings =
-    catalogType === "SUBSCRIPTION"
-      ? String(checkoutConfig?.subscriptionBaseUrl || "").trim()
-      : String(checkoutConfig?.planBaseUrl || "").trim() || String(checkoutConfig?.subscriptionBaseUrl || "").trim();
-  const base = baseFromSettings.replace(/\/$/, "");
-  if (!base) {
-    return NextResponse.json(
-      { ok: false, error: catalogType === "SUBSCRIPTION" ? "missing_subscription_base_url" : "missing_public_base_url" },
-      { status: 400 }
-    );
-  }
 
-  const selectedTemplate = await findCheckoutTemplateForProduct({ tenantId: tenantId || null, kind: "CART" as any, productId });
+  const selectedTemplate = await findCheckoutTemplateForProductOrDefault({
+    tenantId: tenantId || null,
+    kind: "CART" as any,
+    productId: productId || null,
+    defaultTemplateId: String(checkoutConfig?.defaultCartTemplateId || "").trim()
+  });
   if (!selectedTemplate) {
-    return NextResponse.json({ ok: false, error: "missing_checkout_for_product" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: productId ? "missing_checkout_for_product" : "missing_cart_template" }, { status: 400 });
   }
-
-  const expiryHours = Number((selectedTemplate as any)?.expiryHours || 0);
-  const hours = Number.isFinite(expiryHours) && expiryHours > 0 ? Math.min(Math.max(Math.trunc(expiryHours), 1), 168) : 24;
-  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
-  const linkToken = await signPublicToken({ sub: customerId, scope: "cart", ttlSeconds: hours * 60 * 60 });
-  const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
-  const publicUrl = buildPublicUrl(base, `/public/cart/${linkToken}`, utm);
 
   const customer = await getCustomerById(customerId);
   if (!customer) return NextResponse.json({ ok: false, error: "customer_not_found" }, { status: 404 });
+  const created = await createPublicCheckoutLink({
+    customerId,
+    templateId: String((selectedTemplate as any)?.id || "")
+  });
+  const publicUrl = String(created?.url || "").trim();
+  if (!publicUrl) {
+    return NextResponse.json({ ok: false, error: "public_checkout_create_failed" }, { status: 500 });
+  }
   const prevMeta =
     customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {};
 
   const nextMeta = {
     ...prevMeta,
     cartLink: {
+      ...(prevMeta?.cartLink || {}),
+      ...(created || {}),
       url: publicUrl,
-      token: linkToken,
-      templateId: (selectedTemplate as any).id,
+      token: String(created?.token || "").trim() || prevMeta?.cartLink?.token || null,
+      templateId: String((selectedTemplate as any).id || "").trim() || prevMeta?.cartLink?.templateId || null,
       catalogType,
-      createdAt: new Date().toISOString(),
-      expiresAt,
-      usedAt: null
+      kind: "CART"
     }
   };
   await updateCustomerMetadata({ customerId, metadata: nextMeta }).catch((err: any) => {
@@ -130,12 +112,14 @@ export async function POST(req: Request) {
   if (!rulesActive) {
     return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
   }
+  const chatwootError = String((schedule as any)?.errors?.[0] || "").trim() || null;
 
   return NextResponse.json({
     ok: true,
     link: publicUrl,
     notificationsScheduled: schedule?.scheduled ?? 0,
     notificationsSent: schedule?.sentNow ?? 0,
-    notificationsRulesActive: rulesActive
+    notificationsRulesActive: rulesActive,
+    chatwootError
   });
 }

@@ -59,6 +59,8 @@ type SubscriptionDetail = {
   manualMarkPaidEnabled?: boolean;
   chargeDue?: boolean;
   lastPaidInCurrentPeriod?: boolean;
+  currentCheckoutUrl?: string | null;
+  currentTokenUrl?: string | null;
 };
 
 export function SubscriptionDetailModal({
@@ -74,8 +76,8 @@ export function SubscriptionDetailModal({
   markSubscriptionPaidManual,
   unmarkSubscriptionPaidManual,
   mergeDuplicateSubscriptions,
-  sendCentralComPaymentLink,
-  sendCentralComTokenizationLink,
+  sendWhatsAppPaymentLink,
+  sendWhatsAppTokenizationLink,
   updateSubscriptionTenants,
   changeSubscriptionPlan,
   updateSubscriptionBillingSettings,
@@ -97,8 +99,8 @@ export function SubscriptionDetailModal({
   markSubscriptionPaidManual: (formData: FormData) => void | Promise<void>;
   unmarkSubscriptionPaidManual: (formData: FormData) => void | Promise<void>;
   mergeDuplicateSubscriptions: (formData: FormData) => void | Promise<void>;
-  sendCentralComPaymentLink: (formData: FormData) => void | Promise<void>;
-  sendCentralComTokenizationLink: (formData: FormData) => void | Promise<void>;
+  sendWhatsAppPaymentLink: (formData: FormData) => void | Promise<void>;
+  sendWhatsAppTokenizationLink: (formData: FormData) => void | Promise<void>;
   updateSubscriptionTenants: (formData: FormData) => void | Promise<void>;
   changeSubscriptionPlan: (formData: FormData) => void | Promise<void>;
   updateSubscriptionBillingSettings: (formData: FormData) => void | Promise<void>;
@@ -133,8 +135,13 @@ export function SubscriptionDetailModal({
   const tipoLabel = String(subscription.tipoTx || "").toLowerCase();
   const alreadyPaidCurrentPeriod = Boolean(subscription.lastPaidInCurrentPeriod);
   const isAutoDebit = modeValue === "AUTO_DEBIT" || tipoLabel.includes("débito") || tipoLabel.includes("debito");
-  const showChargeButton = isAutoDebit && !subscription.status.includes("CANCELED");
-  const showMarkPaidButton = !subscription.status.includes("CANCELED") && !alreadyPaidCurrentPeriod;
+  const isCanceled = subscription.status === "CANCELED";
+  const isSuspended = subscription.status === "SUSPENDED";
+  const isInactive = isCanceled || isSuspended;
+  const showChargeButton = isAutoDebit && !isInactive;
+  const showMarkPaidButton = !isCanceled && !alreadyPaidCurrentPeriod;
+  const showPaymentLinkButton = !isInactive && !isAutoDebit;
+  const showTokenizationLink = isAutoDebit && !isInactive;
   const showResume = subscription.status === "SUSPENDED";
   const showActivate = subscription.status === "CANCELED";
   const showCancelSuspend = !showResume && !showActivate;
@@ -423,30 +430,55 @@ export function SubscriptionDetailModal({
             </div>
 
             <div className="module-footer">
-              {!isAutoDebit ? (
-                <PaymentLinkModalButton
-                  subscriptionId={subscription.id}
-                  customerId={subscription.customerId}
-                  tenantId={tenantId}
-                  csrfToken={csrfToken}
-                  returnTo={returnTo}
-                  defaultAmountPesos={Math.trunc(subscription.totalInCents / 100)}
-                  notificationTemplates={notificationsTemplates}
-                  notificationRules={notificationsRules}
-                  action={sendCentralComPaymentLink}
-                />
+              {showPaymentLinkButton ? (
+                subscription.currentCheckoutUrl ? (
+                  <a
+                    className="ghost btn-compact btn-send btn-highlight"
+                    href={subscription.currentCheckoutUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Abrir link de pago"
+                  >
+                    Abrir link
+                  </a>
+                ) : (
+                  <PaymentLinkModalButton
+                    subscriptionId={subscription.id}
+                    customerId={subscription.customerId}
+                    tenantId={tenantId}
+                    csrfToken={csrfToken}
+                    returnTo={returnTo}
+                    defaultAmountPesos={Math.trunc(subscription.totalInCents / 100)}
+                    notificationTemplates={notificationsTemplates}
+                    notificationRules={notificationsRules}
+                    paymentType="SUBSCRIPTION"
+                    action={sendWhatsAppPaymentLink}
+                  />
+                )
               ) : null}
-              {isAutoDebit ? (
-                <TokenizationLinkModalButton
-                  customerId={subscription.customerId}
-                  planId={subscription.planId}
-                  tenantId={tenantId}
-                  csrfToken={csrfToken}
-                  returnTo={returnTo}
-                  notificationTemplates={notificationsTemplates}
-                  notificationRules={notificationsRules}
-                  action={sendCentralComTokenizationLink}
-                />
+              {showTokenizationLink ? (
+                subscription.currentTokenUrl ? (
+                  <a
+                    className="ghost btn-compact btn-send btn-highlight"
+                    href={subscription.currentTokenUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Abrir link de tokenización"
+                  >
+                    Abrir link
+                  </a>
+                ) : (
+                  <TokenizationLinkModalButton
+                    customerId={subscription.customerId}
+                    planId={subscription.planId}
+                    tenantId={tenantId}
+                    csrfToken={csrfToken}
+                    returnTo={returnTo}
+                    notificationTemplates={notificationsTemplates}
+                    notificationRules={notificationsRules}
+                    action={sendWhatsAppTokenizationLink}
+                  />
+                )
               ) : null}
             </div>
           </div>

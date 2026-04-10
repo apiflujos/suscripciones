@@ -187,13 +187,25 @@ export default async function EmpresasPage({
           )}
 
           <div className="pagination pagination-indicator" style={{ marginTop: 16 }}>
-            <a className="page-link page-nav" href={pageHref(Math.max(1, currentPage - 1))} aria-disabled={currentPage <= 1}>
-              Anterior
-            </a>
+            {currentPage <= 1 ? (
+              <span className="page-link page-nav" aria-disabled="true">
+                Anterior
+              </span>
+            ) : (
+              <a className="page-link page-nav" href={pageHref(Math.max(1, currentPage - 1))}>
+                Anterior
+              </a>
+            )}
             <div className="pagination-pages" style={{ display: "none" }} />
-            <a className="page-link page-nav" href={pageHref(Math.min(totalPages, currentPage + 1))} aria-disabled={currentPage >= totalPages}>
-              Siguiente
-            </a>
+            {currentPage >= totalPages ? (
+              <span className="page-link page-nav" aria-disabled="true">
+                Siguiente
+              </span>
+            ) : (
+              <a className="page-link page-nav" href={pageHref(Math.min(totalPages, currentPage + 1))}>
+                Siguiente
+              </a>
+            )}
           </div>
         </div>
       </section>

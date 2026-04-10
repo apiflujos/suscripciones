@@ -24,11 +24,12 @@ import {
   unmarkSubscriptionPaidManual as unmarkSubscriptionPaidManualService
 } from "../admin/_services/subscriptions";
 import { getAdminSettings } from "../admin/_services/settings";
-import { findCheckoutTemplateForProduct } from "../admin/_services/checkoutTemplates";
+import { findCheckoutTemplateForProductOrDefault } from "../admin/_services/checkoutTemplates";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
-import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
+import { schedulePaymentLinkNotifications, scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
+import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
 import { logger } from "@suscripciones/core/lib/logger";
-import { signPublicToken } from "../../lib/publicTokens";
+import { isNotificationTemplateConfigured } from "../lib/notificationTemplate";
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
@@ -72,6 +73,7 @@ function humanizeCreateError(raw: string) {
   if (msg.includes("missing_subscription_base_url")) return "Falta configurar URL base de suscripción en Configuración.";
   if (msg.includes("missing_plan_base_url")) return "Falta configurar URL base de plan en Configuración.";
   if (msg.includes("missing_checkout_for_product")) return "No hay un checkout público asociado al producto seleccionado.";
+  if (msg.includes("public_checkout_create_failed")) return "No se pudo generar el checkout público de débito automático.";
   if (msg.includes("payment_association_failed")) return "La suscripción se creó, pero no se pudo asociar automáticamente al pago recibido.";
   if (msg.includes("duplicate_subscription_requires_approval")) return "Este cliente ya tiene una suscripción activa/en mora para el mismo producto. Debes confirmar creación duplicada.";
   if (msg.includes("create_plan_failed")) return "No se pudo crear el producto de cobro.";
@@ -102,20 +104,74 @@ function humanizeChargeError(raw: string) {
   return "No se pudo cobrar la suscripción.";
 }
 
-async function hasNotificationRule(trigger: string): Promise<boolean | null> {
+async function hasNotificationRule(trigger: string, paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK"): Promise<boolean | null> {
   try {
     const cfg = await getNotificationsConfigForEnv("PRODUCTION");
     const rules = Array.isArray((cfg as any)?.rules) ? (cfg as any).rules : [];
     const templates = Array.isArray((cfg as any)?.templates) ? (cfg as any).templates : [];
-    const match = rules.find((r: any) => r?.enabled && r?.trigger === trigger);
+    const candidates = rules.filter((r: any) => {
+      if (!r?.enabled || r?.trigger !== trigger) return false;
+      if (!paymentType) return true;
+      const types = Array.isArray(r?.conditions?.requirePaymentTypeIn) ? r.conditions.requirePaymentTypeIn : [];
+      return !types.length || types.includes(paymentType);
+    });
+    const match = candidates[0] || null;
     if (!match) return false;
     const tpl = templates.find((t: any) => String(t?.id || "") === String(match?.templateId || ""));
-    if (!tpl) return false;
-    const chatwootName = String((tpl as any)?.chatwootTemplate?.name || "").trim();
-    return Boolean(chatwootName);
+    return isNotificationTemplateConfigured(tpl);
   } catch {
     return null;
   }
+}
+
+async function getPaymentLinkNotificationTypeForSubscription(subscriptionId: string): Promise<"SUBSCRIPTION" | "LINK" | null> {
+  const resolvedSubscriptionId = String(subscriptionId || "").trim();
+  if (!resolvedSubscriptionId) return null;
+  try {
+    const subscription = await prisma.subscription.findUnique({
+      where: { id: resolvedSubscriptionId },
+      select: { id: true }
+    });
+    return subscription?.id ? "SUBSCRIPTION" : null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveSubscriptionPlanCheckoutTemplate(args: { subscriptionId: string; tenantId?: string | null }) {
+  const subscriptionId = String(args.subscriptionId || "").trim();
+  if (!subscriptionId) return null;
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    select: {
+      id: true,
+      customerId: true,
+      tenantId: true,
+      metadata: true,
+      plan: { select: { metadata: true } }
+    }
+  });
+  if (!subscription) return null;
+
+  const explicitTemplateId = String((subscription.metadata as any)?.templateId || "").trim();
+  if (explicitTemplateId) {
+    const explicit = await prisma.publicCheckoutTemplate.findUnique({ where: { id: explicitTemplateId } }).catch(() => null);
+    if (explicit && explicit.active !== false && String(explicit.kind || "").toUpperCase() === "PLAN") {
+      return { subscription, templateId: String(explicit.id) };
+    }
+  }
+
+  const settings = await getAdminSettings().catch(() => null);
+  const productId = String((subscription.plan?.metadata as any)?.catalog?.itemId || "").trim();
+  if (!productId) return null;
+  const selected = await findCheckoutTemplateForProductOrDefault({
+    tenantId: String(args.tenantId || subscription.tenantId || "").trim() || null,
+    kind: "PLAN" as any,
+    productId,
+    defaultTemplateId: String((settings as any)?.checkoutConfig?.defaultPlanTemplateId || "").trim()
+  });
+  const templateId = selected ? String((selected as any).id || "") : "";
+  return templateId ? { subscription, templateId } : null;
 }
 
 function readTenantIds(formData: FormData): string[] {
@@ -909,10 +965,14 @@ export async function createPlanAndSubscription(formData: FormData) {
 
     const collectionMode = billingType === "PLAN" ? "AUTO_LINK" : "AUTO_DEBIT";
 
-    const template = await findCheckoutTemplateForProduct({
+    const template = await findCheckoutTemplateForProductOrDefault({
       tenantId: tenantId || null,
       kind: billingType === "PLAN" ? "PLAN" : "SUBSCRIPTION",
-      productId
+      productId,
+      defaultTemplateId:
+        billingType === "PLAN"
+          ? String(checkoutConfig?.defaultPlanTemplateId || "").trim()
+          : String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim()
     });
     if (!template) {
       return redirect(
@@ -998,57 +1058,24 @@ export async function createPlanAndSubscription(formData: FormData) {
     }
 
     const checkoutUrl = (sub as any)?.checkoutUrl ? String((sub as any).checkoutUrl) : "";
-    const templateExpiryHours = template?.expiryHours ?? null;
-    const configExpiryHours =
-      Number.isFinite(Number(checkoutConfig?.tokenExpiryHours)) && Number(checkoutConfig?.tokenExpiryHours) > 0
-        ? Math.min(Math.max(Math.trunc(Number(checkoutConfig?.tokenExpiryHours)), 1), 168)
-        : null;
-    const expiryHours = template
-      ? (Number.isFinite(Number(templateExpiryHours)) && Number(templateExpiryHours) > 0
-          ? Math.min(Math.max(Math.trunc(Number(templateExpiryHours)), 1), 168)
-          : null)
-      : configExpiryHours;
-    const ttlHours = Number.isFinite(Number(expiryHours)) && Number(expiryHours) > 0 ? Math.min(Math.max(Math.trunc(Number(expiryHours)), 1), 168) : 24;
 
     if (billingType === "PLAN" && checkoutUrl) {
-      const base = planBase;
-      const token = await signPublicToken({
-        sub: resolvedCustomerId || "customer",
-        scope: "payment",
-        ttlSeconds: ttlHours * 60 * 60
+      const createdPaymentLink = await createPublicCheckoutLink({
+        customerId: resolvedCustomerId,
+        templateId: String(template?.id || ""),
+        checkoutUrl
       });
-      const baseUrl = `${base.replace(/\/$/, "")}/public/plan/${token}`;
-    const utm = String(template?.utmParams || checkoutConfig?.defaultUtmParams || "").trim();
-      const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
-      const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
-      const prevMeta =
-        customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {};
-      const nextMeta = {
-        ...prevMeta,
-        paymentLink: {
-          url,
-          token,
-          checkoutUrl,
-          planId,
-          kind: "PLAN",
-          templateId: template?.id || null,
-          utmParams: template?.utmParams || null,
-          createdAt: new Date().toISOString(),
-          expiresAt,
-          usedAt: null
-        }
-      };
-      await updateCustomerProfile({ customerId: resolvedCustomerId, metadata: nextMeta }).catch((err: any) => {
-        logger.warn({ err, customerId: resolvedCustomerId, planId }, "Fallo guardando metadata de tokenización en customer profile");
-      });
+      const url = String(createdPaymentLink?.url || "").trim();
+      if (!url) throw new Error("public_checkout_create_failed");
 
-      const rulesActive = await hasNotificationRule("PAYMENT_LINK_CREATED");
+      const rulesActive = await hasNotificationRule("PAYMENT_LINK_CREATED", "SUBSCRIPTION");
       if (shouldCreateLink && rulesActive !== true) {
         redirect(
           mergeQuery(returnTo, {
             error: "missing_template",
             checkoutUrl: url,
             customerId: resolvedCustomerId,
+            subscriptionId,
             ...(tenantId ? { tenantId } : {})
           })
         );
@@ -1059,6 +1086,7 @@ export async function createPlanAndSubscription(formData: FormData) {
           created: "1",
           checkoutUrl: url,
           customerId: resolvedCustomerId,
+          subscriptionId,
           ...(tenantId ? { tenantId } : {})
         })
       );
@@ -1066,61 +1094,50 @@ export async function createPlanAndSubscription(formData: FormData) {
 
     if (billingType === "SUBSCRIPCION") {
       if (hasToken) {
-        redirect(mergeQuery(returnTo, { created: "1", customerId: resolvedCustomerId, ...(tenantId ? { tenantId } : {}) }));
+        redirect(mergeQuery(returnTo, { created: "1", customerId: resolvedCustomerId, subscriptionId, ...(tenantId ? { tenantId } : {}) }));
       }
       if (submitAction !== "LINK_NOW") {
-        redirect(mergeQuery(returnTo, { created: "1", customerId: resolvedCustomerId, ...(tenantId ? { tenantId } : {}) }));
+        redirect(mergeQuery(returnTo, { created: "1", customerId: resolvedCustomerId, subscriptionId, ...(tenantId ? { tenantId } : {}) }));
       }
-      const base = subBase;
-      const token = await signPublicToken({
-        sub: resolvedCustomerId || "customer",
-        scope: "tokenization",
-        ttlSeconds: ttlHours * 60 * 60
-      });
-      const baseUrl = `${base.replace(/\/$/, "")}/public/suscripcion/${token}`;
-      const utm = String(template?.utmParams || checkoutConfig?.defaultUtmParams || "").trim();
-      const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
-      const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
-      const prevMeta =
-        customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {};
-      const nextMeta = {
-        ...prevMeta,
-        tokenizationLink: {
-          url,
-          token,
-          planId,
-          kind: "SUBSCRIPTION",
-          templateId: template?.id || null,
-          utmParams: template?.utmParams || null,
-          createdAt: new Date().toISOString(),
-          expiresAt,
-          usedAt: null
-        }
-      };
-      await updateCustomerProfile({ customerId: resolvedCustomerId, metadata: nextMeta }).catch((err: any) => {
-        logger.warn({ err, customerId: resolvedCustomerId, planId }, "Fallo guardando metadata de tokenización en customer profile");
-      });
-
-      let rulesActive: boolean | null = null;
-      try {
-        const scheduled = await scheduleTokenizationLinkNotifications({ customerId: resolvedCustomerId, tokenUrl: url, forceNow: true });
-        rulesActive = Boolean(scheduled?.rulesActive);
-      } catch (err: any) {
-        logger.warn({ err, customerId: resolvedCustomerId, planId }, "Fallo programando notificaciones de tokenización");
-        rulesActive = null;
-      }
+      const rulesActive = await hasNotificationRule("TOKENIZATION_LINK_CREATED", "SUBSCRIPTION");
       if (rulesActive !== true) {
         redirect(
           mergeQuery(returnTo, {
             error: "missing_template",
+            customerId: resolvedCustomerId,
+            subscriptionId,
+            ...(tenantId ? { tenantId } : {})
+          })
+        );
+      }
+      const createdTokenizationLink = await createPublicCheckoutLink({
+        customerId: resolvedCustomerId,
+        templateId: String(template?.id || ""),
+        planId
+      });
+      const url = String(createdTokenizationLink?.url || "").trim();
+      if (!url) throw new Error("public_checkout_create_failed");
+
+      let notificationError = "";
+      try {
+        const scheduled = await scheduleTokenizationLinkNotifications({ customerId: resolvedCustomerId, tokenUrl: url, forceNow: true });
+        notificationError = String((scheduled as any)?.errors?.[0] || "").trim();
+      } catch (err: any) {
+        logger.warn({ err, customerId: resolvedCustomerId, planId }, "Fallo programando notificaciones de tokenización");
+      }
+      if (notificationError) {
+        redirect(
+          mergeQuery(returnTo, {
+            error: notificationError,
             checkoutUrl: url,
             customerId: resolvedCustomerId,
+            subscriptionId,
             ...(tenantId ? { tenantId } : {})
           })
         );
       }
 
-      redirect(mergeQuery(returnTo, { created: "1", checkoutUrl: url, customerId: resolvedCustomerId, ...(tenantId ? { tenantId } : {}) }));
+      redirect(mergeQuery(returnTo, { created: "1", checkoutUrl: url, customerId: resolvedCustomerId, subscriptionId, ...(tenantId ? { tenantId } : {}) }));
     }
 
     if (checkoutUrl) {
@@ -1129,11 +1146,12 @@ export async function createPlanAndSubscription(formData: FormData) {
           created: "1",
           checkoutUrl,
           customerId: resolvedCustomerId,
+          subscriptionId,
           ...(tenantId ? { tenantId } : {})
         })
       );
     }
-    redirect(mergeQuery(returnTo, { created: "1", ...(tenantId ? { tenantId } : {}) }));
+    redirect(mergeQuery(returnTo, { created: "1", subscriptionId, ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     const friendly = humanizeCreateError(String(err?.message || "create_plan_and_subscription_failed"));
@@ -1141,13 +1159,7 @@ export async function createPlanAndSubscription(formData: FormData) {
   }
 }
 
-export async function sendChatwootPaymentLink(formData: FormData) {
-  await assertCsrfToken(formData);
-  const returnTo = safeReturnTo(formData);
-  return redirect(mergeQuery(returnTo, { error: "missing_template" }));
-}
-
-export async function sendCentralComPaymentLink(formData: FormData) {
+export async function sendWhatsAppPaymentLink(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
@@ -1165,26 +1177,55 @@ export async function sendCentralComPaymentLink(formData: FormData) {
     if (amountPesosRaw && (!amountInCents || amountInCents <= 0)) {
       return redirect(mergeQuery(returnTo, { error: "invalid_amount", ...(tenantId ? { tenantId } : {}) }));
     }
-    const res = await createSubscriptionPaymentLink({ subscriptionId, tenantId: tenantId || null, ...(amountInCents ? { amountInCents } : {}) });
+    const planCheckout = await resolveSubscriptionPlanCheckoutTemplate({ subscriptionId, tenantId: tenantId || null });
+    if (!planCheckout?.templateId) {
+      return redirect(mergeQuery(returnTo, { error: "missing_checkout_for_product", ...(tenantId ? { tenantId } : {}) }));
+    }
+
+    const res = await createSubscriptionPaymentLink({
+      subscriptionId,
+      tenantId: tenantId || null,
+      ...(amountInCents ? { amountInCents } : {}),
+      sendNotifications: false
+    });
     if (!res.ok) throw new Error(res.error);
     const checkoutUrl = String((res as any)?.checkoutUrl || "").trim();
     if (!checkoutUrl) return redirect(mergeQuery(returnTo, { error: "checkout_url_missing", ...(tenantId ? { tenantId } : {}) }));
 
-    let centralMode = "created";
+    const publicLink = await createPublicCheckoutLink({
+      customerId,
+      templateId: planCheckout.templateId,
+      checkoutUrl
+    });
+    const publicUrl = String(publicLink?.url || "").trim();
+    if (!publicUrl) {
+      return redirect(mergeQuery(returnTo, { error: "public_checkout_create_failed", ...(tenantId ? { tenantId } : {}) }));
+    }
+
     if (sendNow) {
-      const rulesActive = await hasNotificationRule("PAYMENT_LINK_CREATED");
+      const paymentNotificationType = await getPaymentLinkNotificationTypeForSubscription(subscriptionId);
+      const rulesActive = paymentNotificationType
+        ? await hasNotificationRule("PAYMENT_LINK_CREATED", paymentNotificationType)
+        : null;
       if (rulesActive !== true) {
         return redirect(mergeQuery(returnTo, { error: "missing_template", ...(tenantId ? { tenantId } : {}) }));
       }
-      centralMode = "rules";
+      const paymentId = String((res as any)?.paymentId || "").trim();
+      const scheduled = paymentId
+        ? await schedulePaymentLinkNotifications({ paymentId, forceNow: true })
+        : null;
+      const chatwootError = String((scheduled as any)?.errors?.[0] || "").trim();
+      if (chatwootError) {
+        return redirect(mergeQuery(returnTo, { error: chatwootError, checkoutUrl: publicUrl, customerId, subscriptionId, ...(tenantId ? { tenantId } : {}) }));
+      }
     }
 
     redirect(
       mergeQuery(returnTo, {
         central: sendNow ? "sent" : "created",
-        centralMode,
-        checkoutUrl,
+        checkoutUrl: publicUrl,
         customerId,
+        subscriptionId,
         ...(tenantId ? { tenantId } : {})
       })
     );
@@ -1194,7 +1235,7 @@ export async function sendCentralComPaymentLink(formData: FormData) {
   }
 }
 
-export async function sendCentralComTokenizationLink(formData: FormData) {
+export async function sendWhatsAppTokenizationLink(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   const customerId = String(formData.get("customerId") || "").trim();
@@ -1204,9 +1245,15 @@ export async function sendCentralComTokenizationLink(formData: FormData) {
   if (!customerId) return redirect(mergeQuery(returnTo, { error: "missing_customer_id", ...(tenantId ? { tenantId } : {}) }));
 
   try {
-    const [settings, customerRes] = await Promise.all([
+    const [settings, customerRes, plan] = await Promise.all([
       getAdminSettings().catch(() => null),
-      getCustomerById(customerId).catch(() => null)
+      getCustomerById(customerId).catch(() => null),
+      planId
+        ? prisma.subscriptionPlan.findUnique({
+            where: { id: planId },
+            select: { metadata: true }
+          }).catch(() => null)
+        : Promise.resolve(null)
     ]);
     const checkoutConfig = (settings as any)?.checkoutConfig || {};
     const base = normalizeCheckoutBase(String(checkoutConfig?.subscriptionBaseUrl || "").trim(), "suscripcion");
@@ -1214,49 +1261,46 @@ export async function sendCentralComTokenizationLink(formData: FormData) {
       return redirect(mergeQuery(returnTo, { error: "missing_subscription_base_url", ...(tenantId ? { tenantId } : {}) }));
     }
 
-    const expiryHours =
-      Number.isFinite(Number(checkoutConfig?.tokenExpiryHours)) && Number(checkoutConfig?.tokenExpiryHours) > 0
-        ? Math.min(Math.max(Math.trunc(Number(checkoutConfig?.tokenExpiryHours)), 1), 168)
-        : 24;
-    const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
-    const token = await signPublicToken({
-      sub: customerId || "customer",
-      scope: "tokenization",
-      ttlSeconds: expiryHours * 60 * 60
-    });
-    const baseUrl = `${base.replace(/\/$/, "")}/public/suscripcion/${token}`;
-    const utm = String(checkoutConfig?.defaultUtmParams || "").trim();
-    const url = utm ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${utm.replace(/^\?+/, "")}` : baseUrl;
-
-    const customer = (customerRes || {}) as any;
-    const prevMeta =
-      customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {};
-    const nextMeta = {
-      ...prevMeta,
-      tokenizationLink: {
-        url,
-        token,
-        planId: planId || prevMeta?.tokenizationLink?.planId || null,
-        kind: "SUBSCRIPTION",
-        createdAt: new Date().toISOString(),
-        expiresAt,
-        usedAt: null
-      }
-    };
-    await updateCustomerProfile({ customerId, metadata: nextMeta }).catch((err: any) => {
-      logger.warn({ err, customerId, planId }, "Fallo guardando metadata de tokenización en envío manual");
-    });
-
-    let rulesActive: boolean | null = null;
-    try {
-      const scheduled = await scheduleTokenizationLinkNotifications({ customerId, tokenUrl: url, forceNow: true });
-      rulesActive = Boolean(scheduled?.rulesActive);
-    } catch (err: any) {
-      logger.warn({ err, customerId, planId }, "Fallo programando notificaciones de tokenización en envío manual");
-      rulesActive = null;
+    const productId = String((plan?.metadata as any)?.catalog?.itemId || "").trim();
+    const template = productId
+      ? await findCheckoutTemplateForProductOrDefault({
+          tenantId: tenantId || null,
+          kind: "SUBSCRIPTION",
+          productId,
+          defaultTemplateId: String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim()
+        }).catch(() => null)
+      : null;
+    if (!template?.id) {
+      return redirect(mergeQuery(returnTo, { error: "missing_checkout_for_product", ...(tenantId ? { tenantId } : {}) }));
     }
+
+    if (!customerRes) {
+      return redirect(mergeQuery(returnTo, { error: "customer_not_found", ...(tenantId ? { tenantId } : {}) }));
+    }
+    const rulesActive = await hasNotificationRule("TOKENIZATION_LINK_CREATED");
     if (rulesActive !== true) {
       return redirect(mergeQuery(returnTo, { error: "missing_template", ...(tenantId ? { tenantId } : {}) }));
+    }
+
+    const createdTokenizationLink = await createPublicCheckoutLink({
+      customerId,
+      templateId: String(template.id),
+      planId: planId || null
+    });
+    const url = String(createdTokenizationLink?.url || "").trim();
+    if (!url) {
+      return redirect(mergeQuery(returnTo, { error: "public_checkout_create_failed", ...(tenantId ? { tenantId } : {}) }));
+    }
+
+    let notificationError = "";
+    try {
+      const scheduled = await scheduleTokenizationLinkNotifications({ customerId, tokenUrl: url, forceNow: true });
+      notificationError = String((scheduled as any)?.errors?.[0] || "").trim();
+    } catch (err: any) {
+      logger.warn({ err, customerId, planId }, "Fallo programando notificaciones de tokenización en envío manual");
+    }
+    if (notificationError) {
+      return redirect(mergeQuery(returnTo, { error: notificationError, ...(tenantId ? { tenantId } : {}) }));
     }
 
     redirect(mergeQuery(returnTo, { central: "sent", tokenUrl: url, customerId, ...(tenantId ? { tenantId } : {}) }));

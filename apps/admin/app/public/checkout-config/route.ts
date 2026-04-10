@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 type CheckoutConfig = {
   planBaseUrl?: string;
   subscriptionBaseUrl?: string;
+  cartBaseUrl?: string;
   defaultUtmParams?: string;
   tokenExpiryHours?: number;
   logoUrl?: string;
@@ -50,6 +51,7 @@ export async function GET() {
   const envBases = getCheckoutBaseUrlsFromEnv();
   const storedPlanBaseUrl = String(parsed?.planBaseUrl || "").trim();
   const storedSubscriptionBaseUrl = String(parsed?.subscriptionBaseUrl || "").trim();
+  const storedCartBaseUrl = String(parsed?.cartBaseUrl || "").trim();
   const storedReturnUrl = String(parsed?.tokenizationReturnUrl || "").trim();
   const wompiActiveEnv: "SANDBOX" | "PRODUCTION" = (() => {
     const fromDb = wompiCreds.get("ACTIVE_ENV");
@@ -64,6 +66,7 @@ export async function GET() {
   const config = {
     planBaseUrl: storedPlanBaseUrl || envBases.planBaseUrl,
     subscriptionBaseUrl: storedSubscriptionBaseUrl || envBases.subscriptionBaseUrl,
+    cartBaseUrl: storedCartBaseUrl || envBases.cartBaseUrl,
     defaultUtmParams: String(parsed?.defaultUtmParams || "").trim() || "",
     tokenExpiryHours: Number(parsed?.tokenExpiryHours || 24),
     logoUrl: String(parsed?.logoUrl || "").trim() || null,

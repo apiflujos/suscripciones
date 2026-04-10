@@ -11,10 +11,15 @@ import {
   updateCatalogProduct
 } from "../admin/_services/products";
 import { getCustomerById } from "../admin/_services/customers";
+import { getCheckoutConfig } from "../admin/_services/settings";
+import { findCheckoutTemplateForProductOrDefault } from "../admin/_services/checkoutTemplates";
 import { createManualOrderForAdmin } from "../admin/_services/orders";
 import { createPlan } from "../admin/_services/plans";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
+import { schedulePaymentLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
+import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
 import { logger } from "@suscripciones/core/lib/logger";
+import { isNotificationTemplateConfigured } from "../lib/notificationTemplate";
 
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");
@@ -251,7 +256,7 @@ export async function sendProductToCustomer(formData: FormData) {
 
   const notificationsConfig = await getNotificationsConfigForEnv("PRODUCTION").catch(() => null);
   const paymentTemplate = resolveNotificationTemplate(notificationsConfig, "PAYMENT_LINK_CREATED", "LINK");
-  if (!paymentTemplate || !String((paymentTemplate as any)?.chatwootTemplate?.name || "").trim()) {
+  if (!isNotificationTemplateConfigured(paymentTemplate)) {
     return redirect(mergeQuery(returnTo, { error: "missing_template" }));
   }
 
@@ -275,6 +280,23 @@ export async function sendProductToCustomer(formData: FormData) {
   }
 
   try {
+    const checkoutConfig = await getCheckoutConfig().catch(() => null);
+    if (!checkoutConfig || !String(checkoutConfig?.planBaseUrl || "").trim()) {
+      return redirect(mergeQuery(returnTo, { error: "missing_plan_base_url" }));
+    }
+
+    const tenantId = String(product?.tenantId || customer?.tenantId || "").trim() || null;
+    const selected = await findCheckoutTemplateForProductOrDefault({
+      tenantId,
+      kind: "PLAN" as any,
+      productId,
+      defaultTemplateId: String(checkoutConfig?.defaultPlanTemplateId || "").trim()
+    });
+    const templateId = String((selected as any)?.id || "").trim();
+    if (!templateId) {
+      return redirect(mergeQuery(returnTo, { error: "missing_checkout_for_product" }));
+    }
+
     const orderRes = await createManualOrderForAdmin({
       customerId,
       reference: buildOrderReference(product),
@@ -290,11 +312,38 @@ export async function sendProductToCustomer(formData: FormData) {
           quantity: 1,
           unitPriceInCents: Number(product.basePriceInCents || 0)
         }
-      ]
+      ],
+      tenantId,
+      sendChatwoot: false
     });
     if (!orderRes.ok) throw new Error(orderRes.error);
-    if (orderRes.notificationsRulesActive === false) {
-      return redirect(mergeQuery(returnTo, { error: "missing_template" }));
+
+    const checkoutUrl = String((orderRes as any)?.checkoutUrl || "").trim();
+    if (!checkoutUrl) {
+      return redirect(mergeQuery(returnTo, { error: "checkout_url_missing" }));
+    }
+
+    const created = await createPublicCheckoutLink({
+      customerId,
+      templateId,
+      checkoutUrl
+    });
+    if (!String(created?.url || "").trim()) {
+      return redirect(mergeQuery(returnTo, { error: "public_checkout_create_failed" }));
+    }
+
+    const paymentId = String((orderRes as any)?.payment?.id || "").trim();
+    if (!paymentId) {
+      return redirect(mergeQuery(returnTo, { error: "request_failed" }));
+    }
+
+    const scheduled = await schedulePaymentLinkNotifications({ paymentId, forceNow: true }).catch((err: any) => {
+      logger.error({ err, customerId, productId, paymentId }, "Fallo programando notificación de payment link desde productos");
+      throw err;
+    });
+    const chatwootError = String((scheduled as any)?.errors?.[0] || "").trim();
+    if (chatwootError) {
+      return redirect(mergeQuery(returnTo, { error: chatwootError }));
     }
   } catch (err: any) {
     return redirect(mergeQuery(returnTo, { error: String(err?.message || "order_create_failed") }));
