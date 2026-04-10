@@ -51,7 +51,7 @@ export function ManualChargeButton({
         {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
         {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
         <button
-          className="primary btn-compact btn-pay subscription-action-btn"
+          className="ghost btn-compact btn-pay contact-action-btn action-payment subscription-action-btn"
           type="submit"
           title={manualChargeEnabled === false ? "El cobro manual está deshabilitado. Hacé clic para ir a Configuración." : "Cobrar suscripción ahora (débito automático)"}
           aria-disabled={manualChargeEnabled === false}

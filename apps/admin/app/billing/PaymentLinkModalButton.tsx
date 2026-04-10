@@ -74,7 +74,7 @@ export function PaymentLinkModalButton({
 
   return (
     <>
-      <button className="ghost btn-compact btn-send" type="button" onClick={() => setOpen(true)} data-modal="true" data-loader="off">
+      <button className="ghost btn-compact btn-pay contact-action-btn action-payment" type="button" onClick={() => setOpen(true)} data-modal="true" data-loader="off">
         Enviar link de pago
       </button>
       {open ? (

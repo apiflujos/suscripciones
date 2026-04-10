@@ -17,7 +17,7 @@ import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMo
 import { publishRealtime } from "../../services/realtimePublisher";
 import { ensurePaymentRetryJob } from "../../services/retryJobScheduler";
 import { attachPaymentToCycle, attachPaymentToMatchingCycle, buildSubscriptionSeed, computeBillingCycleDueAt, ensureBillingCyclesForSubscriptions, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "../../services/billingCycles";
-import { getSubscriptionPricingTotal, getPlanCollectionMode } from "../../lib/metadataSchemas";
+import { getExpectedSubscriptionTotalInCents, getPlanCollectionMode } from "../../lib/metadataSchemas";
 
 type WompiCustomerData = {
   full_name?: string;
@@ -235,7 +235,10 @@ function normalizeNameForMatch(value: unknown): string {
 }
 
 function readSubscriptionPricingTotalInCents(subscriptionMeta: unknown, fallback: number): number {
-  return getSubscriptionPricingTotal(subscriptionMeta, fallback);
+  return getExpectedSubscriptionTotalInCents({
+    subscriptionMetadata: subscriptionMeta,
+    fallback
+  });
 }
 
 type AssociationDecision = {
@@ -355,7 +358,11 @@ async function resolveAssociationByScore(args: {
   });
 
   const withExactAmount = candidates.filter((s: any) => {
-    const planAmount = readSubscriptionPricingTotalInCents(s?.metadata, s?.plan?.priceInCents || 0);
+    const planAmount = getExpectedSubscriptionTotalInCents({
+      subscriptionMetadata: s?.metadata,
+      planMetadata: s?.plan?.metadata,
+      fallback: s?.plan?.priceInCents || 0
+    });
     const planCurrency = String(s?.plan?.currency || "").trim().toUpperCase();
     if (!incomingAmount) return false;
     if (incomingCurrency && planCurrency && incomingCurrency !== planCurrency) return false;

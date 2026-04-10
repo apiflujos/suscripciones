@@ -27,7 +27,7 @@ export function ManualUnmarkPaidButton({
       <input type="hidden" name="subscriptionId" value={subscriptionId} />
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-      <button className="ghost btn-compact btn-red btn-noicon subscription-action-btn" type="submit" title="Desmarcar cobro manual">
+      <button className="ghost btn-compact btn-red btn-noicon contact-action-btn action-danger subscription-action-btn" type="submit" title="Desmarcar cobro manual">
         Desmarcar cobro
       </button>
     </form>

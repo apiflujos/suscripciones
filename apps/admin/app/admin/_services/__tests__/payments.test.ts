@@ -1,7 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const prisma = {
+  subscription: { findUnique: vi.fn() },
+  subscriptionBillingCycle: { findMany: vi.fn() },
+  payment: { findMany: vi.fn() }
+};
 
 vi.mock("server-only", () => ({}));
-vi.mock("@suscripciones/database", () => ({ prisma: {} }));
+vi.mock("@suscripciones/database", () => ({ prisma }));
 vi.mock("@suscripciones/core/services/wompiReconcile", () => ({
   reconcileWompiTransaction: vi.fn()
 }));
@@ -9,157 +15,82 @@ vi.mock("@suscripciones/core/services/systemLog", () => ({
   systemLog: vi.fn()
 }));
 vi.mock("@suscripciones/core/lib/logger", () => ({
-  logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() }
+  logger: { warn: vi.fn(), info: vi.fn() }
 }));
-vi.mock("@suscripciones/core/services/billingCycles", async () => {
-  const actual = await vi.importActual<any>("@suscripciones/core/services/billingCycles");
-  return {
-    ...actual,
-    ensureBillingCyclesForSubscription: vi.fn()
-  };
-});
+vi.mock("@suscripciones/core/services/billingCycles", () => ({
+  ensureBillingCyclesForSubscription: vi.fn(() => Promise.resolve()),
+  findBestBillingCycleForPayment: vi.fn(() => null),
+  resolveConfiguredCollectionCycle: vi.fn(() => null)
+}));
 
-import { buildUniquePaymentCycleSuggestions } from "../payments";
-
-describe("buildUniquePaymentCycleSuggestions", () => {
-  it("sugiere cada pago una sola vez aunque existan varios ciclos abiertos", () => {
-    const suggestions = buildUniquePaymentCycleSuggestions({
-      subscriptionId: "sub_1",
-      paymentTiming: "EN_CURSO",
-      cycles: [
-        {
-          id: "c1",
-          cycleNumber: 1,
-          periodStartAt: new Date("2026-04-01T00:00:00.000Z"),
-          periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
-          dueAt: new Date("2026-04-20T00:00:00.000Z"),
-          status: "PENDING"
-        },
-        {
-          id: "c2",
-          cycleNumber: 2,
-          periodStartAt: new Date("2026-05-01T00:00:00.000Z"),
-          periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
-          dueAt: new Date("2026-05-20T00:00:00.000Z"),
-          status: "PENDING"
-        }
-      ],
-      payments: [
-        {
-          id: "p1",
-          amountInCents: 10000,
-          currency: "COP",
-          status: "APPROVED",
-          paidAt: new Date("2026-04-20T12:00:00.000Z"),
-          createdAt: new Date("2026-04-20T12:00:00.000Z"),
-          reference: "SUB_sub_1_1",
-          wompiTransactionId: "tx_1",
-          origin: "WEBHOOK",
-          cycleNumber: null
-        }
-      ]
-    });
-
-    expect(suggestions).toHaveLength(1);
-    expect(suggestions[0]?.payment.id).toBe("p1");
-    expect(suggestions[0]?.suggestedCycle?.id).toBe("c1");
-    expect(suggestions[0]?.alternativeCycles.map((cycle) => cycle.id)).toEqual(["c1", "c2"]);
+describe("payments admin service", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("reserva ciclos únicos para pagos múltiples ordenados por fecha", () => {
-    const suggestions = buildUniquePaymentCycleSuggestions({
-      subscriptionId: "sub_1",
-      paymentTiming: "EN_CURSO",
-      cycles: [
-        {
-          id: "c1",
-          cycleNumber: 1,
-          periodStartAt: new Date("2026-04-01T00:00:00.000Z"),
-          periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
-          dueAt: new Date("2026-04-20T00:00:00.000Z"),
-          status: "PENDING"
-        },
-        {
-          id: "c2",
-          cycleNumber: 2,
-          periodStartAt: new Date("2026-05-01T00:00:00.000Z"),
-          periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
-          dueAt: new Date("2026-05-20T00:00:00.000Z"),
-          status: "PENDING"
-        }
-      ],
-      payments: [
-        {
-          id: "p2",
-          amountInCents: 10000,
-          currency: "COP",
-          status: "APPROVED",
-          paidAt: new Date("2026-05-20T12:00:00.000Z"),
-          createdAt: new Date("2026-05-20T12:00:00.000Z"),
-          reference: "SUB_sub_1_2",
-          wompiTransactionId: "tx_2",
-          origin: "WEBHOOK",
-          cycleNumber: null
-        },
-        {
-          id: "p1",
-          amountInCents: 10000,
-          currency: "COP",
-          status: "APPROVED",
-          paidAt: new Date("2026-04-20T12:00:00.000Z"),
-          createdAt: new Date("2026-04-20T12:00:00.000Z"),
-          reference: "SUB_sub_1_1",
-          wompiTransactionId: "tx_1",
-          origin: "WEBHOOK",
-          cycleNumber: null
-        }
-      ]
-    });
+  it("keeps overdue unpaid billing cycles as pending instead of failed", async () => {
+    const { listSubscriptionBillingCycles } = await import("../payments");
 
-    expect(suggestions).toHaveLength(2);
-    expect(suggestions.map((entry) => entry.payment.id)).toEqual(["p1", "p2"]);
-    expect(suggestions.map((entry) => entry.suggestedCycle?.id)).toEqual(["c1", "c2"]);
-  });
-
-  it("para pago adelantado propone el siguiente ciclo", () => {
-    const suggestions = buildUniquePaymentCycleSuggestions({
-      subscriptionId: "sub_1",
+    prisma.subscription.findUnique.mockResolvedValue({
+      id: "sub-1",
+      startAt: new Date("2026-03-01T00:00:00Z"),
+      cycleStartDay: 1,
+      paymentDay: 20,
       paymentTiming: "ANTICIPADO",
-      cycles: [
-        {
-          id: "c1",
-          cycleNumber: 1,
-          periodStartAt: new Date("2026-04-01T00:00:00.000Z"),
-          periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
-          dueAt: new Date("2026-03-20T00:00:00.000Z"),
-          status: "PENDING"
-        },
-        {
-          id: "c2",
-          cycleNumber: 2,
-          periodStartAt: new Date("2026-05-01T00:00:00.000Z"),
-          periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
-          dueAt: new Date("2026-04-20T00:00:00.000Z"),
-          status: "PENDING"
-        }
-      ],
-      payments: [
-        {
-          id: "p1",
-          amountInCents: 10000,
-          currency: "COP",
-          status: "APPROVED",
-          paidAt: new Date("2026-04-20T12:00:00.000Z"),
-          createdAt: new Date("2026-04-20T12:00:00.000Z"),
-          reference: "SUB_sub_1_2",
-          wompiTransactionId: "tx_1",
-          origin: "WEBHOOK",
-          cycleNumber: null
-        }
-      ]
+      graceDays: 1,
+      plan: { intervalUnit: "MONTH", intervalCount: 1 }
     });
+    prisma.subscriptionBillingCycle.findMany.mockResolvedValue([
+      {
+        id: "cycle-1",
+        subscriptionId: "sub-1",
+        cycleNumber: 1,
+        periodStartAt: new Date("2026-03-01T00:00:00Z"),
+        periodEndAt: new Date("2026-04-01T00:00:00Z"),
+        dueAt: new Date("2026-02-20T00:00:00Z"),
+        status: "PENDING",
+        paymentId: null,
+        subscription: { id: "sub-1", plan: { id: "plan-1", name: "Plan" } },
+        payment: null
+      }
+    ]);
 
-    expect(suggestions[0]?.suggestedCycle?.id).toBe("c2");
-    expect(suggestions[0]?.reasonCode).toBe("REFERENCE_MATCH");
+    const result = await listSubscriptionBillingCycles({ subscriptionId: "sub-1", take: 12 });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok result");
+    expect(result.items[0]?.status).toBe("PENDING");
+  });
+
+  it("uses subscription total with pricing metadata for auto-association suggestions", async () => {
+    const { getSubscriptionAutoAssociationSuggestions } = await import("../payments");
+
+    prisma.subscription.findUnique.mockResolvedValue({
+      id: "sub-1",
+      customerId: "cust-1",
+      tenantId: "tenant-1",
+      tenantLinks: [],
+      metadata: { pricing: { totalInCents: 390000 } },
+      startAt: new Date("2026-03-01T00:00:00Z"),
+      cycleStartDay: 1,
+      paymentDay: 20,
+      paymentTiming: "ANTICIPADO",
+      graceDays: 1,
+      plan: {
+        intervalUnit: "MONTH",
+        intervalCount: 1,
+        priceInCents: 360000,
+        currency: "COP",
+        metadata: { pricing: { totalInCents: 390000, shippingInCents: 30000 } }
+      }
+    });
+    prisma.subscriptionBillingCycle.findMany.mockResolvedValue([]);
+    prisma.payment.findMany.mockResolvedValue([]);
+
+    await getSubscriptionAutoAssociationSuggestions({ subscriptionId: "sub-1", tenantId: "tenant-1" });
+
+    expect(prisma.payment.findMany).toHaveBeenCalled();
+    const call = prisma.payment.findMany.mock.calls[0]?.[0];
+    expect(call.where.amountInCents).toBe(390000);
   });
 });

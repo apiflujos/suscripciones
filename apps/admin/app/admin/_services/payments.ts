@@ -6,6 +6,7 @@ import { reconcileWompiTransaction } from "@suscripciones/core/services/wompiRec
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { logger } from "@suscripciones/core/lib/logger";
 import { ensureBillingCyclesForSubscription, findBestBillingCycleForPayment, resolveConfiguredCollectionCycle } from "@suscripciones/core/services/billingCycles";
+import { getExpectedSubscriptionTotalInCents } from "@suscripciones/core/lib/metadataSchemas";
 
 type SuggestedCycle = {
   id: string;
@@ -393,24 +394,9 @@ export async function listSubscriptionBillingCycles(args: { subscriptionId: stri
     }
   });
 
-  // Calculate status dynamically: if payment exists → PAID, else check due date
-  const now = new Date();
   const items = rawItems.map((cycle) => {
     const hasPayment = cycle.paymentId != null;
-    const dueAt = cycle.dueAt || cycle.periodEndAt;
-    const isOverdue = !hasPayment && dueAt && dueAt.getTime() < now.getTime();
-
-    let status = "PENDING";
-    if (hasPayment) {
-      status = "PAID";
-    } else if (isOverdue) {
-      status = "FAILED";
-    } else if (cycle.status === "PAID") {
-      // Fallback: if DB says PAID but paymentId is null, trust DB
-      status = "PAID";
-    } else if (cycle.status === "FAILED") {
-      status = "FAILED";
-    }
+    const status = hasPayment || cycle.status === "PAID" ? "PAID" : String(cycle.status || "PENDING").toUpperCase();
 
     return {
       ...cycle,
@@ -554,7 +540,11 @@ export async function getSubscriptionAutoAssociationSuggestions(args: {
         customerId: subscription.customerId,
         ...(args.tenantId ? { tenantId: args.tenantId } : {}),
         status: PaymentStatus.APPROVED,
-        amountInCents: subscription.plan.priceInCents,
+        amountInCents: getExpectedSubscriptionTotalInCents({
+          subscriptionMetadata: subscription.metadata,
+          planMetadata: subscription.plan.metadata,
+          fallback: subscription.plan.priceInCents
+        }),
         currency: subscription.plan.currency,
         OR: [
           { subscriptionId: null },

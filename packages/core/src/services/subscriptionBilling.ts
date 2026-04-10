@@ -20,7 +20,7 @@ import { schedulePaymentLinkNotifications } from "./notificationsScheduler";
 import { publishRealtime } from "./realtimePublisher";
 import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
 import { reconcileWompiTransaction } from "./wompiReconcile";
-import { getSubscriptionPricingTotal, getPlanCollectionMode } from "../lib/metadataSchemas";
+import { getExpectedSubscriptionTotalInCents, getPlanCollectionMode } from "../lib/metadataSchemas";
 import { resolveSubscriptionBillingState } from "./billingCycles";
 
 const PAYMENT_LINK_LOCK_PREFIX = "payment-link";
@@ -107,8 +107,12 @@ function replaceVars(input: string, vars: Record<string, string>) {
     .replaceAll("{fecha_expira}", vars.fecha_expira);
 }
 
-export function readSubscriptionTotalInCents(subscriptionMeta: unknown, fallback: number): number {
-  return getSubscriptionPricingTotal(subscriptionMeta, fallback);
+export function readSubscriptionTotalInCents(subscriptionMeta: unknown, fallback: number, planMeta?: unknown): number {
+  return getExpectedSubscriptionTotalInCents({
+    subscriptionMetadata: subscriptionMeta,
+    planMetadata: planMeta,
+    fallback
+  });
 }
 
 /**
@@ -299,7 +303,7 @@ export async function createPaymentLinkForSubscription(args: {
   });
   const cycle = billingState?.collectionCycle?.cycleNumber ?? 1;
   let reference = `SUB_${sub.id}_${cycle}`;
-  const amountInCents = args.amountInCentsOverride ?? readSubscriptionTotalInCents(sub.metadata, sub.plan.priceInCents);
+  const amountInCents = args.amountInCentsOverride ?? readSubscriptionTotalInCents(sub.metadata, sub.plan.priceInCents, sub.plan.metadata);
 
   const subscriptionCycleKey = `${sub.id}:${cycle}`;
   const payment = await prisma.payment.upsert({
@@ -636,7 +640,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
   const inferredCycle = billingState?.collectionCycle?.cycleNumber ?? 1;
   const cycle = overrideCycle ?? inferredCycle;
   let reference = `SUB_${sub.id}_${cycle}`;
-  const amountInCents = Math.trunc(args.amountInCentsOverride ?? readSubscriptionTotalInCents(sub.metadata, sub.plan.priceInCents));
+  const amountInCents = Math.trunc(args.amountInCentsOverride ?? readSubscriptionTotalInCents(sub.metadata, sub.plan.priceInCents, sub.plan.metadata));
   const currency = validateWompiCurrency(sub.plan.currency);
 
   const subscriptionCycleKey = `${sub.id}:${cycle}`;

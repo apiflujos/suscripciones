@@ -599,6 +599,10 @@ export async function createSubscription(args: {
       graceDays,
       metadata: {
         ...subscriptionMetaBase,
+        pricing:
+          subscriptionMetaBase?.pricing && typeof subscriptionMetaBase.pricing === "object"
+            ? subscriptionMetaBase.pricing
+            : readPlanPricing(plan.metadata),
         collectionMode
       } as any
     }

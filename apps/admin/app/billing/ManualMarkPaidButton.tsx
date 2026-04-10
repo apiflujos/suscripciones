@@ -53,7 +53,7 @@ export function ManualMarkPaidButton({
         {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
         <input ref={methodRef} type="hidden" name="manualMethod" value="" />
         <button
-          className="ghost btn-compact btn-amber btn-noicon subscription-action-btn"
+          className="ghost btn-compact btn-green btn-noicon contact-action-btn action-token subscription-action-btn"
           type="submit"
           title={manualMarkPaidEnabled === false ? "El marcado manual está deshabilitado. Hacé clic para ir a Configuración." : "Marcar como pagada manualmente"}
           aria-disabled={manualMarkPaidEnabled === false}

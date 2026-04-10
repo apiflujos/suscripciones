@@ -123,15 +123,85 @@ function getPaymentStatusLabel(args: {
   return "Pendiente";
 }
 
+function getCardCollectionState(args: {
+  status: string;
+  paidAt: any;
+  periodStartAt: any;
+  periodEndAt: any;
+  inGrace?: boolean;
+  inArrears?: boolean;
+}) {
+  if (args.inGrace) return { label: "En gracia", class: "pill-warn" };
+  if (args.inArrears) return { label: "En mora", class: "pill-bad" };
+  const paymentStatus = getPaymentStatusLabel(args);
+  if (paymentStatus === "Pagado") return { label: "Pagado", class: "pill-ok" };
+  if (paymentStatus === "En mora") return { label: "Vencido", class: "pill-bad" };
+  return { label: "Pendiente", class: "pill-warn" };
+}
+
+function formatLongCivilDate(value?: string | Date | null) {
+  if (!value) return "—";
+  const raw = typeof value === "string" ? value.slice(0, 10) : value.toISOString().slice(0, 10);
+  const [year, month, day] = raw.split("-").map((part) => Number(part));
+  if (!year || !month || !day) return "—";
+  const safe = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+  return new Intl.DateTimeFormat("es-CO", {
+    timeZone: "UTC",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  }).format(safe);
+}
+
 function getPlanLinkStatus(link: any, lastPaidAt: any) {
   if (lastPaidAt) return "Pagado";
   if (!link?.sentAt) return "Pendiente";
-  const sentAt = new Date(link.sentAt).getTime();
-  if (Number.isFinite(sentAt)) {
-    const oneDay = 24 * 60 * 60 * 1000;
-    if (Date.now() - sentAt >= oneDay) return "En mora";
-  }
   return "Link enviado";
+}
+
+function buildBillingStatusCards(r: any) {
+  const badges: Array<{ heading: string; value: string; className: string; title?: string }> = [];
+  const mainState = getCardCollectionState({
+    status: r.status,
+    paidAt: r.pagoAt,
+    periodStartAt: r.periodoInicioAt,
+    periodEndAt: r.periodoFinAt,
+    inGrace: r.inGrace,
+    inArrears: r.inArrears
+  });
+  const subscriptionState = getEstadoSimple(r.status);
+  badges.push({ heading: "Suscripción", value: subscriptionState.label, className: subscriptionState.class });
+  badges.push({ heading: "Pago", value: mainState.label, className: mainState.class });
+
+  if (r.tipoTx) {
+    badges.push({
+      heading: "Método",
+      value: r.tipoTx,
+      className: "pill-muted"
+    });
+  }
+
+  const linkStatus = getPlanLinkStatus(r.lastPaymentLink, r.pagoAt);
+  if (String(r.mode || "") !== "AUTO_DEBIT" && linkStatus === "Link enviado") {
+    const sentAt = r.lastPaymentLink?.sentAt ? formatLongCivilDate(r.lastPaymentLink.sentAt) : "";
+    badges.push({
+      heading: "Cobro",
+      value: "Link enviado",
+      className: "pill-muted",
+      title: sentAt ? `Link enviado el ${sentAt}` : "Link de pago enviado"
+    });
+  }
+
+  if (String(r.mode || "") === "AUTO_DEBIT") {
+    badges.push({
+      heading: "Tarjeta",
+      value: r.customerTokenized ? "Guardada" : "Sin tarjeta",
+      className: r.customerTokenized ? "pill-ok" : "pill-warn",
+      title: r.customerTokenized ? "Tarjeta tokenizada disponible" : "Falta tarjeta tokenizada"
+    });
+  }
+
+  return badges;
 }
 
 function normalizeImageUrl(input: unknown) {
@@ -188,6 +258,17 @@ function formatPlanTitle(plan: any) {
   const name = displayName || rawName.replace(/^\s*\[\d+\]\s*/, "").trim() || "—";
   const sku = normalizeSku(md?.sku);
   return sku ? `${name} (SKU ${sku})` : name;
+}
+
+function splitPlanDisplay(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) return { name: "—", sku: "" };
+  const match = raw.match(/^(.*?)(?:\s*\(SKU\s*([^)]+)\))$/i);
+  if (!match) return { name: raw, sku: "" };
+  return {
+    name: String(match[1] || "").trim() || raw,
+    sku: String(match[2] || "").trim()
+  };
 }
 
 export default async function BillingPage({
@@ -369,6 +450,7 @@ export default async function BillingPage({
         customerId: String(s.customerId || ""),
         customerName: String(customer?.name || customer?.email || s.customerId || "—"),
         customerEmail: String(customer?.email || ""),
+        customerPhone: String(customer?.phone || customerMeta?.phone || customerMeta?.telefono || ""),
         customerTokenized: typeof s?.customerTokenized === "boolean" ? s.customerTokenized : hasUsablePaymentSource(customerMeta),
         customerMetadata: customerMeta || {},
         identificacion: String(ident || "—"),
@@ -492,15 +574,7 @@ export default async function BillingPage({
   };
 
   const renderBillingCard = (r: any) => {
-    const isPlan = r.mode !== "AUTO_DEBIT";
     const isAutoDebit = r.mode === "AUTO_DEBIT";
-    const paymentStatus = getPaymentStatusLabel({
-      status: r.status,
-      paidAt: r.pagoAt,
-      periodStartAt: r.periodoInicioAt,
-      periodEndAt: r.periodoFinAt
-    });
-    const estadoSimple = getEstadoSimple(r.status);
     const rowCheckoutUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? checkoutUrl : "";
     // Leer URL de tokenización del metadata del customer
     const rowTokenUrl = resolveRowTokenUrl(r);
@@ -540,73 +614,58 @@ export default async function BillingPage({
       .slice(0, 2)
       .map((part: string) => part[0]?.toUpperCase())
       .join("") || "PR";
+    const stateBadges = buildBillingStatusCards(r);
+    const nextChargeLabel = formatLongCivilDate(r.vencimientoAt);
+    const currentCycleLabel =
+      r.periodoInicioAt && r.periodoFinAt ? `${formatLongCivilDate(r.periodoInicioAt)} – ${formatLongCivilDate(r.periodoFinAt)}` : "—";
+    const lastPaymentLabel =
+      r.pagoAt && r.pagoMonto
+        ? `${formatLongCivilDate(r.pagoAt)} · ${fmtMoney(r.pagoMonto, r.moneda)}`
+        : r.pagoAt
+          ? formatLongCivilDate(r.pagoAt)
+          : "No registrado";
+    const planDisplay = splitPlanDisplay(r.planName);
+    const totalLabel = fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda);
+    const baseLabel = fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda);
+    const shippingLabel = r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : "Gratis";
+    const contactMeta = [r.customerEmail || "", r.identificacion && r.identificacion !== "—" ? r.identificacion : "", r.customerPhone || ""]
+      .filter(Boolean)
+      .join(" · ") || "—";
     
     return (
-      <div className="billing-card">
-        <div className="billing-header">
-          <div className="billing-badges billing-badges-header">
-            <div className="billing-header-meta-grid">
-              <div className="billing-header-meta-item">
-                <span className="billing-header-label">
-                  Canal de ventas
-                  
-                </span>
-                <BillingTenantModalButton
-                  triggerId={`tenant-modal-open-${r.id}`}
-                  triggerLabel={r.tenantName || "Sin canal"}
-                  triggerClassName="pill pill-sm pill-muted"
-                  subscriptionId={r.id}
-                  scopeTenantId={r.tenantId || ""}
-                  tenantIds={Array.isArray(r.tenantIds) ? r.tenantIds.map(String) : []}
-                  tenants={tenants}
-                  csrfToken={csrfToken}
-                  returnTo={returnTo}
-                  action={updateSubscriptionTenants}
-                />
+        <div className="billing-card">
+          <div className="billing-header">
+            <div className="billing-header-main">
+              <div className="billing-status-line billing-status-line-footer" role="group" aria-label="Estado y contexto de cobro">
+                {stateBadges.map((badge, index) => (
+                  <div
+                    key={`${r.id}-header-badge-${index}-${badge.heading}-${badge.value}`}
+                    className={`billing-status-card ${badge.className}`}
+                    title={badge.title || `${badge.heading}: ${badge.value}`}
+                  >
+                    <span className="billing-status-card-label">{badge.heading}</span>
+                    <span className="billing-status-card-value">{badge.value}</span>
+                  </div>
+                ))}
               </div>
-
-              <div className="billing-header-meta-item billing-header-status-strip">
-                <span className="billing-header-label">
-                  Estado
-
-                </span>
-                <div className="billing-status-line" role="group" aria-label="Estado">
-                  <span className={`pill pill-sm ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-bad" : "pill-warn"}`} title={`Ciclo: ${paymentStatus}`}>
-                    {paymentStatus}
-                  </span>
-                  {r.customerTokenized ? (
-                    <span className="pill pill-sm pill-ok" title="Tarjeta tokenizada">
-                      Tarjeta guardada
-                    </span>
-                  ) : (
-                    <span className="pill pill-sm pill-warn" title="Sin tarjeta tokenizada">
-                      Sin tarjeta
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="billing-header-meta-item">
-                <span className="billing-header-label">
-                  Tipo de cobro
-
-                </span>
-                <span className={`pill pill-sm ${String(r.tipoTx || "").includes("Débito") ? "pill-ok" : "pill-muted"}`}>
-                  {r.tipoTx || "—"}
-                </span>
-              </div>
-
-              <div className="billing-header-meta-item">
-                <span className="billing-header-label">
-                  Periodicidad
-
-                </span>
-                <span className="pill pill-sm pill-muted">{r.cada}</span>
+              <div className="billing-sub billing-sub-strong billing-sub-header">
+                {r.tenantName || "—"}
               </div>
             </div>
-          </div>
           <div className="billing-header-right">
             <div className="billing-header-actions">
+              <BillingTenantModalButton
+                triggerId={`tenant-modal-open-${r.id}`}
+                triggerLabel={r.tenantName || "Sin canal"}
+                triggerClassName="pill pill-sm pill-muted"
+                subscriptionId={r.id}
+                scopeTenantId={r.tenantId || ""}
+                tenantIds={Array.isArray(r.tenantIds) ? r.tenantIds.map(String) : []}
+                tenants={tenants}
+                csrfToken={csrfToken}
+                returnTo={returnTo}
+                action={updateSubscriptionTenants}
+              />
               <SubscriptionEditModal
                 subscriptionId={r.id}
                 tenantId={r.tenantId}
@@ -653,106 +712,61 @@ export default async function BillingPage({
           </div>
         </div>
 
-        <div className="billing-grid-info billing-grid-subscription">
-          <div className="billing-body-main">
-            {/* Datos personales */}
-            <div className="billing-body-section">
-              <div className="billing-section-title">Contacto</div>
-              <div className="billing-title">
-                <div className="billing-name">{r.customerName}</div>
-                <div className="billing-sub">
-                  {r.customerEmail || "—"} {r.identificacion && r.identificacion !== "—" ? `· ${r.identificacion}` : ""}
-                </div>
+        <div className="billing-card-body">
+          <div className="billing-card-col billing-card-col-personal">
+            <div className="billing-body-row">
+              <span className="billing-body-label">Cliente</span>
+              <div className="billing-personal-list">
+                <div className="billing-body-value">{r.customerName}</div>
+                {r.customerEmail ? <div className="billing-personal-meta">{r.customerEmail}</div> : null}
+                {r.identificacion && r.identificacion !== "—" ? <div className="billing-personal-meta">ID {r.identificacion}</div> : null}
+                {r.customerPhone ? <div className="billing-personal-meta">{r.customerPhone}</div> : null}
               </div>
             </div>
-
-            {/* Producto */}
-            <div className="billing-body-section">
-              <div className="billing-section-title">Producto</div>
-              <div className="billing-product-row">
+          </div>
+          <div className="billing-card-col billing-card-col-product">
+            <div className="billing-body-row">
+              <span className="billing-body-label">Producto</span>
+              <div className="billing-product-row billing-product-row-compact">
                 <div className="product-thumb billing-product-thumb">
                   {r.planImageUrl ? (
                     <img
                       src={r.planImageUrl}
                       alt={r.planName}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     />
                   ) : (
                     <span className="billing-product-fallback">{productInitials}</span>
                   )}
                 </div>
                 <div className="billing-product-meta">
-                  <strong className="billing-value">{r.planName}</strong>
-                  <div className="billing-sub">
-                    {r.tipoTx} · {r.cada}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Fecha de cobro - READ ONLY */}
-            <div className="billing-body-section billing-section-dates">
-              <div className="billing-section-title">
-                Fecha de cobro
-
-              </div>
-              <div className="billing-date-display" style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: "4px 0" }}>
-                <span>{formatCivilDate(r.vencimientoAt)}</span>
-              </div>
-              {r.periodoInicioAt && r.periodoFinAt ? (
-                <div className="billing-cycle-info" style={{ marginTop: "4px", fontSize: "12px", color: "var(--muted)" }}>
-                  Ciclo actual: <strong>{formatCivilDate(r.periodoInicioAt)} → {formatCivilDate(r.periodoFinAt)}</strong>
-                </div>
-              ) : null}
-              <div className="billing-cycle-info" style={{ marginTop: "2px", fontSize: "12px", color: "var(--muted)" }}>
-                Inicio ciclo: <strong>Día {r.cycleStartDay}</strong>
-              </div>
-            </div>
-
-            {/* Último pago */}
-            {r.pagoAt ? (
-              <div className="billing-body-section" style={{ borderTop: "1px solid var(--border-light)", paddingTop: "12px" }}>
-                <div className="billing-section-title">Último Pago</div>
-                <div style={{ fontSize: 13, display: "grid", gap: 4 }}>
-                  <div>
-                    <span style={{ color: "var(--muted)" }}>Fecha: </span>
-                    <strong>{formatCivilDate(r.pagoAt)}</strong>
-                  </div>
-                  {r.pagoMonto ? (
-                    <div>
-                      <span style={{ color: "var(--muted)" }}>Monto: </span>
-                      {fmtMoney(r.pagoMonto, r.moneda)}
-                    </div>
-                  ) : null}
-                  {r.pagoTxId ? (
-                    <div title={r.pagoTxId} style={{ wordBreak: "break-all" }}>
-                      <span style={{ color: "var(--muted)" }}>Tx ID: </span>
-                      <code style={{ fontSize: 11 }}>{r.pagoTxId}</code>
-                    </div>
+                  <strong className="billing-value billing-value-compact">{planDisplay.name}</strong>
+                  {planDisplay.sku ? (
+                    <div className="billing-product-sku">SKU {planDisplay.sku}</div>
                   ) : null}
                 </div>
               </div>
-            ) : null}
+            </div>
           </div>
-          <div className="billing-body-side">
-            <div className="billing-cost-panel">
-              <span className="billing-cost-title">
-                Totales
-                
-              </span>
-              <div className="billing-cost-box">
-                <div className="billing-cost-summary">
-                  <div className="billing-cost-total">{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</div>
-                  <div className="billing-cost-period">{r.cada}</div>
-                </div>
-                <div className="billing-cost-inline billing-cost-inline-nowrap">
-                  <span className="billing-cost-chip">Base {fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda)}</span>
-                  {r.currentShippingInCents > 0 ? (
-                    <span className="billing-cost-chip">Flete {fmtMoney(r.currentShippingInCents, r.moneda)}</span>
-                  ) : (
-                    <span className="billing-cost-chip">Flete Gratis</span>
-                  )}
-                </div>
+          <div className="billing-card-col billing-card-col-right billing-card-col-payments">
+            <div className="billing-body-row billing-body-row-keyval">
+              <span className="billing-body-label">Próx. cobro</span>
+              <div className="billing-body-value">{nextChargeLabel}</div>
+            </div>
+            <div className="billing-body-row billing-body-row-keyval">
+              <span className="billing-body-label">Ciclo</span>
+              <div className="billing-body-value">{currentCycleLabel}</div>
+            </div>
+            <div className="billing-body-row billing-body-row-keyval">
+              <span className="billing-body-label">Último pago</span>
+              <div className="billing-body-value">{lastPaymentLabel}</div>
+            </div>
+            <div className="billing-totals-panel billing-totals-panel-compact">
+              <span className="billing-body-label billing-body-label-accent">Total</span>
+              <div className="billing-totals-main">{totalLabel}</div>
+              <div className="billing-totals-breakdown">
+                <span className="billing-cost-chip">Base {baseLabel}</span>
+                <span className="billing-cost-chip">Flete {shippingLabel}</span>
               </div>
             </div>
           </div>
@@ -772,6 +786,8 @@ export default async function BillingPage({
                 duplicatesCount={duplicateCount}
               />
             ) : null}
+          </div>
+          <div className="billing-actions-right">
             {showChargeButton ? (
               <ManualChargeButton
                 action={chargeSubscriptionNow}
@@ -795,17 +811,6 @@ export default async function BillingPage({
                 manualMarkPaidEnabled={r.manualMarkPaidEnabled}
               />
             ) : null}
-            {alreadyPaidCurrentPeriod ? (
-              <ManualUnmarkPaidButton
-                action={unmarkSubscriptionPaidManual}
-                csrfToken={csrfToken}
-                subscriptionId={r.id}
-                tenantId={r.tenantId}
-                returnTo={returnTo}
-              />
-            ) : null}
-          </div>
-          <div className="billing-actions-right">
             {showPaymentLinkButton ? (
               <PaymentLinkModalButton
                 subscriptionId={r.id}
@@ -822,7 +827,7 @@ export default async function BillingPage({
             {showTokenizationLink ? (
               rowTokenUrl ? (
                 <a
-                  className="ghost btn-compact btn-send btn-highlight"
+                  className="ghost btn-compact btn-token contact-action-btn action-token"
                   href={rowTokenUrl}
                   target="_blank"
                   rel="noreferrer"
@@ -843,12 +848,21 @@ export default async function BillingPage({
                 />
               )
             ) : null}
+            {alreadyPaidCurrentPeriod ? (
+              <ManualUnmarkPaidButton
+                action={unmarkSubscriptionPaidManual}
+                csrfToken={csrfToken}
+                subscriptionId={r.id}
+                tenantId={r.tenantId}
+                returnTo={returnTo}
+              />
+            ) : null}
             {r.status === "SUSPENDED" ? (
               <form action={resumeSubscription}>
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="subscriptionId" value={r.id} />
                 {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                <button className="ghost btn-compact btn-green" type="submit" title="Reanudar suscripción">
+                <button className="ghost btn-compact btn-green btn-noicon contact-action-btn action-token" type="submit" title="Reanudar suscripción">
                   Reanudar
                 </button>
               </form>
@@ -857,7 +871,7 @@ export default async function BillingPage({
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="subscriptionId" value={r.id} />
                 {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                <button className="ghost btn-compact btn-green" type="submit" title="Activar suscripción">
+                <button className="ghost btn-compact btn-green btn-noicon contact-action-btn action-token" type="submit" title="Activar suscripción">
                   Activar
                 </button>
               </form>
@@ -867,7 +881,7 @@ export default async function BillingPage({
                   <input type="hidden" name="csrf" value={csrfToken} />
                   <input type="hidden" name="subscriptionId" value={r.id} />
                   {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                  <button className="ghost btn-compact btn-red" type="submit" title="Cancelar suscripción">
+                  <button className="ghost btn-compact btn-red btn-noicon contact-action-btn action-danger" type="submit" title="Cancelar suscripción">
                     Cancelar
                   </button>
                 </form>
@@ -875,7 +889,7 @@ export default async function BillingPage({
                   <input type="hidden" name="csrf" value={csrfToken} />
                   <input type="hidden" name="subscriptionId" value={r.id} />
                   {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                  <button className="ghost btn-compact btn-amber" type="submit" title="Suspender suscripción">
+                  <button className="ghost btn-compact btn-amber btn-noicon contact-action-btn" type="submit" title="Suspender suscripción">
                     Suspender
                   </button>
                 </form>

@@ -60,7 +60,7 @@ export function TokenizationLinkModalButton({
   return (
     <>
       <button
-        className="ghost btn-compact btn-send btn-highlight"
+        className="ghost btn-compact btn-token contact-action-btn action-token"
         type="button"
         onClick={() => setOpen(true)}
         data-modal="true"
