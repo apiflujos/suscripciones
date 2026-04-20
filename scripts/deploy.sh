@@ -37,12 +37,8 @@ echo "🔨 Construyendo aplicación..."
 npm run build -w apps/admin
 
 echo "🔄 Recargando PM2..."
-if pm2 describe ecosystem.config.js >/dev/null 2>&1; then
-  pm2 restart ecosystem.config.js --update-env
-else
-  pm2 start ecosystem.config.js --update-env
-  pm2 save
-fi
+pm2 restart ecosystem.config.js --update-env 2>/dev/null || pm2 start ecosystem.config.js --update-env
+pm2 save
 
 echo "✅ Verificando servicios..."
 sleep 5

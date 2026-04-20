@@ -5,6 +5,6 @@ echo "📦 Instalando dependencias..."
 npm install
 
 echo "🏗️ Construyendo aplicaciones..."
-npm run build --workspaces
+npm run build -w apps/admin
 
 echo "✅ Listo. Puedes arrancar con: pm2 start ecosystem.config.js"
