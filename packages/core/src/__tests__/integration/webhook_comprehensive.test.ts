@@ -205,11 +205,17 @@ function createMockPrisma() {
         }
         return sub;
       },
-      findMany: async ({ where }: any = {}) => {
-        let rows = Object.values(store.subscription);
+      findMany: async ({ where, include }: any = {}) => {
+        let rows = Object.values(store.subscription) as any[];
         if (where?.customerId?.in) rows = rows.filter((s: any) => where.customerId.in.includes(s.customerId));
         if (where?.tenantId) rows = rows.filter((s: any) => s.tenantId === where.tenantId);
         if (where?.status?.in) rows = rows.filter((s: any) => where.status.in.includes(s.status));
+        if (include?.plan) {
+          rows = rows.map((s: any) => ({
+            ...s,
+            plan: store.plan?.[s.planId] || { priceInCents: 10000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 }
+          }));
+        }
         return rows;
       },
       update: async ({ where, data }: any) => {
@@ -876,7 +882,7 @@ describe("Webhook: Subscription status transitions", () => {
 // ═══════════════════════════════════════════════════
 describe("Retry Job: ensurePaymentRetryJob deduplication", () => {
   it("should not create duplicate retry jobs for the same subscription", async () => {
-    const { ensurePaymentRetryJob } = await import("../../services/retryJobScheduler");
+    const { ensurePaymentRetryJob } = await vi.importActual<typeof import("../../services/retryJobScheduler")>("../../services/retryJobScheduler");
 
     const mockDb: any = {
       retryJob: {
@@ -915,7 +921,7 @@ describe("Retry Job: ensurePaymentRetryJob deduplication", () => {
   });
 
   it("should update existing job if new runAt is sooner", async () => {
-    const { ensurePaymentRetryJob } = await import("../../services/retryJobScheduler");
+    const { ensurePaymentRetryJob } = await vi.importActual<typeof import("../../services/retryJobScheduler")>("../../services/retryJobScheduler");
 
     const existingRunAt = new Date("2026-06-01T00:00:00.000Z");
     const newRunAt = new Date("2026-05-01T00:00:00.000Z");

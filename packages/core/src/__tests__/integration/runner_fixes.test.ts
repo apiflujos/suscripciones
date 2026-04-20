@@ -84,7 +84,7 @@ describe("Webhook Route: Job deduplication (Fix #3)", () => {
   it("should check for existing job before creating new one", async () => {
     const fs = await import("fs");
     const path = await import("path");
-    const routePath = path.resolve(__dirname, "../../../../apps/admin/app/webhooks/wompi/route.ts");
+    const routePath = path.resolve(__dirname, "../../../../../apps/admin/app/webhooks/wompi/route.ts");
     const content = fs.readFileSync(routePath, "utf-8");
 
     // Verify deduplication logic exists

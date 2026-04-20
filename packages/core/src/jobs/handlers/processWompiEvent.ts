@@ -16,7 +16,7 @@ import { GAMIFICATION_WEIGHTS, moneyToPoints } from "../../services/gamification
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 import { publishRealtime } from "../../services/realtimePublisher";
 import { ensurePaymentRetryJob } from "../../services/retryJobScheduler";
-import { attachPaymentToCycle, attachPaymentToMatchingCycle, buildSubscriptionSeed, computeBillingCycleDueAt, ensureBillingCyclesForSubscriptions, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "../../services/billingCycles";
+import { attachPaymentToCycle, attachPaymentToMatchingCycle, buildSubscriptionSeed, computeBillingCycleDueAt, ensureBillingCyclesForSubscriptions, syncSubscriptionBillingSnapshot } from "../../services/billingCycles";
 import { getExpectedSubscriptionTotalInCents, getPlanCollectionMode } from "../../lib/metadataSchemas";
 
 type WompiCustomerData = {
@@ -1401,12 +1401,34 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       }
     }).catch(() => null);
 
+    const nextPeriodStart = subscription.currentPeriodEndAt || subscription.currentPeriodStartAt || subscription.createdAt || paidAt || new Date();
+    const nextPeriodEnd = addIntervalUtc(nextPeriodStart, subscription.plan.intervalUnit as any, subscription.plan.intervalCount);
+    await db.subscription.updateMany({
+      where: { id: subscription.id, currentCycle: subscription.currentCycle },
+      data: {
+        currentCycle: { increment: 1 },
+        currentPeriodStartAt: nextPeriodStart,
+        currentPeriodEndAt: nextPeriodEnd
+      }
+    }).catch((err) => {
+      logger.warn({ err, subscriptionId: subscription.id }, "processWompiEvent: fallo avanzando ciclo de suscripción");
+    });
+
     await syncSubscriptionBillingSnapshot({ subscriptionId: subscription.id, asOf: paidAt }).catch((err) => {
       logger.warn({ err, subscriptionId: subscription.id }, "processWompiEvent: fallo sincronizando snapshot tras pago");
     });
 
-    const state = await resolveSubscriptionBillingState({ subscriptionId: subscription.id, asOf: paidAt }).catch(() => null);
-    const nextRunAt = state?.collectionCycle?.dueAt ? new Date(state.collectionCycle.dueAt) : null;
+    const nextRunAt =
+      subscription.plan.intervalUnit === "MONTH"
+        ? computeBillingCycleDueAt({
+            periodStartAt: nextPeriodStart,
+            periodEndAt: nextPeriodEnd,
+            cycleStartDay: Math.max(1, Math.min(31, Math.trunc(subscription.cycleStartDay || 1))),
+            paymentDay: Math.max(1, Math.min(31, Math.trunc(subscription.paymentDay || 1))),
+            paymentTiming: subscription.paymentTiming === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
+          })
+        : nextPeriodEnd;
+
     const collectionMode = resolveSubscriptionCollectionMode(subscription);
     const advancedTo = nextRunAt ? { nextRunAt } : null;
     if (nextRunAt && (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK")) {

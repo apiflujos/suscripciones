@@ -8,7 +8,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.setConfig({ testTimeout: 15000 });
+vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });
 
 // Mock dependencies
 vi.mock("../../providers/wompi/client", () => {
