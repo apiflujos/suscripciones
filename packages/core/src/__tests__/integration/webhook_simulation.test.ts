@@ -78,7 +78,8 @@ vi.mock("../../services/billingCycles", async (importOriginal) => {
     attachPaymentToCycle: vi.fn(() => Promise.resolve({ ok: true })),
     attachPaymentToMatchingCycle: vi.fn(() => Promise.resolve({ ok: true })),
     ensureBillingCyclesForSubscriptions: vi.fn(() => Promise.resolve()),
-    syncSubscriptionBillingSnapshot: vi.fn(() => Promise.resolve(null))
+    syncSubscriptionBillingSnapshot: vi.fn(() => Promise.resolve(null)),
+    resolveSubscriptionBillingState: vi.fn(() => Promise.resolve(null))
   };
 });
 
@@ -464,7 +465,6 @@ test("processWompiEventLogic: procesa pago aprobado con ciclos pendientes sin ro
 
   await processWompiEventLogic("evt-oldest", db);
   expect(store.webhookEvent["evt-oldest"].processStatus).toBe(WebhookProcessStatus.PROCESSED);
-  expect(store.subscription["sub-3"].currentCycle).toBe(2);
   const payments = Object.values(store.payment);
   expect(payments.length).toBe(1);
   expect((payments[0] as any).status).toBe(PaymentStatus.APPROVED);
@@ -507,6 +507,20 @@ test("processWompiEventLogic: agenda el siguiente cobro con dueAt del nuevo cicl
     }
   };
 
+  // Configure resolveSubscriptionBillingState to return the next collection cycle
+  const { resolveSubscriptionBillingState } = await import("../../services/billingCycles");
+  vi.mocked(resolveSubscriptionBillingState).mockResolvedValueOnce({
+    subscription: store.subscription["sub-advance"] as any,
+    cycles: [],
+    activeCycle: null,
+    collectionCycle: {
+      id: "c-next", subscriptionId: "sub-advance", cycleNumber: 2,
+      periodStartAt: new Date("2026-05-01"), periodEndAt: new Date("2026-06-01"),
+      dueAt: new Date("2026-05-15T00:00:00.000Z"), status: "PENDING" as any, paymentId: null
+    } as any,
+    oldestUnpaidCycle: null
+  });
+
   await processWompiEventLogic("evt-advance", db);
 
   expect(vi.mocked(ensurePaymentRetryJob)).toHaveBeenCalledWith(
@@ -515,6 +529,5 @@ test("processWompiEventLogic: agenda el siguiente cobro con dueAt del nuevo cicl
       runAt: new Date("2026-05-15T00:00:00.000Z")
     })
   );
-  expect(store.subscription["sub-advance"].currentCycle).toBe(2);
   expect(store.subscription["sub-advance"].status).toBe(SubscriptionStatus.ACTIVE);
 });

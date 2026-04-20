@@ -214,7 +214,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
   const cfg = await getNotificationsConfig();
   const billingState = payment.subscriptionId ? await resolveSubscriptionBillingState({ subscriptionId: payment.subscriptionId }).catch(() => null) : null;
   const paymentType =
-    billingState?.subscription?.plan?.metadata?.collectionMode === "AUTO_LINK"
+    (billingState?.subscription?.plan?.metadata as any)?.collectionMode === "AUTO_LINK"
       ? "LINK"
       : payment.subscriptionId
         ? "SUBSCRIPTION"

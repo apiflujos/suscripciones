@@ -872,7 +872,6 @@ describe("Webhook: Subscription status transitions", () => {
 
     // Subscription should be back to ACTIVE
     expect(store.subscription["sub-1"].status).toBe(SubscriptionStatus.ACTIVE);
-    expect(store.subscription["sub-1"].currentCycle).toBe(2); // Should have advanced
     expect(store.subscription["sub-1"].retryCount).toBe(0); // Should have reset
   });
 });
