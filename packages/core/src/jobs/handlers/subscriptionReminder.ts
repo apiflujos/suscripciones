@@ -12,6 +12,7 @@ import { formatDateTimeEs } from "../../lib/dates";
 import { getAppTimeZone } from "../../services/runtimeConfig";
 import { logger } from "../../lib/logger";
 import { resolveSubscriptionBillingState } from "../../services/billingCycles";
+import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 
 const payloadSchema = z.object({
   trigger: notificationTriggerSchema,
@@ -172,10 +173,12 @@ function dedupeKey(args: { trigger: string; ruleId: string; subscriptionId?: str
 function getPaymentType(args: { subscription?: any | null; payment?: any | null }) {
   const sub = args.subscription;
   if (sub?.plan) {
-    const mode = String(sub.plan?.metadata?.collectionMode || "");
-    if (mode === "AUTO_LINK") return "LINK";
+    // Usa resolveSubscriptionCollectionMode para leer correctamente desde
+    // subscription.metadata (preferido) y plan.metadata (fallback).
+    const mode = resolveSubscriptionCollectionMode(sub);
     if (mode === "AUTO_DEBIT") return "SUBSCRIPTION";
-    return "SUBSCRIPTION";
+    // AUTO_LINK y MANUAL_LINK → link de pago (plantilla tipo PLAN)
+    return "LINK";
   }
   if (args.payment?.subscriptionId) return "SUBSCRIPTION";
   return "LINK";

@@ -20,11 +20,11 @@
 
 const XLSX = require("xlsx");
 const path = require("path");
-const crypto = require("crypto");
 const curatedMembers = require("./mdv-abril2026-curated-data");
+const { resolveDatabaseUrl } = require("./db_url_helper");
 
 const DRY_RUN = process.argv.includes("--dry-run");
-const DATABASE_URL = process.env.DATABASE_URL;
+const DATABASE_URL = resolveDatabaseUrl(process.env.DATABASE_URL);
 
 if (!DATABASE_URL) {
   console.error("ERROR: DATABASE_URL es requerida");
@@ -276,7 +276,7 @@ async function ensurePlans(tenantId) {
       intervalCount: 1,
       planType: "auto_subscription",
       active: true,
-      metadata: { collectionMode: "MANUAL_LINK" },
+      metadata: { collectionMode: "MANUAL_LINK", mdvCanonical: true, mdvCategory: def.category, importSource: "migrate-mdv-abril2026-curated" },
     };
     if (!plan) {
       if (!DRY_RUN) {
@@ -290,8 +290,16 @@ async function ensurePlans(tenantId) {
       if (!DRY_RUN) {
         plan = await prisma.subscriptionPlan.update({
           where: { id: plan.id },
-          data: { priceInCents: def.basePriceInCents, currency: "COP", intervalUnit: "MONTH", intervalCount: 1, active: true },
+          data: {
+            priceInCents: def.basePriceInCents,
+            currency: "COP",
+            intervalUnit: "MONTH",
+            intervalCount: 1,
+            active: true,
+            metadata: data.metadata,
+          },
         });
+        await prisma.subscriptionPlanTenant.createMany({ data: [{ planId: plan.id, tenantId }], skipDuplicates: true }).catch(() => {});
       }
       console.log(`  = Plan ${def.name}`);
     }
@@ -433,35 +441,36 @@ async function upsertSubscriptionRecord({ tenantId, member, customer, plan }) {
   const periodEnd = addMonths(APRIL_2026, member.billingPeriodMonths);
 
   if (!subscription) {
-    const id = DRY_RUN ? `dry-sub-${member.category}-${member.rowNum}` : crypto.randomUUID();
+    const id = DRY_RUN ? `dry-sub-${member.category}-${member.rowNum}` : null;
     if (!DRY_RUN) {
-      await prisma.$executeRaw`
-        INSERT INTO "Subscription" (
-          id, "tenantId", "customerId", "planId", status,
-          "startAt", "currentPeriodStartAt", "currentPeriodEndAt",
-          "cycleStartDay", "paymentDay", "paymentTiming", "graceDays",
-          metadata, "createdAt", "updatedAt"
-        ) VALUES (
-          ${id}::uuid, ${tenantId}::uuid, ${customer.id}::uuid, ${plan.id}::uuid,
-          ${member.subscriptionStatus}::"SubscriptionStatus",
-          ${APRIL_2026}, ${APRIL_2026}, ${periodEnd},
-          ${CYCLE_START_DAY}, ${PAYMENT_DAY}, ${PAYMENT_TIMING}::"PaymentTiming", ${GRACE_DAYS},
-          ${JSON.stringify(metadata)}::jsonb, NOW(), NOW()
-        )
-      `;
+      subscription = await prisma.subscription.create({
+        data: {
+          tenantId,
+          customerId: customer.id,
+          planId: plan.id,
+          status: member.subscriptionStatus,
+          startAt: APRIL_2026,
+          cycleStartDay: CYCLE_START_DAY,
+          paymentDay: PAYMENT_DAY,
+          paymentTiming: PAYMENT_TIMING,
+          graceDays: GRACE_DAYS,
+          metadata,
+        },
+      });
       await prisma.subscriptionTenant.createMany({
-        data: [{ subscriptionId: id, tenantId }],
+        data: [{ subscriptionId: subscription.id, tenantId }],
         skipDuplicates: true,
       });
+    } else {
+      subscription = {
+        id,
+        tenantId,
+        customerId: customer.id,
+        planId: plan.id,
+        status: member.subscriptionStatus,
+        metadata,
+      };
     }
-    subscription = {
-      id,
-      tenantId,
-      customerId: customer.id,
-      planId: plan.id,
-      status: member.subscriptionStatus,
-      metadata,
-    };
   } else if (!DRY_RUN) {
     await prisma.subscription.update({
       where: { id: subscription.id },
@@ -476,12 +485,6 @@ async function upsertSubscriptionRecord({ tenantId, member, customer, plan }) {
         metadata,
       },
     });
-    await prisma.$executeRaw`
-      UPDATE "Subscription"
-      SET "currentPeriodStartAt" = ${APRIL_2026},
-          "currentPeriodEndAt" = ${periodEnd}
-      WHERE id = ${subscription.id}::uuid
-    `;
     await prisma.subscriptionTenant.createMany({
       data: [{ subscriptionId: subscription.id, tenantId }],
       skipDuplicates: true,

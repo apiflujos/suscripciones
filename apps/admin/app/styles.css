@@ -13467,7 +13467,8 @@ body.is-global-loading {
 .modal-panel {
   width: min(980px, 96vw);
   max-height: 90vh;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--panel);
   border-radius: 16px;
   border: 1px solid var(--stroke);

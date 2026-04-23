@@ -1,11 +1,30 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+/* eslint-disable no-console */
+const { PrismaClient, PaymentOrigin } = require("@prisma/client");
 const { randomUUID } = require("crypto");
+const { resolveDatabaseUrl } = require("./db_url_helper");
+const {
+  buildPricing,
+  createSubscriptionWithCycles,
+  ensureTenantLinks,
+  paymentLinkStatusFromPaymentStatus
+} = require("./seed_helpers");
+
+if (process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = resolveDatabaseUrl(process.env.DATABASE_URL);
+}
+
+const prisma = new PrismaClient();
 
 function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
+  const value = new Date(date);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value;
+}
+
+function addMonths(date, months) {
+  const value = new Date(date);
+  value.setUTCMonth(value.getUTCMonth() + months);
+  return value;
 }
 
 function nowIso() {
@@ -18,64 +37,113 @@ function uniqueSuffix() {
 
 async function ensureTenant() {
   const tenantName = String(process.env.DEFAULT_TENANT_NAME || "apiflujos").trim() || "apiflujos";
-  const existing = await prisma.saTenant.findFirst({ where: { name: tenantName } });
+  const existing = await prisma.saTenant.findFirst({ where: { name: { equals: tenantName, mode: "insensitive" } } });
   if (existing) return existing;
   return prisma.saTenant.create({ data: { name: tenantName, active: true } });
 }
 
 async function upsertCustomer({ tenantId, name, email, phone, metadata }) {
-  return prisma.customer.upsert({
+  const customer = await prisma.customer.upsert({
     where: { email },
     update: { name, phone, metadata, tenantId },
     create: { tenantId, name, email, phone, metadata }
   });
+  await ensureTenantLinks(prisma, { tenantId, customerId: customer.id });
+  return customer;
 }
 
 async function upsertPlan({ tenantId, name, priceInCents, intervalUnit, intervalCount, metadata, planType }) {
-  return prisma.subscriptionPlan.upsert({
+  const plan = await prisma.subscriptionPlan.upsert({
     where: { name },
     update: { tenantId, priceInCents, intervalUnit, intervalCount, metadata, planType, active: true },
     create: { tenantId, name, priceInCents, intervalUnit, intervalCount, metadata, planType, active: true }
   });
+  await ensureTenantLinks(prisma, { tenantId, planId: plan.id });
+  return plan;
 }
 
-async function ensureSubscription({ tenantId, customerId, planId, metadata }) {
-  const existing = await prisma.subscription.findFirst({ where: { tenantId, customerId, planId } });
-  if (existing) return existing;
-  const now = new Date();
-  return prisma.subscription.create({
+async function ensureSubscription({ tenantId, customerId, plan, metadata, cycleStartDay, paymentDay, paymentTiming }) {
+  const existing = await prisma.subscription.findFirst({ where: { tenantId, customerId, planId: plan.id } });
+  if (existing) {
+    await ensureTenantLinks(prisma, { tenantId, subscriptionId: existing.id });
+    return {
+      subscription: existing,
+      cycles: await prisma.subscriptionBillingCycle.findMany({
+        where: { subscriptionId: existing.id },
+        orderBy: [{ cycleNumber: "asc" }]
+      })
+    };
+  }
+
+  const startAt = addMonths(new Date(), -1);
+  return createSubscriptionWithCycles(prisma, {
+    tenantId,
+    customerId,
+    planId: plan.id,
+    status: "ACTIVE",
+    startAt,
+    currentCycle: 2,
+    currentPeriodStartAt: new Date(),
+    cycleStartDay,
+    paymentDay,
+    paymentTiming,
+    graceDays: 2,
+    retryCount: 0,
+    maxRetries: 3,
+    metadata: metadata || null,
+    intervalUnit: plan.intervalUnit,
+    intervalCount: plan.intervalCount,
+    cyclesBack: 1,
+    cyclesForward: 2
+  });
+}
+
+async function createApprovedPayment({ tenantId, customerId, subscriptionId, cycleNumber, amountInCents, currency, origin }) {
+  const payment = await prisma.payment.create({
     data: {
       tenantId,
       customerId,
-      planId,
-      status: "ACTIVE",
-      startAt: now,
-      currentPeriodStartAt: now,
-      currentPeriodEndAt: addDays(now, 30),
-      currentCycle: 1,
-      metadata: metadata || null
+      subscriptionId,
+      amountInCents,
+      currency,
+      cycleNumber,
+      reference: `DEMO-PAID-${uniqueSuffix()}`.toUpperCase(),
+      status: "APPROVED",
+      paidAt: addDays(new Date(), -10),
+      origin,
+      subscriptionCycleKey: `${subscriptionId}:${cycleNumber}`
     }
   });
-}
 
-async function ensureCartTemplate({ tenantId, name, productIds }) {
-  const existing = await prisma.publicCheckoutTemplate.findFirst({ where: { tenantId, name, kind: "CART" } });
-  if (existing) return existing;
-  return prisma.publicCheckoutTemplate.create({
+  await prisma.paymentAttempt.create({
     data: {
-      tenantId,
-      name,
-      kind: "CART",
-      allowProductSelect: true,
-      productIds,
-      publicTitle: "Selecciona tu plan",
-      publicDescription: "Demo de catálogo con planes manuales y autodebito",
-      layout: { primaryColor: "#6C4CC4" }
+      paymentId: payment.id,
+      attemptNo: 1,
+      status: "APPROVED",
+      provider: "wompi",
+      response: { demo: true }
     }
   });
+
+  await prisma.subscriptionBillingCycle.update({
+    where: { subscriptionId_cycleNumber: { subscriptionId, cycleNumber } },
+    data: {
+      paymentId: payment.id,
+      status: "PAID",
+      paidAt: payment.paidAt,
+      paidOnTime: true,
+      daysEarly: 1,
+      daysLate: 0,
+      origin,
+      associationReason: "REF_MATCH",
+      associatedBy: "seed_demo"
+    }
+  });
+
+  return payment;
 }
 
-async function createPaymentLink({ tenantId, customerId, subscriptionId, planId, amountInCents }) {
+async function createPaymentLink({ tenantId, customerId, subscriptionId, planId, amountInCents, cycleNumber }) {
   const reference = `DEMO-${uniqueSuffix()}`.toUpperCase();
   const payment = await prisma.payment.create({
     data: {
@@ -84,13 +152,26 @@ async function createPaymentLink({ tenantId, customerId, subscriptionId, planId,
       subscriptionId,
       amountInCents,
       currency: "COP",
+      cycleNumber,
       reference,
-      status: "PENDING"
+      status: "PENDING",
+      origin: PaymentOrigin.AUTO_LINK
     }
   });
+
+  await prisma.paymentAttempt.create({
+    data: {
+      paymentId: payment.id,
+      attemptNo: 1,
+      status: "PENDING",
+      provider: "wompi",
+      response: { demo: true, paymentLink: true }
+    }
+  });
+
   const wompiPaymentLinkId = `wpl_demo_${uniqueSuffix()}`;
   const checkoutUrl = `https://checkout.wompi.co/p/${payment.id}`;
-  return prisma.paymentLink.create({
+  const link = await prisma.paymentLink.create({
     data: {
       tenantId,
       planId,
@@ -98,9 +179,11 @@ async function createPaymentLink({ tenantId, customerId, subscriptionId, planId,
       paymentId: payment.id,
       wompiPaymentLinkId,
       checkoutUrl,
-      status: "SENT"
+      status: paymentLinkStatusFromPaymentStatus(payment.status)
     }
   });
+
+  return { payment, link };
 }
 
 async function main() {
@@ -158,10 +241,19 @@ async function main() {
     planType: "manual_link"
   });
 
-  const template = await ensureCartTemplate({
-    tenantId: tenant.id,
-    name: "Demo Cart",
-    productIds: [planAutoDebit.id, planAutoLink.id, planManual.id]
+  const template = await prisma.publicCheckoutTemplate.findFirst({
+    where: { tenantId: tenant.id, name: "Demo Cart", kind: "CART" }
+  }) || await prisma.publicCheckoutTemplate.create({
+    data: {
+      tenantId: tenant.id,
+      name: "Demo Cart",
+      kind: "CART",
+      allowProductSelect: true,
+      productIds: [planAutoDebit.id, planAutoLink.id, planManual.id],
+      publicTitle: "Selecciona tu plan",
+      publicDescription: "Demo de catalogo con planes manuales y autodebito",
+      layout: { primaryColor: "#6C4CC4" }
+    }
   });
 
   const cartToken = randomUUID().replace(/-/g, "");
@@ -198,29 +290,74 @@ async function main() {
     }
   });
 
-  const subAutoDebit = await ensureSubscription({
+  const pricingAutoDebit = buildPricing(planAutoDebit, 0, "COP");
+  const pricingAutoLink = buildPricing(planAutoLink, 0, "COP");
+  const pricingManual = buildPricing(planManual, 0, "COP");
+
+  const autoDebitResult = await ensureSubscription({
     tenantId: tenant.id,
     customerId: customerAutoDebit.id,
-    planId: planAutoDebit.id
+    plan: planAutoDebit,
+    cycleStartDay: 1,
+    paymentDay: 5,
+    paymentTiming: "EN_CURSO",
+    metadata: {
+      pricing: pricingAutoDebit,
+      collectionMode: "AUTO_DEBIT",
+      paymentSourceId: 123456
+    }
   });
-  const subAutoLink = await ensureSubscription({
+
+  const autoLinkResult = await ensureSubscription({
     tenantId: tenant.id,
     customerId: customerAutoLink.id,
-    planId: planAutoLink.id
+    plan: planAutoLink,
+    cycleStartDay: 1,
+    paymentDay: 10,
+    paymentTiming: "EN_CURSO",
+    metadata: {
+      pricing: pricingAutoLink,
+      collectionMode: "AUTO_LINK"
+    }
   });
+
   await ensureSubscription({
     tenantId: tenant.id,
     customerId: customerManual.id,
-    planId: planManual.id
+    plan: planManual,
+    cycleStartDay: 15,
+    paymentDay: 12,
+    paymentTiming: "ANTICIPADO",
+    metadata: {
+      pricing: pricingManual,
+      collectionMode: "MANUAL_LINK"
+    }
   });
 
-  await createPaymentLink({
-    tenantId: tenant.id,
-    customerId: customerAutoLink.id,
-    subscriptionId: subAutoLink.id,
-    planId: planAutoLink.id,
-    amountInCents: planAutoLink.priceInCents
-  });
+  const autoDebitPaidCycle = autoDebitResult.cycles.find((cycle) => cycle.cycleNumber === 1) || autoDebitResult.cycles[0];
+  if (autoDebitPaidCycle && !autoDebitPaidCycle.paymentId) {
+    await createApprovedPayment({
+      tenantId: tenant.id,
+      customerId: customerAutoDebit.id,
+      subscriptionId: autoDebitResult.subscription.id,
+      cycleNumber: autoDebitPaidCycle.cycleNumber,
+      amountInCents: pricingAutoDebit.totalInCents,
+      currency: "COP",
+      origin: PaymentOrigin.AUTO_DEBIT
+    });
+  }
+
+  const autoLinkCurrentCycle = autoLinkResult.cycles.find((cycle) => cycle.cycleNumber === 2) || autoLinkResult.cycles[autoLinkResult.cycles.length - 1];
+  if (autoLinkCurrentCycle) {
+    await createPaymentLink({
+      tenantId: tenant.id,
+      customerId: customerAutoLink.id,
+      subscriptionId: autoLinkResult.subscription.id,
+      planId: planAutoLink.id,
+      amountInCents: pricingAutoLink.totalInCents,
+      cycleNumber: autoLinkCurrentCycle.cycleNumber
+    });
+  }
 
   console.log("seed-demo: ok");
   console.log("tenantId:", tenant.id);

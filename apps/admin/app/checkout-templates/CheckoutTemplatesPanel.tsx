@@ -68,6 +68,7 @@ export function CheckoutTemplatesPanel({
   inlineState,
   initialKind = "",
   initialStep = "choose",
+  checkoutDefaults,
   actions
 }: {
   templates: Template[];
@@ -77,12 +78,18 @@ export function CheckoutTemplatesPanel({
   inlineState: { action: string; status: string; errorText: string };
   initialKind?: "PLAN" | "SUBSCRIPTION" | "";
   initialStep?: "choose" | "form";
+  checkoutDefaults?: {
+    defaultPlanTemplateId?: string;
+    defaultSubscriptionTemplateId?: string;
+    defaultCartTemplateId?: string;
+  };
   actions: {
     create: (formData: FormData) => void;
     update: (formData: FormData) => void;
     remove: (formData: FormData) => void;
     duplicate: (formData: FormData) => void;
     defaults: (formData: FormData) => void;
+    saveDefaults: (formData: FormData) => void;
   };
 }) {
   const [stepIndex, setStepIndex] = useState<number>(initialStep === "form" ? 1 : 0);
@@ -880,7 +887,7 @@ export function CheckoutTemplatesPanel({
         {wizardBody}
       </AppModal>
 
-      {!templates.length ? <div className="field-hint">Aún no hay plantillas.</div> : null}
+      {!templates.length ? <div className="field-hint">Aún no hay plantillas. Crea una para poder asignarla como predeterminada.</div> : null}
       <div className="template-grid">
         {templates.map((t) => (
           <div key={t.id} className={`template-card ${t.active ? "" : "is-disabled"}`}>
@@ -943,6 +950,55 @@ export function CheckoutTemplatesPanel({
             </div>
           </div>
         ))}
+      </div>
+
+      {/* ── Paso 2: Plantillas predeterminadas ──────────────────────────────── */}
+      <div style={{ borderTop: "1px dashed var(--stroke)", marginTop: 16, paddingTop: 16 }}>
+        <div style={{ marginBottom: 10 }}>
+          <strong style={{ fontSize: "var(--text-sm)" }}>Predeterminadas</strong>
+          <div className="field-hint">Plantilla usada cuando no hay una asignada al producto específico.</div>
+          {inlineState.action === "checkout_defaults" && inlineState.status === "ok" && (
+            <div className="field-hint" style={{ color: "var(--success)" }}>Predeterminadas guardadas.</div>
+          )}
+          {inlineState.action === "checkout_defaults" && inlineState.status === "fail" && (
+            <div className="field-hint" style={{ color: "var(--danger)" }}>Error al guardar.</div>
+          )}
+        </div>
+        <form action={actions.saveDefaults} style={{ display: "grid", gap: 10 }}>
+          <input type="hidden" name="csrf" value={csrfToken} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+            <label className="field-group">
+              <span className="field-label">Link de pago (PLAN)</span>
+              <select name="defaultPlanTemplateId" className="select" defaultValue={checkoutDefaults?.defaultPlanTemplateId || ""}>
+                <option value="">— Sin predeterminada —</option>
+                {templates.filter(t => t.kind === "PLAN" && t.active).map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field-group">
+              <span className="field-label">Débito automático (SUBSCRIPTION)</span>
+              <select name="defaultSubscriptionTemplateId" className="select" defaultValue={checkoutDefaults?.defaultSubscriptionTemplateId || ""}>
+                <option value="">— Sin predeterminada —</option>
+                {templates.filter(t => t.kind === "SUBSCRIPTION" && t.active).map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field-group">
+              <span className="field-label">Catálogo (CART)</span>
+              <select name="defaultCartTemplateId" className="select" defaultValue={checkoutDefaults?.defaultCartTemplateId || ""}>
+                <option value="">— Sin predeterminada —</option>
+                {templates.filter(t => t.kind === "CART" && t.active).map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div>
+            <PendingButton className="primary btn-compact" type="submit" pendingText="Guardando...">Guardar predeterminadas</PendingButton>
+          </div>
+        </form>
       </div>
     </div>
   );

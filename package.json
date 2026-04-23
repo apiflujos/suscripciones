@@ -21,16 +21,25 @@
     "db:migrate": "npm run prisma:migrate:dev -w packages/database",
     "db:push": "npm run prisma:push -w packages/database",
     "db:studio": "npm run prisma:studio -w packages/database",
+    "migrate:mdv-curated": "node packages/core/src/scripts/migrate-mdv-abril2026.js",
+    "reset:mdv-curated": "node packages/core/src/scripts/reset-mdv-curated.js",
+    "seed:bootstrap": "node scripts/seed_bootstrap.js",
+    "seed:demo": "node scripts/seed-demo.js",
+    "seed:local": "node scripts/seed_local.js",
     "audit": "npm audit --audit-level=high",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f"
   },
+  "prisma": {
+    "seed": "npm run seed:bootstrap"
+  },
   "devDependencies": {
     "@types/node": "^20.17.0",
     "@vitest/coverage-v8": "^2.1.8",
     "typescript": "^5.8.0",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "xlsx": "^0.18.5"
   },
   "engines": {
     "node": ">=20.0.0"

@@ -269,7 +269,11 @@ export default async function ProductsPage({
                       Anterior
                     </a>
                   )}
-                  <div className="pagination-pages" style={{ display: "none" }} />
+                  <div className="pagination-pages">
+                    {pages.map((p) => (
+                      <a key={p} className={`page-link${p === currentPage ? " is-active" : ""}`} href={`/products?${new URLSearchParams({ ...baseParams, page: String(p) })}`} aria-current={p === currentPage ? "page" : undefined}>{p}</a>
+                    ))}
+                  </div>
                   {!hasNext ? (
                     <span className="page-link page-nav" aria-disabled="true">
                       Siguiente

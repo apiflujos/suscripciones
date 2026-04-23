@@ -8,8 +8,8 @@ type AppModalProps = {
   title: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
-  width?: CSSProperties["width"];
-  maxWidth?: CSSProperties["maxWidth"];
+  width?: string | number;
+  maxWidth?: string | number;
   panelClassName?: string;
   bodyClassName?: string;
   headerActions?: ReactNode;

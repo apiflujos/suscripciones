@@ -39,7 +39,7 @@ import { CheckoutTemplatesPanel } from "../checkout-templates/CheckoutTemplatesP
 import { createCheckoutTemplate, updateCheckoutTemplate, deleteCheckoutTemplate, duplicateCheckoutTemplate, createCheckoutTemplateDefaults } from "../checkout-templates/actions";
 import { RedirectConfigPanel } from "./RedirectConfigPanel";
 import { createTenant, deleteTenant, updateTenant } from "../tenants/actions";
-import { updateCheckoutConfig } from "./actions";
+import { updateCheckoutConfig, updateCheckoutDefaults } from "./actions";
 import { DeleteTenantButton } from "./DeleteTenantButton";
 import { UsersPanel } from "./UsersPanel";
 import { UserNotificationsPanel } from "./UserNotificationsPanel";
@@ -973,12 +973,18 @@ export default async function SettingsPage({
               inlineState={inlineState}
               initialKind={templateKind === "PLAN" || templateKind === "SUBSCRIPTION" ? (templateKind as any) : ""}
               initialStep={templateStep === "form" ? "form" : "choose"}
+              checkoutDefaults={{
+                defaultPlanTemplateId: String(settings?.checkoutConfig?.defaultPlanTemplateId || ""),
+                defaultSubscriptionTemplateId: String(settings?.checkoutConfig?.defaultSubscriptionTemplateId || ""),
+                defaultCartTemplateId: String(settings?.checkoutConfig?.defaultCartTemplateId || ""),
+              }}
               actions={{
                 create: createCheckoutTemplate,
                 update: updateCheckoutTemplate,
                 remove: deleteCheckoutTemplate,
                 duplicate: duplicateCheckoutTemplate,
-                defaults: createCheckoutTemplateDefaults
+                defaults: createCheckoutTemplateDefaults,
+                saveDefaults: updateCheckoutDefaults
               }}
             />
           </div>

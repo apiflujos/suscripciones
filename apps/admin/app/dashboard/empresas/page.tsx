@@ -1,3 +1,4 @@
+import { PaginationBar } from "../../PaginationBar";
 import { listEmpresas } from "../../admin/_services/companies";
 import { getCsrfToken } from "../../lib/csrf";
 import { ViewModeToggles } from "../../ui/ViewModeToggles";
@@ -186,27 +187,7 @@ export default async function EmpresasPage({
             </div>
           )}
 
-          <div className="pagination pagination-indicator" style={{ marginTop: 16 }}>
-            {currentPage <= 1 ? (
-              <span className="page-link page-nav" aria-disabled="true">
-                Anterior
-              </span>
-            ) : (
-              <a className="page-link page-nav" href={pageHref(Math.max(1, currentPage - 1))}>
-                Anterior
-              </a>
-            )}
-            <div className="pagination-pages" style={{ display: "none" }} />
-            {currentPage >= totalPages ? (
-              <span className="page-link page-nav" aria-disabled="true">
-                Siguiente
-              </span>
-            ) : (
-              <a className="page-link page-nav" href={pageHref(Math.min(totalPages, currentPage + 1))}>
-                Siguiente
-              </a>
-            )}
-          </div>
+          <PaginationBar currentPage={currentPage} totalPages={totalPages} pageHref={pageHref} style={{ marginTop: 16 }} />
         </div>
       </section>
     </main>

@@ -1,3 +1,4 @@
+import { PaginationBar } from "../PaginationBar";
 import { createCustomer } from "./actions";
 import { CustomersModals } from "./CustomersModals";
 import { listCustomers, getCustomerById } from "../admin/_services/customers";
@@ -216,68 +217,20 @@ export default async function CustomersPage({
   const paymentLink = typeof sp.paymentLink === "string" ? sp.paymentLink : "";
   const error = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
 
-  const renderPagination = (totalCount: number) => {
-    const currentPage = Math.max(1, Number(page) || 1);
-    const hasNext = totalCount > 0 && currentPage < Math.max(1, Math.ceil(totalCount / take));
-    const totalPages = Math.max(1, Math.ceil(totalCount / take));
-    const desktopWindow = 10;
-    let start = Math.max(1, currentPage - Math.floor(desktopWindow / 2));
-    let end = start + desktopWindow - 1;
-    if (end > totalPages) {
-      end = totalPages;
-      start = Math.max(1, end - (desktopWindow - 1));
-    }
-    const pages: number[] = [];
-    for (let i = start; i <= end; i += 1) pages.push(i);
-    const mobileWindow = 5;
-    let mobileStart = Math.max(1, currentPage - 2);
-    let mobileEnd = mobileStart + (mobileWindow - 1);
-    if (mobileEnd > totalPages) {
-      mobileEnd = totalPages;
-      mobileStart = Math.max(1, mobileEnd - (mobileWindow - 1));
-    }
-    const baseParams = {
+  const _customersPageHref = (p: number) => {
+    const bp = {
       ...(q ? { q } : {}),
       ...(tenantId ? { tenantId } : {}),
       ...(vista ? { vista } : {}),
       ...(viewId ? { viewId } : {}),
       ...(filters ? { filters } : {})
     };
-    return (
-      <div className="pagination pagination-indicator">
-        {currentPage <= 1 ? (
-          <span className="page-link page-nav" aria-disabled="true">
-            Anterior
-          </span>
-        ) : (
-          <a
-            className="page-link page-nav"
-            href={`/customers?${new URLSearchParams({
-              ...baseParams,
-              page: String(Math.max(1, currentPage - 1))
-            })}`}
-          >
-            Anterior
-          </a>
-        )}
-        <div className="pagination-pages" style={{ display: "none" }} />
-        {!hasNext ? (
-          <span className="page-link page-nav" aria-disabled="true">
-            Siguiente
-          </span>
-        ) : (
-          <a
-            className="page-link page-nav"
-            href={`/customers?${new URLSearchParams({
-              ...baseParams,
-              page: String(currentPage + 1)
-            })}`}
-          >
-            Siguiente
-          </a>
-        )}
-      </div>
-    );
+    return `/customers?${new URLSearchParams({ ...bp, page: String(p) })}`;
+  };
+  const renderPagination = (totalCount: number) => {
+    const cp = Math.max(1, Number(page) || 1);
+    const tp = Math.max(1, Math.ceil(totalCount / take));
+    return <PaginationBar currentPage={cp} totalPages={tp} pageHref={_customersPageHref} />;
   };
 
   const currentPage = Math.max(1, Number(page) || 1);

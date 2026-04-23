@@ -87,6 +87,8 @@ Este script:
 ./scripts/migrate.sh --seed
 ```
 
+`--seed` ejecuta solo el bootstrap seguro de producción: tenant default, backfills de `tenantId` y join tables. No carga demo data.
+
 ---
 
 ## 🔁 Deploy Manual
@@ -246,8 +248,10 @@ npx prisma migrate reset
 ### Seed (Datos de Prueba)
 
 ```bash
-npx prisma db seed
+npm run seed:demo
 ```
+
+No ejecutar demo data en producción. `npx prisma db seed` queda reservado para bootstrap seguro.
 
 ---
 

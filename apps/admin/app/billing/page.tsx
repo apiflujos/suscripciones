@@ -1479,7 +1479,11 @@ export default async function BillingPage({
                     Anterior
                   </a>
                 )}
-                <div className="pagination-pages" style={{ display: "none" }} />
+                <div className="pagination-pages">
+                  {pages.map((p) => (
+                    <a key={p} className={`page-link${p === currentPage ? " is-active" : ""}`} href={`/billing?${new URLSearchParams({ ...paginationBase, page: String(p) })}`} aria-current={p === currentPage ? "page" : undefined}>{p}</a>
+                  ))}
+                </div>
                 {!hasNext ? (
                   <span className="page-link page-nav" aria-disabled="true">
                     Siguiente

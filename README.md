@@ -70,14 +70,16 @@ npm run db:migrate     # Migraciones (dev)
 
 # 🧪 Local (Docker + Seed)
 
-Esta guía es **solo para local**. El seed NO se usa en producción.
+Esta guía es **solo para local**. El seed de demo NO se usa en producción.
 
 ```bash
 cp .env.example .env
 docker compose up -d
 docker exec -it -w /app wompi-admin npm -w packages/database run prisma:migrate:deploy
-docker exec -it -w /app wompi-admin node scripts/seed_local.js
+docker exec -it -w /app wompi-admin npm run seed:local
 ```
+
+`seed:local` crea el dataset curado de MdV: 31 suscripciones sobre solo 3 planes canónicos (`Suscripción Alpha`, `Suscripción Omega`, `Suscripción Delta`), con pricing y flete en metadata y ciclos reales en `SubscriptionBillingCycle`.
 
 URLs:
 - Admin: http://localhost:3002/login

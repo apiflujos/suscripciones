@@ -19,6 +19,7 @@ import {
   updateShopifySettings,
   updateWompiSettings
 } from "../admin/_services/settingsActions";
+import { getCheckoutConfig } from "../admin/_services/settings";
 import { bootstrapChatwootAttributes, syncContactsAttributes, testChatwootConnection } from "../admin/_services/comms";
 import { updateGamificationConfig as updateGamificationConfigAction } from "../admin/_services/gamification";
 import { createWebhookEndpoint, deleteWebhookEndpoint, updateWebhookEndpoint } from "../admin/_services/webhookEndpoints";
@@ -714,6 +715,27 @@ export async function updateCheckoutConfig(formData: FormData) {
   } catch (err) {
     if (isNextRedirect(err)) throw err;
     redirectWith("checkout_config", "fail", toShortErrorMessage(err), returnTo);
+  }
+}
+
+export async function updateCheckoutDefaults(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  try {
+    // Leer config actual para no sobreescribir otros campos
+    const current = await getCheckoutConfig();
+    const merged = {
+      ...current,
+      defaultPlanTemplateId: String(formData.get("defaultPlanTemplateId") || "").trim(),
+      defaultSubscriptionTemplateId: String(formData.get("defaultSubscriptionTemplateId") || "").trim(),
+      defaultCartTemplateId: String(formData.get("defaultCartTemplateId") || "").trim(),
+    };
+    const out = await updateCheckoutConfigAction(merged);
+    assertOk(out as any);
+    redirectWith("checkout_defaults", "ok", undefined, returnTo);
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("checkout_defaults", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 

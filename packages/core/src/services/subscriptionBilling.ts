@@ -535,8 +535,9 @@ export async function createPaymentLinkForSubscription(args: {
       } catch {
         cfg = null;
       }
-      const collectionMode = String((sub.plan.metadata as PlanMetadata | null)?.collectionMode || "MANUAL_LINK");
-      const isPlan = collectionMode === "AUTO_LINK";
+      const collectionMode = resolveSubscriptionCollectionMode(sub);
+      // Solo AUTO_DEBIT usa plantilla SUBSCRIPTION; MANUAL_LINK y AUTO_LINK usan PLAN
+      const isPlan = collectionMode !== "AUTO_DEBIT";
       const baseTitle = String(isPlan ? cfg?.planTitle : cfg?.subscriptionTitle || "").trim();
       const baseDesc = String(isPlan ? cfg?.planDescription : cfg?.subscriptionDescription || "").trim();
       const templateId = String((sub.metadata as SubscriptionMetadata | null)?.templateId || "").trim();

@@ -1,265 +1,193 @@
 /* eslint-disable no-console */
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient, PaymentOrigin } = require("@prisma/client");
+const curatedMembers = require("../packages/core/src/scripts/mdv-abril2026-curated-data");
+const { resolveDatabaseUrl } = require("./db_url_helper");
+const {
+  createSubscriptionWithCycles,
+  ensureTenantLinks,
+  paymentLinkStatusFromPaymentStatus
+} = require("./seed_helpers");
+
+if (process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = resolveDatabaseUrl(process.env.DATABASE_URL);
+}
 
 const prisma = new PrismaClient();
 
-function rand(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
+const TENANT_NAME = "Mercado de vinos";
+const PLAN_DEFS = [
+  { category: "ALPHA", name: "Suscripción Alpha", basePriceInCents: 36000000 },
+  { category: "OMEGA", name: "Suscripción Omega", basePriceInCents: 46000000 },
+  { category: "DELTA", name: "Suscripción Delta", basePriceInCents: 62000000 }
+];
+
+function normalize(value) {
+  return String(value || "").trim();
 }
 
-function pad(n) {
-  return String(n).padStart(3, "0");
+function normEmail(value) {
+  return normalize(value).toLowerCase();
 }
 
-function toCents(v) {
-  return Math.trunc(Number(v || 0));
+function planDefByCategory(category) {
+  return PLAN_DEFS.find((item) => item.category === category) || null;
 }
 
-function nowPlusDays(days) {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d;
+function inferShipping(member) {
+  const def = planDefByCategory(member.category);
+  const basePriceInCents = Number(member.basePriceInCents || def?.basePriceInCents || 0);
+  const totalInCents = Number(member.amountInCents || basePriceInCents || 0);
+  const explicitShipping = member.shippingInCents;
+  const shippingInCents =
+    explicitShipping != null ? Math.max(0, Number(explicitShipping || 0)) : Math.max(0, totalInCents - basePriceInCents);
+  const label = normalize(member.planLabel).toLowerCase();
+  const requiresShipping = member.requiresShipping != null ? Boolean(member.requiresShipping) : label.includes("domicilio") || shippingInCents > 0;
+  return {
+    basePriceInCents,
+    shippingInCents,
+    totalInCents,
+    requiresShipping
+  };
+}
+
+function inferCurrentPeriodStartAt() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
 }
 
 async function getTenant() {
-  const tenant = await prisma.saTenant.findFirst({
-    where: { active: true },
-    orderBy: { createdAt: "asc" }
+  let tenant = await prisma.saTenant.findFirst({
+    where: { name: { equals: TENANT_NAME, mode: "insensitive" } }
   });
-  if (!tenant) throw new Error("no_active_tenant");
+  if (!tenant) {
+    tenant = await prisma.saTenant.create({ data: { name: TENANT_NAME, active: true } });
+  }
   return tenant;
 }
 
-async function main() {
-  const tenant = await getTenant();
-  const tenantId = tenant.id;
-  const currency = "COP";
-  const seedTag = Date.now().toString(36);
+async function cleanupPreviousSeed(tenantId) {
+  const seededPlans = await prisma.subscriptionPlan.findMany({
+    where: { tenantId, metadata: { path: ["importSource"], equals: "seed:mdv-curated" } },
+    select: { id: true }
+  });
+  const seededPlanIds = seededPlans.map((item) => item.id);
+  const seededSubscriptions = await prisma.subscription.findMany({
+    where: { tenantId, metadata: { path: ["importSource"], equals: "seed:mdv-curated" } },
+    select: { id: true }
+  });
+  const subscriptionIds = seededSubscriptions.map((item) => item.id);
 
-  const productCount = 10;
-  const customerCount = 30;
-  const empresaCount = 6;
-  const subscriptionCount = 40;
-  const paymentCount = 80;
+  if (!subscriptionIds.length) return;
 
-  console.log("Seeding local DB", { tenantId, tenantName: tenant.name });
+  const payments = await prisma.payment.findMany({
+    where: { subscriptionId: { in: subscriptionIds } },
+    select: { id: true }
+  });
+  const paymentIds = payments.map((item) => item.id);
 
-  // Customers (some with saved card metadata)
-  const customers = [];
-  for (let i = 1; i <= customerCount; i += 1) {
-    const email = `dummy_${seedTag}_${pad(i)}@example.com`;
-    const hasCard = i % 4 === 0;
-    const cardSourceId = hasCard ? 100000 + i : null;
-    const customer = await prisma.customer.create({
-      data: {
-        tenantId,
-        name: `Cliente ${pad(i)}`,
-        email,
-        phone: `300000${pad(i)}`,
-        metadata: hasCard
-          ? {
-              wompi: {
-                paymentSourceId: cardSourceId,
-                paymentSourceType: "CARD",
-                paymentSources: [{ id: cardSourceId, type: "CARD", createdAt: new Date().toISOString() }]
-              }
-            }
-          : undefined
-      }
-    });
-    await prisma.customerTenant.create({
-      data: { customerId: customer.id, tenantId }
-    });
-    customers.push(customer);
+  await prisma.paymentLink.deleteMany({ where: { subscriptionId: { in: subscriptionIds } } });
+  await prisma.chatwootMessage.deleteMany({ where: { subscriptionId: { in: subscriptionIds } } }).catch(() => {});
+  await prisma.subscriptionBillingCycle.deleteMany({ where: { subscriptionId: { in: subscriptionIds } } });
+  if (paymentIds.length) {
+    await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } });
   }
+  await prisma.payment.deleteMany({ where: { subscriptionId: { in: subscriptionIds } } });
+  await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subscriptionIds } } });
+  await prisma.subscription.deleteMany({ where: { id: { in: subscriptionIds } } });
 
-  // Empresas + Contactos
-  const empresas = [];
-  const contactos = [];
-  for (let i = 1; i <= empresaCount; i += 1) {
-    const empresa = await prisma.empresa.create({
-      data: {
-        tenantId,
-        nombre: `Empresa ${pad(i)} · Mercado de vinos`,
-        email: `empresa_${seedTag}_${pad(i)}@empresa.com`,
-        telefono: `320000${pad(i)}`,
-        direccion: `Calle ${10 + i} #${i} - ${20 + i}`,
-        sitioWeb: `https://empresa${pad(i)}.local`
-      }
-    });
-    const contactsForEmpresa = [];
-    const totalContacts = 2 + (i % 3);
-    for (let j = 1; j <= totalContacts; j += 1) {
-      const contact = await prisma.contacto.create({
-        data: {
-          empresaId: empresa.id,
-          nombre: `Contacto ${pad(i)}-${pad(j)}`,
-          email: `contacto_${seedTag}_${pad(i)}_${pad(j)}@empresa.com`,
-          telefono: `310${pad(i)}${pad(j)}${pad(j)}`.slice(0, 10),
-          cargo: j === 1 ? "Gerente" : j === 2 ? "Compras" : "Administración"
-        }
-      });
-      contactsForEmpresa.push(contact);
-      contactos.push(contact);
-    }
-    if (contactsForEmpresa.length) {
-      await prisma.empresa.update({
-        where: { id: empresa.id },
-        data: { contactoPrincipalId: contactsForEmpresa[0].id }
-      });
-    }
-    empresas.push(empresa);
+  if (seededPlanIds.length) {
+    await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: { in: seededPlanIds } } });
+    await prisma.subscriptionPlan.deleteMany({ where: { id: { in: seededPlanIds } } });
   }
+}
 
-  // Catalog products (stored as SubscriptionPlan with metadata.kind = CATALOG_ITEM)
-  const catalogPlans = [];
-  for (let i = 1; i <= productCount; i += 1) {
-    const sku = `SKU-${seedTag}-${pad(i)}`;
-    const itemKind = i % 3 === 0 ? "SERVICE" : "PRODUCT";
-    const requiresShipping = itemKind === "PRODUCT" && i % 2 === 0;
-    const shippingInCents = requiresShipping ? (i % 4 === 0 ? 0 : 20000) : 0;
-    const basePriceInCents = 25000 + i * 1500;
+async function ensureCanonicalPlans(tenantId) {
+  const plans = new Map();
+  for (const def of PLAN_DEFS) {
     const plan = await prisma.subscriptionPlan.create({
       data: {
         tenantId,
-        name: `[${sku}] Producto ${pad(i)}`,
-        currency,
-        priceInCents: basePriceInCents,
+        name: def.name,
+        priceInCents: def.basePriceInCents,
+        currency: "COP",
         intervalUnit: "MONTH",
         intervalCount: 1,
-        planType: i % 2 === 0 ? "manual_link" : "auto_subscription",
+        planType: "auto_subscription",
+        active: true,
         metadata: {
-          kind: "CATALOG_ITEM",
-          sku,
-          displayName: `Producto ${pad(i)}`,
-          itemKind,
-          collectionMode: i % 2 === 0 ? "AUTO_LINK" : "AUTO_DEBIT",
-          requiresShipping,
-          pricing: {
-            basePriceInCents,
-            shippingInCents,
-            taxPercent: 0,
-            discountType: "NONE",
-            discountValueInCents: 0,
-            discountPercent: 0
-          }
+          importSource: "seed:mdv-curated",
+          mdvCanonical: true,
+          mdvCategory: def.category,
+          collectionMode: "MANUAL_LINK"
         }
       }
     });
-    await prisma.subscriptionPlanTenant.createMany({
-      data: [{ planId: plan.id, tenantId }],
-      skipDuplicates: true
-    });
-    catalogPlans.push({ plan, requiresShipping, shippingInCents });
+    await ensureTenantLinks(prisma, { tenantId, planId: plan.id });
+    plans.set(def.category, plan);
   }
+  return plans;
+}
 
-  // Subscription plans (non-catalog, used for subscriptions)
-  const plans = [];
-  for (let i = 1; i <= 8; i += 1) {
-    const basePriceInCents = 40000 + i * 5000;
-    const itemKind = i % 2 === 0 ? "PRODUCT" : "SERVICE";
-    const requiresShipping = itemKind === "PRODUCT";
-    const shippingInCents = requiresShipping ? (i % 3 === 0 ? 0 : 20000) : 0;
-    const plan = await prisma.subscriptionPlan.create({
-      data: {
-        tenantId,
-        name: `Plan ${seedTag} ${pad(i)}`,
-        currency,
-        priceInCents: basePriceInCents,
-        intervalUnit: "MONTH",
-        intervalCount: 1,
-        planType: i % 2 === 0 ? "auto_subscription" : "manual_link",
-        metadata: {
-          catalog: { kind: itemKind },
-          pricing: {
-            basePriceInCents,
-            shippingInCents,
-            taxPercent: 0,
-            discountType: "NONE",
-            discountValueInCents: 0,
-            discountPercent: 0
-          }
-        }
+async function upsertCustomer(tenantId, member) {
+  const email = normEmail(member.correo) || `mdv-curated-${member.category.toLowerCase()}-${member.rowNum}@placeholder.apiflujos.local`;
+  const customer = await prisma.customer.upsert({
+    where: { email },
+    update: {
+      tenantId,
+      name: member.nombre,
+      phone: normalize(member.celular) || null,
+      metadata: {
+        identificacion: normalize(member.identificacion) || null,
+        address: { line1: normalize(member.direccion) || null, city: normalize(member.ciudad) || null },
+        mdv: {
+          curated: true,
+          rowNum: member.rowNum,
+          category: member.category,
+          planLabel: member.planLabel
+        },
+        importSource: "seed:mdv-curated"
       }
-    });
-    await prisma.subscriptionPlanTenant.createMany({
-      data: [{ planId: plan.id, tenantId }],
-      skipDuplicates: true
-    });
-    plans.push({ plan, requiresShipping, shippingInCents });
-  }
-
-  // Subscriptions
-  const statuses = ["ACTIVE", "PAST_DUE", "EXPIRED", "CANCELED", "SUSPENDED"];
-  const subscriptions = [];
-  for (let i = 1; i <= subscriptionCount; i += 1) {
-    const customer = rand(customers);
-    const picked = rand(plans);
-    const status = rand(statuses);
-    const attachCompany = i % 3 === 0 && contactos.length > 0;
-    const contact = attachCompany ? rand(contactos) : null;
-    const empresaId = contact ? contact.empresaId : null;
-    const contactoId = contact ? contact.id : null;
-    const now = new Date();
-    const currentPeriodEndAt =
-      status === "ACTIVE" ? nowPlusDays(15) : status === "PAST_DUE" ? nowPlusDays(-10) : nowPlusDays(-30);
-    const subscription = await prisma.subscription.create({
-      data: {
-        tenantId,
-        customerId: customer.id,
-        empresaId,
-        contactoId,
-        planId: picked.plan.id,
-        status,
-        startAt: now,
-        currentPeriodStartAt: nowPlusDays(-20),
-        currentPeriodEndAt,
-        currentCycle: Math.floor(Math.random() * 6) + 1,
-        retryCount: status === "PAST_DUE" ? 2 : 0,
-        maxRetries: 3,
-        canceledAt: status === "CANCELED" ? nowPlusDays(-5) : null,
-        suspendedAt: status === "SUSPENDED" ? nowPlusDays(-3) : null,
-        metadata: {
-          pricing: {
-            basePriceInCents: picked.plan.priceInCents,
-            shippingInCents: picked.shippingInCents,
-            totalInCents: picked.plan.priceInCents + picked.shippingInCents,
-            currency
-          },
-          collectionMode: picked.plan.planType === "auto_subscription" ? "AUTO_DEBIT" : "MANUAL_LINK",
-          paymentSourceId: (customer.metadata && customer.metadata.wompi && customer.metadata.wompi.paymentSourceId) || null,
-          empresaId,
-          contactoId
-        }
+    },
+    create: {
+      tenantId,
+      email,
+      name: member.nombre,
+      phone: normalize(member.celular) || null,
+      metadata: {
+        identificacion: normalize(member.identificacion) || null,
+        address: { line1: normalize(member.direccion) || null, city: normalize(member.ciudad) || null },
+        mdv: {
+          curated: true,
+          rowNum: member.rowNum,
+          category: member.category,
+          planLabel: member.planLabel
+        },
+        importSource: "seed:mdv-curated"
       }
-    });
-    await prisma.subscriptionTenant.createMany({
-      data: [{ subscriptionId: subscription.id, tenantId }],
-      skipDuplicates: true
-    });
-    subscriptions.push(subscription);
-  }
+    }
+  });
+  await ensureTenantLinks(prisma, { tenantId, customerId: customer.id });
+  return customer;
+}
 
-  // Payments + PaymentLinks
-  const paymentStatuses = ["APPROVED", "DECLINED", "PENDING", "ERROR"];
-  for (let i = 1; i <= paymentCount; i += 1) {
-    const customer = rand(customers);
-    const subscription = Math.random() > 0.3 ? rand(subscriptions) : null;
-    const status = rand(paymentStatuses);
-    const amountInCents = 30000 + (i % 10) * 5000;
-    const reference = `PAY_${seedTag}_${pad(i)}`;
+async function createPaymentArtifacts(args) {
+  const { tenantId, customerId, subscription, cycle, member, pricing } = args;
+  if (member.paymentStatus === "APPROVED") {
+    const paidAt = member.paidAt ? new Date(member.paidAt) : new Date();
     const payment = await prisma.payment.create({
       data: {
         tenantId,
-        customerId: customer.id,
-        subscriptionId: subscription?.id || null,
-        amountInCents,
-        currency,
-        cycleNumber: subscription ? (subscription.currentCycle || 1) : null,
-        reference,
-        status,
-        paidAt: status === "APPROVED" ? nowPlusDays(-1) : null,
-        failedAt: status === "DECLINED" || status === "ERROR" ? nowPlusDays(-1) : null
+        customerId,
+        subscriptionId: subscription.id,
+        amountInCents: pricing.totalInCents,
+        currency: "COP",
+        cycleNumber: cycle.cycleNumber,
+        reference: `SUB_${subscription.id}_${cycle.cycleNumber}`,
+        status: "APPROVED",
+        paidAt,
+        origin: member.collectionMode === "AUTO_DEBIT" ? PaymentOrigin.AUTO_DEBIT : PaymentOrigin.MANUAL_LINK,
+        subscriptionCycleKey: `${subscription.id}:${cycle.cycleNumber}`,
+        ...(member.wompiTransactionId ? { wompiTransactionId: member.wompiTransactionId } : {})
       }
     });
 
@@ -267,34 +195,140 @@ async function main() {
       data: {
         paymentId: payment.id,
         attemptNo: 1,
-        status,
+        status: "APPROVED",
         provider: "wompi",
-        response: { seed: true }
+        response: {
+          seed: true,
+          importSource: "seed:mdv-curated",
+          ...(member.wompiTransactionId ? { wompiTransactionId: member.wompiTransactionId } : {})
+        }
       }
     });
 
-    // Create payment link for manual_link subscriptions
-    if (subscription) {
-      const plan = plans.find((p) => p.plan.id === subscription.planId);
-      if (plan && plan.plan.planType === "manual_link") {
-        const linkStatus = status === "APPROVED" ? "PAID" : status === "DECLINED" ? "FAILED" : "SENT";
-        await prisma.paymentLink.create({
-          data: {
-            tenantId,
-            planId: subscription.planId,
-            subscriptionId: subscription.id,
-            paymentId: payment.id,
-            wompiPaymentLinkId: `wpl_${seedTag}_${pad(i)}`,
-            checkoutUrl: `https://checkout.local/${seedTag}/${pad(i)}`,
-            status: linkStatus,
-            paidAt: linkStatus === "PAID" ? nowPlusDays(-1) : null
-          }
-        });
+    await prisma.subscriptionBillingCycle.update({
+      where: { subscriptionId_cycleNumber: { subscriptionId: subscription.id, cycleNumber: cycle.cycleNumber } },
+      data: {
+        paymentId: payment.id,
+        status: "PAID",
+        paidAt,
+        paidOnTime: true,
+        daysEarly: 0,
+        daysLate: 0,
+        origin: payment.origin,
+        associationReason: member.wompiTransactionId ? "TX_MATCH" : "MANUAL_RECONCILE",
+        associatedBy: "seed:mdv-curated"
       }
+    });
+
+    return;
+  }
+
+  if (member.collectionMode !== "MANUAL_LINK") return;
+
+  const payment = await prisma.payment.create({
+    data: {
+      tenantId,
+      customerId,
+      subscriptionId: subscription.id,
+      amountInCents: pricing.totalInCents,
+      currency: "COP",
+      cycleNumber: cycle.cycleNumber,
+      reference: `LINK_${subscription.id}_${cycle.cycleNumber}`,
+      status: "PENDING",
+      origin: PaymentOrigin.MANUAL_LINK
+    }
+  });
+
+  await prisma.paymentAttempt.create({
+    data: {
+      paymentId: payment.id,
+      attemptNo: 1,
+      status: "PENDING",
+      provider: "wompi",
+      response: { seed: true, importSource: "seed:mdv-curated", kind: "payment_link" }
+    }
+  });
+
+  await prisma.paymentLink.create({
+    data: {
+      tenantId,
+      planId: subscription.planId,
+      subscriptionId: subscription.id,
+      paymentId: payment.id,
+      wompiPaymentLinkId: `wpl_mdv_${subscription.id.slice(0, 8)}_${cycle.cycleNumber}`,
+      checkoutUrl: `https://checkout.local/mdv/${subscription.id}/${cycle.cycleNumber}`,
+      status: paymentLinkStatusFromPaymentStatus("PENDING")
+    }
+  });
+}
+
+async function main() {
+  const tenant = await getTenant();
+  const currentPeriodStartAt = inferCurrentPeriodStartAt();
+
+  console.log("Seeding curated MDV local dataset", { tenantId: tenant.id, subscriptions: curatedMembers.length });
+
+  await cleanupPreviousSeed(tenant.id);
+  const plans = await ensureCanonicalPlans(tenant.id);
+
+  for (const member of curatedMembers) {
+    const pricing = inferShipping(member);
+    const customer = await upsertCustomer(tenant.id, member);
+    const plan = plans.get(member.category);
+    const { subscription, cycles } = await createSubscriptionWithCycles(prisma, {
+      tenantId: tenant.id,
+      customerId: customer.id,
+      planId: plan.id,
+      status: member.subscriptionStatus || "ACTIVE",
+      startAt: currentPeriodStartAt,
+      currentCycle: Number(member.cycleNumber || 1),
+      currentPeriodStartAt,
+      cycleStartDay: 1,
+      paymentDay: 1,
+      paymentTiming: "EN_CURSO",
+      graceDays: 1,
+      retryCount: 0,
+      maxRetries: 3,
+      metadata: {
+        importSource: "seed:mdv-curated",
+        collectionMode: member.collectionMode,
+        billingPeriodMonths: Number(member.billingPeriodMonths || 1),
+        requiresShipping: pricing.requiresShipping,
+        planLabel: member.planLabel,
+        pricing: {
+          basePriceInCents: pricing.basePriceInCents,
+          shippingInCents: pricing.shippingInCents,
+          totalInCents: pricing.totalInCents,
+          currency: "COP"
+        }
+      },
+      intervalUnit: "MONTH",
+      intervalCount: Number(member.billingPeriodMonths || 1),
+      cyclesBack: 0,
+      cyclesForward: 1
+    });
+
+    const cycle = cycles.find((item) => item.cycleNumber === Number(member.cycleNumber || 1)) || cycles[0];
+    if (cycle) {
+      await prisma.subscriptionBillingCycle.update({
+        where: { subscriptionId_cycleNumber: { subscriptionId: subscription.id, cycleNumber: cycle.cycleNumber } },
+        data: {
+          status: member.cycleStatus === "PAID" ? "PAID" : "PENDING",
+          associatedBy: "seed:mdv-curated"
+        }
+      });
+      await createPaymentArtifacts({
+        tenantId: tenant.id,
+        customerId: customer.id,
+        subscription,
+        cycle,
+        member,
+        pricing
+      });
     }
   }
 
-  console.log("Seed complete.");
+  console.log("Seed complete.", { plans: PLAN_DEFS.length, subscriptions: curatedMembers.length });
 }
 
 main()
@@ -303,5 +337,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await prisma.$disconnect().catch(() => {});
   });

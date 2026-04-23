@@ -27,7 +27,7 @@ echo "🔄 Aplicando migraciones..."
 npm run prisma:migrate:deploy -w packages/database
 
 if [ "${1:-}" = "--seed" ]; then
-  echo "🌱 Ejecutando seed..."
+  echo "🌱 Ejecutando seed bootstrap seguro..."
   npx prisma db seed --schema ./packages/database/prisma/schema.prisma
 fi
 
