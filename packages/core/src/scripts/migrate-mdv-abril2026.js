@@ -20,6 +20,7 @@
 
 const XLSX = require("xlsx");
 const path = require("path");
+const crypto = require("crypto");
 const curatedMembers = require("./mdv-abril2026-curated-data");
 const { resolveDatabaseUrl } = require("./db_url_helper");
 
@@ -35,6 +36,10 @@ const REPO_ROOT = path.resolve(__dirname, "../../../../");
 const WOMPI_XLSX =
   process.env.MDV_WOMPI_XLSX ||
   path.resolve(REPO_ROOT, "Assets/suscricpiones_activas/Wompi .xlsx");
+const MEMBERS_XLSX =
+  process.env.MDV_MEMBERS_XLSX ||
+  path.resolve(REPO_ROOT, "Assets/suscricpiones_activas/MIEMBROS CLUB MdV  ACTUALIZADO 2026 (1).xlsx");
+const MEMBERS_SHEET = process.env.MDV_MEMBERS_SHEET || "Abril 2026";
 
 const TENANT_NAME = "Mercado de vinos";
 const APRIL_2026 = new Date("2026-04-01T00:00:00.000Z");
@@ -53,6 +58,7 @@ const GRACE_DAYS = Math.max(0, parseInt(process.env.MDV_GRACE_DAYS || "1", 10));
 
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL } } });
+let subscriptionLegacyColumnsPromise = null;
 
 const MES_ES = {
   enero: 0, febrero: 1, marzo: 2, abril: 3, mayo: 4, junio: 5,
@@ -129,12 +135,43 @@ function normalizeName(value) {
     .trim();
 }
 
+function simplifyMemberName(value) {
+  return normalizeName(value)
+    .replace(/\s*-.*$/, "")
+    .replace(/\s*&\s*.*/, "")
+    .trim();
+}
+
 function inferCategoryFromPlanName(name) {
   const normalized = normalizeName(name);
   if (normalized.includes("alpha")) return "ALPHA";
   if (normalized.includes("omega")) return "OMEGA";
   if (normalized.includes("delta")) return "DELTA";
   return null;
+}
+
+async function getSubscriptionLegacyColumns() {
+  if (!subscriptionLegacyColumnsPromise) {
+    subscriptionLegacyColumnsPromise = prisma.$queryRaw`
+      SELECT column_name, is_nullable
+      FROM information_schema.columns
+      WHERE table_schema = ${"public"}
+        AND table_name = ${"Subscription"}
+        AND column_name IN (${ "currentCycle" }, ${ "currentPeriodStartAt" }, ${ "currentPeriodEndAt" })
+      ORDER BY ordinal_position
+    `.then((rows) => {
+      const set = new Set();
+      for (const row of rows || []) {
+        if (row?.column_name) set.add(String(row.column_name));
+      }
+      return {
+        hasCurrentCycle: set.has("currentCycle"),
+        hasCurrentPeriodStartAt: set.has("currentPeriodStartAt"),
+        hasCurrentPeriodEndAt: set.has("currentPeriodEndAt"),
+      };
+    });
+  }
+  return subscriptionLegacyColumnsPromise;
 }
 
 function parseWompiXlsx(filePath) {
@@ -191,6 +228,39 @@ function parseWompiXlsx(filePath) {
   }
 
   return payments;
+}
+
+function parseMembersSheet(filePath, sheetName) {
+  const wb = XLSX.readFile(filePath);
+  const sheet = wb.Sheets[sheetName];
+  if (!sheet) {
+    throw new Error(`Hoja no encontrada en workbook de miembros: ${sheetName}`);
+  }
+  const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" }).filter((row) => row.NOMBRE);
+  return rows.map((row) => ({
+    nombre: String(row.NOMBRE || "").trim(),
+    correo: normEmail(row.CORREO || ""),
+    revisar: String(row.REVISAR || "").trim(),
+    pagosPendientes: String(row["PAGOS PDTES"] || "").trim(),
+    plan: String(row.PLAN || "").trim(),
+    valor: row.VALOR,
+    domicilio: row.DOMICILIO,
+  }));
+}
+
+function indexMembersSheet(rows) {
+  const byEmail = new Map();
+  const byName = new Map();
+  for (const row of rows) {
+    if (row.correo) byEmail.set(row.correo, row);
+    const nameKey = simplifyMemberName(row.nombre);
+    if (nameKey) byName.set(nameKey, row);
+  }
+  return { byEmail, byName };
+}
+
+function isManualPaidFromMembersSheet(row) {
+  return /ok pago|^ok$/i.test(String(row?.revisar || "").trim());
 }
 
 function prepareMembers() {
@@ -261,6 +331,43 @@ function enrichMembersWithWompi(members, wompiIndex) {
     return member;
   });
   return { enriched, mismatches };
+}
+
+function enrichMembersWithManualSheet(members, membersIndex) {
+  const manualMatches = [];
+  const unresolved = [];
+  const enriched = members.map((member) => {
+    if (member.wompiTransactionId || String(member.cycleStatus).toUpperCase() === "PAID") return member;
+    const byEmail = member.correo ? membersIndex.byEmail.get(member.correo) : null;
+    const byName = membersIndex.byName.get(simplifyMemberName(member.nombre));
+    const row = byEmail || byName || null;
+    if (!row) {
+      unresolved.push({ nombre: member.nombre, correo: member.correo, reason: "missing_in_members_sheet" });
+      return member;
+    }
+    if (!isManualPaidFromMembersSheet(row)) return member;
+    manualMatches.push({
+      nombre: member.nombre,
+      correo: member.correo,
+      revisar: row.revisar,
+      pagosPendientes: row.pagosPendientes,
+      plan: row.plan,
+    });
+    return {
+      ...member,
+      paidAt: member.paidAt || new Date("2026-03-31T12:00:00.000Z"),
+      paymentStatus: "APPROVED",
+      cycleStatus: "PAID",
+      manualEvidence: {
+        source: "members_sheet",
+        sheetName: MEMBERS_SHEET,
+        revisar: row.revisar,
+        pagosPendientes: row.pagosPendientes,
+        plan: row.plan,
+      },
+    };
+  });
+  return { enriched, manualMatches, unresolved };
 }
 
 async function ensurePlans(tenantId) {
@@ -439,24 +546,83 @@ async function upsertSubscriptionRecord({ tenantId, member, customer, plan }) {
     ...(member.renewalDate ? { renewalDate: member.renewalDate.toISOString() } : {}),
   };
   const periodEnd = addMonths(APRIL_2026, member.billingPeriodMonths);
+  const legacyColumns = await getSubscriptionLegacyColumns();
 
   if (!subscription) {
-    const id = DRY_RUN ? `dry-sub-${member.category}-${member.rowNum}` : null;
+    const id = DRY_RUN ? `dry-sub-${member.category}-${member.rowNum}` : crypto.randomUUID();
     if (!DRY_RUN) {
-      subscription = await prisma.subscription.create({
-        data: {
+      if (legacyColumns.hasCurrentCycle || legacyColumns.hasCurrentPeriodStartAt || legacyColumns.hasCurrentPeriodEndAt) {
+        const created = await prisma.$queryRawUnsafe(
+          `
+            INSERT INTO "Subscription" (
+              id,
+              "tenantId",
+              "customerId",
+              "planId",
+              "status",
+              "startAt",
+              "cycleStartDay",
+              "paymentDay",
+              "paymentTiming",
+              "graceDays",
+              metadata,
+              ${legacyColumns.hasCurrentCycle ? `"currentCycle",` : ""}
+              ${legacyColumns.hasCurrentPeriodStartAt ? `"currentPeriodStartAt",` : ""}
+              ${legacyColumns.hasCurrentPeriodEndAt ? `"currentPeriodEndAt",` : ""}
+              "createdAt",
+              "updatedAt"
+            ) VALUES (
+              $1::uuid,
+              $2::uuid,
+              $3::uuid,
+              $4::uuid,
+              $5::"SubscriptionStatus",
+              $6,
+              $7,
+              $8,
+              $9::"PaymentTiming",
+              $10,
+              $11::jsonb,
+              ${legacyColumns.hasCurrentCycle ? `$12,` : ""}
+              ${legacyColumns.hasCurrentPeriodStartAt ? `$${legacyColumns.hasCurrentCycle ? 13 : 12},` : ""}
+              ${legacyColumns.hasCurrentPeriodEndAt ? `$${legacyColumns.hasCurrentCycle ? (legacyColumns.hasCurrentPeriodStartAt ? 14 : 13) : (legacyColumns.hasCurrentPeriodStartAt ? 13 : 12)},` : ""}
+              NOW(),
+              NOW()
+            )
+            RETURNING id, "tenantId", "customerId", "planId", status, metadata
+          `,
+          id,
           tenantId,
-          customerId: customer.id,
-          planId: plan.id,
-          status: member.subscriptionStatus,
-          startAt: APRIL_2026,
-          cycleStartDay: CYCLE_START_DAY,
-          paymentDay: PAYMENT_DAY,
-          paymentTiming: PAYMENT_TIMING,
-          graceDays: GRACE_DAYS,
-          metadata,
-        },
-      });
+          customer.id,
+          plan.id,
+          member.subscriptionStatus,
+          APRIL_2026,
+          CYCLE_START_DAY,
+          PAYMENT_DAY,
+          PAYMENT_TIMING,
+          GRACE_DAYS,
+          JSON.stringify(metadata),
+          ...(legacyColumns.hasCurrentCycle ? [member.cycleNumber] : []),
+          ...(legacyColumns.hasCurrentPeriodStartAt ? [APRIL_2026] : []),
+          ...(legacyColumns.hasCurrentPeriodEndAt ? [periodEnd] : [])
+        );
+        subscription = Array.isArray(created) ? created[0] : created;
+      } else {
+        subscription = await prisma.subscription.create({
+          data: {
+            tenantId,
+            customerId: customer.id,
+            planId: plan.id,
+            status: member.subscriptionStatus,
+            startAt: APRIL_2026,
+            cycleStartDay: CYCLE_START_DAY,
+            paymentDay: PAYMENT_DAY,
+            paymentTiming: PAYMENT_TIMING,
+            graceDays: GRACE_DAYS,
+            metadata,
+          },
+        });
+      }
       await prisma.subscriptionTenant.createMany({
         data: [{ subscriptionId: subscription.id, tenantId }],
         skipDuplicates: true,
@@ -472,19 +638,53 @@ async function upsertSubscriptionRecord({ tenantId, member, customer, plan }) {
       };
     }
   } else if (!DRY_RUN) {
-    await prisma.subscription.update({
-      where: { id: subscription.id },
-      data: {
-        planId: plan.id,
-        status: member.subscriptionStatus,
-        startAt: APRIL_2026,
-        cycleStartDay: CYCLE_START_DAY,
-        paymentDay: PAYMENT_DAY,
-        paymentTiming: PAYMENT_TIMING,
-        graceDays: GRACE_DAYS,
-        metadata,
-      },
-    });
+    if (legacyColumns.hasCurrentCycle || legacyColumns.hasCurrentPeriodStartAt || legacyColumns.hasCurrentPeriodEndAt) {
+      await prisma.$executeRawUnsafe(
+        `
+          UPDATE "Subscription"
+          SET "planId" = $1::uuid,
+              status = $2::"SubscriptionStatus",
+              "startAt" = $3,
+              "cycleStartDay" = $4,
+              "paymentDay" = $5,
+              "paymentTiming" = $6::"PaymentTiming",
+              "graceDays" = $7,
+              metadata = $8::jsonb
+              ${legacyColumns.hasCurrentCycle ? `, "currentCycle" = $9` : ""}
+              ${legacyColumns.hasCurrentPeriodStartAt ? `, "currentPeriodStartAt" = $${legacyColumns.hasCurrentCycle ? 10 : 9}` : ""}
+              ${legacyColumns.hasCurrentPeriodEndAt ? `, "currentPeriodEndAt" = $${legacyColumns.hasCurrentCycle ? (legacyColumns.hasCurrentPeriodStartAt ? 11 : 10) : (legacyColumns.hasCurrentPeriodStartAt ? 10 : 9)}` : ""}
+              ,
+              "updatedAt" = NOW()
+          WHERE id = $${legacyColumns.hasCurrentCycle ? (legacyColumns.hasCurrentPeriodStartAt ? (legacyColumns.hasCurrentPeriodEndAt ? 12 : 11) : (legacyColumns.hasCurrentPeriodEndAt ? 11 : 10)) : (legacyColumns.hasCurrentPeriodStartAt ? (legacyColumns.hasCurrentPeriodEndAt ? 11 : 10) : (legacyColumns.hasCurrentPeriodEndAt ? 10 : 9))}::uuid
+        `,
+        plan.id,
+        member.subscriptionStatus,
+        APRIL_2026,
+        CYCLE_START_DAY,
+        PAYMENT_DAY,
+        PAYMENT_TIMING,
+        GRACE_DAYS,
+        JSON.stringify(metadata),
+        ...(legacyColumns.hasCurrentCycle ? [member.cycleNumber] : []),
+        ...(legacyColumns.hasCurrentPeriodStartAt ? [APRIL_2026] : []),
+        ...(legacyColumns.hasCurrentPeriodEndAt ? [periodEnd] : []),
+        subscription.id
+      );
+    } else {
+      await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          planId: plan.id,
+          status: member.subscriptionStatus,
+          startAt: APRIL_2026,
+          cycleStartDay: CYCLE_START_DAY,
+          paymentDay: PAYMENT_DAY,
+          paymentTiming: PAYMENT_TIMING,
+          graceDays: GRACE_DAYS,
+          metadata,
+        },
+      });
+    }
     await prisma.subscriptionTenant.createMany({
       data: [{ subscriptionId: subscription.id, tenantId }],
       skipDuplicates: true,
@@ -595,7 +795,11 @@ async function upsertPayment({ tenantId, member, customerId, subscriptionId, cyc
     origin: member.wompiTransactionId ? "WEBHOOK" : "MANUAL_USER",
     associationReason: member.wompiTransactionId ? "TX_MATCH" : "MANUAL_RECONCILE",
     associatedBy: "migration:abril2026-curated",
-    providerResponse: member.wompiTransactionId ? { curatedSource: true } : null,
+    providerResponse: member.wompiTransactionId
+      ? { curatedSource: true }
+      : member.manualEvidence
+        ? { curatedSource: true, manualEvidence: member.manualEvidence }
+        : null,
     ...(member.wompiTransactionId ? { wompiTransactionId: member.wompiTransactionId } : {}),
   };
 
@@ -651,6 +855,7 @@ async function processMember({ tenantId, planMap, member, stats }) {
 
   stats.processed += 1;
   if (payment?.wompiTransactionId) stats.wompiLinked += 1;
+  else if (member.manualEvidence) stats.manualLinked += 1;
   if (member.cycleStatus === "PAID") stats.cyclesPaid += 1;
   else stats.cyclesPending += 1;
 }
@@ -664,11 +869,16 @@ async function main() {
   const members = prepareMembers();
   const wompiPayments = parseWompiXlsx(WOMPI_XLSX);
   const wompiIndex = indexWompi(wompiPayments);
-  const { enriched, mismatches } = enrichMembersWithWompi(members, wompiIndex);
+  const membersSheetRows = parseMembersSheet(MEMBERS_XLSX, MEMBERS_SHEET);
+  const membersSheetIndex = indexMembersSheet(membersSheetRows);
+  const { enriched: wompiEnriched, mismatches } = enrichMembersWithWompi(members, wompiIndex);
+  const { enriched, manualMatches, unresolved } = enrichMembersWithManualSheet(wompiEnriched, membersSheetIndex);
 
   console.log(`Miembros curados: ${enriched.length}`);
   console.log(`Pagos Wompi leídos: ${wompiPayments.length}`);
+  console.log(`Filas hoja miembros (${MEMBERS_SHEET}): ${membersSheetRows.length}`);
   console.log(`Candidatos Wompi con mismatch de valor: ${mismatches.length}`);
+  console.log(`Pagos manuales inferidos desde hoja miembros: ${manualMatches.length}`);
 
   await prisma.$connect();
   const tenant = await prisma.saTenant.findFirst({ where: { name: { equals: TENANT_NAME, mode: "insensitive" } } });
@@ -682,6 +892,7 @@ async function main() {
     customersCreated: 0,
     customersUpdated: 0,
     wompiLinked: 0,
+    manualLinked: 0,
     cyclesPaid: 0,
     cyclesPending: 0,
   };
@@ -703,6 +914,7 @@ async function main() {
   console.log(`Ciclos PAID: ${stats.cyclesPaid}`);
   console.log(`Ciclos PENDING: ${stats.cyclesPending}`);
   console.log(`Pagos enlazados a Wompi: ${stats.wompiLinked}`);
+  console.log(`Pagos manuales desde hoja miembros: ${stats.manualLinked}`);
 
   if (mismatches.length) {
     console.log("\n⚠️  MISMATCHES Wompi (email coincide pero el valor no):");
@@ -711,6 +923,20 @@ async function main() {
       for (const candidate of item.candidatos) {
         console.log(`    tx=${candidate.transaccionId} valor=${candidate.amountInCents / 100} paidAt=${candidate.paidAt || "N/A"}`);
       }
+    }
+  }
+
+  if (manualMatches.length) {
+    console.log(`\n📝 Pagos manuales marcados desde ${MEMBERS_SHEET}:`);
+    for (const item of manualMatches) {
+      console.log(`- ${item.nombre} <${item.correo || "sin-email"}> revisar=${item.revisar} pagos="${item.pagosPendientes}"`);
+    }
+  }
+
+  if (unresolved.length) {
+    console.log(`\nℹ️  Miembros no encontrados en ${MEMBERS_SHEET}: ${unresolved.length}`);
+    for (const item of unresolved) {
+      console.log(`- ${item.nombre} <${item.correo || "sin-email"}>`);
     }
   }
 
