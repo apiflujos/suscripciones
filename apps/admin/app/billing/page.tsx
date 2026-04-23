@@ -112,9 +112,11 @@ function getPaymentStatusLabel(args: {
   paidAt: any;
   periodStartAt: any;
   periodEndAt: any;
+  collectionCyclePaid?: boolean;
 }) {
   const status = String(args.status || "");
   if (status === "PAST_DUE") return "En mora";
+  if (args.collectionCyclePaid) return "Pagado";
   if (args.paidAt && args.periodStartAt && args.periodEndAt) {
     const paid = new Date(args.paidAt).getTime();
     const start = new Date(args.periodStartAt).getTime();
@@ -131,6 +133,7 @@ function getCardCollectionState(args: {
   paidAt: any;
   periodStartAt: any;
   periodEndAt: any;
+  collectionCyclePaid?: boolean;
   inGrace?: boolean;
   inArrears?: boolean;
 }) {
@@ -169,6 +172,7 @@ function buildBillingStatusCards(r: any) {
     paidAt: r.pagoAt,
     periodStartAt: r.periodoInicioAt,
     periodEndAt: r.periodoFinAt,
+    collectionCyclePaid: r.collectionCyclePaid,
     inGrace: r.inGrace,
     inArrears: r.inArrears
   });
@@ -513,6 +517,7 @@ export default async function BillingPage({
         manualMarkPaidEnabled: typeof s?.manualMarkPaidEnabled === "boolean" ? s.manualMarkPaidEnabled : undefined,
         chargeDue: typeof s?.chargeDue === "boolean" ? s.chargeDue : undefined,
         lastPaidInCurrentPeriod: typeof s?.lastPaidInCurrentPeriod === "boolean" ? s.lastPaidInCurrentPeriod : false,
+        collectionCyclePaid: typeof s?.collectionCyclePaid === "boolean" ? s.collectionCyclePaid : false,
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
         currentShippingInCents: shippingAppliedInCents,
         currentRequiresShipping: requiresShipping
@@ -1153,7 +1158,8 @@ export default async function BillingPage({
                   status: r.status,
                   paidAt: r.pagoAt,
                   periodStartAt: r.periodoInicioAt,
-                  periodEndAt: r.periodoFinAt
+                  periodEndAt: r.periodoFinAt,
+                  collectionCyclePaid: r.collectionCyclePaid
                 });
                 const estadoSimple = getEstadoSimple(r.status);
                 const isAutoDebit = r.mode === "AUTO_DEBIT";
@@ -1295,7 +1301,8 @@ export default async function BillingPage({
                   status: r.status,
                   paidAt: r.pagoAt,
                   periodStartAt: r.periodoInicioAt,
-                  periodEndAt: r.periodoFinAt
+                  periodEndAt: r.periodoFinAt,
+                  collectionCyclePaid: r.collectionCyclePaid
                 });
                 const key = paymentStatus === "Pagado" ? "Pagado" : paymentStatus === "En mora" ? "En mora" : "Pendiente";
                 grouped.get(key)?.push(r);
@@ -1318,7 +1325,8 @@ export default async function BillingPage({
                             status: r.status,
                             paidAt: r.pagoAt,
                             periodStartAt: r.periodoInicioAt,
-                            periodEndAt: r.periodoFinAt
+                            periodEndAt: r.periodoFinAt,
+                            collectionCyclePaid: r.collectionCyclePaid
                           });
                           return (
                             <div key={`kanban-item-${r.id}`} className="billing-kanban-card">

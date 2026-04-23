@@ -52,9 +52,9 @@ const PLAN_DEFS = [
 const PLAN_DEF_BY_CATEGORY = new Map(PLAN_DEFS.map((item) => [item.category, item]));
 
 const CYCLE_START_DAY = Math.max(1, Math.min(31, parseInt(process.env.MDV_CYCLE_START_DAY || "1", 10)));
-const PAYMENT_DAY = Math.max(1, Math.min(31, parseInt(process.env.MDV_PAYMENT_DAY || "1", 10)));
+const PAYMENT_DAY = Math.max(1, Math.min(31, parseInt(process.env.MDV_PAYMENT_DAY || "20", 10)));
 const PAYMENT_TIMING =
-  (process.env.MDV_PAYMENT_TIMING || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
+  (process.env.MDV_PAYMENT_TIMING || "ANTICIPADO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
 const GRACE_DAYS = Math.max(0, parseInt(process.env.MDV_GRACE_DAYS || "1", 10));
 
 const { PrismaClient } = require("@prisma/client");

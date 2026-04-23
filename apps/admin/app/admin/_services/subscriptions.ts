@@ -40,6 +40,12 @@ function hasUsablePaymentSource(metadata: any) {
   });
 }
 
+function isBillingCyclePaid(cycle: { status?: unknown; paymentId?: unknown } | null | undefined) {
+  if (!cycle) return false;
+  if (cycle.paymentId) return true;
+  return String(cycle.status || "").toUpperCase() === "PAID";
+}
+
 function daysInMonthUtc(year: number, month0: number) {
   return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
 }
@@ -448,11 +454,8 @@ export async function listSubscriptions(args: {
     const collectionCycle = billingState?.collectionCycle || activeCycle;
     const periodStartAt = activeCycle?.periodStartAt ? new Date(activeCycle.periodStartAt) : null;
     const periodEndAt = activeCycle?.periodEndAt ? new Date(activeCycle.periodEndAt) : null;
-    const lastPaidAt = lastPayment?.paidAt ? new Date(lastPayment.paidAt) : null;
-    const lastPaidInCurrentPeriod =
-      Boolean(lastPaidAt && periodStartAt && periodEndAt) &&
-      lastPaidAt!.getTime() >= periodStartAt!.getTime() &&
-      lastPaidAt!.getTime() <= periodEndAt!.getTime();
+    const collectionCyclePaid = isBillingCyclePaid(collectionCycle);
+    const lastPaidInCurrentPeriod = collectionCyclePaid;
     const dueAt = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : periodEndAt;
     const chargeDue = dueAt ? dueAt.getTime() <= Date.now() + 5_000 : false;
     const isInactive =
@@ -478,6 +481,7 @@ export async function listSubscriptions(args: {
       activeCycleStartAt: periodStartAt,
       activeCycleEndAt: periodEndAt,
       collectionCycleNumber: collectionCycle?.cycleNumber ?? null,
+      collectionCyclePaid,
       nextBillingDate: dueAt,
       customerTokenized,
       chargeDue,
@@ -803,13 +807,6 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
       paymentTiming: ((subscription.paymentTiming as any) || "EN_CURSO") === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
     }) || null;
   const overdueCycle = openCycles.find((cycle) => new Date(cycle.dueAt).getTime() <= now.getTime()) || null;
-  const latestApproved = await prisma.payment.findFirst({
-    where: { subscriptionId, status: PaymentStatus.APPROVED },
-    orderBy: [{ paidAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
-    select: { paidAt: true, updatedAt: true, createdAt: true }
-  });
-  const lastApprovedAt = latestApproved?.paidAt || latestApproved?.updatedAt || latestApproved?.createdAt || null;
-  const lastApprovedAtDate = lastApprovedAt ? new Date(lastApprovedAt) : null;
   const activeCycle = targetCollectionCycle || overdueCycle || openCycles.find((cycle) => {
     const startTs = new Date(cycle.periodStartAt).getTime();
     const endTs = new Date(cycle.periodEndAt).getTime();
@@ -818,12 +815,7 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
   }) || null;
   const periodStartAt = activeCycle ? new Date(activeCycle.periodStartAt) : null;
   const periodEndAt = activeCycle ? new Date(activeCycle.periodEndAt) : null;
-  const approvedAt = lastApprovedAtDate;
-  const lastPaidInCurrentPeriod =
-    lastApprovedAtDate && periodStartAt && periodEndAt
-      ? lastApprovedAtDate.getTime() >= periodStartAt.getTime() &&
-        lastApprovedAtDate.getTime() <= periodEndAt.getTime()
-      : false;
+  const lastPaidInCurrentPeriod = isBillingCyclePaid(targetCollectionCycle || activeCycle);
   const bypassPaidCheck = Boolean(overdueCycle && overdueCycle.cycleNumber !== (activeCycle?.cycleNumber ?? 1));
   if (lastPaidInCurrentPeriod && !bypassPaidCheck) {
     const paymentId = await recordManualChargeFailure({
@@ -831,7 +823,8 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
       amountInCentsOverride: args.amountInCents,
       errorCode: "payment_already_approved",
       details: {
-        paidAt: approvedAt ? approvedAt.toISOString() : null,
+        paymentCycleNumber: (targetCollectionCycle || activeCycle)?.cycleNumber ?? null,
+        paymentCycleStatus: String((targetCollectionCycle || activeCycle)?.status || ""),
         currentPeriodStartAt: periodStartAt?.toISOString() || null,
         currentPeriodEndAt: periodEndAt?.toISOString() || null
       }
