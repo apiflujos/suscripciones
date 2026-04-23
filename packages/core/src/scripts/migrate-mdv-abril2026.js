@@ -40,6 +40,7 @@ const MEMBERS_XLSX =
   process.env.MDV_MEMBERS_XLSX ||
   path.resolve(REPO_ROOT, "Assets/suscricpiones_activas/MIEMBROS CLUB MdV  ACTUALIZADO 2026 (1).xlsx");
 const MEMBERS_SHEET = process.env.MDV_MEMBERS_SHEET || "Abril 2026";
+const MEMBERS_HISTORY_SHEETS = ["Enero 2026", "Febrero 2026", "Marzo 2026", "Abril 2026"];
 
 const TENANT_NAME = "Mercado de vinos";
 const APRIL_2026 = new Date("2026-04-01T00:00:00.000Z");
@@ -248,6 +249,48 @@ function parseMembersSheet(filePath, sheetName) {
   }));
 }
 
+function parseMembersWorkbook(filePath, sheetNames) {
+  const wb = XLSX.readFile(filePath);
+  const sheets = new Map();
+  for (const sheetName of sheetNames) {
+    const sheet = wb.Sheets[sheetName];
+    if (!sheet) continue;
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" }).filter((row) => row.NOMBRE);
+    sheets.set(sheetName, rows.map((row) => ({
+      nombre: String(row.NOMBRE || "").trim(),
+      correo: normEmail(row.CORREO || ""),
+      revisar: String(row.REVISAR || "").trim(),
+      pagosPendientes: String(row["PAGOS PDTES"] || "").trim(),
+      plan: String(row.PLAN || "").trim(),
+      valor: row.VALOR,
+      domicilio: row.DOMICILIO,
+      sheetName,
+    })));
+  }
+  return sheets;
+}
+
+function readPricingFromMetadata(meta) {
+  const pricing = meta?.pricing && typeof meta.pricing === "object"
+    ? meta.pricing
+    : meta?.catalog?.pricing && typeof meta.catalog.pricing === "object"
+      ? meta.catalog.pricing
+      : null;
+  if (!pricing) return null;
+  const basePriceInCents = Number(pricing.basePriceInCents || 0);
+  const shippingInCents = Number(pricing.shippingInCents || 0);
+  const totalInCents = Number(
+    pricing.totalInCents != null ? pricing.totalInCents : basePriceInCents + shippingInCents
+  );
+  if (!Number.isFinite(totalInCents) || totalInCents <= 0) return null;
+  return {
+    basePriceInCents: Number.isFinite(basePriceInCents) ? basePriceInCents : 0,
+    shippingInCents: Number.isFinite(shippingInCents) ? shippingInCents : 0,
+    totalInCents,
+    requiresShipping: shippingInCents > 0 || Boolean(pricing.requiresShipping),
+  };
+}
+
 function indexMembersSheet(rows) {
   const byEmail = new Map();
   const byName = new Map();
@@ -259,8 +302,92 @@ function indexMembersSheet(rows) {
   return { byEmail, byName };
 }
 
+function buildMembersHistoryIndex(workbookSheets) {
+  const byEmail = new Map();
+  const byName = new Map();
+  for (const [sheetName, rows] of workbookSheets.entries()) {
+    for (const row of rows) {
+      const payload = { ...row, sheetName };
+      if (row.correo) {
+        if (!byEmail.has(row.correo)) byEmail.set(row.correo, []);
+        byEmail.get(row.correo).push(payload);
+      }
+      const nameKey = simplifyMemberName(row.nombre);
+      if (nameKey) {
+        if (!byName.has(nameKey)) byName.set(nameKey, []);
+        byName.get(nameKey).push(payload);
+      }
+    }
+  }
+  return { byEmail, byName };
+}
+
 function isManualPaidFromMembersSheet(row) {
   return /ok pago|^ok$/i.test(String(row?.revisar || "").trim());
+}
+
+function previousMonthDate(year, monthIndex, day = 20) {
+  const prevMonth = monthIndex - 1;
+  const y = prevMonth < 0 ? year - 1 : year;
+  const m = (prevMonth + 12) % 12;
+  return clampDay(y, m, day);
+}
+
+function yearForMonthName(monthName) {
+  const monthIndex = MES_ES[String(monthName || "").toLowerCase()];
+  if (monthIndex == null) return null;
+  return monthIndex <= APRIL_2026.getUTCMonth() ? APRIL_2026.getUTCFullYear() : APRIL_2026.getUTCFullYear() - 1;
+}
+
+function extractExplicitDateFromText(text) {
+  const raw = String(text || "").replace(/\u00a0/g, " ");
+  const match = raw.match(/\b(\d{1,2})\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b/i);
+  if (!match) return null;
+  const day = Number(match[1]);
+  const monthIndex = MES_ES[String(match[2] || "").toLowerCase()];
+  if (!Number.isFinite(day) || monthIndex == null) return null;
+  const year = yearForMonthName(match[2]);
+  if (!year) return null;
+  return clampDay(year, monthIndex, day);
+}
+
+function extractPaidMonthFromText(text) {
+  const raw = normalizeName(text);
+  const match = raw.match(/\b(?:mes\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\s+pagad[oa]\b/i);
+  if (!match) return null;
+  const monthName = String(match[1] || "").toLowerCase();
+  const monthIndex = MES_ES[monthName];
+  if (monthIndex == null) return null;
+  const year = yearForMonthName(monthName);
+  if (!year) return null;
+  return previousMonthDate(year, monthIndex, 20);
+}
+
+function extractPrepaidStartFromPlan(planText) {
+  const raw = String(planText || "").replace(/\u00a0/g, " ");
+  const match = raw.match(/\b\d+\s*mes(?:es)?\s+(?:desde\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\s+(\d{4})\b/i);
+  if (!match) return null;
+  const monthName = String(match[1] || "").toLowerCase();
+  const monthIndex = MES_ES[monthName];
+  const year = Number(match[2]);
+  if (monthIndex == null || !Number.isFinite(year)) return null;
+  return previousMonthDate(year, monthIndex, 20);
+}
+
+function inferManualPaidAt(historyRows) {
+  for (const row of historyRows) {
+    const explicit = extractExplicitDateFromText(row.pagosPendientes);
+    if (explicit) return { paidAt: explicit, source: "explicit_text", sourceSheet: row.sheetName };
+  }
+  for (const row of historyRows) {
+    const byPaidMonth = extractPaidMonthFromText(row.pagosPendientes);
+    if (byPaidMonth) return { paidAt: byPaidMonth, source: "month_paid_inferred", sourceSheet: row.sheetName };
+  }
+  for (const row of historyRows) {
+    const byPrepaidPlan = extractPrepaidStartFromPlan(row.plan);
+    if (byPrepaidPlan) return { paidAt: byPrepaidPlan, source: "prepaid_plan_inferred", sourceSheet: row.sheetName };
+  }
+  return { paidAt: null, source: null, sourceSheet: null };
 }
 
 function prepareMembers() {
@@ -283,6 +410,46 @@ function prepareMembers() {
       paymentStatus: member.paymentStatus || ((member.cycleStatus || "PENDING") === "PAID" ? "APPROVED" : "PENDING"),
       paidAt: member.paidAt ? new Date(member.paidAt) : null,
       renewalDate: member.renewalDate ? new Date(member.renewalDate) : null,
+    };
+  });
+}
+
+async function buildExistingPricingIndex(tenantId) {
+  const subscriptions = await prisma.subscription.findMany({
+    where: { tenantId },
+    select: {
+      metadata: true,
+      customer: { select: { email: true } },
+      plan: { select: { name: true } },
+    },
+  });
+  const byEmail = new Map();
+  const byName = new Map();
+  for (const subscription of subscriptions) {
+    const pricing = readPricingFromMetadata(subscription.metadata);
+    if (!pricing) continue;
+    const email = normEmail(subscription.customer?.email || "");
+    if (email && !byEmail.has(email)) byEmail.set(email, pricing);
+    const category = inferCategoryFromPlanName(subscription.plan?.name || "");
+    if (email && category && !byName.has(`${email}|${category}`)) {
+      byName.set(`${email}|${category}`, pricing);
+    }
+  }
+  return { byEmail, byName };
+}
+
+function applyExistingPricing(members, pricingIndex) {
+  return members.map((member) => {
+    const email = normEmail(member.correo || "");
+    const byCategory = pricingIndex.byName.get(`${email}|${member.category}`) || null;
+    const pricing = byCategory || pricingIndex.byEmail.get(email) || null;
+    if (!pricing) return member;
+    return {
+      ...member,
+      pricing: {
+        ...member.pricing,
+        ...pricing,
+      },
     };
   });
 }
@@ -333,7 +500,7 @@ function enrichMembersWithWompi(members, wompiIndex) {
   return { enriched, mismatches };
 }
 
-function enrichMembersWithManualSheet(members, membersIndex) {
+function enrichMembersWithManualSheet(members, membersIndex, membersHistoryIndex) {
   const manualMatches = [];
   const unresolved = [];
   const enriched = members.map((member) => {
@@ -341,21 +508,29 @@ function enrichMembersWithManualSheet(members, membersIndex) {
     const byEmail = member.correo ? membersIndex.byEmail.get(member.correo) : null;
     const byName = membersIndex.byName.get(simplifyMemberName(member.nombre));
     const row = byEmail || byName || null;
+    const historyByEmail = member.correo ? membersHistoryIndex.byEmail.get(member.correo) || [] : [];
+    const historyByName = membersHistoryIndex.byName.get(simplifyMemberName(member.nombre)) || [];
+    const history = (historyByEmail.length ? historyByEmail : historyByName)
+      .slice()
+      .sort((a, b) => MEMBERS_HISTORY_SHEETS.indexOf(b.sheetName) - MEMBERS_HISTORY_SHEETS.indexOf(a.sheetName));
     if (!row) {
       unresolved.push({ nombre: member.nombre, correo: member.correo, reason: "missing_in_members_sheet" });
       return member;
     }
     if (!isManualPaidFromMembersSheet(row)) return member;
+    const inferred = inferManualPaidAt(history.length ? history : [row]);
     manualMatches.push({
       nombre: member.nombre,
       correo: member.correo,
       revisar: row.revisar,
       pagosPendientes: row.pagosPendientes,
       plan: row.plan,
+      paidAt: inferred.paidAt ? inferred.paidAt.toISOString() : null,
+      paidAtSource: inferred.source,
     });
     return {
       ...member,
-      paidAt: member.paidAt || new Date("2026-03-31T12:00:00.000Z"),
+      paidAt: member.paidAt || inferred.paidAt || null,
       paymentStatus: "APPROVED",
       cycleStatus: "PAID",
       manualEvidence: {
@@ -364,6 +539,8 @@ function enrichMembersWithManualSheet(members, membersIndex) {
         revisar: row.revisar,
         pagosPendientes: row.pagosPendientes,
         plan: row.plan,
+        paidAtSource: inferred.source,
+        paidAtSourceSheet: inferred.sourceSheet,
       },
     };
   });
@@ -790,7 +967,7 @@ async function upsertPayment({ tenantId, member, customerId, subscriptionId, cyc
     reference: `SUB_${subscriptionId}_${member.cycleNumber}`,
     subscriptionCycleKey: cycleKey,
     status: member.paymentStatus,
-    paidAt: member.paymentStatus === "APPROVED" ? member.paidAt || new Date("2026-04-01T12:00:00.000Z") : null,
+    paidAt: member.paymentStatus === "APPROVED" ? member.paidAt || null : null,
     failedAt: member.paymentStatus === "ERROR" || member.paymentStatus === "DECLINED" ? new Date() : null,
     origin: member.wompiTransactionId ? "WEBHOOK" : "MANUAL_USER",
     associationReason: member.wompiTransactionId ? "TX_MATCH" : "MANUAL_RECONCILE",
@@ -871,18 +1048,22 @@ async function main() {
   const wompiIndex = indexWompi(wompiPayments);
   const membersSheetRows = parseMembersSheet(MEMBERS_XLSX, MEMBERS_SHEET);
   const membersSheetIndex = indexMembersSheet(membersSheetRows);
-  const { enriched: wompiEnriched, mismatches } = enrichMembersWithWompi(members, wompiIndex);
-  const { enriched, manualMatches, unresolved } = enrichMembersWithManualSheet(wompiEnriched, membersSheetIndex);
+  const membersWorkbook = parseMembersWorkbook(MEMBERS_XLSX, MEMBERS_HISTORY_SHEETS);
+  const membersHistoryIndex = buildMembersHistoryIndex(membersWorkbook);
+
+  await prisma.$connect();
+  const tenant = await prisma.saTenant.findFirst({ where: { name: { equals: TENANT_NAME, mode: "insensitive" } } });
+  if (!tenant) throw new Error(`Tenant no encontrado: ${TENANT_NAME}`);
+  const pricingIndex = await buildExistingPricingIndex(tenant.id);
+  const membersWithPricing = applyExistingPricing(members, pricingIndex);
+  const { enriched: wompiEnriched, mismatches } = enrichMembersWithWompi(membersWithPricing, wompiIndex);
+  const { enriched, manualMatches, unresolved } = enrichMembersWithManualSheet(wompiEnriched, membersSheetIndex, membersHistoryIndex);
 
   console.log(`Miembros curados: ${enriched.length}`);
   console.log(`Pagos Wompi leídos: ${wompiPayments.length}`);
   console.log(`Filas hoja miembros (${MEMBERS_SHEET}): ${membersSheetRows.length}`);
   console.log(`Candidatos Wompi con mismatch de valor: ${mismatches.length}`);
   console.log(`Pagos manuales inferidos desde hoja miembros: ${manualMatches.length}`);
-
-  await prisma.$connect();
-  const tenant = await prisma.saTenant.findFirst({ where: { name: { equals: TENANT_NAME, mode: "insensitive" } } });
-  if (!tenant) throw new Error(`Tenant no encontrado: ${TENANT_NAME}`);
 
   const planMap = await ensurePlans(tenant.id);
   console.log("\n🔄 Limpieza de planes viejos...");
