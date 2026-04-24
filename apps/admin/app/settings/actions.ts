@@ -226,21 +226,13 @@ export async function updatePaymentsConfig(formData: FormData) {
   const acceptUnlinkedPayments = getLastValue(formData, "acceptUnlinkedPayments");
   const notifyWhatsappForUnlinkedPayments = getLastValue(formData, "notifyWhatsappForUnlinkedPayments");
   const includeUnlinkedPaymentsInMetrics = getLastValue(formData, "includeUnlinkedPaymentsInMetrics");
-  const defaultCycleStartDay = String(formData.get("defaultCycleStartDay") || "").trim();
-  const defaultPaymentDay = String(formData.get("defaultPaymentDay") || "").trim();
-  const defaultPaymentTiming = String(formData.get("defaultPaymentTiming") || "").trim();
-  const defaultGraceDays = String(formData.get("defaultGraceDays") || "").trim();
 
   try {
     const out = await updatePaymentsConfigAction({
       ...(autoReconcileUnlinkedPayments ? { autoReconcileUnlinkedPayments } : {}),
       ...(acceptUnlinkedPayments ? { acceptUnlinkedPayments } : {}),
       ...(notifyWhatsappForUnlinkedPayments ? { notifyWhatsappForUnlinkedPayments } : {}),
-      ...(includeUnlinkedPaymentsInMetrics ? { includeUnlinkedPaymentsInMetrics } : {}),
-      ...(defaultCycleStartDay ? { defaultCycleStartDay } : {}),
-      ...(defaultPaymentDay ? { defaultPaymentDay } : {}),
-      ...(defaultPaymentTiming ? { defaultPaymentTiming } : {}),
-      ...(defaultGraceDays ? { defaultGraceDays } : {})
+      ...(includeUnlinkedPaymentsInMetrics ? { includeUnlinkedPaymentsInMetrics } : {})
     });
     assertOk(out as any);
     redirectWith("payments_config_save", "ok", undefined, returnTo);

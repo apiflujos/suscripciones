@@ -401,6 +401,8 @@ async function ensureDueCutoffRetries() {
 
       const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id });
       const collectionCycle = billingState?.collectionCycle || null;
+      const collectionCyclePaid = Boolean(collectionCycle?.paymentId) || String(collectionCycle?.status || "").toUpperCase() === "PAID";
+      if (!collectionCycle || collectionCyclePaid) continue;
       const dueAt = collectionCycle ? new Date(collectionCycle.dueAt || collectionCycle.periodEndAt) : null;
       const runAtMs = dueAt?.getTime?.() ?? 0;
       const runAt = runAtMs > now + futureToleranceMs ? new Date(runAtMs) : nowDate;

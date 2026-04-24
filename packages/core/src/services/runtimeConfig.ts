@@ -119,6 +119,9 @@ export type AutoDebitConfig = {
   retryEveryUnit: "MINUTES" | "HOURS" | "DAYS";
   retryEveryMinutes: number;
   maxRetries: number;
+  graceDays: number;
+  suspendDays: number;
+  cancelDays: number;
 };
 
 export type PaymentsConfig = {
@@ -126,10 +129,6 @@ export type PaymentsConfig = {
   acceptUnlinkedPayments: boolean;
   notifyWhatsappForUnlinkedPayments: boolean;
   includeUnlinkedPaymentsInMetrics: boolean;
-  defaultCycleStartDay: number;
-  defaultPaymentDay: number;
-  defaultPaymentTiming: "EN_CURSO" | "ANTICIPADO";
-  defaultGraceDays: number;
 };
 
 function toBool(raw: string | undefined, fallback: boolean) {
@@ -197,6 +196,9 @@ export async function getAutoDebitConfig(): Promise<AutoDebitConfig> {
   const derived = deriveRetryUnitAndValue(retryEveryMinutes);
   const maxRetriesRaw = toInt(String(parsed?.maxRetries ?? ""), envMaxRetries, 0, 20);
   const maxRetries = retryEnabled ? Math.max(1, maxRetriesRaw) : maxRetriesRaw;
+  const graceDays = toInt(String(parsed?.graceDays ?? ""), 5, 1, 5);
+  const suspendDays = toInt(String(parsed?.suspendDays ?? ""), 15, 1, 180);
+  const cancelDays = toInt(String(parsed?.cancelDays ?? ""), 30, 1, 365);
 
   return {
     enabled,
@@ -206,7 +208,10 @@ export async function getAutoDebitConfig(): Promise<AutoDebitConfig> {
     retryEveryValue: derived.retryEveryValue,
     retryEveryUnit: derived.retryEveryUnit,
     retryEveryMinutes,
-    maxRetries
+    maxRetries,
+    graceDays,
+    suspendDays,
+    cancelDays
   };
 }
 
@@ -224,21 +229,11 @@ export async function getPaymentsConfig(): Promise<PaymentsConfig> {
   const acceptUnlinkedPayments = toBool(String(parsed?.acceptUnlinkedPayments ?? ""), true);
   const notifyWhatsappForUnlinkedPayments = toBool(String(parsed?.notifyWhatsappForUnlinkedPayments ?? ""), true);
   const includeUnlinkedPaymentsInMetrics = toBool(String(parsed?.includeUnlinkedPaymentsInMetrics ?? ""), true);
-  const defaultCycleStartDay = toInt(String(parsed?.defaultCycleStartDay ?? ""), 1, 1, 31);
-  const defaultPaymentDay = toInt(String(parsed?.defaultPaymentDay ?? ""), 1, 1, 31);
-  const defaultPaymentTimingRaw = String(parsed?.defaultPaymentTiming ?? "EN_CURSO").toUpperCase();
-  const defaultPaymentTiming = defaultPaymentTimingRaw === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
-  const defaultGraceDays = toInt(String(parsed?.defaultGraceDays ?? ""), 1, 1, 5);
-
   return {
     autoReconcileUnlinkedPayments,
     acceptUnlinkedPayments,
     notifyWhatsappForUnlinkedPayments,
-    includeUnlinkedPaymentsInMetrics,
-    defaultCycleStartDay,
-    defaultPaymentDay,
-    defaultPaymentTiming,
-    defaultGraceDays
+    includeUnlinkedPaymentsInMetrics
   };
 }
 

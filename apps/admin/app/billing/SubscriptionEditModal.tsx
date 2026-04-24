@@ -88,10 +88,7 @@ export function SubscriptionEditModal({
   const [localCycleStartDay, setLocalCycleStartDay] = useState(cycleStartDay || 1);
   const [localPaymentDay, setLocalPaymentDay] = useState(paymentDay || 15);
   const [localPaymentTiming, setLocalPaymentTiming] = useState(String(paymentTiming || "EN_CURSO"));
-  const [useGlobalConfig, setUseGlobalConfig] = useState(true);
-  const [localGraceDays, setLocalGraceDays] = useState(graceDays || 5);
-  const [localSuspendDays, setLocalSuspendDays] = useState(suspendDays || 15);
-  const [localCancelDays, setLocalCancelDays] = useState(cancelDays || 30);
+  const [localGraceDays, setLocalGraceDays] = useState(graceDays || globalConfig?.graceDays || 5);
   const [shippingCop, setShippingCop] = useState("");
   const [freeShipping, setFreeShipping] = useState(!currentRequiresShipping || currentShippingInCents <= 0);
   const [productSearchOpen, setProductSearchOpen] = useState(false);
@@ -133,8 +130,6 @@ export function SubscriptionEditModal({
     const normalized = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
     return new Intl.DateTimeFormat("es-CO", { dateStyle: "short" }).format(normalized);
   };
-
-  const effectiveGraceDays = useGlobalConfig ? (globalConfig?.graceDays ?? graceDays) : localGraceDays;
 
   const searchProducts = useCallback(async (query: string, signal?: AbortSignal) => {
     const trimmed = query.trim();
@@ -215,7 +210,7 @@ export function SubscriptionEditModal({
               <input type="hidden" name="subscriptionId" value={subscriptionId} />
               {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-              <input type="hidden" name="graceDays" value={String(effectiveGraceDays)} />
+              <input type="hidden" name="graceDays" value={String(localGraceDays)} />
               <input type="hidden" name="collectionMode" value={subscriptionType === "AUTO_DEBIT" ? "AUTO_DEBIT" : "MANUAL_LINK"} />
               {/* 1. Tipo de suscripción */}
               <section className="card cardPad">
@@ -441,56 +436,24 @@ export function SubscriptionEditModal({
                       <option value="ANTICIPADO">Adelantado</option>
                     </select>
                   </div>
-
-                  <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                    <input
-                      type="checkbox"
-                      checked={useGlobalConfig}
-                      onChange={(e) => setUseGlobalConfig(e.target.checked)}
-                    />
-                    <span>Usar configuración global (días de gracia, suspensión, cancelación)</span>
-                  </label>
-
-                  {!useGlobalConfig && (
-                    <div className="subscription-edit-global-config-grid">
-                      <div className="field">
-                        <label className="field-label">Días de gracia</label>
-                        <select
-                          className="select"
-                          value={localGraceDays}
-                          onChange={(e) => setLocalGraceDays(Number(e.target.value))}
-                        >
-                          {Array.from({ length: 16 }, (_, i) => i).map((days) => (
-                            <option key={days} value={days}>{days} días</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="field">
-                        <label className="field-label">Suspender después de</label>
-                        <select
-                          className="select"
-                          value={localSuspendDays}
-                          onChange={(e) => setLocalSuspendDays(Number(e.target.value))}
-                        >
-                          {Array.from({ length: 31 }, (_, i) => i + 15).map((days) => (
-                            <option key={days} value={days}>{days} días</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="field">
-                        <label className="field-label">Cancelar después de</label>
-                        <select
-                          className="select"
-                          value={localCancelDays}
-                          onChange={(e) => setLocalCancelDays(Number(e.target.value))}
-                        >
-                          {Array.from({ length: 31 }, (_, i) => i + 30).map((days) => (
-                            <option key={days} value={days}>{days} días</option>
-                          ))}
-                        </select>
-                      </div>
+                  <div className="field">
+                    <label className="field-label">
+                      Días de gracia
+                      <HelpTip text="Este valor se puede sobrescribir por suscripción. La suspensión y cancelación se manejan desde configuración global." />
+                    </label>
+                    <select
+                      className="select"
+                      value={localGraceDays}
+                      onChange={(e) => setLocalGraceDays(Number(e.target.value))}
+                    >
+                      {Array.from({ length: 16 }, (_, i) => i).map((days) => (
+                        <option key={days} value={days}>{days} días</option>
+                      ))}
+                    </select>
+                    <div className="field-hint">
+                      Default global actual: {globalConfig?.graceDays ?? 5} días.
                     </div>
-                  )}
+                  </div>
 
                   {nextChargeDate && (
                     <div style={{ padding: "var(--space-3)", background: "var(--primary-soft)", borderRadius: "var(--radius-3)" }}>

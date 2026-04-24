@@ -1,7 +1,7 @@
 import { prisma } from "../db/prisma";
 import { SubscriptionStatus, PaymentStatus, GamificationEntityType } from "@prisma/client";
 import { formatLevelName } from "./gamification";
-import { buildSubscriptionBillingStateIndex } from "./billingCycles";
+import { buildSubscriptionBillingStateIndex, resolveCollectionDelinquency } from "./billingCycles";
 
 export type SmartListRule =
   | {
@@ -237,10 +237,13 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
     const activeCycle = billingState?.activeCycle || null;
     const collectionCycle = billingState?.collectionCycle || activeCycle;
     const nextBillingDate = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : activeCycle?.periodEndAt ? new Date(activeCycle.periodEndAt) : null;
-    const daysPastDue =
-      nextBillingDate && nextBillingDate.getTime() < now
-        ? Math.floor((now - nextBillingDate.getTime()) / 86_400_000)
-        : 0;
+    const collectionState = resolveCollectionDelinquency({
+      cycle: collectionCycle,
+      graceDays: sub?.graceDays,
+      asOf: new Date(now),
+      fallbackSubscriptionStatus: sub?.status ?? null
+    });
+    const daysPastDue = collectionState.daysPastDue;
 
     const tier =
       approvedCount >= 6
@@ -273,7 +276,7 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
       gamificationLifetime: Number(gamification?.lifetimePoints || 0),
       tier,
       daysPastDue,
-      inMora: sub?.status === SubscriptionStatus.PAST_DUE || daysPastDue > 0,
+      inMora: collectionState.status === "EN_MORA",
       hasSubscription: !!sub,
       paymentStatusLastApproved: latestPayment?.status === PaymentStatus.APPROVED
     };

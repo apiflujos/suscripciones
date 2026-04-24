@@ -61,6 +61,8 @@ export type ResolvedBillingState = {
   oldestUnpaidCycle: BillingCycleLike | null;
 };
 
+export type CollectionDelinquencyStatus = "AL_DIA" | "EN_GRACIA" | "EN_MORA";
+
 function daysInMonth(year: number, month0: number) {
   return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
 }
@@ -231,6 +233,62 @@ export function resolveConfiguredCollectionCycle(args: {
     .filter((cycle) => new Date(cycle.periodStartAt).getTime() <= asOfTs)
     .sort((a, b) => new Date(b.periodStartAt).getTime() - new Date(a.periodStartAt).getTime())[0];
   return current || latestOpen || unpaid[0];
+}
+
+export function isBillingCyclePaid(cycle: { status?: BillingCycleStatus | string | null; paymentId?: string | null } | null | undefined) {
+  if (!cycle) return false;
+  return Boolean(cycle.paymentId) || String(cycle.status || "").toUpperCase() === BillingCycleStatus.PAID;
+}
+
+export function resolveCollectionDelinquency(args: {
+  cycle: BillingCycleLike | null | undefined;
+  graceDays?: number | null;
+  asOf?: Date;
+  fallbackSubscriptionStatus?: string | null;
+}) {
+  const cycle = args.cycle || null;
+  const asOf = args.asOf ? new Date(args.asOf) : new Date();
+  const graceDays = Number.isFinite(Number(args.graceDays)) ? Math.max(0, Math.trunc(Number(args.graceDays))) : 0;
+
+  if (isBillingCyclePaid(cycle)) {
+    return {
+      status: "AL_DIA" as const,
+      dueAt: cycle?.dueAt ? new Date(cycle.dueAt) : cycle?.periodEndAt ? new Date(cycle.periodEndAt) : null,
+      dueWithGraceAt: null,
+      daysPastDue: 0
+    };
+  }
+
+  const dueAt = cycle?.dueAt ? new Date(cycle.dueAt) : cycle?.periodEndAt ? new Date(cycle.periodEndAt) : null;
+  if (!dueAt || Number.isNaN(dueAt.getTime())) {
+    const fallback = String(args.fallbackSubscriptionStatus || "").toUpperCase();
+    return {
+      status: fallback === "PAST_DUE" || fallback === "EXPIRED" ? ("EN_MORA" as const) : ("AL_DIA" as const),
+      dueAt: null,
+      dueWithGraceAt: null,
+      daysPastDue: 0
+    };
+  }
+
+  const dueAtTs = dueAt.getTime();
+  const asOfTs = asOf.getTime();
+  if (asOfTs <= dueAtTs) {
+    return {
+      status: "AL_DIA" as const,
+      dueAt,
+      dueWithGraceAt: new Date(dueAtTs + graceDays * 24 * 60 * 60 * 1000),
+      daysPastDue: 0
+    };
+  }
+
+  const daysPastDue = Math.ceil((asOfTs - dueAtTs) / (24 * 60 * 60 * 1000));
+  const dueWithGraceAt = new Date(dueAtTs + graceDays * 24 * 60 * 60 * 1000);
+  return {
+    status: daysPastDue <= graceDays ? ("EN_GRACIA" as const) : ("EN_MORA" as const),
+    dueAt,
+    dueWithGraceAt,
+    daysPastDue
+  };
 }
 
 export function computeBillingCycleDueAt(params: {

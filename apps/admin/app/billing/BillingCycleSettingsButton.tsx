@@ -60,7 +60,7 @@ export function BillingCycleSettingsButton({
           </label>
           <label className="field field-inline">
             <span className="field-hint">Gracia</span>
-            <select className="select select-sm" name="graceDays" defaultValue={String(graceDays || 1)}>
+            <select className="select select-sm" name="graceDays" defaultValue={String(graceDays || 5)}>
               {Array.from({ length: 5 }).map((_, i) => (
                 <option key={`grace-${subscriptionId}-${i + 1}`} value={String(i + 1)}>{i + 1}</option>
               ))}

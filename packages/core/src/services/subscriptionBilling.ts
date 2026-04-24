@@ -182,6 +182,12 @@ async function hasUsableSubscriptionPaymentLinkNotification(): Promise<boolean> 
   }
 }
 
+function isCyclePaid(cycle: { paymentId?: string | null; status?: string | null } | null | undefined) {
+  if (!cycle) return false;
+  if (cycle.paymentId) return true;
+  return String(cycle.status || "").toUpperCase() === "PAID";
+}
+
 export function readSubscriptionTotalInCents(subscriptionMeta: unknown, fallback: number, planMeta?: unknown): number {
   return getExpectedSubscriptionTotalInCents({
     subscriptionMetadata: subscriptionMeta,
@@ -195,7 +201,7 @@ export function readSubscriptionTotalInCents(subscriptionMeta: unknown, fallback
  * RULE: If the most recent cycle is paid, subscription is ACTIVE even if older cycles are overdue.
  */
 function shouldMarkSubscriptionPastDue(args: {
-  mostRecentCycle: { paymentId: string | null; dueAt: Date; status: string } | null;
+  mostRecentCycle: { paymentId?: string | null; dueAt: Date; status?: string | null } | null;
   graceDays: number;
   asOf: Date;
 }) {
@@ -230,28 +236,18 @@ export async function ensureExpiredSubscriptions() {
   let recoveredToActive = 0;
 
   for (const sub of candidates) {
-    const cycles = await prisma.subscriptionBillingCycle.findMany({
-      where: { subscriptionId: sub.id },
-      orderBy: [{ cycleNumber: "desc" }],
-      take: 1,
-      select: {
-        paymentId: true,
-        dueAt: true,
-        status: true,
-        cycleNumber: true
-      }
-    });
-    const mostRecentCycle = cycles[0] || null;
+    const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id }).catch(() => null);
+    const collectionCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
 
     // Check if subscription should be PAST_DUE
     const pastDueCheck = shouldMarkSubscriptionPastDue({
-      mostRecentCycle,
+      mostRecentCycle: collectionCycle,
       graceDays: sub.graceDays,
       asOf: now
     });
 
     // CRITICAL: If most recent cycle is paid but subscription is PAST_DUE, recover to ACTIVE
-    if (sub.status === SubscriptionStatus.PAST_DUE && mostRecentCycle?.paymentId) {
+    if (sub.status === SubscriptionStatus.PAST_DUE && isCyclePaid(collectionCycle)) {
       await prisma.subscription.update({
         where: { id: sub.id },
         data: { status: SubscriptionStatus.ACTIVE }
@@ -269,8 +265,8 @@ export async function ensureExpiredSubscriptions() {
       continue;
     }
 
-    const expiredCutoff = new Date(new Date(mostRecentCycle?.dueAt || now).getTime() + (Math.max(0, Math.trunc(sub.graceDays || 0)) + 15) * 24 * 60 * 60 * 1000);
-    if (sub.status === SubscriptionStatus.PAST_DUE && expiredCutoff.getTime() < now.getTime() && !mostRecentCycle?.paymentId) {
+    const expiredCutoff = new Date(new Date(collectionCycle?.dueAt || now).getTime() + (Math.max(0, Math.trunc(sub.graceDays || 0)) + 15) * 24 * 60 * 60 * 1000);
+    if (sub.status === SubscriptionStatus.PAST_DUE && expiredCutoff.getTime() < now.getTime() && !isCyclePaid(collectionCycle)) {
       await prisma.subscription.update({
         where: { id: sub.id },
         data: { status: SubscriptionStatus.EXPIRED }
@@ -301,20 +297,15 @@ export async function handleSubscriptionPaymentFailure(subscriptionId: string, e
   });
   if (!sub || sub.status === SubscriptionStatus.CANCELED || sub.status === SubscriptionStatus.EXPIRED) return;
 
-  const cycles = await prisma.subscriptionBillingCycle.findMany({
-    where: { subscriptionId: sub.id },
-    orderBy: [{ cycleNumber: "desc" }],
-    take: 1,
-    select: { paymentId: true, dueAt: true, status: true, cycleNumber: true }
-  });
-  const mostRecentCycle = cycles[0] || null;
+  const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id }).catch(() => null);
+  const mostRecentCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
 
   // KEY RULE: If most recent cycle is paid, don't mark subscription as PAST_DUE
-  if (mostRecentCycle?.paymentId) {
+  if (isCyclePaid(mostRecentCycle)) {
     await systemLog(LogLevel.WARN, "subscriptions.lifecycle", "Cobro falló pero el ciclo más reciente está pagado", {
       subscriptionId,
       error,
-      mostRecentCycle: mostRecentCycle.cycleNumber,
+      mostRecentCycle: mostRecentCycle?.cycleNumber ?? null,
       currentStatus: sub.status
     }).catch((err: any) => {
       logIgnored(err, "subscription lifecycle: failed to write grace-period failure log", { subscriptionId });

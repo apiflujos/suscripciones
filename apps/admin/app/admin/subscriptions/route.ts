@@ -25,12 +25,16 @@ import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } fro
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import { validateWompiCurrency } from "@suscripciones/core/lib/wompiSignature";
 import { computeBillingCycleDueAt, ensureBillingCyclesForSubscription, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
-import { getPaymentsConfig } from "@suscripciones/core/services/runtimeConfig";
+import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
 import { listSubscriptions } from "../_services/subscriptions";
 import { listPlanIdsForCatalogProducts, readCatalogProductIdFromPlanMetadata } from "../_services/productPlanMapping";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const DEFAULT_SUBSCRIPTION_CYCLE_START_DAY = 1;
+const DEFAULT_SUBSCRIPTION_PAYMENT_DAY = 1;
+const DEFAULT_SUBSCRIPTION_PAYMENT_TIMING: "EN_CURSO" | "ANTICIPADO" = "EN_CURSO";
 
 function logIgnored(err: unknown, message: string, context?: Record<string, unknown>) {
   logger.warn({ err, ...(context || {}) }, message);
@@ -300,11 +304,11 @@ export async function POST(req: Request) {
   }
 
   const subscriptionMetaBase = parsed.data.metadata && typeof parsed.data.metadata === "object" ? (parsed.data.metadata as any) : {};
-  const paymentsConfig = await getPaymentsConfig().catch(() => null);
-  const cycleStartDay = Math.max(1, Math.min(31, Math.trunc(paymentsConfig?.defaultCycleStartDay || 1)));
-  const paymentDay = Math.max(1, Math.min(31, Math.trunc(paymentsConfig?.defaultPaymentDay || cycleStartDay)));
-  const paymentTiming = String(paymentsConfig?.defaultPaymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
-  const graceDays = Math.max(0, Math.trunc(paymentsConfig?.defaultGraceDays || 0));
+  const autoDebitConfig = await getAutoDebitConfig().catch(() => null);
+  const cycleStartDay = DEFAULT_SUBSCRIPTION_CYCLE_START_DAY;
+  const paymentDay = DEFAULT_SUBSCRIPTION_PAYMENT_DAY;
+  const paymentTiming = DEFAULT_SUBSCRIPTION_PAYMENT_TIMING;
+  const graceDays = Math.max(0, Math.trunc(autoDebitConfig?.graceDays || 5));
   const dueAt =
     plan.intervalUnit === "MONTH"
       ? computeBillingCycleDueAt({

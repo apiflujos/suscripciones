@@ -266,7 +266,15 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     return { ok: false, skipped: true, error: "customer_missing" };
   }
 
-  if (subscription && rule.conditions?.skipIfSubscriptionStatusIn?.includes(subscription.status as any)) {
+  const shouldSkipBySubscriptionStatus =
+    subscription &&
+    rule.conditions?.skipIfSubscriptionStatusIn?.includes(subscription.status as any) &&
+    (
+      parsed.data.trigger !== "SUBSCRIPTION_DUE" ||
+      ["CANCELED", "SUSPENDED", "EXPIRED"].includes(String(subscription.status || "").toUpperCase())
+    );
+
+  if (shouldSkipBySubscriptionStatus) {
       await systemLog(LogLevel.WARN, "notifications.dispatch", "Suscripción omitida por estado", {
         ruleId: rule.id,
         templateId: template.id,

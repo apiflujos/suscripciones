@@ -401,12 +401,11 @@ export default async function Home({
   const periodMs = Math.max(24 * 60 * 60 * 1000, new Date(toIso).getTime() - new Date(fromIso).getTime());
   const prevFromIso = new Date(new Date(fromIso).getTime() - periodMs).toISOString();
   const prevToIso = new Date(fromIso).toISOString();
-  const [metrics, prevMetrics, paymentsRes, overdueSubsRes, healthySubsRes, settingsRes, companiesCount] = await Promise.all([
+  const [metrics, prevMetrics, paymentsRes, subscriptionsRes, settingsRes, companiesCount] = await Promise.all([
     getMetricsOverviewCached({ from: fromIso, to: toIso, granularity: g, tenantId: resolvedTenantId || undefined }),
     getMetricsOverviewCached({ from: prevFromIso, to: prevToIso, granularity: g, tenantId: resolvedTenantId || undefined }),
     listPaymentLogs({ take: 6, status: "APPROVED", tenantId: resolvedTenantId || undefined }),
-    listSubscriptions({ take: 200, estado: "mora", tenantId: resolvedTenantId || undefined }),
-    listSubscriptions({ take: 200, estado: "si", tenantId: resolvedTenantId || undefined }),
+    listSubscriptions({ take: 500, tenantId: resolvedTenantId || undefined }),
     getAdminSettings(),
     countEmpresasAndContactos(resolvedTenantId || null)
   ]);
@@ -456,8 +455,6 @@ export default async function Home({
   const approvalPct = totalPayments > 0 ? (totalPaymentsOk / totalPayments) * 100 : 0;
   const avgTicket = totalPaymentsOk > 0 ? Math.round(totalRevenue / totalPaymentsOk) : 0;
   const totalActiveSubscriptions = Number(metricsData?.totals?.totalActiveSubscriptions || 0);
-  const contactsPastDue = Number(metricsData?.totals?.contactsPastDue ?? 0);
-  const contactsOnTime = Number(metricsData?.totals?.contactsOnTime ?? 0);
   const totalEmpresas = Number(companiesCount?.empresas || 0);
   const totalContactos = Number(companiesCount?.contactos || 0);
   const linkConversionPctRaw = metricsData?.totals?.link?.conversionLinkToPayPct ?? null;
@@ -480,23 +477,32 @@ export default async function Home({
 
   
   const recentPayments = paymentsRes.items || [];
-  const overdueSubs = overdueSubsRes.items || [];
-  const healthySubs = healthySubsRes.items || [];
+  const subscriptionRows = subscriptionsRes.items || [];
   const modeLabel = (s: any) => {
     const mode = String(s?.metadata?.collectionMode || s?.plan?.metadata?.collectionMode || "MANUAL_LINK").toUpperCase();
     if (mode === "AUTO_DEBIT") return "Débito automático";
     if (mode === "AUTO_LINK") return "Link de pago";
     return "Manual";
   };
-  const statusLabel = (status: string) => {
-    const up = String(status || "").toUpperCase();
-    if (up === "PAST_DUE") return "En mora";
-    if (up === "ACTIVE") return "Al día";
-    if (up === "SUSPENDED") return "Suspendida";
-    if (up === "CANCELED") return "Cancelada";
-    if (up === "EXPIRED") return "Expirada";
-    return up || "—";
+  const collectionStatusLabel = (s: any) => {
+    if (s?.collectionCyclePaid) return "Al día";
+    const dueAtTs = s?.nextBillingDate ? new Date(s.nextBillingDate).getTime() : NaN;
+    const graceDays = Number.isFinite(Number(s?.graceDays)) ? Math.max(0, Math.trunc(Number(s.graceDays))) : 5;
+    if (!Number.isFinite(dueAtTs)) {
+      const up = String(s?.status || "").toUpperCase();
+      return up === "PAST_DUE" || up === "EXPIRED" ? "En mora" : "Al día";
+    }
+    const nowTs = Date.now();
+    if (nowTs <= dueAtTs) return "Al día";
+    const daysLate = Math.ceil((nowTs - dueAtTs) / (24 * 60 * 60 * 1000));
+    if (daysLate <= graceDays) return "En gracia";
+    return "En mora";
   };
+  const overdueSubs = subscriptionRows.filter((s: any) => collectionStatusLabel(s) === "En mora");
+  const graceSubs = subscriptionRows.filter((s: any) => collectionStatusLabel(s) === "En gracia");
+  const healthySubs = subscriptionRows.filter((s: any) => collectionStatusLabel(s) === "Al día");
+  const contactsPastDue = overdueSubs.length;
+  const contactsOnTime = healthySubs.length;
 
   const revenueTotalSeries = sum(revenueSeries);
   const revenueAvgSeries = avg(revenueSeries);
@@ -1285,11 +1291,11 @@ export default async function Home({
                                 overdueSubs.map((s: any) => (
                                   <tr key={`overdue-${s.id}`}>
                                     <td>{s?.customer?.name || s?.customer?.email || "Cliente"}</td>
-                                    <td>{s?.plan?.name || "—"}</td>
+                                    <td>{s?.productName || s?.plan?.name || "—"}</td>
                                     <td>{modeLabel(s)}</td>
                                     <td>{s?.nextBillingDate ? fmtDateTimeShort(s.nextBillingDate) : "Sin fecha"}</td>
                                     <td>
-                                      <span className="pill pill-bad pill-sm">{statusLabel(s?.status)}</span>
+                                      <span className="pill pill-bad pill-sm">{collectionStatusLabel(s)}</span>
                                     </td>
                                   </tr>
                                 ))
@@ -1304,6 +1310,49 @@ export default async function Home({
                       </details>
                     </div>
 
+                    <div className="card cardPad chart-card">
+                      <details className="metrics-list-details">
+                        <summary className="metrics-list-summary">
+                          <span>Clientes en gracia</span>
+                          <strong>{graceSubs.length}</strong>
+                        </summary>
+                        <div className="metrics-list-table-wrap">
+                          <table className="metrics-list-table">
+                            <thead>
+                              <tr>
+                                <th>Cliente</th>
+                                <th>Plan</th>
+                                <th>Tipo</th>
+                                <th>Próximo cobro/corte</th>
+                                <th>Estado</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {graceSubs.length ? (
+                                graceSubs.map((s: any) => (
+                                  <tr key={`grace-${s.id}`}>
+                                    <td>{s?.customer?.name || s?.customer?.email || "Cliente"}</td>
+                                    <td>{s?.productName || s?.plan?.name || "—"}</td>
+                                    <td>{modeLabel(s)}</td>
+                                    <td>{s?.nextBillingDate ? fmtDateTimeShort(s.nextBillingDate) : "Sin fecha"}</td>
+                                    <td>
+                                      <span className="pill pill-warn pill-sm">{collectionStatusLabel(s)}</span>
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={5} className="muted">No hay suscripciones en gracia.</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </details>
+                    </div>
+                  </div>
+
+                  <div className="grid1">
                     <div className="card cardPad chart-card">
                       <details className="metrics-list-details">
                         <summary className="metrics-list-summary">
@@ -1326,11 +1375,11 @@ export default async function Home({
                                 healthySubs.map((s: any) => (
                                   <tr key={`healthy-${s.id}`}>
                                     <td>{s?.customer?.name || s?.customer?.email || "Cliente"}</td>
-                                    <td>{s?.plan?.name || "—"}</td>
+                                    <td>{s?.productName || s?.plan?.name || "—"}</td>
                                     <td>{modeLabel(s)}</td>
                                     <td>{s?.nextBillingDate ? fmtDateTimeShort(s.nextBillingDate) : "Sin fecha"}</td>
                                     <td>
-                                      <span className="pill pill-ok pill-sm">{statusLabel(s?.status)}</span>
+                                      <span className="pill pill-ok pill-sm">{collectionStatusLabel(s)}</span>
                                     </td>
                                   </tr>
                                 ))

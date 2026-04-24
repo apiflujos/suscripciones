@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma";
 import { PaymentStatus, PlanType, SubscriptionStatus, PlanIntervalUnit } from "@prisma/client";
+import { buildSubscriptionBillingStateIndex, resolveCollectionDelinquency } from "./billingCycles";
 import { getPaymentsConfig } from "./runtimeConfig";
 
 type Granularity = "day" | "week" | "month";
@@ -575,19 +576,55 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   });
   let contactsStatusRow: Array<{ contacts_on_time: bigint; contacts_past_due: bigint }> = [{ contacts_on_time: 0n, contacts_past_due: 0n }];
   try {
-    contactsStatusRow = await prisma.$queryRawUnsafe<
-      Array<{ contacts_on_time: bigint; contacts_past_due: bigint }>
-    >(
-      `SELECT
-         COUNT(DISTINCT s."customerId") FILTER (WHERE s."status" = 'ACTIVE')::bigint AS contacts_on_time,
-         COUNT(DISTINCT s."customerId") FILTER (WHERE s."status" = 'PAST_DUE')::bigint AS contacts_past_due
-       FROM "Subscription" s
-       INNER JOIN "Customer" c ON c."id" = s."customerId"
-       WHERE s."startAt" < $1::timestamptz
-         AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
-         ${tf("s") }`,
-      to,
-    );
+    const metricSubscriptions = await prisma.subscription.findMany({
+      where: {
+        startAt: { lt: to },
+        OR: [{ canceledAt: null }, { canceledAt: { gte: to } }],
+        ...(hasTenant ? { tenantId } : {})
+      },
+      select: {
+        id: true,
+        customerId: true,
+        status: true,
+        startAt: true,
+        cycleStartDay: true,
+        paymentDay: true,
+        paymentTiming: true,
+        graceDays: true,
+        plan: { select: { intervalUnit: true, intervalCount: true } }
+      }
+    });
+    const billingStateBySubscription = await buildSubscriptionBillingStateIndex({
+      subscriptions: metricSubscriptions.map((sub) => ({
+        id: sub.id,
+        startAt: sub.startAt,
+        cycleStartDay: sub.cycleStartDay,
+        paymentDay: sub.paymentDay,
+        paymentTiming: (sub.paymentTiming as any) === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",
+        graceDays: sub.graceDays,
+        plan: {
+          intervalUnit: sub.plan.intervalUnit,
+          intervalCount: sub.plan.intervalCount
+        }
+      })),
+      asOf: to
+    });
+    const onTime = new Set<string>();
+    const pastDue = new Set<string>();
+    for (const sub of metricSubscriptions) {
+      const billingState = billingStateBySubscription.get(String(sub.id)) || null;
+      const collectionCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
+      const collectionState = resolveCollectionDelinquency({
+        cycle: collectionCycle,
+        graceDays: sub.graceDays,
+        asOf: to,
+        fallbackSubscriptionStatus: sub.status
+      });
+      if (collectionState.status === "EN_MORA") pastDue.add(String(sub.customerId));
+      else onTime.add(String(sub.customerId));
+    }
+    for (const customerId of pastDue) onTime.delete(customerId);
+    contactsStatusRow = [{ contacts_on_time: BigInt(onTime.size), contacts_past_due: BigInt(pastDue.size) }];
   } catch (err) {
     console.error('[Metrics] Error en contactsStatusRow:', err);
   }

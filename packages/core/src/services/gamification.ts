@@ -14,7 +14,7 @@ import {
   moneyToPoints
 } from "./gamificationConfig";
 import { getGamificationConfig } from "./gamificationSettings";
-import { buildSubscriptionBillingStateIndex } from "./billingCycles";
+import { buildSubscriptionBillingStateIndex, resolveCollectionDelinquency } from "./billingCycles";
 
 export const GAMIFICATION_EVENT_KINDS = {
   PAYMENT_APPROVED: "payment.approved",
@@ -555,10 +555,12 @@ async function recomputeCustomerScores(
     const sub = globalSubByCustomer.get(String(customer.id)) || null;
     const billingState = sub ? billingStateBySubscription.get(String(sub.id)) || null : null;
     const collectionCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
-    const dueAt = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : collectionCycle?.periodEndAt ? new Date(collectionCycle.periodEndAt) : null;
-    const daysPastDue = dueAt && dueAt.getTime() < Date.now()
-      ? Math.floor((Date.now() - dueAt.getTime()) / 86_400_000)
-      : 0;
+    const collectionState = resolveCollectionDelinquency({
+      cycle: collectionCycle,
+      graceDays: sub?.graceDays,
+      fallbackSubscriptionStatus: sub?.status || null
+    });
+    const daysPastDue = collectionState.status === "EN_MORA" ? collectionState.daysPastDue : 0;
 
     const computed = computeCustomerScores({
       approvedCount: globalStats.count,
@@ -636,10 +638,12 @@ async function recomputeCustomerScores(
       const sub = subByKey.get(`${tId}:${customer.id}`) || null;
       const billingState = sub ? billingStateBySubscription.get(String(sub.id)) || null : null;
       const collectionCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
-      const dueAt = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : collectionCycle?.periodEndAt ? new Date(collectionCycle.periodEndAt) : null;
-      const daysPastDue = dueAt && dueAt.getTime() < Date.now()
-        ? Math.floor((Date.now() - dueAt.getTime()) / 86_400_000)
-        : 0;
+      const collectionState = resolveCollectionDelinquency({
+        cycle: collectionCycle,
+        graceDays: sub?.graceDays,
+        fallbackSubscriptionStatus: sub?.status || null
+      });
+      const daysPastDue = collectionState.status === "EN_MORA" ? collectionState.daysPastDue : 0;
 
       const computed = computeCustomerScores({
         approvedCount: stats.count,

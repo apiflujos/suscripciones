@@ -107,42 +107,34 @@ function subscriptionRank(status: any) {
   return 5;
 }
 
-function getPaymentStatusLabel(args: {
+function getCollectionStatusLabel(args: {
   status: string;
-  paidAt: any;
-  periodStartAt: any;
-  periodEndAt: any;
+  dueAt: any;
+  graceDays?: number;
   collectionCyclePaid?: boolean;
 }) {
-  const status = String(args.status || "");
-  if (status === "PAST_DUE") return "En mora";
-  if (args.collectionCyclePaid) return "Pagado";
-  if (args.paidAt && args.periodStartAt && args.periodEndAt) {
-    const paid = new Date(args.paidAt).getTime();
-    const start = new Date(args.periodStartAt).getTime();
-    const end = new Date(args.periodEndAt).getTime();
-    if (Number.isFinite(paid) && Number.isFinite(start) && Number.isFinite(end) && paid >= start && paid <= end) {
-      return "Pagado";
-    }
-  }
-  return "Pendiente";
+  if (args.collectionCyclePaid) return "Al día";
+  const status = String(args.status || "").toUpperCase();
+  const dueAtTs = args.dueAt ? new Date(args.dueAt).getTime() : NaN;
+  const graceDays = Number.isFinite(Number(args.graceDays)) ? Math.max(0, Math.trunc(Number(args.graceDays))) : 5;
+  const nowTs = Date.now();
+  if (!Number.isFinite(dueAtTs)) return status === "PAST_DUE" || status === "EXPIRED" ? "En mora" : "Al día";
+  if (nowTs <= dueAtTs) return "Al día";
+  const daysLate = Math.ceil((nowTs - dueAtTs) / (24 * 60 * 60 * 1000));
+  if (daysLate <= graceDays) return "En gracia";
+  return "En mora";
 }
 
 function getCardCollectionState(args: {
   status: string;
-  paidAt: any;
-  periodStartAt: any;
-  periodEndAt: any;
+  dueAt: any;
+  graceDays?: number;
   collectionCyclePaid?: boolean;
-  inGrace?: boolean;
-  inArrears?: boolean;
 }) {
-  if (args.inGrace) return { label: "En gracia", class: "pill-warn" };
-  if (args.inArrears) return { label: "En mora", class: "pill-bad" };
-  const paymentStatus = getPaymentStatusLabel(args);
-  if (paymentStatus === "Pagado") return { label: "Pagado", class: "pill-ok" };
-  if (paymentStatus === "En mora") return { label: "Vencido", class: "pill-bad" };
-  return { label: "Pendiente", class: "pill-warn" };
+  const collectionStatus = getCollectionStatusLabel(args);
+  if (collectionStatus === "En mora") return { label: "En mora", class: "pill-bad" };
+  if (collectionStatus === "En gracia") return { label: "En gracia", class: "pill-warn" };
+  return { label: "Al día", class: "pill-ok" };
 }
 
 function formatLongCivilDate(value?: string | Date | null) {
@@ -169,12 +161,9 @@ function buildBillingStatusCards(r: any) {
   const badges: Array<{ heading: string; value: string; className: string; title?: string }> = [];
   const mainState = getCardCollectionState({
     status: r.status,
-    paidAt: r.pagoAt,
-    periodStartAt: r.periodoInicioAt,
-    periodEndAt: r.periodoFinAt,
-    collectionCyclePaid: r.collectionCyclePaid,
-    inGrace: r.inGrace,
-    inArrears: r.inArrears
+    dueAt: r.vencimientoAt,
+    graceDays: r.graceDays,
+    collectionCyclePaid: r.collectionCyclePaid
   });
   const subscriptionState = getEstadoSimple(r.status);
   badges.push({ heading: "Suscripción", value: subscriptionState.label, className: subscriptionState.class });
@@ -468,12 +457,19 @@ export default async function BillingPage({
       const shippingAppliedInCents = requiresShipping ? Math.max(0, shippingInCents) : 0;
       const baseValueInCents = Math.max(0, totalInCents - shippingAppliedInCents);
       const dueAtDate = s.nextBillingDate ? new Date(s.nextBillingDate) : null;
+      const collectionCyclePaid = typeof s?.collectionCyclePaid === "boolean" ? s.collectionCyclePaid : false;
       const dueAt = dueAtDate ? dueAtDate.getTime() : null;
       const nowTs = Date.now();
-      const daysLate = dueAt && nowTs > dueAt ? Math.ceil((nowTs - dueAt) / (24 * 60 * 60 * 1000)) : 0;
-      const graceDays = Number(s.graceDays || 1);
-      const inGrace = String(s.status || "") === "PAST_DUE" && daysLate > 0 && daysLate <= graceDays;
-      const inArrears = String(s.status || "") === "PAST_DUE" && daysLate > graceDays;
+      const daysLate = collectionCyclePaid || !dueAt || nowTs <= dueAt ? 0 : Math.ceil((nowTs - dueAt) / (24 * 60 * 60 * 1000));
+      const graceDays = Number(s.graceDays || 5);
+      const paymentCollectionState = getCollectionStatusLabel({
+        status: String(s.status || ""),
+        dueAt: dueAtDate ? dueAtDate.toISOString() : null,
+        graceDays,
+        collectionCyclePaid
+      });
+      const inGrace = paymentCollectionState === "En gracia";
+      const inArrears = paymentCollectionState === "En mora";
       return {
         id: String(s.id),
         planId: String(plan?.id || ""),
@@ -514,7 +510,7 @@ export default async function BillingPage({
         cycleStartDay: Number(s.cycleStartDay || 1),
         paymentDay: Number(s.paymentDay || 1),
         paymentTiming: String(s.paymentTiming || "EN_CURSO"),
-        graceDays: Number(s.graceDays || 1),
+        graceDays: Number(s.graceDays || 5),
         daysLate,
         inGrace,
         inArrears,
@@ -526,7 +522,7 @@ export default async function BillingPage({
         manualMarkPaidEnabled: typeof s?.manualMarkPaidEnabled === "boolean" ? s.manualMarkPaidEnabled : undefined,
         chargeDue: typeof s?.chargeDue === "boolean" ? s.chargeDue : undefined,
         lastPaidInCurrentPeriod: typeof s?.lastPaidInCurrentPeriod === "boolean" ? s.lastPaidInCurrentPeriod : false,
-        collectionCyclePaid: typeof s?.collectionCyclePaid === "boolean" ? s.collectionCyclePaid : false,
+        collectionCyclePaid,
         tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
         currentShippingInCents: shippingAppliedInCents,
         currentRequiresShipping: requiresShipping
@@ -681,7 +677,7 @@ export default async function BillingPage({
     // La fecha de pago (vencimientoAt) define si se debe cobrar
     const chargeDueAt = r.vencimientoAt ? new Date(r.vencimientoAt) : null;
     const isChargeDue = Boolean(chargeDueAt && !Number.isNaN(chargeDueAt.getTime()) && chargeDueAt.getTime() <= Date.now());
-    const chargeDue = typeof r.chargeDue === "boolean" ? r.chargeDue : r.status === "PAST_DUE" || r.status === "EXPIRED" || isChargeDue;
+    const chargeDue = typeof r.chargeDue === "boolean" ? r.chargeDue : !r.collectionCyclePaid && isChargeDue;
     const isCanceled = r.status === "CANCELED";
     const isSuspended = r.status === "SUSPENDED";
     const isInactive = isCanceled || isSuspended;
@@ -1173,11 +1169,10 @@ export default async function BillingPage({
                 <span>Acciones</span>
               </div>
               {rows.map((r) => {
-                const paymentStatus = getPaymentStatusLabel({
+                const paymentStatus = getCollectionStatusLabel({
                   status: r.status,
-                  paidAt: r.pagoAt,
-                  periodStartAt: r.periodoInicioAt,
-                  periodEndAt: r.periodoFinAt,
+                  dueAt: r.vencimientoAt,
+                  graceDays: r.graceDays,
                   collectionCyclePaid: r.collectionCyclePaid
                 });
                 const estadoSimple = getEstadoSimple(r.status);
@@ -1210,8 +1205,8 @@ export default async function BillingPage({
                     </div>
                     <div className="billing-list-cell billing-list-status">
                       <span
-                        className={`pill pill-sm ${paymentStatus === "Pagado" ? "pill-ok" : paymentStatus === "En mora" ? "pill-warn" : "pill-muted"}`}
-                        title={`Pago: ${paymentStatus} · Suscripción: ${estadoSimple.label}`}
+                        className={`pill pill-sm ${paymentStatus === "Al día" ? "pill-ok" : paymentStatus === "En mora" ? "pill-bad" : "pill-warn"}`}
+                        title={`Cobro: ${paymentStatus} · Suscripción: ${estadoSimple.label}`}
                       >
                         {paymentStatus}
                       </span>
@@ -1313,18 +1308,17 @@ export default async function BillingPage({
             </div>
           ) : (
             (() => {
-              const columns = ["Pagado", "Pendiente", "En mora"];
+              const columns = ["Al día", "En gracia", "En mora"];
               const grouped = new Map<string, any[]>();
               for (const c of columns) grouped.set(c, []);
               for (const r of rows) {
-                const paymentStatus = getPaymentStatusLabel({
+                const paymentStatus = getCollectionStatusLabel({
                   status: r.status,
-                  paidAt: r.pagoAt,
-                  periodStartAt: r.periodoInicioAt,
-                  periodEndAt: r.periodoFinAt,
+                  dueAt: r.vencimientoAt,
+                  graceDays: r.graceDays,
                   collectionCyclePaid: r.collectionCyclePaid
                 });
-                const key = paymentStatus === "Pagado" ? "Pagado" : paymentStatus === "En mora" ? "En mora" : "Pendiente";
+                const key = paymentStatus === "En mora" ? "En mora" : paymentStatus === "En gracia" ? "En gracia" : "Al día";
                 grouped.get(key)?.push(r);
               }
               return (
@@ -1341,11 +1335,10 @@ export default async function BillingPage({
                           const isCanceled = r.status === "CANCELED";
                           const isSuspended = r.status === "SUSPENDED";
                           const isInactive = isCanceled || isSuspended;
-                          const itemPaymentStatus = getPaymentStatusLabel({
+                          const itemPaymentStatus = getCollectionStatusLabel({
                             status: r.status,
-                            paidAt: r.pagoAt,
-                            periodStartAt: r.periodoInicioAt,
-                            periodEndAt: r.periodoFinAt,
+                            dueAt: r.vencimientoAt,
+                            graceDays: r.graceDays,
                             collectionCyclePaid: r.collectionCyclePaid
                           });
                           return (
@@ -1394,7 +1387,7 @@ export default async function BillingPage({
                                   </div>
                                   <div className="billing-kanban-sub">{r.tipoTx} · {r.cada}</div>
                                   <div className="billing-kanban-badges">
-                                    <span className={`pill pill-sm ${itemPaymentStatus === "Pagado" ? "pill-ok" : itemPaymentStatus === "En mora" ? "pill-bad" : "pill-warn"}`}>
+                                    <span className={`pill pill-sm ${itemPaymentStatus === "Al día" ? "pill-ok" : itemPaymentStatus === "En mora" ? "pill-bad" : "pill-warn"}`}>
                                       {itemPaymentStatus}
                                     </span>
                                   </div>

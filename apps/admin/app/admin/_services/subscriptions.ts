@@ -4,7 +4,7 @@ import { prisma } from "@suscripciones/database";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import { BillingCycleStatus, LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
-import { getAutoDebitConfig, getPaymentsConfig } from "@suscripciones/core/services/runtimeConfig";
+import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
 import { addIntervalUtc, toUtc } from "@suscripciones/core/lib/dates";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { attachPaymentToCycle, buildSubscriptionBillingStateIndex, computeBillingCycleDueAt, ensureBillingCyclesForSubscription, ensureBillingCyclesForSubscriptions, resolveConfiguredCollectionCycle, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "@suscripciones/core/services/billingCycles";
@@ -40,6 +40,10 @@ function hasUsablePaymentSource(metadata: any) {
     return false;
   });
 }
+
+const DEFAULT_SUBSCRIPTION_CYCLE_START_DAY = 1;
+const DEFAULT_SUBSCRIPTION_PAYMENT_DAY = 1;
+const DEFAULT_SUBSCRIPTION_PAYMENT_TIMING: "EN_CURSO" | "ANTICIPADO" = "EN_CURSO";
 
 function isBillingCyclePaid(cycle: { status?: unknown; paymentId?: unknown } | null | undefined) {
   if (!cycle) return false;
@@ -458,7 +462,7 @@ export async function listSubscriptions(args: {
     const collectionCyclePaid = isBillingCyclePaid(collectionCycle);
     const lastPaidInCurrentPeriod = collectionCyclePaid;
     const dueAt = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : periodEndAt;
-    const chargeDue = dueAt ? dueAt.getTime() <= Date.now() + 5_000 : false;
+    const chargeDue = collectionCyclePaid ? false : dueAt ? dueAt.getTime() <= Date.now() + 5_000 : false;
     const isInactive =
       s.status === SubscriptionStatus.CANCELED || s.status === SubscriptionStatus.EXPIRED || s.status === SubscriptionStatus.SUSPENDED;
     const allowManualCharge = Boolean(autoDebitCfg?.allowManualCharge ?? true);
@@ -584,15 +588,12 @@ export async function createSubscription(args: {
   if (periodEnd < startAt) return { ok: false, status: 400, error: "first_period_end_anterior_a_start" as const };
 
   const subscriptionMetaBase = args.metadata && typeof args.metadata === "object" ? (args.metadata as any) : {};
-  const paymentsCfg = await getPaymentsConfig().catch(() => null);
-  const defaultCycleStartDay = Number(paymentsCfg?.defaultCycleStartDay || 1);
-  const defaultPaymentDay = Number(paymentsCfg?.defaultPaymentDay || 1);
-  const defaultPaymentTiming = String(paymentsCfg?.defaultPaymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
-  const defaultGraceDays = Number(paymentsCfg?.defaultGraceDays || 1);
-  const graceDays = Number.isFinite(defaultGraceDays) ? Math.max(1, Math.min(5, Math.trunc(defaultGraceDays))) : 1;
-  const cycleStartDay = Number.isFinite(defaultCycleStartDay) ? Math.max(1, Math.min(31, Math.trunc(defaultCycleStartDay))) : 1;
-  const paymentDay = Number.isFinite(defaultPaymentDay) ? Math.max(1, Math.min(31, Math.trunc(defaultPaymentDay))) : 1;
-  const paymentTiming = defaultPaymentTiming === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
+  const autoDebitCfg = await getAutoDebitConfig().catch(() => null);
+  const defaultGraceDays = Number(autoDebitCfg?.graceDays || 5);
+  const graceDays = Number.isFinite(defaultGraceDays) ? Math.max(1, Math.min(5, Math.trunc(defaultGraceDays))) : 5;
+  const cycleStartDay = DEFAULT_SUBSCRIPTION_CYCLE_START_DAY;
+  const paymentDay = DEFAULT_SUBSCRIPTION_PAYMENT_DAY;
+  const paymentTiming = DEFAULT_SUBSCRIPTION_PAYMENT_TIMING;
 
   const dueAt = computeDueAtForPeriod({
     periodStartAt: startAt,

@@ -1,6 +1,6 @@
 import { prisma } from "../db/prisma";
 import { PaymentStatus, SubscriptionStatus, SmartViewVisibility as DbSmartViewVisibility } from "@prisma/client";
-import { buildSubscriptionBillingStateIndex } from "./billingCycles";
+import { buildSubscriptionBillingStateIndex, resolveCollectionDelinquency } from "./billingCycles";
 
 export type SmartViewRule =
   | {
@@ -595,10 +595,13 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
         const currentPeriodEndAt = activeCycle?.periodEndAt ? new Date(activeCycle.periodEndAt) : null;
         const currentPeriodStartAt = activeCycle?.periodStartAt ? new Date(activeCycle.periodStartAt) : null;
         const nextBillingDate = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : currentPeriodEndAt;
-        const daysPastDue =
-          nextBillingDate && nextBillingDate.getTime() < now
-            ? Math.floor((now - nextBillingDate.getTime()) / 86_400_000)
-            : 0;
+        const collectionState = resolveCollectionDelinquency({
+          cycle: collectionCycle,
+          graceDays: sub?.graceDays,
+          asOf: new Date(now),
+          fallbackSubscriptionStatus: sub?.status ?? null
+        });
+        const daysPastDue = collectionState.daysPastDue;
 
         const planMeta = asRecord(sub?.plan?.metadata);
         const collectionMode = (planMeta.collectionMode as string) || null;
@@ -637,7 +640,7 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
             currentCycle: activeCycle?.cycleNumber ?? null,
             nextBillingDate,
             daysPastDue,
-            inMora: sub?.status === SubscriptionStatus.PAST_DUE || daysPastDue > 0
+            inMora: collectionState.status === "EN_MORA"
           },
           plan: {
             name: sub?.plan?.name ?? null,
@@ -728,10 +731,13 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
         const currentPeriodStartAt = activeCycle?.periodStartAt ? new Date(activeCycle.periodStartAt) : null;
         const currentPeriodEndAt = activeCycle?.periodEndAt ? new Date(activeCycle.periodEndAt) : null;
         const nextBillingDate = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : currentPeriodEndAt;
-        const daysPastDue =
-          nextBillingDate && nextBillingDate.getTime() < now
-            ? Math.floor((now - nextBillingDate.getTime()) / 86_400_000)
-            : 0;
+        const collectionState = resolveCollectionDelinquency({
+          cycle: collectionCycle,
+          graceDays: s?.graceDays,
+          asOf: new Date(now),
+          fallbackSubscriptionStatus: s?.status ?? null
+        });
+        const daysPastDue = collectionState.daysPastDue;
         const planMeta = asRecord(s.plan?.metadata);
         const collectionMode = (planMeta.collectionMode as string) || null;
         const customerMeta = asRecord(s.customer?.metadata);
@@ -766,7 +772,7 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
             currentCycle: activeCycle?.cycleNumber ?? null,
             nextBillingDate,
             daysPastDue,
-            inMora: s.status === SubscriptionStatus.PAST_DUE || daysPastDue > 0
+            inMora: collectionState.status === "EN_MORA"
           },
           payments: {
             lastStatus: s.payments?.[0]?.status ?? null,

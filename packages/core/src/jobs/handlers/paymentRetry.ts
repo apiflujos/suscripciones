@@ -25,6 +25,27 @@ function asResultMode(raw: string): "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK" {
   return "MANUAL_LINK";
 }
 
+function hasUsableCustomerPaymentSource(metadata: any) {
+  const candidates = [
+    metadata?.wompi?.paymentSourceId,
+    metadata?.wompi?.payment_source_id,
+    metadata?.paymentSourceId,
+    metadata?.payment_source_id
+  ];
+  return candidates.some((value) => {
+    if (typeof value === "number") return Number.isFinite(value);
+    if (typeof value === "string") {
+      const normalized = value.trim();
+      if (!normalized) return false;
+      if (/^(null|undefined)$/i.test(normalized)) return false;
+      if (/^\d+$/.test(normalized)) return true;
+      if (/^src[_-]/i.test(normalized)) return true;
+      return normalized.length >= 6;
+    }
+    return false;
+  });
+}
+
 export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
   const subscriptionId = String(payload?.subscriptionId || "").trim();
   if (!subscriptionId) {
@@ -61,8 +82,8 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
     // Validar payment source para AUTO_DEBIT
     const collectionMode = resolveSubscriptionCollectionMode(sub);
     if (collectionMode === "AUTO_DEBIT") {
-      const paymentSourceId = (sub.customer.metadata as any)?.wompi?.paymentSourceId;
-      if (!paymentSourceId) {
+      const hasPaymentSource = hasUsableCustomerPaymentSource(sub.customer.metadata);
+      if (!hasPaymentSource) {
         await systemLog(LogLevel.WARN, "jobs.payment_retry", "Cliente sin token - creando link de pago", {
           subscriptionId,
           customerId: sub.customerId
@@ -232,7 +253,7 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
             error: msg,
             stack: err?.stack,
             email: sub.customer?.email,
-            hasPaymentSource: Boolean((sub.customer.metadata as any)?.wompi?.paymentSourceId),
+            hasPaymentSource: hasUsableCustomerPaymentSource(sub.customer.metadata),
             collectionMode: mode,
             subscriptionStatus: sub.status,
             currentCycle: billingState?.activeCycle?.cycleNumber ?? null,

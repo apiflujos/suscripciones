@@ -7,6 +7,7 @@ import { systemLog, SystemActor } from "./systemLog";
 import { subscriptionReminder } from "../jobs/handlers/subscriptionReminder";
 import { classifyReference } from "../webhooks/wompi/classifyReference";
 import { resolveSubscriptionBillingState } from "./billingCycles";
+import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
 
 type NotificationRule = {
   id: string;
@@ -213,8 +214,9 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
 
   const cfg = await getNotificationsConfig();
   const billingState = payment.subscriptionId ? await resolveSubscriptionBillingState({ subscriptionId: payment.subscriptionId }).catch(() => null) : null;
+  const resolvedMode = billingState?.subscription ? resolveSubscriptionCollectionMode(billingState.subscription as any) : null;
   const paymentType =
-    (billingState?.subscription?.plan?.metadata as any)?.collectionMode === "AUTO_LINK"
+    resolvedMode === "AUTO_LINK" || resolvedMode === "MANUAL_LINK"
       ? "LINK"
       : payment.subscriptionId
         ? "SUBSCRIPTION"

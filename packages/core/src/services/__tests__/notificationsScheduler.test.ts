@@ -42,11 +42,7 @@ vi.mock("../runtimeConfig", () => ({
     autoReconcileUnlinkedPayments: true,
     acceptUnlinkedPayments: true,
     notifyWhatsappForUnlinkedPayments: true,
-    includeUnlinkedPaymentsInMetrics: true,
-    defaultCycleStartDay: 1,
-    defaultPaymentDay: 1,
-    defaultPaymentTiming: "EN_CURSO",
-    defaultGraceDays: 1
+    includeUnlinkedPaymentsInMetrics: true
   }))
 }));
 

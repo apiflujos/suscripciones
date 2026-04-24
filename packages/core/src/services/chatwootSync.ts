@@ -2,7 +2,7 @@ import { LogLevel, Prisma } from "@prisma/client";
 import { createHash } from "crypto";
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
-import { resolveSubscriptionBillingState } from "./billingCycles";
+import { resolveCollectionDelinquency, resolveSubscriptionBillingState } from "./billingCycles";
 import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "./runtimeConfig";
 import { systemLog } from "./systemLog";
@@ -388,6 +388,12 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
     }
   };
 
+  const collectionState = resolveCollectionDelinquency({
+    cycle: collectionCycle,
+    graceDays: sub?.graceDays,
+    fallbackSubscriptionStatus: sub?.status ?? null
+  });
+
   const customAttributes = {
     customer_id: customer.id,
     tenant_id: customer.tenantId ?? null,
@@ -424,8 +430,8 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
     has_subscription: Boolean(sub),
     has_active_subscription: sub?.status === "ACTIVE",
     next_billing_date: nextBillingDate ? nextBillingDate.toISOString() : null,
-    days_past_due: daysPastDue,
-    in_mora: sub?.status === "PAST_DUE" || daysPastDue > 0,
+    days_past_due: collectionState.daysPastDue,
+    in_mora: collectionState.status === "EN_MORA",
 
     last_payment_id: latestPayment?.id ?? null,
     last_payment_status: latestPayment?.status ?? null,

@@ -55,11 +55,7 @@ export const paymentsConfigUpdateSchema = z.object({
   autoReconcileUnlinkedPayments: z.union([z.boolean(), z.string()]).optional(),
   acceptUnlinkedPayments: z.union([z.boolean(), z.string()]).optional(),
   notifyWhatsappForUnlinkedPayments: z.union([z.boolean(), z.string()]).optional(),
-  includeUnlinkedPaymentsInMetrics: z.union([z.boolean(), z.string()]).optional(),
-  defaultCycleStartDay: z.coerce.number().int().min(1).max(31).optional(),
-  defaultPaymentDay: z.coerce.number().int().min(1).max(31).optional(),
-  defaultPaymentTiming: z.enum(["EN_CURSO", "ANTICIPADO"]).optional(),
-  defaultGraceDays: z.coerce.number().int().min(1).max(5).optional()
+  includeUnlinkedPaymentsInMetrics: z.union([z.boolean(), z.string()]).optional()
 });
 
 export const chatwootUpdateSchema = z.object({
