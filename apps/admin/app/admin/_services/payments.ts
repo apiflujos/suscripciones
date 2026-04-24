@@ -369,7 +369,10 @@ export async function listSubscriptionBillingCycles(args: { subscriptionId: stri
   const rawItems = await prisma.subscriptionBillingCycle.findMany({
     where: {
       subscriptionId,
-      periodStartAt: { lte: new Date() }
+      OR: [
+        { periodStartAt: { lte: new Date() } },
+        { dueAt: { lte: new Date() } }
+      ]
     },
     orderBy: { periodStartAt: "desc" },
     take,
