@@ -261,12 +261,21 @@ function formatPlanTitle(plan: any) {
 function splitPlanDisplay(value: unknown) {
   const raw = String(value || "").trim();
   if (!raw) return { name: "—", sku: "" };
-  const match = raw.match(/^(.*?)(?:\s*\(SKU\s*([^)]+)\))$/i);
-  if (!match) return { name: raw, sku: "" };
-  return {
-    name: String(match[1] || "").trim() || raw,
-    sku: String(match[2] || "").trim()
-  };
+  // Formato "(SKU XXXXXX)" al final
+  const skuMatch = raw.match(/^(.*?)(?:\s*\(SKU\s*([^)]+)\))$/i);
+  if (skuMatch) {
+    const name = String(skuMatch[1] || "").trim().replace(/^\[\d+\]\s*/, "") || raw;
+    return { name, sku: String(skuMatch[2] || "").trim() };
+  }
+  // Formato "[000003] Nombre producto"
+  const bracketMatch = raw.match(/^\[(\d+)\]\s*(.+)$/);
+  if (bracketMatch) {
+    return {
+      name: String(bracketMatch[2] || "").trim() || raw,
+      sku: String(bracketMatch[1] || "").trim()
+    };
+  }
+  return { name: raw, sku: "" };
 }
 
 function splitProductDisplay(value: unknown) {
