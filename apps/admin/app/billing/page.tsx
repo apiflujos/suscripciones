@@ -81,19 +81,16 @@ function getActivo(status: any) {
 
 function getEstadoSimple(status: any): { label: string; class: string } {
   const s = String(status || "");
-  if (s === "EXPIRED") return { label: "Vencida", class: "pill-bad" };
-  if (s === "PAST_DUE") return { label: "En mora", class: "pill-bad" };
-  if (s === "ACTIVE") return { label: "Activa", class: "pill-ok" };
+  if (s === "ACTIVE" || s === "PAST_DUE") return { label: "Activa", class: "pill-ok" };
   if (s === "SUSPENDED") return { label: "Suspendida", class: "pill-warn" };
-  if (s === "CANCELED") return { label: "Cancelada", class: "pill-muted" };
+  if (s === "CANCELED" || s === "EXPIRED") return { label: "Cancelada", class: "pill-muted" };
   return { label: s || "—", class: "pill-muted" };
 }
 
 function getEstado(status: any): { key: "si" | "no" | "mora"; label: string; class: string } {
   const s = String(status || "");
   const base = getEstadoSimple(status);
-  if (s === "ACTIVE") return { key: "si", ...base };
-  if (s === "PAST_DUE") return { key: "mora", ...base };
+  if (s === "ACTIVE" || s === "PAST_DUE") return { key: "si", ...base };
   return { key: "no", ...base };
 }
 
