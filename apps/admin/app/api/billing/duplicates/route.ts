@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     include: { plan: true, tenantLinks: true }
   });
   const duplicates = items
-    .filter((s: any) => String(s?.plan?.metadata?.catalog?.itemId || "").trim() === productId)
+    .filter((s: any) => String(s?.productId || (s?.plan as any)?.catalogProductId || s?.plan?.metadata?.catalog?.itemId || "").trim() === productId)
     .map((s: any) => ({
       id: String(s?.id || ""),
       status: String(s?.status || ""),

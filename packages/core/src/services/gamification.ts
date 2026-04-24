@@ -716,29 +716,36 @@ async function recomputeProductScores(tenantId: string | null, weights: typeof G
 
   if (!plans.length) return;
 
-  const planIds = plans.map((p) => p.id);
+  const productIds = plans.map((p) => p.id);
 
   const tenantFilter = tenantId ? `AND s."tenantId" = '${tenantId}'::uuid` : "";
   const rows = await prisma.$queryRawUnsafe<
-    Array<{ planId: string; tenantId: string; approvedCount: bigint; amountInCents: bigint; lastPaidAt: Date | null }>
+    Array<{ productId: string; tenantId: string; approvedCount: bigint; amountInCents: bigint; lastPaidAt: Date | null }>
   >(
-    `SELECT s."planId" as "planId",
+    `SELECT COALESCE(
+              s."productId",
+              NULLIF(sp."metadata"->'catalog'->>'itemId', '')::uuid
+            ) as "productId",
             s."tenantId" as "tenantId",
             COUNT(p.*)::bigint as "approvedCount",
             COALESCE(SUM(p."amountInCents"), 0)::bigint as "amountInCents",
             MAX(p."paidAt") as "lastPaidAt"
      FROM "Payment" p
      JOIN "Subscription" s ON s."id" = p."subscriptionId"
+     LEFT JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
      WHERE p."status" = 'APPROVED'
        AND p."subscriptionId" IS NOT NULL
-       AND s."planId" IN (${planIds.map((id) => `'${id}'::uuid`).join(",")})
+       AND COALESCE(
+             s."productId",
+             NULLIF(sp."metadata"->'catalog'->>'itemId', '')::uuid
+           ) IN (${productIds.map((id) => `'${id}'::uuid`).join(",")})
        ${tenantFilter}
      GROUP BY 1, 2`
   );
 
   const rowsByKey = new Map<string, { count: number; amount: number; lastPaidAt: Date | null }>();
   rows.forEach((r) => {
-    const key = `${r.tenantId || ""}:${r.planId}`;
+    const key = `${r.tenantId || ""}:${r.productId}`;
     rowsByKey.set(key, {
       count: Number(r.approvedCount || 0),
       amount: Number(r.amountInCents || 0),
@@ -747,33 +754,40 @@ async function recomputeProductScores(tenantId: string | null, weights: typeof G
   });
 
   const globalRows = await prisma.$queryRawUnsafe<
-    Array<{ planId: string; approvedCount: bigint; amountInCents: bigint; lastPaidAt: Date | null }>
+    Array<{ productId: string; approvedCount: bigint; amountInCents: bigint; lastPaidAt: Date | null }>
   >(
-    `SELECT s."planId" as "planId",
+    `SELECT COALESCE(
+              s."productId",
+              NULLIF(sp."metadata"->'catalog'->>'itemId', '')::uuid
+            ) as "productId",
             COUNT(p.*)::bigint as "approvedCount",
             COALESCE(SUM(p."amountInCents"), 0)::bigint as "amountInCents",
             MAX(p."paidAt") as "lastPaidAt"
      FROM "Payment" p
      JOIN "Subscription" s ON s."id" = p."subscriptionId"
+     LEFT JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
      WHERE p."status" = 'APPROVED'
        AND p."subscriptionId" IS NOT NULL
-       AND s."planId" IN (${planIds.map((id) => `'${id}'::uuid`).join(",")})
+       AND COALESCE(
+             s."productId",
+             NULLIF(sp."metadata"->'catalog'->>'itemId', '')::uuid
+           ) IN (${productIds.map((id) => `'${id}'::uuid`).join(",")})
      GROUP BY 1`
   );
 
-  const globalByPlan = new Map<string, { count: number; amount: number; lastPaidAt: Date | null }>();
+  const globalByProduct = new Map<string, { count: number; amount: number; lastPaidAt: Date | null }>();
   globalRows.forEach((r) => {
-    globalByPlan.set(String(r.planId), {
+    globalByProduct.set(String(r.productId), {
       count: Number(r.approvedCount || 0),
       amount: Number(r.amountInCents || 0),
       lastPaidAt: r.lastPaidAt ? new Date(r.lastPaidAt) : null
     });
   });
 
-  const globalScoreByPlan = new Map<string, number>();
+  const globalScoreByProduct = new Map<string, number>();
 
   for (const plan of plans) {
-    const stats = globalByPlan.get(String(plan.id)) || { count: 0, amount: 0, lastPaidAt: null };
+    const stats = globalByProduct.get(String(plan.id)) || { count: 0, amount: 0, lastPaidAt: null };
     const computed = computeProductScores({
       approvedCount: stats.count,
       totalAmountInCents: stats.amount,
@@ -808,7 +822,7 @@ async function recomputeProductScores(tenantId: string | null, weights: typeof G
       }
     });
 
-    globalScoreByPlan.set(String(plan.id), computed.statusScore);
+    globalScoreByProduct.set(String(plan.id), computed.statusScore);
   }
 
   for (const plan of plans) {
@@ -822,7 +836,7 @@ async function recomputeProductScores(tenantId: string | null, weights: typeof G
       weights
     });
 
-    const globalScore = globalScoreByPlan.get(String(plan.id)) || 0;
+    const globalScore = globalScoreByProduct.get(String(plan.id)) || 0;
     const cfg = await getTenantGamificationConfig(tId);
     const effectiveScore = computeEffectiveScore(globalScore, computed.statusScore, cfg.factor, cfg.bonus);
     const levelInfo = levelForScore(effectiveScore);

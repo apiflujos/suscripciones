@@ -82,7 +82,7 @@ export function CustomersModals({
       <AppModal
         open={openPlan}
         onClose={() => setOpenPlan(false)}
-        title="Crear plan o suscripción"
+        title="Crear suscripción o cobro"
         maxWidth={980}
       >
         <NewBillingAssignmentForm

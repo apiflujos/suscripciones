@@ -81,7 +81,7 @@ export function NewProductForm({
 
       <div className="panelHeaderRow">
         <strong>Crear producto / servicio</strong>
-        <div className="field-hint">Define el ítem de catálogo. Luego lo puedes usar en planes y suscripciones.</div>
+        <div className="field-hint">Define el producto base del catálogo. Luego lo puedes usar para crear suscripciones.</div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>

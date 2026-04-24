@@ -192,6 +192,15 @@ function buildMrrRoundFormula(includeCustom: boolean = false): string {
   return `ROUND(sp."priceInCents"::numeric * ${buildMrrFormula(includeCustom)})`;
 }
 
+function buildResolvedProductIdSql(subscriptionAlias: string, planAlias: string) {
+  const s = validateAlias(subscriptionAlias);
+  const sp = validateAlias(planAlias);
+  return `COALESCE(
+    "${s}"."productId",
+    NULLIF("${sp}"."metadata"->'catalog'->>'itemId', '')::uuid
+  )`;
+}
+
 export async function getMetricsOverview(args: { from: Date; to: Date; granularity: Granularity; tenantId?: string | null }) {
   const startTime = Date.now();
   const { from, to } = clampRange(args.from, args.to);
@@ -724,6 +733,198 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   const revenueByPlanTypeInCents: Record<string, number> = { manual_link: 0, auto_subscription: 0 };
   for (const r of revenueByPlanType) revenueByPlanTypeInCents[String(r.plan_type)] = num(r.revenue_cents);
 
+  let revenueByProduct: Array<{ product_id: string | null; product_name: string | null; payments_success: bigint; revenue_cents: bigint }> = [];
+  try {
+    const resolvedProductIdSql = buildResolvedProductIdSql("s", "sp");
+    revenueByProduct = await prisma.$queryRawUnsafe<
+      Array<{ product_id: string | null; product_name: string | null; payments_success: bigint; revenue_cents: bigint }>
+    >(
+      `SELECT
+          ${resolvedProductIdSql}::text AS product_id,
+          COALESCE(prod."metadata"->>'displayName', prod."name", 'Sin producto') AS product_name,
+          COUNT(*) FILTER (
+            WHERE p."status"='APPROVED'
+              AND p."paidAt" IS NOT NULL
+              AND p."paidAt" >= $1::timestamptz
+              AND p."paidAt" < $2::timestamptz
+          )::bigint AS payments_success,
+          COALESCE(SUM(p."amountInCents") FILTER (
+            WHERE p."status"='APPROVED'
+              AND p."paidAt" IS NOT NULL
+              AND p."paidAt" >= $1::timestamptz
+              AND p."paidAt" < $2::timestamptz
+          ), 0)::bigint AS revenue_cents
+       FROM "Payment" p
+       INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
+       INNER JOIN "Customer" c ON c."id" = s."customerId"
+       INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
+       LEFT JOIN "SubscriptionPlan" prod ON prod."id" = ${resolvedProductIdSql}
+       WHERE p."subscriptionId" IS NOT NULL
+         AND p."status"='APPROVED'
+         AND p."paidAt" IS NOT NULL
+         AND p."paidAt" >= $1::timestamptz
+         AND p."paidAt" < $2::timestamptz
+         ${paymentReconciliationFilter}
+         ${paymentUnlinkedFilter}
+         ${tf("p") }
+       GROUP BY 1, 2
+       ORDER BY revenue_cents DESC, payments_success DESC
+       LIMIT 12`,
+      from,
+      to,
+    );
+  } catch (err) {
+    console.error('[Metrics] Error en revenueByProduct:', err);
+  }
+  const revenueByProductRows = revenueByProduct
+    .filter((r) => String(r.product_id || "").trim())
+    .map((r) => ({
+      productId: String(r.product_id || ""),
+      productName: String(r.product_name || "Sin producto"),
+      paymentsSuccess: num(r.payments_success),
+      revenueInCents: num(r.revenue_cents)
+    }));
+
+  let paymentActivityByProduct: Array<{
+    product_id: string | null;
+    product_name: string | null;
+    payments_success: bigint;
+    payments_failed: bigint;
+    revenue_cents: bigint;
+  }> = [];
+  try {
+    const resolvedProductIdSql = buildResolvedProductIdSql("s", "sp");
+    paymentActivityByProduct = await prisma.$queryRawUnsafe<
+      Array<{
+        product_id: string | null;
+        product_name: string | null;
+        payments_success: bigint;
+        payments_failed: bigint;
+        revenue_cents: bigint;
+      }>
+    >(
+      `SELECT
+          ${resolvedProductIdSql}::text AS product_id,
+          COALESCE(prod."metadata"->>'displayName', prod."name", 'Sin producto') AS product_name,
+          COUNT(*) FILTER (
+            WHERE p."status"='APPROVED'
+              AND p."paidAt" IS NOT NULL
+              AND p."paidAt" >= $1::timestamptz
+              AND p."paidAt" < $2::timestamptz
+          )::bigint AS payments_success,
+          COUNT(*) FILTER (
+            WHERE p."status" IN ('DECLINED','ERROR','VOIDED')
+              AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz
+              AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz
+          )::bigint AS payments_failed,
+          COALESCE(SUM(p."amountInCents") FILTER (
+            WHERE p."status"='APPROVED'
+              AND p."paidAt" IS NOT NULL
+              AND p."paidAt" >= $1::timestamptz
+              AND p."paidAt" < $2::timestamptz
+          ), 0)::bigint AS revenue_cents
+       FROM "Payment" p
+       INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
+       INNER JOIN "Customer" c ON c."id" = s."customerId"
+       INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
+       LEFT JOIN "SubscriptionPlan" prod ON prod."id" = ${resolvedProductIdSql}
+       WHERE p."subscriptionId" IS NOT NULL
+         AND (
+           (p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)
+           OR (COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz)
+         )
+         ${paymentReconciliationFilter}
+         ${paymentUnlinkedFilter}
+         ${tf("p") }
+       GROUP BY 1, 2
+       ORDER BY revenue_cents DESC, payments_success DESC, payments_failed DESC
+       LIMIT 12`,
+      from,
+      to,
+    );
+  } catch (err) {
+    console.error('[Metrics] Error en paymentActivityByProduct:', err);
+  }
+  const paymentActivityByProductRows = paymentActivityByProduct
+    .filter((r) => String(r.product_id || "").trim())
+    .map((r) => ({
+      productId: String(r.product_id || ""),
+      productName: String(r.product_name || "Sin producto"),
+      paymentsSuccess: num(r.payments_success),
+      paymentsFailed: num(r.payments_failed),
+      revenueInCents: num(r.revenue_cents)
+    }));
+
+  let linkActivityByProduct: Array<{
+    product_id: string | null;
+    product_name: string | null;
+    links_sent: bigint;
+    links_paid: bigint;
+    revenue_cents: bigint;
+  }> = [];
+  try {
+    linkActivityByProduct = await prisma.$queryRawUnsafe<
+      Array<{
+        product_id: string | null;
+        product_name: string | null;
+        links_sent: bigint;
+        links_paid: bigint;
+        revenue_cents: bigint;
+      }>
+    >(
+      `SELECT
+          COALESCE(
+            pl."productId",
+            NULLIF(sp."metadata"->'catalog'->>'itemId', '')::uuid
+          )::text AS product_id,
+          COALESCE(prod."metadata"->>'displayName', prod."name", 'Sin producto') AS product_name,
+          COUNT(*) FILTER (
+            WHERE pl."sentAt" >= $1::timestamptz
+              AND pl."sentAt" < $2::timestamptz
+          )::bigint AS links_sent,
+          COUNT(*) FILTER (
+            WHERE pl."paidAt" IS NOT NULL
+              AND pl."paidAt" >= $1::timestamptz
+              AND pl."paidAt" < $2::timestamptz
+          )::bigint AS links_paid,
+          COALESCE(SUM(p."amountInCents") FILTER (
+            WHERE p."status"='APPROVED'
+              AND p."paidAt" IS NOT NULL
+              AND p."paidAt" >= $1::timestamptz
+              AND p."paidAt" < $2::timestamptz
+          ), 0)::bigint AS revenue_cents
+       FROM "PaymentLink" pl
+       INNER JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
+       LEFT JOIN "SubscriptionPlan" prod ON prod."id" = COALESCE(
+         pl."productId",
+         NULLIF(sp."metadata"->'catalog'->>'itemId', '')::uuid
+       )
+       LEFT JOIN "Payment" p ON p."id" = pl."paymentId"
+       WHERE sp."planType" = 'manual_link'
+         AND (
+           (pl."sentAt" >= $1::timestamptz AND pl."sentAt" < $2::timestamptz)
+           OR (pl."paidAt" IS NOT NULL AND pl."paidAt" >= $1::timestamptz AND pl."paidAt" < $2::timestamptz)
+         )
+         ${tf("pl") }
+       GROUP BY 1, 2
+       ORDER BY revenue_cents DESC, links_paid DESC, links_sent DESC
+       LIMIT 12`,
+      from,
+      to,
+    );
+  } catch (err) {
+    console.error('[Metrics] Error en linkActivityByProduct:', err);
+  }
+  const linkActivityByProductRows = linkActivityByProduct
+    .filter((r) => String(r.product_id || "").trim())
+    .map((r) => ({
+      productId: String(r.product_id || ""),
+      productName: String(r.product_name || "Sin producto"),
+      linksSent: num(r.links_sent),
+      linksPaid: num(r.links_paid),
+      revenueInCents: num(r.revenue_cents)
+    }));
+
   let firstDataRow: Array<{ first_at: Date | null }> = [{ first_at: null }];
   try {
     firstDataRow = await prisma.$queryRawUnsafe<Array<{ first_at: Date | null }>>(
@@ -962,7 +1163,10 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       }))
     },
     breakdown: {
-      revenueByPlanTypeInCents
+      revenueByPlanTypeInCents,
+      revenueByProduct: revenueByProductRows,
+      paymentActivityByProduct: paymentActivityByProductRows,
+      linkActivityByProduct: linkActivityByProductRows
     },
     meta: {
       firstDataAt

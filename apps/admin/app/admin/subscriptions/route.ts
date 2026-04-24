@@ -27,6 +27,7 @@ import { validateWompiCurrency } from "@suscripciones/core/lib/wompiSignature";
 import { computeBillingCycleDueAt, ensureBillingCyclesForSubscription, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
 import { getPaymentsConfig } from "@suscripciones/core/services/runtimeConfig";
 import { listSubscriptions } from "../_services/subscriptions";
+import { listPlanIdsForCatalogProducts, readCatalogProductIdFromPlanMetadata } from "../_services/productPlanMapping";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -233,17 +234,23 @@ export async function POST(req: Request) {
       return Response.json({ error: "tenant_mismatch", mensaje: "El customer no está vinculado al tenant especificado" }, { status: 409 });
     }
   }
+  const tenantId = effectiveTenantIds[0];
   if (!parsed.data.allowDuplicate) {
-    const catalogItemId = String((plan.metadata as any)?.catalog?.itemId || "").trim();
+    const catalogItemId = readCatalogProductIdFromPlanMetadata(plan.metadata);
     const activeStatuses = [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED, SubscriptionStatus.EXPIRED];
     const duplicateWhere: any = {
       customerId: parsed.data.customerId,
       status: { in: activeStatuses }
     };
     if (catalogItemId) {
+      const relatedPlanIds = Array.from(
+        new Set((await listPlanIdsForCatalogProducts({ productIds: [catalogItemId], tenantId, includeCatalogItems: false })).get(catalogItemId) || [])
+      ).filter(Boolean);
+      if (!relatedPlanIds.includes(parsed.data.planId)) relatedPlanIds.push(parsed.data.planId);
       duplicateWhere.OR = [
+        { productId: catalogItemId },
         { planId: parsed.data.planId },
-        { plan: { metadata: { path: ["catalog", "itemId"], equals: catalogItemId } as any } }
+        ...(relatedPlanIds.length ? [{ planId: { in: relatedPlanIds } }] : [])
       ];
     } else {
       duplicateWhere.planId = parsed.data.planId;
@@ -268,7 +275,6 @@ export async function POST(req: Request) {
       }, { status: 409 });
     }
   }
-  const tenantId = effectiveTenantIds[0];
 
   const collectionMode = String((plan.metadata as any)?.collectionMode || "MANUAL_LINK");
   const paymentSourceId = (() => {

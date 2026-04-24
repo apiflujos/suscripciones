@@ -204,12 +204,12 @@ export function SubscriptionEditModal({
       <button
         className="ghost btn-compact btn-icon-only btn-edit"
         type="button"
-        title="Editar suscripción"
-        aria-label="Editar suscripción"
+        title="Editar producto y facturación"
+        aria-label="Editar producto y facturación"
         onClick={() => setOpen(true)}
       />
 
-      <AppModal open={open} onClose={() => setOpen(false)} title="Editar suscripción" panelClassName="subscription-edit-modal">
+      <AppModal open={open} onClose={() => setOpen(false)} title="Editar producto y facturación" panelClassName="subscription-edit-modal">
         <form action={updateSubscriptionBillingSettings} className="modal-body subscription-edit-modal-body">
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="subscriptionId" value={subscriptionId} />
@@ -263,7 +263,7 @@ export function SubscriptionEditModal({
                     </div>
                   ))}
                   {products.length === 0 && (
-                    <div className="field-hint">No hay productos adicionales</div>
+                    <div className="field-hint">No hay productos adicionales configurados</div>
                   )}
                 </div>
                 

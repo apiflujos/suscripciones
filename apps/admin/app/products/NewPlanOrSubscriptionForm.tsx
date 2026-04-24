@@ -261,8 +261,8 @@ export function NewPlanOrSubscriptionForm({
     <div className="panel module">
       <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <h3>Crear plan o suscripción</h3>
-          <HelpTip text="Aquí creas la plantilla (sin contacto) y la amarras a un producto/servicio." />
+          <h3>Crear suscripción desde producto</h3>
+          <HelpTip text="Este flujo toma un producto del catálogo y crea la configuración interna necesaria para suscribir un cliente." />
         </div>
         <button type="button" className={open ? "btnLink" : "primary"} data-loader="off" onClick={() => setOpen((v) => !v)}>
           {open ? "Cerrar" : "Crear nuevo"}
@@ -312,8 +312,8 @@ export function NewPlanOrSubscriptionForm({
           <div className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
             <div style={{ display: "grid", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                <strong>Producto / Servicio (amarrado al plan)</strong>
-                <HelpTip text="Este ítem define el precio (con impuestos/descuentos/variantes) que se cobrará o se enviará por link." />
+                <strong>Producto / Servicio</strong>
+                <HelpTip text="Este ítem define el precio base, impuestos, descuentos y variantes que usará la suscripción." />
               </div>
 
               <div className="field">

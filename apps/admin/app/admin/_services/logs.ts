@@ -18,6 +18,7 @@ export async function listPaymentLogs(args: {
   to?: string;
   tenantId?: string;
   planId?: string;
+  productId?: string;
   includeIgnored?: boolean;
   withCount?: boolean;
 }) {
@@ -31,6 +32,7 @@ export async function listPaymentLogs(args: {
   const toRaw = String(args.to ?? "").trim();
   const tenantId = String(args.tenantId ?? "").trim();
   const planId = String(args.planId ?? "").trim();
+  const productId = String(args.productId ?? "").trim();
 
   const statusFilter =
     statusRaw === "APPROVED"
@@ -91,6 +93,14 @@ export async function listPaymentLogs(args: {
     ...(statusFilter ? { status: { in: statusFilter as any } } : {}),
     ...(tenantId ? { tenantId } : {}),
     ...(planId ? { subscription: { planId } } : {}),
+    ...(productId
+      ? {
+          subscription: {
+            ...(planId ? { planId } : {}),
+            OR: [{ productId }, { plan: { catalogProductId: productId } }]
+          }
+        }
+      : {}),
     ...dateWhere,
     ...(q
       ? {
@@ -101,6 +111,7 @@ export async function listPaymentLogs(args: {
             { customer: { name: { contains: q, mode: "insensitive" } } },
             { customer: { email: { contains: q, mode: "insensitive" } } },
             { customer: { phone: { contains: q, mode: "insensitive" } } },
+            { subscription: { product: { name: { contains: q, mode: "insensitive" } } } },
             { subscription: { plan: { name: { contains: q, mode: "insensitive" } } } }
           ]
         }
@@ -108,7 +119,7 @@ export async function listPaymentLogs(args: {
   };
   const where = ids.length ? ({ ...whereBase, id: { in: ids } } as Prisma.PaymentWhereInput) : whereBase;
   const include = {
-    subscription: { include: { plan: true, customer: true } },
+    subscription: { include: { plan: true, product: true, customer: true } },
     customer: true,
     attempts: { orderBy: { createdAt: "desc" }, take: 1 }
   } as const;
@@ -236,8 +247,15 @@ export async function listPaymentLogs(args: {
         planName: planBySubscription.get(s.id) || "Plan"
       }))
     );
+    const resolvedProductId =
+      String(item.subscription?.productId || "").trim() ||
+      String((item.subscription?.plan as any)?.catalogProductId || item.subscription?.plan?.metadata?.catalog?.itemId || "").trim() ||
+      null;
+    const resolvedProductName = String(item.subscription?.product?.name || "").trim() || String(item.subscription?.plan?.name || "").trim() || null;
     return {
       ...item,
+      productId: resolvedProductId,
+      productName: resolvedProductName,
       failureCode,
       failureReason,
       reconciliation,
@@ -290,6 +308,7 @@ export async function listSystemLogs(args: {
   const subscriptionIds = new Set<string>();
   const customerIds = new Set<string>();
   const planIds = new Set<string>();
+  const productIds = new Set<string>();
   const paymentIds = new Set<string>();
   const webhookIds = new Set<string>();
 
@@ -298,11 +317,12 @@ export async function listSystemLogs(args: {
     if (ctx.subscriptionId) subscriptionIds.add(String(ctx.subscriptionId));
     if (ctx.customerId) customerIds.add(String(ctx.customerId));
     if (ctx.planId) planIds.add(String(ctx.planId));
+    if (ctx.productId) productIds.add(String(ctx.productId));
     if (ctx.paymentId) paymentIds.add(String(ctx.paymentId));
     if (ctx.webhookEventId) webhookIds.add(String(ctx.webhookEventId));
   }
 
-  const [subscriptions, customers, plans, payments, webhooks] = await Promise.all([
+  const [subscriptions, customers, plans, products, payments, webhooks] = await Promise.all([
     subscriptionIds.size
       ? prisma.subscription.findMany({
           where: { id: { in: Array.from(subscriptionIds) } },
@@ -310,6 +330,8 @@ export async function listSystemLogs(args: {
             id: true,
             customerId: true,
             customer: { select: { name: true, email: true, phone: true } },
+            productId: true,
+            product: { select: { name: true } },
             plan: { select: { name: true } }
           }
         })
@@ -326,6 +348,12 @@ export async function listSystemLogs(args: {
           select: { id: true, name: true }
         })
       : Promise.resolve([]),
+    productIds.size
+      ? prisma.subscriptionPlan.findMany({
+          where: { id: { in: Array.from(productIds) } },
+          select: { id: true, name: true }
+        })
+      : Promise.resolve([]),
     paymentIds.size
       ? prisma.payment.findMany({
           where: { id: { in: Array.from(paymentIds) } },
@@ -333,7 +361,13 @@ export async function listSystemLogs(args: {
             id: true,
             customerId: true,
             customer: { select: { name: true, email: true, phone: true } },
-            subscription: { select: { plan: { select: { name: true } } } }
+            subscription: {
+              select: {
+                productId: true,
+                product: { select: { name: true } },
+                plan: { select: { name: true } }
+              }
+            }
           }
         })
       : Promise.resolve([]),
@@ -345,6 +379,7 @@ export async function listSystemLogs(args: {
   const subById = new Map(subscriptions.map((s) => [String(s.id), s]));
   const customerById = new Map(customers.map((c) => [String(c.id), c]));
   const planById = new Map(plans.map((p) => [String(p.id), p]));
+  const productById = new Map(products.map((p) => [String(p.id), p]));
   const paymentById = new Map(payments.map((p) => [String(p.id), p]));
   const webhookById = new Map(webhooks.map((w) => [String(w.id), w]));
 
@@ -365,18 +400,22 @@ export async function listSystemLogs(args: {
     if (ctx.paymentId && paymentById.has(String(ctx.paymentId))) {
       const p = paymentById.get(String(ctx.paymentId)) as any;
       const customer = p.customer?.name || p.customer?.email || p.customer?.phone || p.customerId;
-      const plan = p.subscription?.plan?.name ? ` · ${p.subscription.plan.name}` : "";
-      return `Pago · ${customer}${plan}`;
+      const product = p.subscription?.product?.name || p.subscription?.plan?.name;
+      return `Pago · ${customer}${product ? ` · ${product}` : ""}`;
     }
     if (ctx.subscriptionId && subById.has(String(ctx.subscriptionId))) {
       const s = subById.get(String(ctx.subscriptionId)) as any;
       const customer = s.customer?.name || s.customer?.email || s.customer?.phone || s.customerId;
-      const plan = s.plan?.name ? ` · ${s.plan.name}` : "";
-      return `Suscripción · ${customer}${plan}`;
+      const product = s.product?.name || s.plan?.name;
+      return `Suscripción · ${customer}${product ? ` · ${product}` : ""}`;
     }
     if (ctx.customerId && customerById.has(String(ctx.customerId))) {
       const c = customerById.get(String(ctx.customerId)) as any;
       return `Cliente · ${c.name || c.email || c.phone || c.id}`;
+    }
+    if (ctx.productId && productById.has(String(ctx.productId))) {
+      const p = productById.get(String(ctx.productId)) as any;
+      return `Producto · ${p.name || p.id}`;
     }
     if (ctx.planId && planById.has(String(ctx.planId))) {
       const p = planById.get(String(ctx.planId)) as any;
@@ -712,7 +751,13 @@ export async function listWebhookEvents(args: {
           currency: true,
           status: true,
           subscriptionId: true,
-          subscription: { select: { plan: { select: { name: true, metadata: true } } } },
+          subscription: {
+            select: {
+              productId: true,
+              product: { select: { name: true } },
+              plan: { select: { name: true, metadata: true } }
+            }
+          },
           customer: { select: { id: true, name: true, email: true, phone: true } }
         }
       })
@@ -746,7 +791,7 @@ export async function listWebhookEvents(args: {
 
     if (payment?.subscriptionId) {
       const mode = String((payment.subscription as any)?.plan?.metadata?.collectionMode || "");
-      if (mode === "AUTO_LINK") return "Pago del plan";
+      if (mode === "AUTO_LINK") return "Pago del producto";
       if (mode === "AUTO_DEBIT") return "Pago suscripción";
       return "Pago suscripción";
     }
@@ -757,9 +802,9 @@ export async function listWebhookEvents(args: {
     return "Pago por link de pago";
   }
 
-  function planNameFor(item: any) {
+  function productNameFor(item: any) {
     const payment = resolvePayment(item);
-    return payment?.subscription?.plan?.name || null;
+    return payment?.subscription?.product?.name || payment?.subscription?.plan?.name || null;
   }
 
   const normalized = items.map((item: any) => {
@@ -790,7 +835,9 @@ export async function listWebhookEvents(args: {
       paymentCurrency: payment?.currency ?? null,
       paymentStatus: payment?.status ?? null,
       paymentType: paymentTypeFor(item),
-      planName: planNameFor(item),
+      productId: payment?.subscription?.productId ?? (payment?.subscription?.plan as any)?.catalogProductId ?? payment?.subscription?.plan?.metadata?.catalog?.itemId ?? null,
+      productName: productNameFor(item),
+      planName: payment?.subscription?.plan?.name ?? null,
       customer: payment?.customer ?? null,
       payload: item.payload
     };
@@ -804,6 +851,7 @@ export async function listWebhookEvents(args: {
           item.txReference,
           item.paymentLinkId,
           item.paymentType,
+          item.productName,
           item.planName,
           item.customer?.name,
           item.customer?.email,

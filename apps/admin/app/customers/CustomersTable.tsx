@@ -72,7 +72,7 @@ export function CustomersTable({
   view?: "cards" | "list";
   currentTenantId?: string;
   latestLinks: Record<string, LatestLink>;
-  subscriptionsByCustomer: Record<string, { hasPlan: boolean; planName?: string; status?: string; collectionMode?: string; subscriptionId?: string; productId?: string; planId?: string }>;
+  subscriptionsByCustomer: Record<string, { hasPlan: boolean; productName?: string; status?: string; collectionMode?: string; subscriptionId?: string; productId?: string; planId?: string }>;
   products: any[];
   empresas: any[];
   checkoutTemplates: any[];
@@ -566,7 +566,7 @@ export function CustomersTable({
               c?.metadata?.documentNumber ||
               c?.metadata?.document ||
               "";
-            const planName = formatPlanLabel(subInfo?.planName || "");
+            const productName = formatPlanLabel(subInfo?.productName || "");
             const status = String(subInfo?.status || "");
             const collectionMode = String(subInfo?.collectionMode || "");
             const statusLabel =
@@ -587,7 +587,7 @@ export function CustomersTable({
                   <div className="contact-list-sub">{c.email || "—"} · {c.phone || "—"}</div>
                 </div>
                 <div className="contact-list-cell">
-                  <div className="contact-list-sub">{planName || "—"}</div>
+                  <div className="contact-list-sub">{productName || "—"}</div>
                   <div className="contact-list-sub">{kindLabel}</div>
                 </div>
                 <div className="contact-list-cell">
@@ -706,7 +706,7 @@ export function CustomersTable({
             c?.metadata?.document ||
             "";
           const hasPlan = subInfo?.hasPlan ?? false;
-          const planName = formatPlanLabel(subInfo?.planName || "");
+          const productName = formatPlanLabel(subInfo?.productName || "");
           const status = String(subInfo?.status || "");
           const collectionMode = String(subInfo?.collectionMode || "");
           const kindLabel = !hasPlan
@@ -804,11 +804,11 @@ export function CustomersTable({
                                 style={{ color: 'var(--primary)', textDecoration: 'underline' }}
                                 title="Ir a la suscripción"
                               >
-                                {planName}
+                                {productName}
                               </Link>
                             ) : (
                               <span className="contact-value contact-value-strong">
-                                {planName}
+                                {productName}
                               </span>
                             )}
                           </>
@@ -929,7 +929,7 @@ export function CustomersTable({
       </div>
       )}
 
-      <AppModal open={Boolean(planModalOpen && planModalCustomer)} onClose={closePlanModal} title="Crear plan o suscripción" maxWidth={980}>
+      <AppModal open={Boolean(planModalOpen && planModalCustomer)} onClose={closePlanModal} title="Crear suscripción o cobro" maxWidth={980}>
         {planModalCustomer ? (
           <NewBillingAssignmentForm
             customers={items}
@@ -1488,7 +1488,7 @@ export function CustomersTable({
                 {(() => {
                   const subInfo = subscriptionsByCustomer[String(viewFichaCustomer.id)];
                   const hasPlan = subInfo?.hasPlan ?? false;
-                  const planName = formatPlanLabel(subInfo?.planName || "");
+                  const productName = formatPlanLabel(subInfo?.productName || "");
                   const status = String(subInfo?.status || "");
                   const statusLabel = status === "ACTIVE" ? "Activa" : status === "PAST_DUE" ? "En mora" : status ? "Inactiva" : "";
                   return (
@@ -1497,7 +1497,7 @@ export function CustomersTable({
                         <>
                           <div style={{ marginBottom: 6 }}>
                             <span style={{ fontSize: 11, color: "var(--muted)" }}>Plan: </span>
-                            <strong>{planName}</strong>
+                            <strong>{productName}</strong>
                           </div>
                           <div>
                             <span style={{ fontSize: 11, color: "var(--muted)" }}>Estado: </span>

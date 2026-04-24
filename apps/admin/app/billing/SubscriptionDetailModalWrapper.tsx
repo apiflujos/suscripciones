@@ -15,6 +15,8 @@ type SubscriptionDetail = {
   customerPhone?: string | null;
   identificacion?: string | null;
   customerTokenized: boolean;
+  productId?: string | null;
+  productName?: string | null;
   planId: string;
   planName: string;
   planImageUrl?: string | null;

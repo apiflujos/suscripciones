@@ -15,6 +15,7 @@ type TokenizationLinkMeta = {
   usedAt?: string;
   templateId?: string;
   planId?: string;
+  productId?: string;
   kind?: string;
   tenantId?: string;
 };
@@ -99,6 +100,16 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
 
   const templateId = String(link?.templateId || "").trim();
   const template = templateId ? await prisma.publicCheckoutTemplate.findUnique({ where: { id: templateId } }) : null;
+  const productId = String(link?.productId || "").trim();
+  const planId = String(link?.planId || "").trim();
+  const [product, plan] = await Promise.all([
+    productId ? prisma.subscriptionPlan.findUnique({ where: { id: productId }, select: { id: true, name: true } }) : Promise.resolve(null),
+    !productId && planId
+      ? prisma.subscriptionPlan.findUnique({ where: { id: planId }, select: { id: true, name: true, metadata: true } })
+      : Promise.resolve(null)
+  ]);
+  const resolvedProductId = productId || String((plan as any)?.catalogProductId || (plan?.metadata as any)?.catalog?.itemId || "").trim() || null;
+  const resolvedProductName = product?.name || plan?.name || null;
 
   const tenantFromLink = link?.tenantId ? String(link.tenantId) : null;
   const tenant = await getTenantBrand(template?.tenantId || tenantFromLink || customer.tenantId || null);
@@ -113,7 +124,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
       },
       tenant,
       link: {
-        planId: link?.planId || null,
+        planId: planId || null,
+        productId: resolvedProductId,
+        productName: resolvedProductName,
         kind: link?.kind || null,
         templateId: link?.templateId || null,
         usedAt: usedAt ? usedAt.toISOString() : null

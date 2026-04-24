@@ -6,6 +6,7 @@ export function MergeDuplicateSubscriptionsButton({
   action,
   csrfToken,
   customerId,
+  productId,
   planId,
   keepSubscriptionId,
   tenantId,
@@ -15,7 +16,8 @@ export function MergeDuplicateSubscriptionsButton({
   action: (formData: FormData) => void | Promise<void>;
   csrfToken: string;
   customerId: string;
-  planId: string;
+  productId?: string | null;
+  planId?: string | null;
   keepSubscriptionId: string;
   tenantId?: string;
   returnTo?: string;
@@ -33,7 +35,8 @@ export function MergeDuplicateSubscriptionsButton({
     >
       <input type="hidden" name="csrf" value={csrfToken} />
       <input type="hidden" name="customerId" value={customerId} />
-      <input type="hidden" name="planId" value={planId} />
+      {productId ? <input type="hidden" name="productId" value={productId} /> : null}
+      {planId ? <input type="hidden" name="planId" value={planId} /> : null}
       <input type="hidden" name="keepSubscriptionId" value={keepSubscriptionId} />
       {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}

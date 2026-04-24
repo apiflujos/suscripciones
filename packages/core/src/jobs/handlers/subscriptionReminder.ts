@@ -122,7 +122,7 @@ async function resolveAutoCheckoutTemplateId(args: {
       where: { id: planId },
       select: { metadata: true }
     });
-    resolvedProductId = String((plan?.metadata as any)?.catalog?.itemId || "");
+    resolvedProductId = String((plan as any)?.catalogProductId || (plan?.metadata as any)?.catalog?.itemId || "");
   }
   if (resolvedProductId) {
     const match = byKind.find((t) => {
@@ -478,8 +478,10 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     for (const id of checkoutIds) {
       const planId = subscription?.planId || payment?.subscription?.planId || null;
       const productId =
-        String((subscription as any)?.plan?.metadata?.catalog?.itemId || "") ||
-        String((payment as any)?.subscription?.plan?.metadata?.catalog?.itemId || "");
+        String((subscription as any)?.productId || "") ||
+        String((payment as any)?.subscription?.productId || "") ||
+        String((subscription as any)?.plan?.catalogProductId || (subscription as any)?.plan?.metadata?.catalog?.itemId || "") ||
+        String((payment as any)?.subscription?.plan?.catalogProductId || (payment as any)?.subscription?.plan?.metadata?.catalog?.itemId || "");
       const targetId =
         id === "AUTO"
           ? await resolveAutoCheckoutTemplateId({
@@ -505,7 +507,8 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
         customerId: customer.id,
         templateId: targetId,
         checkoutUrl: effectivePayment?.checkoutUrl || meta?.paymentLink?.checkoutUrl || null,
-        planId: subscription?.planId || payment?.subscription?.planId || null
+        planId: subscription?.planId || payment?.subscription?.planId || null,
+        productId: productId || null
       }).catch((err: any) => {
         logger.warn({ err, customerId: customer.id, templateId: targetId }, "subscriptionReminder: fallo creando checkout público");
         return null;

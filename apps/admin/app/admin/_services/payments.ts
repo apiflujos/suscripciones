@@ -429,7 +429,7 @@ export async function searchSubscriptionPaymentCandidates(args: {
 
   const subscription = await prisma.subscription.findUnique({
     where: { id: subscriptionId },
-    include: { tenantLinks: true }
+    include: { tenantLinks: true, plan: true, product: true }
   });
   if (!subscription) return { ok: false as const, status: 404, error: "subscription_not_found" as const };
   if (args.tenantId) {
@@ -614,11 +614,18 @@ export async function getProductPayments(args: { productId: string; tenantId?: s
   const skip = Number.isFinite(args.skip) ? Math.max(Math.trunc(args.skip), 0) : 0;
 
   const payments = await prisma.payment.findMany({
-    where: { subscription: { planId: id } },
+    where: {
+      subscription: {
+        OR: [
+          { productId: id },
+          { plan: { catalogProductId: id } }
+        ]
+      }
+    },
     orderBy: { createdAt: "desc" },
     take,
     skip,
-    include: { customer: true, subscription: { include: { plan: true } } }
+    include: { customer: true, subscription: { include: { plan: true, product: true } } }
   });
 
   return {
@@ -633,6 +640,8 @@ export async function getProductPayments(args: { productId: string; tenantId?: s
       reference: p.reference,
       customerId: p.customerId,
       customerName: p.customer?.name || p.customer?.email || null,
+      productId: p.subscription?.productId || (p.subscription?.plan as any)?.catalogProductId || p.subscription?.plan?.metadata?.catalog?.itemId || null,
+      productName: p.subscription?.product?.name || p.subscription?.plan?.name || null,
       planName: p.subscription?.plan?.name || null
     }))
   };
@@ -651,7 +660,7 @@ export async function getCustomerPayments(args: { customerId: string; tenantId?:
     take,
     skip,
     include: {
-      subscription: { include: { plan: true } },
+      subscription: { include: { plan: true, product: true } },
       attempts: { orderBy: { createdAt: "desc" }, take: 1 }
     }
   });
@@ -669,6 +678,8 @@ export async function getCustomerPayments(args: { customerId: string; tenantId?:
       origin: p.origin || null,
       associationReason: p.associationReason || null,
       associatedBy: p.associatedBy || null,
+      productId: p.subscription?.productId || (p.subscription?.plan as any)?.catalogProductId || p.subscription?.plan?.metadata?.catalog?.itemId || null,
+      productName: p.subscription?.product?.name || p.subscription?.plan?.name || null,
       planId: p.subscription?.planId || null,
       planName: p.subscription?.plan?.name || null,
       lastAttempt: p.attempts?.[0]
@@ -695,7 +706,7 @@ export async function getSubscriptionPaymentHistory(args: {
 
   const subscription = await prisma.subscription.findUnique({
     where: { id: subscriptionId },
-    include: { tenantLinks: true }
+    include: { tenantLinks: true, plan: true, product: true }
   });
   if (!subscription) return { ok: false, status: 404, error: "subscription_not_found" as const };
   if (args.tenantId) {
@@ -746,6 +757,10 @@ export async function getSubscriptionPaymentHistory(args: {
       origin: p.origin || null,
       associationReason: p.associationReason || null,
       associatedBy: p.associatedBy || null,
+      productId: subscription.productId || (subscription.plan as any)?.catalogProductId || subscription.plan?.metadata?.catalog?.itemId || null,
+      productName: subscription.product?.name || subscription.plan?.name || null,
+      planId: subscription.planId || null,
+      planName: subscription.plan?.name || null,
       attempts: (p.attempts || []).map((a: any) => ({
         id: a.id,
         status: a.status,

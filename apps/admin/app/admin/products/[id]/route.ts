@@ -7,6 +7,7 @@ import { systemLog } from "@suscripciones/core/services/systemLog";
 import { getEffectiveTenantId, readTenantIdsFromReq } from "@suscripciones/core/services/tenantContext";
 import { DEFAULT_CURRENCY, isSupportedCurrency, normalizeCurrencyCode } from "@suscripciones/core/lib/currencies";
 import { getPublicBaseUrlFromEnv } from "@suscripciones/core/services/publicBase";
+import { listPlanIdsForCatalogProducts } from "../../_services/productPlanMapping";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -230,9 +231,12 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
     }
   });
 
-  const plansToUpdate = await prisma.subscriptionPlan.findMany({
-    where: { metadata: { path: ["catalog", "itemId"], equals: id } as any }
-  });
+  const relatedPlanIds = (await listPlanIdsForCatalogProducts({ productIds: [id], includeCatalogItems: false })).get(id) || [];
+  const plansToUpdate = relatedPlanIds.length
+    ? await prisma.subscriptionPlan.findMany({
+        where: { id: { in: relatedPlanIds } }
+      })
+    : [];
   if (plansToUpdate.length) {
     await Promise.all(
       plansToUpdate.map((plan: any) => {
@@ -323,11 +327,9 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
     return Response.json({ error: "producto_no_encontrado", mensaje: "El producto no es un item de catálogo" }, { status: 404 });
   }
 
-  const dependentPlans = await prisma.subscriptionPlan.findMany({
-    where: { metadata: { path: ["catalog", "itemId"], equals: id } as any },
-    select: { id: true }
-  });
-  const relatedPlanIds = Array.from(new Set([id, ...dependentPlans.map((p) => p.id)]));
+  const planIdsByProduct = await listPlanIdsForCatalogProducts({ productIds: [id] });
+  const relatedPlanIds = Array.from(new Set(planIdsByProduct.get(id) || [id]));
+  const dependentPlans = relatedPlanIds.filter((planId) => planId !== id).map((planId) => ({ id: planId }));
   const blockingStatuses: SubscriptionStatus[] = [
     SubscriptionStatus.ACTIVE,
     SubscriptionStatus.PAST_DUE,

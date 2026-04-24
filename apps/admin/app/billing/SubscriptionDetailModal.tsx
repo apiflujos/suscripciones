@@ -27,6 +27,8 @@ type SubscriptionDetail = {
   customerPhone?: string | null;
   identificacion?: string | null;
   customerTokenized: boolean;
+  productId?: string | null;
+  productName?: string | null;
   planId: string;
   planName: string;
   planImageUrl?: string | null;
@@ -114,12 +116,13 @@ export function SubscriptionDetailModal({
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [cyclesOpen, setCyclesOpen] = useState(false);
+  const productLabel = String(subscription.productName || subscription.planName || "Producto").trim() || "Producto";
 
   const fmtMoney = (cents: number, currency: string) => {
     return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(cents / 100);
   };
 
-  const productInitials = String(subscription.planName || "PR")
+  const productInitials = String(productLabel || "PR")
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -246,13 +249,13 @@ export function SubscriptionDetailModal({
                 <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                   <div className="billing-product-thumb" style={{ width: 48, height: 48, minWidth: 48 }}>
                     {subscription.planImageUrl ? (
-                      <img src={subscription.planImageUrl} alt={subscription.planName} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 8 }} />
+                      <img src={subscription.planImageUrl} alt={productLabel} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 8 }} />
                     ) : (
                       <span className="billing-product-fallback" style={{ fontSize: 14 }}>{productInitials}</span>
                     )}
                   </div>
                   <div>
-                    <div className="billing-value" style={{ fontSize: 14 }}>{subscription.planName}</div>
+                    <div className="billing-value" style={{ fontSize: 14 }}>{productLabel}</div>
                     <div className="field-hint" style={{ marginTop: 4 }}>
                       {subscription.tipoTx || "—"} · {subscription.cada}
                     </div>
@@ -347,6 +350,7 @@ export function SubscriptionDetailModal({
                     action={mergeDuplicateSubscriptions}
                     csrfToken={csrfToken}
                     customerId={subscription.customerId}
+                    productId={subscription.productId || undefined}
                     planId={subscription.planId}
                     keepSubscriptionId={subscription.id}
                     tenantId={tenantId}
@@ -470,6 +474,7 @@ export function SubscriptionDetailModal({
                 ) : (
                   <TokenizationLinkModalButton
                     customerId={subscription.customerId}
+                    productId={subscription.productId || undefined}
                     planId={subscription.planId}
                     tenantId={tenantId}
                     csrfToken={csrfToken}
@@ -494,8 +499,8 @@ export function SubscriptionDetailModal({
           returnTo={returnTo}
           currentChargeAt={subscription.vencimientoAt}
           periodStartAt={subscription.periodoInicioAt}
-          currentPlanId={subscription.planId}
-          currentPlanName={subscription.planName}
+          currentPlanId={subscription.productId || subscription.planId}
+          currentPlanName={productLabel}
           currentPlanCurrency={subscription.moneda}
           currentShippingInCents={subscription.currentShippingInCents}
           currentRequiresShipping={subscription.currentShippingInCents > 0}

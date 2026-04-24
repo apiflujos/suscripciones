@@ -37,6 +37,7 @@ export async function createPublicCheckoutLink(args: {
   templateId: string;
   checkoutUrl?: string | null;
   planId?: string | null;
+  productId?: string | null;
 }): Promise<
   | {
       url: string;
@@ -115,15 +116,16 @@ export async function createPublicCheckoutLink(args: {
   };
   const nextMeta =
     template.kind === "SUBSCRIPTION"
-      ? {
-          ...prevMeta,
-          tokenizationLink: {
-            ...(prevMeta?.tokenizationLink || {}),
-            ...commonLink,
-            tenantId: template.tenantId || null,
-            planId: args.planId ?? prevMeta?.tokenizationLink?.planId ?? null
+        ? {
+            ...prevMeta,
+            tokenizationLink: {
+              ...(prevMeta?.tokenizationLink || {}),
+              ...commonLink,
+              tenantId: template.tenantId || null,
+              planId: args.planId ?? prevMeta?.tokenizationLink?.planId ?? null,
+              productId: args.productId ?? prevMeta?.tokenizationLink?.productId ?? null
+            }
           }
-        }
       : template.kind === "CART"
         ? {
             ...prevMeta,

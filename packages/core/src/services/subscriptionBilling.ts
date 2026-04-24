@@ -621,6 +621,7 @@ export async function createPaymentLinkForSubscription(args: {
         create: {
           tenantId,
           planId: sub.planId,
+          productId: sub.productId || String((sub.plan as any)?.catalogProductId || (sub.plan?.metadata as any)?.catalog?.itemId || "").trim() || null,
           subscriptionId: sub.id,
           paymentId: updatedPayment.id,
           wompiPaymentLinkId: created.id,
@@ -631,6 +632,7 @@ export async function createPaymentLinkForSubscription(args: {
         update: {
           tenantId,
           planId: sub.planId,
+          productId: sub.productId || String((sub.plan as any)?.catalogProductId || (sub.plan?.metadata as any)?.catalog?.itemId || "").trim() || null,
           subscriptionId: sub.id,
           wompiPaymentLinkId: created.id,
           checkoutUrl: updatedPayment.checkoutUrl || created.checkoutUrl

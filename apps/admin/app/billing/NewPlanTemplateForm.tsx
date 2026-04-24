@@ -243,13 +243,13 @@ export function NewPlanTemplateForm({
       <input type="hidden" name="csrf" value={csrfToken} />
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       <div style={{ display: "grid", gap: 10 }}>
-        <strong>Crear nuevo plan / suscripción</strong>
+        <strong>Crear nuevo cobro / suscripción</strong>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10 }}>
           <div className="field">
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span>Tipo</span>
-              <HelpTip text="Plan = link de pago. Suscripción = cobro automático." />
+              <HelpTip text="Cobro = link de pago. Suscripción = cobro automático." />
             </label>
             <select className="select" name="billingType" value={tipo} onChange={(e) => setTipo(e.target.value as any)}>
               <option value="PLAN">Link de pago</option>

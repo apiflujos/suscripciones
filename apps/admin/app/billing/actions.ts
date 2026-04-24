@@ -9,6 +9,7 @@ import { createCustomer as createCustomerService, getCustomerById, updateCustome
 import { prisma } from "@suscripciones/database";
 import { createCatalogProduct, getCatalogProductById } from "../admin/_services/products";
 import { createPlan as createPlanService, updatePlanRecurrence as updatePlanRecurrenceService, deletePlan as deletePlanService } from "../admin/_services/plans";
+import { resolveOperationalPlanForProduct } from "../admin/_services/productPlanMapping";
 import { associatePaymentToSubscription } from "../admin/_services/logsActions";
 import {
   createSubscription,
@@ -69,7 +70,9 @@ function humanizeCreateError(raw: string) {
   if (msg.includes("tenant_mismatch")) return "El contacto no pertenece al canal seleccionado.";
   if (msg.includes("tenant_not_allowed_for_plan")) return "El producto no está habilitado para ese canal.";
   if (msg.includes("missing_customer_or_product")) return "Falta seleccionar contacto o producto.";
+  if (msg.includes("missing_product_or_cutoff")) return "Falta seleccionar el producto o la fecha de cobro.";
   if (msg.includes("missing_shipping_amount")) return "Debes ingresar el valor del flete o activar envío gratis.";
+  if (msg.includes("product_not_found")) return "No se encontró un producto activo válido para este cambio.";
   if (msg.includes("missing_subscription_base_url")) return "Falta configurar URL base de suscripción en Configuración.";
   if (msg.includes("missing_plan_base_url")) return "Falta configurar URL base de plan en Configuración.";
   if (msg.includes("missing_checkout_for_product")) return "No hay un checkout público asociado al producto seleccionado.";
@@ -147,6 +150,7 @@ async function resolveSubscriptionPlanCheckoutTemplate(args: { subscriptionId: s
       id: true,
       customerId: true,
       tenantId: true,
+      productId: true,
       metadata: true,
       plan: { select: { metadata: true } }
     }
@@ -162,7 +166,7 @@ async function resolveSubscriptionPlanCheckoutTemplate(args: { subscriptionId: s
   }
 
   const settings = await getAdminSettings().catch(() => null);
-  const productId = String((subscription.plan?.metadata as any)?.catalog?.itemId || "").trim();
+  const productId = String(subscription.productId || (subscription.plan as any)?.catalogProductId || (subscription.plan?.metadata as any)?.catalog?.itemId || "").trim();
   if (!productId) return null;
   const selected = await findCheckoutTemplateForProductOrDefault({
     tenantId: String(args.tenantId || subscription.tenantId || "").trim() || null,
@@ -732,20 +736,20 @@ export async function changeSubscriptionPlan(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
-  const planId = String(formData.get("planId") || "").trim();
+  const productId = String(formData.get("productId") || "").trim();
   const cutoffAt = String(formData.get("cutoffAt") || "").trim();
   const shippingInCents = pesosToCents(String(formData.get("shippingPesos") || ""));
   const freeShipping = String(formData.get("freeShipping") || "").trim() === "1";
   const tenantIds = readTenantIds(formData);
   const tenantId = tenantIds[0] || "";
-  if (!subscriptionId || !planId || !cutoffAt) {
-    return redirect(mergeQuery(returnTo, { error: "missing_plan_or_cutoff", ...(tenantId ? { tenantId } : {}) }));
+  if (!subscriptionId || !productId || !cutoffAt) {
+    return redirect(mergeQuery(returnTo, { error: "missing_product_or_cutoff", ...(tenantId ? { tenantId } : {}) }));
   }
 
   try {
     const res = await changeSubscriptionPlanService({
       subscriptionId,
-      planId,
+      productId,
       cutoffAt,
       shippingInCents,
       freeShipping,
@@ -1239,6 +1243,7 @@ export async function sendWhatsAppTokenizationLink(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   const customerId = String(formData.get("customerId") || "").trim();
+  const productId = String(formData.get("productId") || "").trim();
   const planId = String(formData.get("planId") || "").trim();
   const tenantIds = readTenantIds(formData);
   const tenantId = tenantIds[0] || "";
@@ -1261,12 +1266,27 @@ export async function sendWhatsAppTokenizationLink(formData: FormData) {
       return redirect(mergeQuery(returnTo, { error: "missing_subscription_base_url", ...(tenantId ? { tenantId } : {}) }));
     }
 
-    const productId = String((plan?.metadata as any)?.catalog?.itemId || "").trim();
-    const template = productId
+    const resolvedProductId = productId || String((plan as any)?.catalogProductId || (plan?.metadata as any)?.catalog?.itemId || "").trim();
+    if (!resolvedProductId) {
+      return redirect(mergeQuery(returnTo, { error: "missing_checkout_for_product", ...(tenantId ? { tenantId } : {}) }));
+    }
+
+    const resolvedPlanId = planId
+      ? planId
+      : String(
+          (
+            await resolveOperationalPlanForProduct({
+              productId: resolvedProductId,
+              tenantId: tenantId || null
+            }).catch(() => null)
+          )?.id || ""
+        ).trim();
+
+    const template = resolvedProductId
       ? await findCheckoutTemplateForProductOrDefault({
           tenantId: tenantId || null,
           kind: "SUBSCRIPTION",
-          productId,
+          productId: resolvedProductId,
           defaultTemplateId: String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim()
         }).catch(() => null)
       : null;
@@ -1285,7 +1305,8 @@ export async function sendWhatsAppTokenizationLink(formData: FormData) {
     const createdTokenizationLink = await createPublicCheckoutLink({
       customerId,
       templateId: String(template.id),
-      planId: planId || null
+      planId: resolvedPlanId || null,
+      productId: resolvedProductId || null
     });
     const url = String(createdTokenizationLink?.url || "").trim();
     if (!url) {
@@ -1297,7 +1318,7 @@ export async function sendWhatsAppTokenizationLink(formData: FormData) {
       const scheduled = await scheduleTokenizationLinkNotifications({ customerId, tokenUrl: url, forceNow: true });
       notificationError = String((scheduled as any)?.errors?.[0] || "").trim();
     } catch (err: any) {
-      logger.warn({ err, customerId, planId }, "Fallo programando notificaciones de tokenización en envío manual");
+      logger.warn({ err, customerId, planId: resolvedPlanId || planId, productId: resolvedProductId }, "Fallo programando notificaciones de tokenización en envío manual");
     }
     if (notificationError) {
       return redirect(mergeQuery(returnTo, { error: notificationError, ...(tenantId ? { tenantId } : {}) }));

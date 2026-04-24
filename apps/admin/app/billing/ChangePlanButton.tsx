@@ -53,9 +53,9 @@ function formatCurrencyInput(input: string, currency: string) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
 }
 
-function planRequiresShipping(plan: PlanOption | null | undefined) {
-  if (!plan) return false;
-  const kind = String(plan.kind || "").toUpperCase();
+function productRequiresShipping(product: PlanOption | null | undefined) {
+  if (!product) return false;
+  const kind = String(product.kind || "").toUpperCase();
   return kind !== "SERVICE";
 }
 
@@ -77,7 +77,7 @@ export function mapPlanFromApi(p: any): PlanOption {
   const requiresShippingRaw = p?.requiresShipping ?? catalog?.requiresShipping;
   return {
     id: String(p?.id || ""),
-    name: String(metadata?.displayName || p?.name || "Plan"),
+    name: String(metadata?.displayName || p?.name || "Producto"),
     sku: String(p?.sku || metadata?.sku || ""),
     searchText: [metadata?.displayName, p?.name, p?.sku, metadata?.sku, catalog?.name, p?.id]
       .filter(Boolean)
@@ -98,7 +98,7 @@ export function ChangePlanButton({
   currentChargeAt,
   currentShippingInCents = 0,
   currentRequiresShipping = false,
-  currentPlanName = "Plan actual",
+  currentPlanName = "Producto actual",
   currentPlanCurrency = "COP",
   plans,
   csrfToken,
@@ -123,18 +123,18 @@ export function ChangePlanButton({
 }) {
   const [open, setOpen] = useState(false);
   const initialChargeDate = useMemo(() => toLocalInput(currentChargeAt), [currentChargeAt]);
-  const [planId, setPlanId] = useState(currentPlanId);
+  const [productId, setProductId] = useState(currentPlanId);
   const [chargeDate, setChargeDate] = useState(initialChargeDate);
   const [query, setQuery] = useState("");
   const [shippingCop, setShippingCop] = useState(centsToCurrencyInput(currentShippingInCents || 0, "COP"));
   const [freeShipping, setFreeShipping] = useState(Boolean(currentRequiresShipping) && Number(currentShippingInCents || 0) <= 0);
-  const [remotePlans, setRemotePlans] = useState<PlanOption[]>([]);
+  const [remoteProducts, setRemoteProducts] = useState<PlanOption[]>([]);
   const [searching, setSearching] = useState(false);
   const appliedDefaultsPlanIdRef = useRef<string>("");
-  const currentPlanFallback = useMemo<PlanOption>(
+  const currentProductFallback = useMemo<PlanOption>(
     () => ({
       id: currentPlanId,
-      name: currentPlanName || "Plan actual",
+      name: currentPlanName || "Producto actual",
       sku: "",
       searchText: "",
       collectionMode: "",
@@ -149,7 +149,7 @@ export function ChangePlanButton({
 
   useEffect(() => {
     if (!open) return;
-    setPlanId(currentPlanId);
+    setProductId(currentPlanId);
     setChargeDate(initialChargeDate);
     setQuery("");
     setShippingCop(centsToCurrencyInput(currentShippingInCents || 0, currentPlanCurrency || "COP"));
@@ -157,7 +157,7 @@ export function ChangePlanButton({
     appliedDefaultsPlanIdRef.current = String(currentPlanId || "");
   }, [open, currentPlanId, initialChargeDate, currentShippingInCents, currentRequiresShipping, currentPlanCurrency]);
 
-  const localFilteredPlans = useMemo(() => {
+  const localFilteredProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return plans;
     return plans.filter((p) => {
@@ -169,7 +169,7 @@ export function ChangePlanButton({
     });
   }, [plans, query]);
 
-  const fetchPlans = useCallback(
+  const fetchProducts = useCallback(
     async (qRaw: string) => {
       const q = String(qRaw || "").trim();
       setSearching(true);
@@ -194,9 +194,9 @@ export function ChangePlanButton({
           const mapped = mapPlanFromApi(item);
           if (mapped?.id) merged.set(mapped.id, mapped);
         }
-        setRemotePlans(Array.from(merged.values()));
+        setRemoteProducts(Array.from(merged.values()));
       } catch {
-        setRemotePlans([]);
+        setRemoteProducts([]);
       } finally {
         setSearching(false);
       }
@@ -209,73 +209,73 @@ export function ChangePlanButton({
     let canceled = false;
     const timer = setTimeout(async () => {
       if (canceled) return;
-      await fetchPlans(query);
+      await fetchProducts(query);
     }, 250);
     return () => {
       canceled = true;
       clearTimeout(timer);
     };
-  }, [open, query, fetchPlans]);
+  }, [open, query, fetchProducts]);
 
   useEffect(() => {
     if (!open) return;
     const onFocus = () => {
-      void fetchPlans(query);
+      void fetchProducts(query);
     };
     window.addEventListener("focus", onFocus);
     return () => {
       window.removeEventListener("focus", onFocus);
     };
-  }, [open, query, fetchPlans]);
+  }, [open, query, fetchProducts]);
 
   useEffect(() => {
     if (!open) return;
     const timer = setInterval(() => {
-      void fetchPlans(query);
+      void fetchProducts(query);
     }, 15000);
     return () => {
       clearInterval(timer);
     };
-  }, [open, query, fetchPlans]);
+  }, [open, query, fetchProducts]);
 
-  const filteredPlans = useMemo(() => {
+  const filteredProducts = useMemo(() => {
     const merged = new Map<string, PlanOption>();
-    const current = plans.find((p) => p.id === currentPlanId) || remotePlans.find((p) => p.id === currentPlanId) || currentPlanFallback;
+    const current = plans.find((p) => p.id === currentPlanId) || remoteProducts.find((p) => p.id === currentPlanId) || currentProductFallback;
     if (current) merged.set(current.id, current);
-    for (const p of localFilteredPlans) merged.set(p.id, p);
-    for (const p of remotePlans) merged.set(p.id, p);
-    if (planId && !merged.has(planId)) merged.set(planId, currentPlanFallback);
+    for (const p of localFilteredProducts) merged.set(p.id, p);
+    for (const p of remoteProducts) merged.set(p.id, p);
+    if (productId && !merged.has(productId)) merged.set(productId, currentProductFallback);
     return Array.from(merged.values());
-  }, [remotePlans, localFilteredPlans, plans, currentPlanId, planId, currentPlanFallback]);
+  }, [remoteProducts, localFilteredProducts, plans, currentPlanId, productId, currentProductFallback]);
 
-  const selectedPlan = useMemo(() => {
-    return filteredPlans.find((p) => String(p.id) === String(planId)) || plans.find((p) => String(p.id) === String(planId)) || null;
-  }, [filteredPlans, plans, planId]);
-  const selectedRequiresShipping = planRequiresShipping(selectedPlan);
+  const selectedProduct = useMemo(() => {
+    return filteredProducts.find((p) => String(p.id) === String(productId)) || plans.find((p) => String(p.id) === String(productId)) || null;
+  }, [filteredProducts, plans, productId]);
+  const selectedRequiresShipping = productRequiresShipping(selectedProduct);
   const currentShippingComparable = currentRequiresShipping ? Number(currentShippingInCents || 0) : 0;
   const selectedShippingInCents = selectedRequiresShipping ? (freeShipping ? 0 : currencyInputToCents(shippingCop)) : 0;
   const shippingChanged = selectedRequiresShipping && selectedShippingInCents !== currentShippingComparable;
   const hasChange = Boolean(
-    planId &&
-      (planId !== currentPlanId || chargeDate !== initialChargeDate || shippingChanged)
+    productId &&
+      (productId !== currentPlanId || chargeDate !== initialChargeDate || shippingChanged)
   );
 
   useEffect(() => {
-    const current = String(planId || "");
+    const current = String(productId || "");
     if (!current || appliedDefaultsPlanIdRef.current === current) return;
-    const plan = plans.find((p) => String(p.id) === current) || remotePlans.find((p) => String(p.id) === current);
-    if (!plan) return;
-    const requires = planRequiresShipping(plan);
+    const product = plans.find((p) => String(p.id) === current) || remoteProducts.find((p) => String(p.id) === current);
+    if (!product) return;
+    const requires = productRequiresShipping(product);
     if (!requires) {
       setFreeShipping(false);
       setShippingCop("");
     } else {
-      const nextShipping = Number(plan.shippingInCents || 0);
+      const nextShipping = Number(product.shippingInCents || 0);
       setFreeShipping(nextShipping <= 0);
-      setShippingCop(centsToCurrencyInput(nextShipping, String(plan.currency || "COP")));
+      setShippingCop(centsToCurrencyInput(nextShipping, String(product.currency || "COP")));
     }
     appliedDefaultsPlanIdRef.current = current;
-  }, [planId, plans, remotePlans]);
+  }, [productId, plans, remoteProducts]);
 
   return (
     <>
@@ -293,7 +293,7 @@ export function ChangePlanButton({
       <AppModal
         open={open}
         onClose={() => setOpen(false)}
-        title="Cambiar producto del contacto"
+        title="Cambiar producto de la suscripción"
         width="min(560px, 96vw)"
         bodyClassName=""
       >
@@ -302,12 +302,12 @@ export function ChangePlanButton({
               <input type="hidden" name="subscriptionId" value={subscriptionId} />
               <input type="hidden" name="returnTo" value={returnTo} />
               {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-              <input type="hidden" name="planId" value={planId} />
+              <input type="hidden" name="productId" value={productId} />
 
               <div className="field">
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span>Nuevo producto</span>
-                  <HelpTip text="Puedes elegir cualquier producto/plan existente o crear uno nuevo en Productos." />
+                  <HelpTip text="Puedes elegir cualquier producto existente o crear uno nuevo en Productos." />
                 </label>
                 <input
                   className="input"
@@ -318,21 +318,21 @@ export function ChangePlanButton({
                   style={{ marginBottom: 8 }}
                 />
                 {searching ? <div className="field-hint">Buscando productos...</div> : null}
-                {filteredPlans.length ? (
+                {filteredProducts.length ? (
                   <div className="plan-option-list">
-                    {filteredPlans.map((p) => (
+                    {filteredProducts.map((p) => (
                       <button
                         key={p.id}
                         type="button"
-                        className={`ghost btn-compact btn-noicon plan-option-item${String(planId) === String(p.id) ? " is-selected" : ""}`}
-                        onClick={() => setPlanId(String(p.id))}
+                        className={`ghost btn-compact btn-noicon plan-option-item${String(productId) === String(p.id) ? " is-selected" : ""}`}
+                        onClick={() => setProductId(String(p.id))}
                       >
                         {p.name}
                       </button>
                     ))}
                   </div>
                 ) : null}
-                {!filteredPlans.length ? (
+                {!filteredProducts.length ? (
                   <div className="field-hint" style={{ color: "var(--danger)" }}>
                     No hay resultados con esa búsqueda.
                   </div>
@@ -343,14 +343,14 @@ export function ChangePlanButton({
                   </div>
                 ) : null}
                 <div className="field-hint" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span>Si necesitas otro plan, créalo aquí mismo.</span>
+                  <span>Si necesitas otro producto, créalo aquí mismo.</span>
                   <a
                     href="/products"
                     target="_blank"
                     rel="noreferrer"
                     style={{ color: "var(--primary)", fontWeight: 700, textDecoration: "none" }}
                   >
-                    Crear plan
+                    Crear producto
                   </a>
                 </div>
               </div>
@@ -381,12 +381,12 @@ export function ChangePlanButton({
                     name="shippingPesos"
                     inputMode="numeric"
                     value={shippingCop}
-                    onChange={(e) => setShippingCop(formatCurrencyInput(e.target.value, String(selectedPlan?.currency || "COP")))}
+                    onChange={(e) => setShippingCop(formatCurrencyInput(e.target.value, String(selectedProduct?.currency || "COP")))}
                     disabled={freeShipping}
                     placeholder="$ 0"
                     required={!freeShipping}
                   />
-                  <div className="field-hint">Moneda: {String(selectedPlan?.currency || "COP")}</div>
+                  <div className="field-hint">Moneda: {String(selectedProduct?.currency || "COP")}</div>
                   <label className="field-hint" style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
                     <input
                       type="checkbox"
@@ -424,7 +424,7 @@ export function ChangePlanButton({
                   type="submit" 
                   pendingText="Guardando..." 
                   disabled={!hasChange || !chargeDate}
-                  title="Guardar cambios del plan"
+                  title="Guardar cambios del producto"
                   aria-label="Guardar cambios"
                 >
                   Guardar

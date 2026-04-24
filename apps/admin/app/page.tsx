@@ -526,6 +526,9 @@ export default async function Home({
   const revenueByTypeTotal = revenueLink + revenueAuto;
   const revenueLinkPct = revenueByTypeTotal > 0 ? (revenueLink / revenueByTypeTotal) * 100 : 0;
   const revenueAutoPct = revenueByTypeTotal > 0 ? (revenueAuto / revenueByTypeTotal) * 100 : 0;
+  const topRevenueProducts = Array.isArray(metricsData?.breakdown?.revenueByProduct) ? metricsData.breakdown.revenueByProduct : [];
+  const topPaymentProducts = Array.isArray(metricsData?.breakdown?.paymentActivityByProduct) ? metricsData.breakdown.paymentActivityByProduct : [];
+  const topLinkProducts = Array.isArray(metricsData?.breakdown?.linkActivityByProduct) ? metricsData.breakdown.linkActivityByProduct : [];
 
   const prevTotals = prevMetricsData?.totals || {};
   const hasPrev = prevMetrics.ok;
@@ -602,6 +605,42 @@ export default async function Home({
         { label: "Periodo anterior", values: prevLinkConversionSeries, dashed: true, color: "var(--chart-b)" }
       ]
     : [{ label: "Actual", values: linkConversionSeries, color: "var(--chart-c)" }];
+
+  const renderProductBreakdown = (
+    items: any[],
+    options?: { empty?: string; mode?: "revenue" | "payments" | "links" }
+  ) => {
+    if (!items.length) return <div className="muted">{options?.empty || "Sin datos por producto."}</div>;
+    return (
+      <div className="recent-payments">
+        {items.slice(0, 5).map((item: any) => {
+          const title = String(item?.productName || "Producto");
+          const revenue = Number(item?.revenueInCents || 0);
+          const paymentsSuccess = Number(item?.paymentsSuccess || 0);
+          const paymentsFailed = Number(item?.paymentsFailed || 0);
+          const linksSent = Number(item?.linksSent || 0);
+          const linksPaid = Number(item?.linksPaid || 0);
+          const subtitle =
+            options?.mode === "links"
+              ? `${linksSent} enviados · ${linksPaid} pagados`
+              : options?.mode === "payments"
+                ? `${paymentsSuccess} OK · ${paymentsFailed} fallidos`
+                : `${paymentsSuccess} pagos OK`;
+          return (
+            <div className="recent-payment-row" key={String(item?.productId || title)}>
+              <div className="recent-payment-main">
+                <div className="recent-payment-title">{title}</div>
+                <div className="recent-payment-sub">{subtitle}</div>
+              </div>
+              <div className="recent-payment-meta">
+                <strong>${fmtMoneyCop(revenue)} COP</strong>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <main className="page pageWide metricsPage">
@@ -809,6 +848,30 @@ export default async function Home({
                         <span className="chart-kpi">Fallidos <strong>{failTotalSeries}</strong></span>
                         <span className="chart-kpi">Tasa OK <strong>{fmtPct(successRateSeries)}</strong></span>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="grid2">
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Links por producto</div>
+                          <div className="chart-sub">Qué productos convierten mejor en links manuales.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel}</div>
+                      </div>
+                      {renderProductBreakdown(topLinkProducts, { empty: "Sin actividad de links por producto.", mode: "links" })}
+                    </div>
+
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Productos líderes</div>
+                          <div className="chart-sub">Top comercial por ingresos aprobados.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel}</div>
+                      </div>
+                      {renderProductBreakdown(topRevenueProducts, { empty: "Sin ingresos por producto en el período.", mode: "revenue" })}
                     </div>
                   </div>
 
@@ -1043,6 +1106,30 @@ export default async function Home({
                         <span className="chart-kpi">Fallidos <strong>{failTotalSeries}</strong></span>
                         <span className="chart-kpi">Tasa OK <strong>{fmtPct(successRateSeries)}</strong></span>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="grid2">
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Productos líderes</div>
+                          <div className="chart-sub">Top comercial por ingresos aprobados.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel}</div>
+                      </div>
+                      {renderProductBreakdown(topRevenueProducts, { empty: "Sin ingresos por producto en el período.", mode: "revenue" })}
+                    </div>
+
+                    <div className="card cardPad chart-card">
+                      <div className="chart-header">
+                        <div>
+                          <div className="chart-title">Actividad de pago por producto</div>
+                          <div className="chart-sub">Aprobados y fallidos por producto comercial.</div>
+                        </div>
+                        <div className="chart-range">{rangeLabel}</div>
+                      </div>
+                      {renderProductBreakdown(topPaymentProducts, { empty: "Sin actividad de pagos por producto.", mode: "payments" })}
                     </div>
                   </div>
                 </>

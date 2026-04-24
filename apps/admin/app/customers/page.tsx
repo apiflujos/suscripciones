@@ -105,7 +105,7 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
   const items = Array.isArray(res.items) ? res.items : [];
   const map: Record<
     string,
-    { hasPlan: boolean; planName?: string; status?: string; collectionMode?: string; subscriptionId?: string; productId?: string; planId?: string }
+    { hasPlan: boolean; productName?: string; status?: string; collectionMode?: string; subscriptionId?: string; productId?: string; planId?: string }
   > = {};
   for (const item of items) {
     const customerId = String(item?.customerId || item?.customer?.id || "");
@@ -113,10 +113,10 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
     const status = String(item?.status || "");
     if (!status || status === "CANCELED") continue;
     if (map[customerId]) continue;
-    const planName = formatSubscriptionPlanName(item?.plan);
+    const productName = String(item?.productName || "").trim() || formatSubscriptionPlanName(item?.plan);
     const collectionMode = String(item?.plan?.metadata?.collectionMode || "");
-    const productId = String(item?.plan?.metadata?.catalog?.itemId || "");
-    map[customerId] = { hasPlan: true, planName, status, collectionMode, subscriptionId: item?.id, productId, planId: item?.planId };
+    const productId = String(item?.productId || item?.plan?.catalogProductId || item?.plan?.metadata?.catalog?.itemId || "");
+    map[customerId] = { hasPlan: true, productName, status, collectionMode, subscriptionId: item?.id, productId, planId: item?.planId };
   }
   return map;
 }

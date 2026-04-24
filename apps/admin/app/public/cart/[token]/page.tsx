@@ -119,7 +119,7 @@ export default async function PublicCartPage({
                   </div>
                 </div>
                 <form method="POST" action={`/public/cart/${encodeURIComponent(token)}/select`}>
-                  <input type="hidden" name="planId" value={p.id} />
+                  <input type="hidden" name="productId" value={p.id} />
                   <button className="primary btn-compact btn-noicon" type="submit">
                     Continuar
                   </button>

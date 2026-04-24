@@ -8,6 +8,7 @@ import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@suscripciones/core/lib
 import { getMediaDir } from "@suscripciones/core/services/mediaStorage";
 import { getPublicBaseUrlFromEnv } from "@suscripciones/core/services/publicBase";
 import { logger } from "@suscripciones/core/lib/logger";
+import { listPlanIdsForCatalogProducts } from "./productPlanMapping";
 
 function normalizeSku(input: string) {
   return String(input || "").trim().toUpperCase();
@@ -324,9 +325,12 @@ export async function updateCatalogProduct(args: {
     }
   });
 
-  const plansToUpdate = await prisma.subscriptionPlan.findMany({
-    where: { metadata: { path: ["catalog", "itemId"], equals: id } as any }
-  });
+  const relatedPlanIds = (await listPlanIdsForCatalogProducts({ productIds: [id], includeCatalogItems: false })).get(id) || [];
+  const plansToUpdate = relatedPlanIds.length
+    ? await prisma.subscriptionPlan.findMany({
+        where: { id: { in: relatedPlanIds } }
+      })
+    : [];
   if (plansToUpdate.length) {
     await Promise.all(
       plansToUpdate.map((plan: any) => {
@@ -397,11 +401,9 @@ export async function deleteCatalogProduct(args: { productId: string; tenantId?:
 
   if ((plan.metadata as any)?.kind !== "CATALOG_ITEM") return { ok: false, status: 404, error: "producto_no_encontrado" as const };
 
-  const dependentPlans = await prisma.subscriptionPlan.findMany({
-    where: { metadata: { path: ["catalog", "itemId"], equals: id } as any },
-    select: { id: true }
-  });
-  const relatedPlanIds = Array.from(new Set([id, ...dependentPlans.map((p) => p.id)]));
+  const planIdsByProduct = await listPlanIdsForCatalogProducts({ productIds: [id] });
+  const relatedPlanIds = Array.from(new Set(planIdsByProduct.get(id) || [id]));
+  const dependentPlans = relatedPlanIds.filter((planId) => planId !== id).map((planId) => ({ id: planId }));
   const blockingStatuses: SubscriptionStatus[] = [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED];
   const activeBlocking = await prisma.subscription.findMany({
     where: { planId: { in: relatedPlanIds }, status: { in: blockingStatuses } },
@@ -528,47 +530,59 @@ export async function listCatalogProducts(args: {
     include: { tenantLinks: true }
   });
   const total = await prisma.subscriptionPlan.count({ where });
-  const planIds = items.map((p: any) => String(p.id)).filter(Boolean);
+  const productIds = items.map((p: any) => String(p.id)).filter(Boolean);
 
-  const activeSubsByPlan = new Map<string, number>();
-  const pastDueSubsByPlan = new Map<string, number>();
-  const totalSubsByPlan = new Map<string, number>();
+  const activeSubsByProduct = new Map<string, number>();
+  const pastDueSubsByProduct = new Map<string, number>();
+  const totalSubsByProduct = new Map<string, number>();
 
-  if (planIds.length) {
-    const activeGrouped = await prisma.subscription.groupBy({
-      by: ["planId"],
-      where: { planId: { in: planIds }, status: SubscriptionStatus.ACTIVE },
-      _count: { _all: true }
-    });
-    for (const row of activeGrouped as any[]) {
-      const planId = String(row?.planId || "");
-      if (!planId) continue;
-      activeSubsByPlan.set(planId, Number(row?._count?._all || 0));
+  if (productIds.length) {
+    const planIdsByProduct = await listPlanIdsForCatalogProducts({ productIds });
+    const productIdsByPlanId = new Map<string, string[]>();
+    for (const [productId, planIds] of planIdsByProduct.entries()) {
+      for (const planId of planIds) {
+        const current = productIdsByPlanId.get(planId) || [];
+        if (!current.includes(productId)) current.push(productId);
+        productIdsByPlanId.set(planId, current);
+      }
     }
 
-    const pastDueGrouped = await prisma.subscription.groupBy({
-      by: ["planId"],
-      where: { planId: { in: planIds }, status: SubscriptionStatus.PAST_DUE },
-      _count: { _all: true }
-    });
-    for (const row of pastDueGrouped as any[]) {
-      const planId = String(row?.planId || "");
-      if (!planId) continue;
-      pastDueSubsByPlan.set(planId, Number(row?._count?._all || 0));
-    }
+    const relatedPlanIds = Array.from(new Set(Array.from(planIdsByProduct.values()).flat())).filter(Boolean);
+    const accumulate = (target: Map<string, number>, rows: any[]) => {
+      for (const row of rows as any[]) {
+        const planId = String(row?.planId || "");
+        if (!planId) continue;
+        const resolvedProductIds = productIdsByPlanId.get(planId) || [];
+        for (const productId of resolvedProductIds) {
+          target.set(productId, Number(target.get(productId) || 0) + Number(row?._count?._all || 0));
+        }
+      }
+    };
 
-    const totalGrouped = await prisma.subscription.groupBy({
-      by: ["planId"],
-      where: {
-        planId: { in: planIds },
-        status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED] }
-      },
-      _count: { _all: true }
-    });
-    for (const row of totalGrouped as any[]) {
-      const planId = String(row?.planId || "");
-      if (!planId) continue;
-      totalSubsByPlan.set(planId, Number(row?._count?._all || 0));
+    if (relatedPlanIds.length) {
+      const activeGrouped = await prisma.subscription.groupBy({
+        by: ["planId"],
+        where: { planId: { in: relatedPlanIds }, status: SubscriptionStatus.ACTIVE },
+        _count: { _all: true }
+      });
+      accumulate(activeSubsByProduct, activeGrouped as any[]);
+
+      const pastDueGrouped = await prisma.subscription.groupBy({
+        by: ["planId"],
+        where: { planId: { in: relatedPlanIds }, status: SubscriptionStatus.PAST_DUE },
+        _count: { _all: true }
+      });
+      accumulate(pastDueSubsByProduct, pastDueGrouped as any[]);
+
+      const totalGrouped = await prisma.subscription.groupBy({
+        by: ["planId"],
+        where: {
+          planId: { in: relatedPlanIds },
+          status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED] }
+        },
+        _count: { _all: true }
+      });
+      accumulate(totalSubsByProduct, totalGrouped as any[]);
     }
   }
 
@@ -603,9 +617,9 @@ export async function listCatalogProducts(args: {
       option2Name: (p.metadata as any)?.option2Name || null,
       variants: (p.metadata as any)?.variants || null,
       imageUrl: await normalizeImageUrlForOutput((p.metadata as any)?.imageUrl),
-      activeSubscriptions: Number(activeSubsByPlan.get(String(p.id)) || 0),
-      pastDueSubscriptions: Number(pastDueSubsByPlan.get(String(p.id)) || 0),
-      totalSubscriptions: Number(totalSubsByPlan.get(String(p.id)) || 0),
+      activeSubscriptions: Number(activeSubsByProduct.get(String(p.id)) || 0),
+      pastDueSubscriptions: Number(pastDueSubsByProduct.get(String(p.id)) || 0),
+      totalSubscriptions: Number(totalSubsByProduct.get(String(p.id)) || 0),
       createdAt: p.createdAt,
       updatedAt: p.updatedAt
     })));

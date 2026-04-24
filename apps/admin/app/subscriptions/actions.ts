@@ -35,6 +35,7 @@ export async function createSubscription(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   const customerId = String(formData.get("customerId") || "").trim();
+  const productId = String(formData.get("productId") || "").trim();
   const planId = String(formData.get("planId") || "").trim();
   const tenantId = String(formData.get("tenantId") || "").trim();
   const startAt = String(formData.get("startAt") || "").trim();
@@ -44,7 +45,8 @@ export async function createSubscription(formData: FormData) {
   try {
     const res = await createSubscriptionService({
       customerId,
-      planId,
+      productId: productId || undefined,
+      planId: planId || undefined,
       tenantIds: tenantId ? [tenantId] : [],
       startAt: startAt || undefined,
       firstPeriodEndAt: firstPeriodEndAt || undefined,
@@ -180,16 +182,18 @@ export async function deleteSubscription(formData: FormData) {
 export async function mergeDuplicateSubscriptions(formData: FormData) {
   await assertCsrfToken(formData);
   const customerId = String(formData.get("customerId") || "").trim();
+  const productId = String(formData.get("productId") || "").trim();
   const planId = String(formData.get("planId") || "").trim();
   const keepSubscriptionId = String(formData.get("keepSubscriptionId") || "").trim();
   const tenantId = String(formData.get("tenantId") || "").trim();
   const returnTo = safeReturnTo(formData);
-  if (!customerId || !planId) {
-    return redirect(mergeQuery(returnTo, { error: "missing_customer_or_plan", ...(tenantId ? { tenantId } : {}) }));
+  if (!customerId || (!productId && !planId)) {
+    return redirect(mergeQuery(returnTo, { error: "missing_customer_or_product", ...(tenantId ? { tenantId } : {}) }));
   }
   try {
     const res = await mergeDuplicateSubscriptionsService({
       customerId,
+      productId: productId || undefined,
       planId,
       keepSubscriptionId: keepSubscriptionId || undefined,
       tenantId: tenantId || null

@@ -1210,6 +1210,10 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     const planId =
       subscription?.planId ??
       (await db.subscription.findUnique({ where: { id: paymentRecord.subscriptionId }, select: { planId: true } }))?.planId;
+    const productId =
+      subscription?.productId ??
+      (await db.subscription.findUnique({ where: { id: paymentRecord.subscriptionId }, select: { productId: true } }))?.productId ??
+      (String((subscription?.plan as any)?.catalogProductId || (subscription?.plan?.metadata as any)?.catalog?.itemId || "").trim() || null);
     if (planId) {
       await db.paymentLink
         .upsert({
@@ -1217,6 +1221,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           create: {
             tenantId: tenantIdForPayment,
             planId,
+            productId,
             subscriptionId: paymentRecord.subscriptionId,
             paymentId: paymentRecord.id,
             wompiPaymentLinkId: paymentRecord.wompiPaymentLinkId,
@@ -1228,6 +1233,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           update: {
             ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
             planId,
+            productId,
             subscriptionId: paymentRecord.subscriptionId,
             wompiPaymentLinkId: paymentRecord.wompiPaymentLinkId,
             checkoutUrl: paymentRecord.checkoutUrl,
@@ -1349,11 +1355,12 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       logger.warn({ err, paymentId: paymentRecord.id, customerId: paymentRecord.customerId }, "processWompiEvent: fallo aplicando gamificación a customer por pago aprobado");
     });
 
-    if (subscription?.planId) {
+    const productId = subscription?.productId ?? (String((subscription?.plan as any)?.catalogProductId || (subscription?.plan?.metadata as any)?.catalog?.itemId || "").trim() || null);
+    if (productId) {
       const moneyPts = moneyToPoints(paymentRecord.amountInCents, GAMIFICATION_WEIGHTS.paymentApproved.moneyScale);
       await applyGamificationEvent({
         entityType: GamificationEntityType.PRODUCT,
-        entityId: subscription.planId,
+        entityId: productId,
         tenantId: tenantIdForPayment,
         kind: "product.payment.approved",
         moneyInCents: paymentRecord.amountInCents,
@@ -1361,7 +1368,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         lifetimeDelta: GAMIFICATION_WEIGHTS.paymentApproved.lifetime + moneyPts,
         metadata: { paymentId: paymentRecord.id, subscriptionId: paymentRecord.subscriptionId || null }
       }).catch((err) => {
-        logger.warn({ err, paymentId: paymentRecord.id, planId: subscription.planId }, "processWompiEvent: fallo aplicando gamificación a producto por pago aprobado");
+        logger.warn({ err, paymentId: paymentRecord.id, productId }, "processWompiEvent: fallo aplicando gamificación a producto por pago aprobado");
       });
     }
   } else if (becameFailed) {
@@ -1376,10 +1383,11 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       logger.warn({ err, paymentId: paymentRecord.id, customerId: paymentRecord.customerId }, "processWompiEvent: fallo aplicando gamificación a customer por pago fallido");
     });
 
-    if (subscription?.planId) {
+    const productId = subscription?.productId ?? (String((subscription?.plan as any)?.catalogProductId || (subscription?.plan?.metadata as any)?.catalog?.itemId || "").trim() || null);
+    if (productId) {
       await applyGamificationEvent({
         entityType: GamificationEntityType.PRODUCT,
-        entityId: subscription.planId,
+        entityId: productId,
         tenantId: tenantIdForPayment,
         kind: "product.payment.failed",
         moneyInCents: paymentRecord.amountInCents,
@@ -1387,7 +1395,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         lifetimeDelta: GAMIFICATION_WEIGHTS.paymentFailed.lifetime,
         metadata: { paymentId: paymentRecord.id, subscriptionId: paymentRecord.subscriptionId || null }
       }).catch((err) => {
-        logger.warn({ err, paymentId: paymentRecord.id, planId: subscription.planId }, "processWompiEvent: fallo aplicando gamificación a producto por pago fallido");
+        logger.warn({ err, paymentId: paymentRecord.id, productId }, "processWompiEvent: fallo aplicando gamificación a producto por pago fallido");
       });
     }
   }

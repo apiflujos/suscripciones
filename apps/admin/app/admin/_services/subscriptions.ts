@@ -18,6 +18,7 @@ import { scheduleSubscriptionDueNotifications, schedulePaymentLinkNotifications 
 import { consumeApp } from "@suscripciones/core/services/superAdminApp";
 import { validateWompiCurrency } from "@suscripciones/core/lib/wompiSignature";
 import { logger } from "@suscripciones/core/lib/logger";
+import { listPlanIdsForCatalogProducts, resolveOperationalPlanForProduct } from "./productPlanMapping";
 
 function hasUsablePaymentSource(metadata: any) {
   const candidates = [
@@ -383,7 +384,7 @@ export async function listSubscriptions(args: {
     orderBy: { createdAt: "desc" },
     take,
     skip,
-    include: { customer: true, plan: { include: { tenantLinks: true } }, tenantLinks: true }
+    include: { customer: true, product: true, plan: { include: { tenantLinks: true } }, tenantLinks: true }
   });
   const total = await prisma.subscription.count({ where });
   const subscriptionIds = items.map((s: any) => s.id);
@@ -472,6 +473,8 @@ export async function listSubscriptions(args: {
 
     return {
       ...s,
+      productId: s.productId || String((s.plan as any)?.catalogProductId || (s.plan?.metadata as any)?.catalog?.itemId || "").trim() || null,
+      productName: s.product?.name || s.plan?.name || null,
       tenantIds: Array.from(new Set([s.tenantId, ...(s.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))) as string[],
       lastPayment,
       lastPaymentLink: lastLink || null,
@@ -500,7 +503,8 @@ export async function createSubscription(args: {
   customerId: string;
   empresaId?: string | null;
   contactoId?: string | null;
-  planId: string;
+  planId?: string;
+  productId?: string;
   tenantIds: string[];
   startAt?: string;
   firstPeriodEndAt?: string;
@@ -508,14 +512,26 @@ export async function createSubscription(args: {
   allowDuplicate?: boolean;
   metadata?: Record<string, any>;
 }) {
-  const plan = await prisma.subscriptionPlan.findUnique({ where: { id: args.planId }, include: { tenantLinks: true } });
+  const requestedPlanId = String(args.planId || "").trim();
+  const effectiveTenantIds = Array.from(new Set((args.tenantIds || []).map((t) => String(t || "").trim()).filter(Boolean)));
+  const tenantIdForResolution = effectiveTenantIds[0] || null;
+
+  const directPlan = requestedPlanId
+    ? await prisma.subscriptionPlan.findUnique({ where: { id: requestedPlanId }, include: { tenantLinks: true } })
+    : null;
+  const resolvedPlan =
+    directPlan ||
+    (await resolveOperationalPlanForProduct({
+      productId: args.productId,
+      tenantId: tenantIdForResolution
+    }));
+  const plan = resolvedPlan;
   if (!plan) return { ok: false, status: 404, error: "plan_no_encontrado" as const };
 
   const customer = await prisma.customer.findUnique({ where: { id: args.customerId } });
   if (!customer) return { ok: false, status: 404, error: "customer_no_encontrado" as const };
 
   const planTenantIds = Array.from(new Set([plan.tenantId, ...(plan.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))) as string[];
-  const effectiveTenantIds = Array.from(new Set((args.tenantIds || []).map((t) => String(t || "").trim()).filter(Boolean)));
   if (!effectiveTenantIds.length) return { ok: false, status: 400, error: "tenant_requerido" as const };
 
   if (planTenantIds.length) {
@@ -530,7 +546,7 @@ export async function createSubscription(args: {
     if (!linked) return { ok: false, status: 409, error: "tenant_mismatch" as const };
   }
   if (!args.allowDuplicate) {
-    const catalogItemId = String((plan.metadata as any)?.catalog?.itemId || "").trim();
+    const catalogItemId = String((plan as any)?.catalogProductId || (plan.metadata as any)?.catalog?.itemId || "").trim();
     const activeStatuses = [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED, SubscriptionStatus.EXPIRED];
     const duplicateWhere: any = {
       customerId: args.customerId,
@@ -538,11 +554,12 @@ export async function createSubscription(args: {
     };
     if (catalogItemId) {
       duplicateWhere.OR = [
-        { planId: args.planId },
-        { plan: { metadata: { path: ["catalog", "itemId"], equals: catalogItemId } as any } }
+        { productId: catalogItemId },
+        { planId: plan.id },
+        { plan: { catalogProductId: catalogItemId } }
       ];
     } else {
-      duplicateWhere.planId = args.planId;
+      duplicateWhere.planId = plan.id;
     }
     const duplicatesCount = await prisma.subscription.count({ where: duplicateWhere });
     if (duplicatesCount > 0) return { ok: false, status: 409, error: "suscripcion_duplicada_requiere_aprobacion" as const };
@@ -587,6 +604,7 @@ export async function createSubscription(args: {
   }) || periodEnd;
   const dueWithGraceAt = new Date(dueAt.getTime() + graceDays * 24 * 60 * 60 * 1000);
   const initialStatus = dueWithGraceAt.getTime() < Date.now() ? SubscriptionStatus.PAST_DUE : SubscriptionStatus.ACTIVE;
+  const resolvedProductId = String(args.productId || (plan as any)?.catalogProductId || (plan.metadata as any)?.catalog?.itemId || "").trim() || null;
 
   const subscription = await prisma.subscription.create({
     data: {
@@ -595,6 +613,7 @@ export async function createSubscription(args: {
       empresaId: args.empresaId || null,
       contactoId: args.contactoId || null,
       planId: plan.id,
+      productId: resolvedProductId,
       status: initialStatus,
       startAt,
       cycleStartDay,
@@ -1620,7 +1639,8 @@ export async function updateSubscriptionBillingSettings(args: {
 
 export async function changeSubscriptionPlan(args: {
   subscriptionId: string;
-  planId: string;
+  planId?: string;
+  productId?: string;
   cutoffAt: string;
   shippingInCents?: number;
   freeShipping?: boolean;
@@ -1632,12 +1652,28 @@ export async function changeSubscriptionPlan(args: {
   const cutoffAt = new Date(cutoffAtRaw);
   if (!cutoffAtRaw || Number.isNaN(cutoffAt.getTime())) return { ok: false, status: 400, error: "invalid_cutoff_date" as const };
 
-  const [subscription, plan] = await Promise.all([
+  const requestedPlanId = String(args.planId || "").trim();
+  const requestedProductId = String(args.productId || "").trim();
+  const [subscription, directPlan] = await Promise.all([
     prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { tenantLinks: true, plan: true } }),
-    prisma.subscriptionPlan.findUnique({ where: { id: args.planId }, include: { tenantLinks: true } })
+    requestedPlanId
+      ? prisma.subscriptionPlan.findUnique({ where: { id: requestedPlanId }, include: { tenantLinks: true } })
+      : Promise.resolve(null)
   ]);
   if (!subscription) return { ok: false, status: 404, error: "subscription_not_found" as const };
-  if (!plan) return { ok: false, status: 404, error: "plan_not_found" as const };
+  const plan =
+    directPlan ||
+    (await resolveOperationalPlanForProduct({
+      productId: requestedProductId,
+      tenantId: args.tenantId || subscription.tenantId
+    }));
+  if (!plan) {
+    return {
+      ok: false,
+      status: 404,
+      error: requestedProductId ? ("product_not_found" as const) : ("plan_not_found" as const)
+    };
+  }
   if (args.tenantId) {
     const allowed =
       subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
@@ -1693,6 +1729,7 @@ export async function changeSubscriptionPlan(args: {
     where: { id: subscriptionId },
     data: {
       planId: plan.id,
+      productId: requestedProductId || String((plan as any)?.catalogProductId || (plan.metadata as any)?.catalog?.itemId || "").trim() || null,
       metadata: nextSubscriptionMetadata as any
     }
   });
@@ -1864,6 +1901,7 @@ export async function deleteSubscription(args: { subscriptionId: string; tenantI
 
 export async function mergeDuplicateSubscriptions(args: {
   customerId: string;
+  productId?: string;
   planId?: string;
   keepSubscriptionId?: string;
   tenantId?: string | null;
@@ -1872,7 +1910,22 @@ export async function mergeDuplicateSubscriptions(args: {
   if (!customerId) return { ok: false, status: 400, error: "missing_customer_id" as const };
 
   const where: any = { customerId };
-  if (args.planId) where.planId = args.planId;
+  const tenantId = String(args.tenantId || "").trim();
+  if (tenantId) where.tenantId = tenantId;
+
+  const requestedProductId = String(args.productId || "").trim();
+  const requestedPlanId = String(args.planId || "").trim();
+  if (requestedProductId) {
+    const planIds = Array.from(
+      new Set((await listPlanIdsForCatalogProducts({ productIds: [requestedProductId], tenantId, includeCatalogItems: false })).get(requestedProductId) || [])
+    ).filter(Boolean);
+    if (requestedPlanId && !planIds.includes(requestedPlanId)) planIds.push(requestedPlanId);
+    if (!planIds.length) return { ok: false, status: 404, error: "no_duplicates_found" as const };
+    where.planId = { in: planIds };
+  } else if (requestedPlanId) {
+    where.planId = requestedPlanId;
+  }
+
   const duplicates = await prisma.subscription.findMany({
     where,
     orderBy: { createdAt: "desc" }

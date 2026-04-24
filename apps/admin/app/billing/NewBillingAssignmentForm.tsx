@@ -362,7 +362,7 @@ export function NewBillingAssignmentForm({
       {!hideHeader ? (
         <div className="panel-header ui-panel-header ui-panel-header-left">
           <div className="ui-panel-title">
-            <h3 style={{ margin: 0 }}>Crear plan o suscripción para un contacto</h3>
+            <h3 style={{ margin: 0 }}>Crear suscripción o cobro para un contacto</h3>
             {!forceOpen ? (
               <button className={open ? "ghost btn-compact btn-cancel" : "primary btn-compact btn-subscription"} type="button" data-loader="off" onClick={() => setOpen((v) => !v)}>
                 {open ? "Cerrar" : "Crear suscripción"}
@@ -780,7 +780,7 @@ export function NewBillingAssignmentForm({
                     disabled={!productId || !customerId || shippingCop === "$ 0"}
                   />
                   <div className="field-hint">
-                    Este valor solo se aplica a esta suscripción/plan. Deja en $0 para envío gratis.
+                    Este valor solo se aplica a esta suscripción. Deja en $0 para envío gratis.
                   </div>
                   <div className="field-hint">Moneda: {selectedProduct.currency || "COP"}</div>
                 </div>
@@ -816,7 +816,7 @@ export function NewBillingAssignmentForm({
                   title="Crear sin enviar link"
                   aria-label="Crear"
                 >
-                  {billingType === "PLAN" ? "Crear plan" : "Crear suscripción"}
+                  {billingType === "PLAN" ? "Crear cobro" : "Crear suscripción"}
                 </button>
                 <button
                   className="primary btn-compact btn-send"

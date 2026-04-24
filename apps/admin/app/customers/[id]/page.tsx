@@ -136,6 +136,12 @@ function formatPlanTitle(plan: any) {
   return sku ? `SKU ${sku} · ${name}` : name;
 }
 
+function formatProductTitle(product: any, fallbackPlan?: any) {
+  const displayName = String(product?.displayName || product?.name || "").trim();
+  if (displayName) return displayName;
+  return formatPlanTitle(fallbackPlan);
+}
+
 function tokenMethodLabel(meta: any) {
   const wompi = meta?.wompi && typeof meta.wompi === "object" ? meta.wompi : {};
   const sources = Array.isArray(wompi?.paymentSources) ? wompi.paymentSources : [];
@@ -477,7 +483,7 @@ export default async function CustomerDetailPage({
   const nextPeriodEnd = activeCycleForSummary?.periodEndAt || null;
   const wompiMeta = (meta as any)?.wompi || {};
   const paymentSourceId = wompiMeta?.paymentSourceId || wompiMeta?.payment_source_id || null;
-  const activePlanLabel = activeSub ? formatPlanTitle(activeSub?.plan) : "Sin plan activo";
+  const activePlanLabel = activeSub ? formatProductTitle(activeSub?.product, activeSub?.plan) : "Sin producto activo";
   const tokenMethod = tokenMethodLabel(meta);
   const chatwootMeta = (meta as any)?.chatwoot || {};
   const chatwootContactId = Number(chatwootMeta?.contactId || 0);
@@ -690,8 +696,8 @@ export default async function CustomerDetailPage({
                       </td>
                       <td>{c.paidAt ? <LocalDateTime value={c.paidAt} /> : "—"}</td>
                       <td>{punctual}</td>
-                      <td className="cell-truncate" title={formatPlanTitle({ name: c.subscription?.plan?.name })}>
-                        {formatPlanTitle({ name: c.subscription?.plan?.name })}
+                      <td className="cell-truncate" title={formatProductTitle(c.subscription?.product, { name: c.subscription?.plan?.name })}>
+                        {formatProductTitle(c.subscription?.product, { name: c.subscription?.plan?.name })}
                       </td>
                     </tr>
                   );
@@ -1018,7 +1024,7 @@ export default async function CustomerDetailPage({
                     <th>Fecha</th>
                     <th>Monto</th>
                     <th>Estado</th>
-                    <th>Suscripción</th>
+                    <th>Producto</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1027,7 +1033,9 @@ export default async function CustomerDetailPage({
                       <td><LocalDateTime value={p.paidAt || p.createdAt} /></td>
                       <td>{formatCopFromCents(Number(p.amountInCents || 0))}</td>
                       <td className="cell-truncate" title={String(p.status || "—")}><span className={`pill pill-sm ${statusPillClass(String(p.status || ""))}`}>{statusLabel(String(p.status || ""))}</span></td>
-                      <td className="cell-truncate" title={formatPlanTitle({ name: p.planName })}>{formatPlanTitle({ name: p.planName })}</td>
+                      <td className="cell-truncate" title={formatProductTitle({ name: p.productName }, { name: p.planName })}>
+                        {formatProductTitle({ name: p.productName }, { name: p.planName })}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

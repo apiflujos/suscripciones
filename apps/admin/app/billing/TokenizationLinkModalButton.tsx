@@ -7,6 +7,7 @@ import { isNotificationTemplateConfigured, renderNotificationTemplatePreview } f
 
 export function TokenizationLinkModalButton({
   customerId,
+  productId,
   planId,
   tenantId,
   csrfToken,
@@ -17,6 +18,7 @@ export function TokenizationLinkModalButton({
   action
 }: {
   customerId: string;
+  productId?: string | null;
   planId?: string | null;
   tenantId?: string;
   csrfToken: string;
@@ -67,6 +69,7 @@ export function TokenizationLinkModalButton({
             <form action={action} className="panel module" style={{ display: "grid", gap: 10 }}>
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="customerId" value={customerId} />
+              {productId ? <input type="hidden" name="productId" value={productId} /> : null}
               {planId ? <input type="hidden" name="planId" value={planId} /> : null}
               <input type="hidden" name="returnTo" value={returnTo} />
               {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}

@@ -278,6 +278,10 @@ function splitPlanDisplay(value: unknown) {
   };
 }
 
+function splitProductDisplay(value: unknown) {
+  return splitPlanDisplay(value);
+}
+
 function extractTemplateProductId(entry: any) {
   if (!entry) return "";
   if (typeof entry === "string") return String(entry).trim();
@@ -454,9 +458,13 @@ export default async function BillingPage({
       const tenantNameList = tenantIds.map((id: string) => tenantById.get(String(id))).filter(Boolean) as string[];
       const subscriptionPricing = readPlanPricing((s?.metadata as any) ?? {});
       const planPricing = readPlanPricing((plan?.metadata as any) ?? {});
+      const resolvedProductId = String((s as any)?.productId || (plan as any)?.catalogProductId || (plan?.metadata as any)?.catalog?.itemId || "");
+      const catalogProduct = productById.get(resolvedProductId);
       const totalInCents = Number(subscriptionPricing?.totalInCents || plan?.priceInCents || 0);
       const shippingInCents = Number(subscriptionPricing?.shippingInCents ?? planPricing?.shippingInCents ?? 0);
-      const requiresShipping = String((plan?.metadata as any)?.catalog?.kind || "").toUpperCase() !== "SERVICE";
+      const requiresShipping =
+        String(catalogProduct?.kind || "PRODUCT").toUpperCase() !== "SERVICE" &&
+        (catalogProduct?.requiresShipping !== false);
       const shippingAppliedInCents = requiresShipping ? Math.max(0, shippingInCents) : 0;
       const baseValueInCents = Math.max(0, totalInCents - shippingAppliedInCents);
       const dueAtDate = s.nextBillingDate ? new Date(s.nextBillingDate) : null;
@@ -474,7 +482,8 @@ export default async function BillingPage({
         planIntervalUnit: String(plan?.intervalUnit || "MONTH"),
         planIntervalCount: Number(plan?.intervalCount || 1),
         tenantId: String(s.tenantId || plan?.tenantId || ""),
-        productId: String((plan?.metadata as any)?.catalog?.itemId || ""),
+        productId: resolvedProductId,
+        productName: String((s as any)?.productName || catalogProduct?.name || formatPlanTitle(plan) || "Producto"),
         tenantIds,
         customerId: String(s.customerId || ""),
         customerName: String(customer?.name || customer?.email || s.customerId || "—"),
@@ -489,7 +498,7 @@ export default async function BillingPage({
         status: String(s.status || "—"),
         estadoInfo,
         planName: formatPlanTitle(plan),
-        planImageUrl: normalizeImageUrl((plan?.metadata as any)?.imageUrl || (productById.get(String((plan?.metadata as any)?.catalog?.itemId || ""))?.imageUrl ?? "")),
+        planImageUrl: normalizeImageUrl((plan?.metadata as any)?.imageUrl || (catalogProduct?.imageUrl ?? "")),
         montoInCents: totalInCents,
         valorBaseInCents: baseValueInCents,
         totalInCents,
@@ -587,15 +596,22 @@ export default async function BillingPage({
     return "";
   };
 
+  const resolveDuplicateKey = (row: any) => {
+    const customerId = String(row?.customerId || "").trim();
+    const productOrPlanId = String(row?.productId || row?.planId || "").trim();
+    if (!customerId || !productOrPlanId) return "";
+    return `${customerId}:${productOrPlanId}`;
+  };
+
   const duplicateCountByKey = rows.reduce((acc, row) => {
-    const key = `${row.customerId}:${row.planId}`;
-    if (!row.customerId || !row.planId) return acc;
+    const key = resolveDuplicateKey(row);
+    if (!key) return acc;
     acc.set(key, (acc.get(key) || 0) + 1);
     return acc;
   }, new Map<string, number>());
   const duplicateKeepByKey = rows.reduce((acc, row) => {
-    const key = `${row.customerId}:${row.planId}`;
-    if (!row.customerId || !row.planId) return acc;
+    const key = resolveDuplicateKey(row);
+    if (!key) return acc;
     const prev = acc.get(key);
     if (!prev) {
       acc.set(key, row);
@@ -685,10 +701,11 @@ export default async function BillingPage({
     
     // Botón de tokenización: visible para débito automático mientras esté activa
     const showTokenizationLink = isAutoDebit && !isInactive;
-    const duplicateKey = `${r.customerId}:${r.planId}`;
+    const duplicateKey = resolveDuplicateKey(r);
     const duplicateCount = duplicateCountByKey.get(duplicateKey) || 1;
     const keepRowId = duplicateKeepByKey.get(duplicateKey)?.id || r.id;
-    const productInitials = String(r.planName || "Producto")
+    const productLabel = String(r.productName || r.planName || "Producto");
+    const productInitials = String(productLabel || "Producto")
       .split(/\s+/)
       .filter(Boolean)
       .slice(0, 2)
@@ -704,7 +721,7 @@ export default async function BillingPage({
         : r.pagoAt
           ? formatLongCivilDate(r.pagoAt)
           : "No registrado";
-    const planDisplay = splitPlanDisplay(r.planName);
+    const productDisplay = splitProductDisplay(productLabel);
     const totalLabel = fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda);
     const baseLabel = fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda);
     const shippingLabel = r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : "Gratis";
@@ -750,8 +767,8 @@ export default async function BillingPage({
                 returnTo={returnTo}
                 currentChargeAt={r.vencimientoAt}
                 periodStartAt={r.periodoInicioAt}
-                currentPlanId={r.planId}
-                currentPlanName={r.planName}
+                currentPlanId={r.productId || r.planId}
+                currentPlanName={productLabel}
                 currentPlanCurrency={r.moneda}
                 currentShippingInCents={r.currentShippingInCents}
                 currentRequiresShipping={r.currentRequiresShipping}
@@ -809,7 +826,7 @@ export default async function BillingPage({
                   {r.planImageUrl ? (
                     <img
                       src={r.planImageUrl}
-                      alt={r.planName}
+                      alt={productLabel}
                       style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     />
                   ) : (
@@ -817,9 +834,9 @@ export default async function BillingPage({
                   )}
                 </div>
                 <div className="billing-product-meta">
-                  <strong className="billing-value billing-value-compact">{planDisplay.name}</strong>
-                  {planDisplay.sku ? (
-                    <div className="billing-product-sku">SKU {planDisplay.sku}</div>
+                  <strong className="billing-value billing-value-compact">{productDisplay.name}</strong>
+                  {productDisplay.sku ? (
+                    <div className="billing-product-sku">SKU {productDisplay.sku}</div>
                   ) : null}
                 </div>
               </div>
@@ -856,6 +873,7 @@ export default async function BillingPage({
                 action={mergeDuplicateSubscriptions}
                 csrfToken={csrfToken}
                 customerId={r.customerId}
+                productId={r.productId || undefined}
                 planId={r.planId}
                 keepSubscriptionId={keepRowId}
                 tenantId={r.tenantId}
@@ -917,6 +935,7 @@ export default async function BillingPage({
               ) : (
                 <TokenizationLinkModalButton
                   customerId={r.customerId}
+                  productId={r.productId || undefined}
                   planId={r.planId}
                   tenantId={r.tenantId}
                   csrfToken={csrfToken}
@@ -1171,7 +1190,7 @@ export default async function BillingPage({
                   ...(r.tenantId ? { tenantId: r.tenantId } : {})
                 }).toString()}`;
                 const productHref = `/products?${new URLSearchParams({
-                  q: r.planName || "",
+                  q: r.productName || r.planName || "",
                   ...(r.tenantId ? { tenantId: r.tenantId } : {})
                 }).toString()}`;
                 return (
@@ -1181,7 +1200,7 @@ export default async function BillingPage({
                       <div className="billing-list-sub">{r.customerEmail || "—"} · {r.identificacion || "—"}</div>
                     </div>
                     <div className="billing-list-cell billing-list-product">
-                      <a className="billing-list-link" href={productHref}>{r.planName || "—"}</a>
+                      <a className="billing-list-link" href={productHref}>{r.productName || r.planName || "—"}</a>
                     </div>
                     <div className="billing-list-cell billing-list-product">
                       <div className="billing-list-sub">{r.tipoTx || "—"} · {r.cada}</div>
@@ -1272,6 +1291,7 @@ export default async function BillingPage({
                             ) : (
                               <TokenizationLinkModalButton
                                 customerId={r.customerId}
+                                productId={r.productId || undefined}
                                 planId={r.planId}
                                 tenantId={r.tenantId}
                                 csrfToken={csrfToken}
@@ -1366,7 +1386,7 @@ export default async function BillingPage({
                                   title={`Suscripción: ${getEstadoSimple(r.status).label}`}
                                 >
                                   <div className="billing-kanban-name">{r.customerName}</div>
-                                  <div className="billing-kanban-sub">{r.planName || "—"}</div>
+                                  <div className="billing-kanban-sub">{r.productName || r.planName || "—"}</div>
                                   <div className="billing-kanban-meta">
                                     <span>{fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda)}</span>
                                     <span>·</span>
@@ -1424,6 +1444,7 @@ export default async function BillingPage({
                                     ) : (
                                       <TokenizationLinkModalButton
                                         customerId={r.customerId}
+                                        productId={r.productId || undefined}
                                         planId={r.planId}
                                         tenantId={r.tenantId}
                                         csrfToken={csrfToken}

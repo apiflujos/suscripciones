@@ -143,11 +143,20 @@ export async function aiAssist(payload: AiAssistPayload) {
         createdAt: { gte: from, lt: to },
         ...(tenantId ? { tenantId } : {}),
         ...(customerId ? { customerId } : {}),
-        ...(productId ? { subscription: { planId: productId } } : {})
+        ...(productId
+          ? {
+              subscription: {
+                OR: [
+                  { productId },
+                  { plan: { catalogProductId: productId } }
+                ]
+              }
+            }
+          : {})
       },
       orderBy: { createdAt: "desc" },
       take: 80,
-      include: { customer: true, subscription: { include: { plan: true } } }
+      include: { customer: true, subscription: { include: { plan: true, product: true } } }
     })
   ]);
 
@@ -270,7 +279,7 @@ export async function aiAssist(payload: AiAssistPayload) {
     status: p.status,
     amount: formatCurrency(p.amountInCents, p.currency),
     customer: p.customer?.name || p.customer?.email || p.customer?.phone || p.customerId,
-    plan: p.subscription?.plan?.name || null,
+    product: p.subscription?.product?.name || p.subscription?.plan?.name || null,
     reference: clampString(p.reference || "", 80)
   }));
 
@@ -321,7 +330,7 @@ export async function aiAssist(payload: AiAssistPayload) {
       prisma.customer.findUnique({ where: { id: customerId } }),
       prisma.subscription.findMany({
         where: { customerId },
-        include: { plan: true },
+        include: { plan: true, product: true },
         orderBy: { createdAt: "desc" },
         take: 12
       })
@@ -348,6 +357,8 @@ export async function aiAssist(payload: AiAssistPayload) {
       return {
         id: s.id,
         status: s.status,
+        productId: s.productId || String((s.plan as any)?.catalogProductId || (s.plan?.metadata as any)?.catalog?.itemId || "").trim() || null,
+        product: s.product?.name || s.plan?.name || null,
         plan: s.plan?.name || null,
         activeCycleNumber: activeCycle?.cycleNumber ?? null,
         activeCycleEndAt: activeCycle?.periodEndAt ?? null,

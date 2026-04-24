@@ -92,6 +92,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
 
   const customerId = String(customer?.id || "").trim();
   const customerEmail = String(customer?.email || "").trim();
+  const linkProductId = String(link?.productId || "").trim();
   const linkPlanId = String(link?.planId || "").trim();
   const linkKind = String(link?.kind || "").trim();
   if (!customerId) return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=customer_not_found`, redirectBase));
@@ -141,13 +142,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       logger.warn({ err, customerId, linkToken }, "Fallo guardando metadata tras tokenización pública");
     });
 
-    if (linkKind === "SUBSCRIPTION" && linkPlanId) {
+    if (linkKind === "SUBSCRIPTION" && (linkProductId || linkPlanId)) {
       try {
         const tenantFromLink = String(link?.tenantId || "").trim();
         const tenantIds = tenantFromLink ? [tenantFromLink] : customer.tenantId ? [String(customer.tenantId)] : [];
         const subRes = await createSubscription({
           customerId,
-          planId: linkPlanId,
+          ...(linkProductId ? { productId: linkProductId } : {}),
+          ...(linkPlanId ? { planId: linkPlanId } : {}),
           tenantIds,
           createPaymentLink: false
         });
@@ -164,7 +166,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
           });
         }
       } catch (err: any) {
-        logger.warn({ err, customerId, planId: linkPlanId }, "Fallo creando suscripción automática tras tokenización pública");
+        logger.warn({ err, customerId, productId: linkProductId || null, planId: linkPlanId || null }, "Fallo creando suscripción automática tras tokenización pública");
       }
     }
 

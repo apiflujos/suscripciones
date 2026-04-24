@@ -175,11 +175,12 @@ export async function GET(req: Request) {
       });
       const items = result.items || [];
       const csv = toCsv(
-        ["id", "customerId", "customerName", "planId", "planName", "status", "collectionMode", "amount_cop", "currency", "periodEndAt"],
+        ["id", "customerId", "customerName", "productId", "planId", "planName", "status", "collectionMode", "amount_cop", "currency", "periodEndAt"],
         items.map((s: any) => ({
           id: s?.id,
           customerId: s?.customerId || s?.customer?.id || "",
           customerName: s?.customer?.name || s?.customer?.email || "",
+          productId: s?.productId || (s?.plan as any)?.catalogProductId || s?.plan?.metadata?.catalog?.itemId || "",
           planId: s?.planId || s?.plan?.id || "",
           planName: s?.plan?.name || "",
           status: s?.status || "",

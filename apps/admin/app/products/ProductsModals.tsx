@@ -55,7 +55,7 @@ export function ProductsModals({
             data-modal="true"
             data-loader="off"
             onClick={() => setOpenPlan(true)}
-            title="Crea un plan o una suscripción desde este producto"
+            title="Crea una suscripción a partir de este producto"
           >
             Crear suscripción
           </button>
@@ -69,7 +69,7 @@ export function ProductsModals({
       ) : null}
 
       {openPlan ? (
-        <AppModal open={openPlan} onClose={() => setOpenPlan(false)} title="Crear plan o suscripción" maxWidth={980}>
+        <AppModal open={openPlan} onClose={() => setOpenPlan(false)} title="Crear suscripción desde producto" maxWidth={980}>
             <NewBillingAssignmentForm
               customers={customers}
               empresas={empresas}

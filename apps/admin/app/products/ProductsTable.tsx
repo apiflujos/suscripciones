@@ -678,7 +678,7 @@ export function ProductsTable({
         </div>
       )}
 
-      <AppModal open={Boolean(planModalOpen && planModalProduct)} onClose={closePlanModal} title="Crear plan o suscripción" maxWidth={980}>
+      <AppModal open={Boolean(planModalOpen && planModalProduct)} onClose={closePlanModal} title="Crear suscripción desde producto" maxWidth={980}>
         {planModalProduct ? (
           <NewBillingAssignmentForm
             customers={customers}

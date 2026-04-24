@@ -11,6 +11,11 @@ type PlanCreateResult =
   | { ok: true; plan: any }
   | { ok: false; status: number; error: string; details?: any };
 
+function readCatalogProductId(metadata: unknown) {
+  const raw = String((metadata as any)?.catalog?.itemId || "").trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw) ? raw : null;
+}
+
 export async function createPlan(args: {
   tenantIds: string[];
   name: string;
@@ -47,6 +52,7 @@ export async function createPlan(args: {
     ...(args.metadata && typeof args.metadata === "object" ? (args.metadata as any) : {}),
     collectionMode
   };
+  const catalogProductId = readCatalogProductId(mergedMetadata);
 
   const plan = await prisma.subscriptionPlan.create({
     data: {
@@ -58,6 +64,7 @@ export async function createPlan(args: {
       planType: finalPlanType,
       ...(typeof args.active === "boolean" ? { active: args.active } : {}),
       tenantId: tenantIds[0],
+      catalogProductId,
       metadata: mergedMetadata as any
     }
   });

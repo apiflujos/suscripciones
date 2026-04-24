@@ -1228,7 +1228,7 @@ export default async function LogsPage({
                   <tr>
                     <th>Fecha</th>
                     <th>Cliente</th>
-                    <th>Suscripción</th>
+                    <th>Producto</th>
                     <th>Estado</th>
                     <th>Notificación</th>
                     <th>Total</th>
@@ -1272,13 +1272,15 @@ export default async function LogsPage({
                         Boolean(p.checkoutUrl) ||
                         referenceText.startsWith("ORDER_") ||
                         ["MANUAL_LINK", "AUTO_LINK"].includes(String(p.origin || "").toUpperCase()));
-                    const planName = p.subscription?.plan?.name
-                      ? p.subscription.plan.name
-                      : isRequestedLink
+                    const productName =
+                      p.productName ||
+                      p.subscription?.product?.name ||
+                      p.subscription?.plan?.name ||
+                      (isRequestedLink
                         ? "Pago solicitado (link de pago)"
                         : isExternal
                           ? `Pago externo (${externalSourceLabel})`
-                          : "Falta asociar suscripción";
+                          : "Falta asociar suscripción");
                     const contactQuery =
                       p.customer?.email ||
                       p.customer?.phone ||
@@ -1346,7 +1348,7 @@ export default async function LogsPage({
                       <tr key={p.id}>
                         <td className="log-date-cell"><LocalDateTime value={p.paidAt || p.createdAt} variant="stacked" /></td>
                         <td className="log-contact-cell">{renderContactBlock(p)}</td>
-                        <td className="log-plan-cell" title={planName}>{planName}</td>
+                        <td className="log-plan-cell" title={productName}>{productName}</td>
                         <td className="log-status-cell">
                           <span className={`status-chip ${chip.cls}`}>
                             <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
@@ -1544,7 +1546,7 @@ export default async function LogsPage({
                     <th>Monto</th>
                     <th>Referencia</th>
                     <th>Tipo</th>
-                    <th>Plan</th>
+                    <th>Producto</th>
                     <th>Procesamiento</th>
                     <th>Pago</th>
                     <th>Fallo</th>
@@ -1582,7 +1584,7 @@ export default async function LogsPage({
                           </div>
                         </td>
                         <td className="log-type-cell" title={e.paymentType || e.eventName || "—"}>{e.paymentType || e.eventName || "—"}</td>
-                        <td className="log-plan-cell" title={e.planName || "—"}>{e.planName || "—"}</td>
+                        <td className="log-plan-cell" title={e.productName || e.planName || "—"}>{e.productName || e.planName || "—"}</td>
                         <td className="log-status-cell">
                           <span className={`status-chip ${processChip.cls}`}>
                             <span className={`status-led ${processChip.cls === "is-success" ? "is-ok" : ""}`} />

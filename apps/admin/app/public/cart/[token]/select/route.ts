@@ -11,6 +11,7 @@ import { computeBillingCycleDueAt, ensureBillingCyclesForSubscription } from "@s
 import { verifyPublicToken } from "../../../../../lib/publicTokens";
 import { logger } from "@suscripciones/core/lib/logger";
 import { findCheckoutTemplateForProductOrDefault, listCheckoutSelectableProducts } from "../../../../admin/_services/checkoutTemplates";
+import { resolveOperationalPlanForProduct } from "../../../../admin/_services/productPlanMapping";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,11 +20,6 @@ type CartLinkMeta = {
   token?: string;
   expiresAt?: string;
   templateId?: string;
-};
-
-type PlanMetadata = {
-  collectionMode?: string;
-  catalog?: { itemId?: string };
 };
 
 type PlanPublic = {
@@ -52,21 +48,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   if (!customer) return Response.json({ error: "token_not_found" }, { status: 404 });
 
   const contentType = String(req.headers.get("content-type") || "").toLowerCase();
-  let planId = "";
+  let productIdParam = "";
   if (contentType.includes("application/json")) {
     const body = await req.json().catch((err: any) => {
       logger.warn({ err, token, customerId: customer.id }, "Body invalido JSON en cart select");
       return null;
     });
-    planId = String(body?.planId || "").trim();
+    productIdParam = String(body?.productId || body?.planId || "").trim();
   } else {
     const form = await req.formData().catch((err: any) => {
       logger.warn({ err, token, customerId: customer.id }, "Body invalido formData en cart select");
       return null;
     });
-    planId = String(form?.get("planId") || "").trim();
+    productIdParam = String(form?.get("productId") || form?.get("planId") || "").trim();
   }
-  if (!planId) return Response.json({ error: "missing_plan_id" }, { status: 400 });
+  if (!productIdParam) return Response.json({ error: "missing_product_id" }, { status: 400 });
 
   const meta = (customer.metadata ?? {}) as { cartLink?: CartLinkMeta };
   const link = meta?.cartLink ?? {};
@@ -90,18 +86,23 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   };
 
   const templateProducts = parseTemplateProducts(template.productIds);
-  const selectedTemplateProduct = templateProducts.find((p) => String(p.id) === planId);
+  const selectedTemplateProduct = templateProducts.find((p) => String(p.id) === productIdParam);
   const selectableProducts = await listCheckoutSelectableProducts({ template });
-  const isSelectableProduct = (selectableProducts.items || []).some((item: any) => String(item?.id || "") === planId);
+  const isSelectableProduct = (selectableProducts.items || []).some((item: any) => String(item?.id || "") === productIdParam);
   if (!isSelectableProduct) {
-    return Response.json({ error: "plan_not_allowed" }, { status: 400 });
+    return Response.json({ error: "product_not_allowed" }, { status: 400 });
   }
 
-  const plan = (await prisma.subscriptionPlan.findUnique({
-    where: { id: planId },
+  const product = (await prisma.subscriptionPlan.findUnique({
+    where: { id: productIdParam },
     include: { tenantLinks: true }
   })) as PlanPublic | null;
-  if (!plan) return Response.json({ error: "plan_not_found" }, { status: 404 });
+  if (!product) return Response.json({ error: "product_not_found" }, { status: 404 });
+  const operationalPlan = await resolveOperationalPlanForProduct({
+    productId: product.id,
+    tenantId: String(template.tenantId || product.tenantId || "").trim() || null
+  });
+  if (!operationalPlan) return Response.json({ error: "product_not_found" }, { status: 404 });
 
   const rawConfig = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
   let cfg: any = {};
@@ -111,11 +112,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     logger.warn({ err }, "Fallo parseando checkout config en cart select");
     cfg = {};
   }
-  const collectionMode = String(
-    selectedTemplateProduct?.mode || (plan.metadata as PlanMetadata | null)?.collectionMode || "MANUAL_LINK"
-  ).toUpperCase();
-  const productId = String((plan.metadata as PlanMetadata | null)?.catalog?.itemId || "").trim();
-  const scopeTenantId = String(template.tenantId || plan.tenantId || "").trim() || null;
+  const operationalPlanMetadata =
+    operationalPlan.metadata && typeof operationalPlan.metadata === "object" ? (operationalPlan.metadata as Record<string, any>) : {};
+  const collectionMode = String(selectedTemplateProduct?.mode || operationalPlanMetadata?.collectionMode || "MANUAL_LINK").toUpperCase();
+  const productId = String(product.id || "").trim();
+  const scopeTenantId = String(template.tenantId || operationalPlan.tenantId || product.tenantId || "").trim() || null;
 
   if (collectionMode === "AUTO_DEBIT") {
     const checkoutTemplate = await findCheckoutTemplateForProductOrDefault({
@@ -131,7 +132,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     const created = await createPublicCheckoutLink({
       customerId: customer.id,
       templateId: String((checkoutTemplate as any).id || ""),
-      planId
+      planId: operationalPlan.id,
+      productId: productId || null
     });
     if (!created?.url) return Response.json({ error: "public_checkout_create_failed" }, { status: 500 });
     return Response.json({ ok: true, nextUrl: created.url, kind: "SUBSCRIPTION" });
@@ -144,14 +146,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     productId,
     defaultTemplateId: String(cfg?.defaultPlanTemplateId || "").trim()
   });
-  const periodEnd = addIntervalUtc(startAt, plan.intervalUnit, plan.intervalCount);
+  const periodEnd = addIntervalUtc(startAt, operationalPlan.intervalUnit, operationalPlan.intervalCount);
   const paymentsConfig = await getPaymentsConfig().catch(() => null);
   const cycleStartDay = Math.max(1, Math.min(31, Math.trunc(paymentsConfig?.defaultCycleStartDay || 1)));
   const paymentDay = Math.max(1, Math.min(31, Math.trunc(paymentsConfig?.defaultPaymentDay || cycleStartDay)));
   const paymentTiming = String(paymentsConfig?.defaultPaymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
   const graceDays = Math.max(0, Math.trunc(paymentsConfig?.defaultGraceDays || 0));
   const dueAt =
-    plan.intervalUnit === PlanIntervalUnit.MONTH
+    operationalPlan.intervalUnit === PlanIntervalUnit.MONTH
       ? computeBillingCycleDueAt({
           periodStartAt: startAt,
           periodEndAt: periodEnd,
@@ -165,7 +167,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     data: {
       tenantId: template.tenantId,
       customerId: customer.id,
-      planId: plan.id,
+      planId: operationalPlan.id,
+      productId: productId || null,
       status: dueWithGraceAt.getTime() < Date.now() ? SubscriptionStatus.PAST_DUE : SubscriptionStatus.ACTIVE,
       startAt,
       cycleStartDay,
@@ -187,8 +190,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     paymentTiming: subscription.paymentTiming as any,
     graceDays: subscription.graceDays,
     plan: {
-      intervalUnit: plan.intervalUnit,
-      intervalCount: plan.intervalCount
+      intervalUnit: operationalPlan.intervalUnit,
+      intervalCount: operationalPlan.intervalCount
     }
   }).catch((err: any) => {
     logger.warn({ err, subscriptionId: subscription.id }, "Fallo generando ciclos desde cart select");
@@ -203,8 +206,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   const tenantIds = Array.from(
     new Set(
       [
-        plan.tenantId,
-        ...(((plan.tenantLinks || []) as Array<{ tenantId?: string | null }>).map((t) => t.tenantId) as string[])
+        operationalPlan.tenantId,
+        ...(((operationalPlan.tenantLinks || []) as Array<{ tenantId?: string | null }>).map((t) => t.tenantId) as string[])
       ].filter(Boolean) as string[]
     )
   );
@@ -234,7 +237,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   const created = await createPublicCheckoutLink({
     customerId: customer.id,
     templateId: String((checkoutTemplate as any).id || ""),
-    checkoutUrl: linkCreated.checkoutUrl
+    checkoutUrl: linkCreated.checkoutUrl,
+    planId: operationalPlan.id,
+    productId: productId || null
   });
   if (!created?.url) return Response.json({ error: "public_checkout_create_failed" }, { status: 500 });
   return Response.json({ ok: true, nextUrl: created.url, kind: "PLAN" });

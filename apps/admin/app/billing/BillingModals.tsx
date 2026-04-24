@@ -39,7 +39,7 @@ export function BillingModals({
         </button>
       </div>
 
-      <AppModal open={open} onClose={() => setOpen(false)} title="Crear plan o suscripción" maxWidth={980}>
+      <AppModal open={open} onClose={() => setOpen(false)} title="Crear suscripción o cobro" maxWidth={980}>
         <NewBillingAssignmentForm
           customers={customers}
           empresas={empresas}
