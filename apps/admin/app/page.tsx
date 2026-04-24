@@ -492,7 +492,7 @@ export default async function Home({
       const up = String(s?.status || "").toUpperCase();
       return up === "PAST_DUE" || up === "EXPIRED" ? "En mora" : "Al día";
     }
-    const nowTs = Date.now();
+    const nowTs = now.getTime();
     if (nowTs <= dueAtTs) return "Al día";
     const daysLate = Math.ceil((nowTs - dueAtTs) / (24 * 60 * 60 * 1000));
     if (daysLate <= graceDays) return "En gracia";

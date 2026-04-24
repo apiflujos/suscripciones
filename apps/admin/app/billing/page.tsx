@@ -112,12 +112,13 @@ function getCollectionStatusLabel(args: {
   dueAt: any;
   graceDays?: number;
   collectionCyclePaid?: boolean;
+  nowTs?: number;
 }) {
   if (args.collectionCyclePaid) return "Al día";
   const status = String(args.status || "").toUpperCase();
   const dueAtTs = args.dueAt ? new Date(args.dueAt).getTime() : NaN;
   const graceDays = Number.isFinite(Number(args.graceDays)) ? Math.max(0, Math.trunc(Number(args.graceDays))) : 5;
-  const nowTs = Date.now();
+  const nowTs = Number.isFinite(args.nowTs as number) ? Number(args.nowTs) : Date.now();
   if (!Number.isFinite(dueAtTs)) return status === "PAST_DUE" || status === "EXPIRED" ? "En mora" : "Al día";
   if (nowTs <= dueAtTs) return "Al día";
   const daysLate = Math.ceil((nowTs - dueAtTs) / (24 * 60 * 60 * 1000));
@@ -130,6 +131,7 @@ function getCardCollectionState(args: {
   dueAt: any;
   graceDays?: number;
   collectionCyclePaid?: boolean;
+  nowTs?: number;
 }) {
   const collectionStatus = getCollectionStatusLabel(args);
   if (collectionStatus === "En mora") return { label: "En mora", class: "pill-bad" };
@@ -295,6 +297,7 @@ export default async function BillingPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const renderNowTs = Date.now();
   const csrfToken = await getCsrfToken();
   const sp = (await searchParams) ?? {};
 
@@ -459,14 +462,15 @@ export default async function BillingPage({
       const dueAtDate = s.nextBillingDate ? new Date(s.nextBillingDate) : null;
       const collectionCyclePaid = typeof s?.collectionCyclePaid === "boolean" ? s.collectionCyclePaid : false;
       const dueAt = dueAtDate ? dueAtDate.getTime() : null;
-      const nowTs = Date.now();
+      const nowTs = renderNowTs;
       const daysLate = collectionCyclePaid || !dueAt || nowTs <= dueAt ? 0 : Math.ceil((nowTs - dueAt) / (24 * 60 * 60 * 1000));
       const graceDays = Number(s.graceDays || 5);
       const paymentCollectionState = getCollectionStatusLabel({
         status: String(s.status || ""),
         dueAt: dueAtDate ? dueAtDate.toISOString() : null,
         graceDays,
-        collectionCyclePaid
+        collectionCyclePaid,
+        nowTs: renderNowTs
       });
       const inGrace = paymentCollectionState === "En gracia";
       const inArrears = paymentCollectionState === "En mora";
@@ -643,7 +647,7 @@ export default async function BillingPage({
     const tokenMetaUrl = String(tokenMeta?.url || "").trim();
     const tokenMetaUsedAt = tokenMeta?.usedAt ? Date.parse(String(tokenMeta.usedAt)) : NaN;
     const tokenMetaExpiresAt = tokenMeta?.expiresAt ? Date.parse(String(tokenMeta.expiresAt)) : NaN;
-    const now = Date.now();
+    const now = renderNowTs;
     const tokenMetaValid =
       Boolean(tokenMetaUrl) &&
       !Number.isFinite(tokenMetaUsedAt) &&
@@ -676,7 +680,7 @@ export default async function BillingPage({
     const tenantsUpdatedForRow = tenantsUpdated && actionSubscriptionId === r.id;
     // La fecha de pago (vencimientoAt) define si se debe cobrar
     const chargeDueAt = r.vencimientoAt ? new Date(r.vencimientoAt) : null;
-    const isChargeDue = Boolean(chargeDueAt && !Number.isNaN(chargeDueAt.getTime()) && chargeDueAt.getTime() <= Date.now());
+    const isChargeDue = Boolean(chargeDueAt && !Number.isNaN(chargeDueAt.getTime()) && chargeDueAt.getTime() <= renderNowTs);
     const chargeDue = typeof r.chargeDue === "boolean" ? r.chargeDue : !r.collectionCyclePaid && isChargeDue;
     const isCanceled = r.status === "CANCELED";
     const isSuspended = r.status === "SUSPENDED";

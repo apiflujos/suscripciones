@@ -221,7 +221,8 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
         intervalUnit: sub.plan.intervalUnit,
         intervalCount: sub.plan.intervalCount
       }
-    }))
+    })),
+    ensureCycles: false
   });
 
   return customers.filter((customer: any) => {

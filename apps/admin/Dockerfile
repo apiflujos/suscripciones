@@ -18,10 +18,13 @@ COPY . .
 RUN for i in 1 2 3 4 5; do npm install --legacy-peer-deps && break || (echo "npm install failed, retry $i/5" && sleep 5); done
 RUN npm run db:generate
 RUN npm run build -w apps/admin
+RUN mkdir -p /app/apps/admin/.next/standalone/apps/admin/.next \
+  && cp -R /app/apps/admin/public /app/apps/admin/.next/standalone/apps/admin/public \
+  && cp -R /app/apps/admin/.next/static /app/apps/admin/.next/standalone/apps/admin/.next/static
 
 WORKDIR /app/apps/admin
 
 EXPOSE 3002
 
 ENV NODE_ENV=production
-CMD ["npm", "run", "start"]
+CMD ["npm", "run", "start:standalone"]

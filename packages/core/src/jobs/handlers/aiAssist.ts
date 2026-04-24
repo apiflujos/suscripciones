@@ -347,7 +347,8 @@ export async function aiAssist(payload: AiAssistPayload) {
           intervalUnit: s.plan.intervalUnit,
           intervalCount: s.plan.intervalCount
         }
-      }))
+      })),
+      ensureCycles: false
     });
     (context as any).customer = customer || null;
     (context as any).subscriptions = subs.map((s) => {

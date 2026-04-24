@@ -607,6 +607,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
           intervalCount: sub.plan.intervalCount
         }
       })),
+      ensureCycles: false,
       asOf: to
     });
     const onTime = new Set<string>();

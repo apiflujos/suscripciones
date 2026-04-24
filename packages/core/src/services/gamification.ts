@@ -505,7 +505,8 @@ async function recomputeCustomerScores(
           intervalUnit: sub.plan.intervalUnit,
           intervalCount: sub.plan.intervalCount
         }
-      }))
+      })),
+    ensureCycles: false
   });
 
   const subByKey = new Map<string, any>();

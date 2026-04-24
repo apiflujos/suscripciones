@@ -472,16 +472,19 @@ export async function buildSubscriptionBillingStateIndex(args: {
   subscriptions: SubscriptionSeed[];
   asOf?: Date;
   cyclesForward?: number;
+  ensureCycles?: boolean;
 }) {
   const subscriptions = args.subscriptions.map((sub) => normalizeSubscriptionSeed(sub));
   if (!subscriptions.length) return new Map<string, ResolvedBillingState>();
 
   const uniqueSubscriptions = Array.from(new Map(subscriptions.map((sub) => [sub.id, sub])).values());
-  await ensureBillingCyclesForSubscriptions(
-    uniqueSubscriptions,
-    Math.max(...uniqueSubscriptions.map((sub) => Math.max(0, Number(sub.currentCycle || 1) - 1)), 0),
-    Math.max(0, Number(args.cyclesForward || 2))
-  );
+  if (args.ensureCycles !== false) {
+    await ensureBillingCyclesForSubscriptions(
+      uniqueSubscriptions,
+      Math.max(...uniqueSubscriptions.map((sub) => Math.max(0, Number(sub.currentCycle || 1) - 1)), 0),
+      Math.max(0, Number(args.cyclesForward || 2))
+    );
+  }
 
   const cycles = await prisma.subscriptionBillingCycle.findMany({
     where: { subscriptionId: { in: uniqueSubscriptions.map((sub) => sub.id) } },

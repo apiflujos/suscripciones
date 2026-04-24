@@ -446,7 +446,8 @@ export async function listSubscriptions(args: {
         intervalUnit: s.plan.intervalUnit,
         intervalCount: s.plan.intervalCount
       }
-    }))
+    })),
+    ensureCycles: false
   });
   const mapped = items.map((s: any) => {
     const lastPayment = lastPaymentBySub.get(String(s.id)) || null;

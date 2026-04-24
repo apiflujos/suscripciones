@@ -17,7 +17,7 @@ UPDATE "PaymentLink" pl
 SET "productId" = COALESCE(s."productId", sp_catalog."id")
 FROM "Subscription" s
 LEFT JOIN "SubscriptionPlan" sp_plan
-  ON sp_plan."id" = pl."planId"
+  ON sp_plan."id" = s."planId"
 LEFT JOIN "SubscriptionPlan" sp_catalog
   ON sp_catalog."id"::text = sp_plan."metadata"->'catalog'->>'itemId'
 WHERE pl."subscriptionId" = s."id"
@@ -30,12 +30,30 @@ WHERE pl."subscriptionId" = s."id"
 CREATE INDEX IF NOT EXISTS "Subscription_productId_idx" ON "Subscription"("productId");
 CREATE INDEX IF NOT EXISTS "PaymentLink_productId_sentAt_idx" ON "PaymentLink"("productId", "sentAt");
 
-ALTER TABLE "Subscription"
-  ADD CONSTRAINT "Subscription_productId_fkey"
-  FOREIGN KEY ("productId") REFERENCES "SubscriptionPlan"("id")
-  ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'Subscription_productId_fkey'
+  ) THEN
+    ALTER TABLE "Subscription"
+      ADD CONSTRAINT "Subscription_productId_fkey"
+      FOREIGN KEY ("productId") REFERENCES "SubscriptionPlan"("id")
+      ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "PaymentLink"
-  ADD CONSTRAINT "PaymentLink_productId_fkey"
-  FOREIGN KEY ("productId") REFERENCES "SubscriptionPlan"("id")
-  ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'PaymentLink_productId_fkey'
+  ) THEN
+    ALTER TABLE "PaymentLink"
+      ADD CONSTRAINT "PaymentLink_productId_fkey"
+      FOREIGN KEY ("productId") REFERENCES "SubscriptionPlan"("id")
+      ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;

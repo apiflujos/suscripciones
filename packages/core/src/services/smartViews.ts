@@ -580,7 +580,8 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
           intervalUnit: sub.plan.intervalUnit,
           intervalCount: sub.plan.intervalCount
         }
-      }))
+      })),
+      ensureCycles: false
     });
 
     return customers
@@ -721,7 +722,8 @@ export async function computeSmartViewIds(scope: SmartViewScope, tenantId: strin
           intervalUnit: sub.plan.intervalUnit,
           intervalCount: sub.plan.intervalCount
         }
-      }))
+      })),
+      ensureCycles: false
     });
     return items
       .filter((s: any) => {
