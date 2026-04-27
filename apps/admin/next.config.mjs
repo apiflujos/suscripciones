@@ -3,8 +3,6 @@ import path from "path";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ["@suscripciones/database", "@suscripciones/core"],
-  output: "standalone",
-  outputFileTracingRoot: path.join(process.cwd(), "../.."),
   eslint: { ignoreDuringBuilds: true },
   webpack: (config) => {
     config.resolve = config.resolve || {};
