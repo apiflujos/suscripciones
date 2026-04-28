@@ -845,7 +845,10 @@ a {
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Nota: mantenemos el menú SIEMPRE a la izquierda.
