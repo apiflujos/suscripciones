@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { resolveDatabaseUrl } = require('./scripts/db_url_helper');
 
 const rootEnvFile = './.env';
 const adminEnvFile = './apps/admin/.env.local';
@@ -26,6 +27,8 @@ const applyEnvFile = (filePath) => {
 applyEnvFile(rootEnvFile);
 applyEnvFile(adminEnvFile);
 
+const resolvedDatabaseUrl = resolveDatabaseUrl(process.env.DATABASE_URL);
+
 const stackName = process.env.PM2_APP_PREFIX || process.env.APP_STACK_NAME || 'crm-sus';
 const clientSlug = process.env.CLIENT_SLUG || '';
 const enableAdmin = true;
@@ -41,7 +44,7 @@ const apps = [
     env: {
       NODE_ENV: 'production',
       JOBS_HEARTBEAT_KEY: process.env.JOBS_HEARTBEAT_KEY || nameFor('jobs'),
-      DATABASE_URL: process.env.DATABASE_URL,
+      DATABASE_URL: resolvedDatabaseUrl,
       JWT_SECRET: process.env.JWT_SECRET,
       JWT_ISSUER: process.env.JWT_ISSUER,
       JWT_AUDIENCE: process.env.JWT_AUDIENCE,
@@ -69,7 +72,7 @@ if (enableAdmin) {
       NODE_ENV: 'production',
       PORT: process.env.PORT || 3002,
       HOST: process.env.HOST || '0.0.0.0',
-      DATABASE_URL: process.env.DATABASE_URL,
+      DATABASE_URL: resolvedDatabaseUrl,
       JWT_SECRET: process.env.JWT_SECRET,
       JWT_ISSUER: process.env.JWT_ISSUER,
       JWT_AUDIENCE: process.env.JWT_AUDIENCE,
