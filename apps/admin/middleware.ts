@@ -66,6 +66,10 @@ function applySecurityHeaders(res: NextResponse, pathname: string, nonce: string
   res.headers.set("X-Content-Type-Options", "nosniff");
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   res.headers.set("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+  if (!pathname.startsWith("/_next/") && !pathname.startsWith("/api/") && !pathname.startsWith("/webhooks/")) {
+    // Avoid stale HTML pointing to newer/older chunk graphs after deploys.
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  }
   const hstsAge = String(process.env.HSTS_MAX_AGE || "63072000");
   res.headers.set("Strict-Transport-Security", `max-age=${hstsAge}; includeSubDomains; preload`);
 
