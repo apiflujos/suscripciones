@@ -728,16 +728,18 @@ a {
 
 /* Layout y espaciamiento */
 .app-shell {
+  --sidebar-width: 220px;
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: var(--sidebar-width) 1fr;
   align-items: start;
   position: relative;
   overflow-x: hidden;
 }
 
 .app-shell.is-collapsed {
-  grid-template-columns: 70px 1fr;
+  --sidebar-width: 70px;
+  grid-template-columns: var(--sidebar-width) 1fr;
 }
 
 .sidebarOverlay {
@@ -843,10 +845,11 @@ a {
 }
 
 .sidebar {
-  position: sticky;
+  position: fixed;
   top: 0;
-  align-self: start;
-  height: 100vh;
+  left: 0;
+  width: var(--sidebar-width);
+  height: 100dvh;
   max-height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
