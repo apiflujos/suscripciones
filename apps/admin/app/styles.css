@@ -731,6 +731,7 @@ a {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 220px 1fr;
+  align-items: start;
   position: relative;
   overflow-x: hidden;
 }
@@ -844,8 +845,12 @@ a {
 .sidebar {
   position: sticky;
   top: 0;
+  align-self: start;
   height: 100vh;
-  overflow: auto;
+  max-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
 /* Nota: mantenemos el menú SIEMPRE a la izquierda.
