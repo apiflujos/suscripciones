@@ -728,18 +728,15 @@ a {
 
 /* Layout y espaciamiento */
 .app-shell {
-  --sidebar-width: 220px;
   min-height: 100vh;
   display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
-  align-items: start;
+  grid-template-columns: 220px 1fr;
   position: relative;
   overflow-x: hidden;
 }
 
 .app-shell.is-collapsed {
-  --sidebar-width: 70px;
-  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-columns: 70px 1fr;
 }
 
 .sidebarOverlay {
@@ -845,15 +842,10 @@ a {
 }
 
 .sidebar {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  width: var(--sidebar-width);
-  height: 100dvh;
-  max-height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
+  height: 100vh;
+  overflow: auto;
 }
 
 /* Nota: mantenemos el menú SIEMPRE a la izquierda.
