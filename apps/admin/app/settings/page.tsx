@@ -133,6 +133,10 @@ export default async function SettingsPage({
   const action = String(sp.a || "");
   const status = String(sp.status || "");
   const errorText = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
+  const usersCreated = String(sp.created || "").trim() === "1";
+  const usersUpdated = String(sp.updated || "").trim() === "1";
+  const usersDeleted = String(sp.deleted || "").trim() === "1";
+  const usersPasswordUpdated = String(sp.passwordUpdated || "").trim() === "1";
   const rawTab = String(sp.tab || "connections");
   const tab = rawTab === "webhooks" ? "integraciones" : rawTab;
   const open = String(sp.open || "");
@@ -258,11 +262,17 @@ export default async function SettingsPage({
         <UsersPanel
           users={users}
           csrfToken={csrfToken}
-          created={String(sp.created) === "1"}
-          error={normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined)}
+          created={usersCreated}
+          updated={usersUpdated}
+          deleted={usersDeleted}
+          passwordUpdated={usersPasswordUpdated}
+          error={errorText}
           tenants={tenants}
           isSuperAdmin={session?.role === "SUPER_ADMIN"}
           defaultTenantId={String(session?.tenantId || "").trim()}
+          currentUserEmail={String(session?.email || "").trim().toLowerCase()}
+          currentUserRole={String(session?.role || "").trim()}
+          returnTo="/settings?tab=usuarios"
         />
       ) : null}
 
