@@ -139,6 +139,14 @@ function shouldDisableRule(trigger: string, paymentType: NotificationPaymentType
   return String(rule?.trigger || "") === trigger && Array.isArray(rule?.conditions?.requirePaymentTypeIn) && rule.conditions.requirePaymentTypeIn.includes(paymentType);
 }
 
+function normalizeRulePaymentType(value: unknown): NotificationPaymentType | "ANY" {
+  const raw = String(value || "").trim().toUpperCase();
+  if (raw === "PLAN") return "PLAN";
+  if (raw === "SUBSCRIPTION") return "SUBSCRIPTION";
+  if (raw === "LINK") return "LINK";
+  return "ANY";
+}
+
 export async function saveRealtime(formData: FormData) {
   const environment = normalizeEnv(formData.get("environment"));
   await requireCsrf(formData, environment);
@@ -266,7 +274,7 @@ export async function toggleRule(formData: FormData) {
     if (idx === -1) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=rule_not_found`);
     const trigger = String(rules[idx]?.trigger || "");
     if (enabled && trigger) {
-      const paymentType = String(rules[idx]?.conditions?.requirePaymentTypeIn?.[0] || "ANY").trim().toUpperCase();
+      const paymentType = normalizeRulePaymentType(rules[idx]?.conditions?.requirePaymentTypeIn?.[0]);
       for (let i = 0; i < rules.length; i++) {
         if (i !== idx && shouldDisableRule(trigger, paymentType, rules[i])) {
           rules[i] = { ...rules[i], enabled: false };
