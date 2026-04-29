@@ -1347,7 +1347,12 @@ export async function scheduleSubscriptionCutoff(args: { subscriptionId: string;
 
   // Si el corte ya está vencido y el cobro en corte está activo, intentamos cobrar inmediatamente.
   const autoDebitConfig = await getAutoDebitConfig();
-  if (collectionMode === "AUTO_DEBIT" && autoDebitConfig.chargeAtCutoffEnabled && cutoffAt <= new Date(Date.now() + 5_000)) {
+  if (
+    collectionMode === "AUTO_DEBIT" &&
+    autoDebitConfig.enabled &&
+    autoDebitConfig.chargeAtCutoffEnabled &&
+    cutoffAt <= new Date(Date.now() + 5_000)
+  ) {
     await createAutoDebitTransactionForSubscription({
       subscriptionId,
       forceNewTransaction: true

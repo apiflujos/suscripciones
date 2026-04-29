@@ -621,7 +621,7 @@ export default async function SettingsPage({
               </div>
             </div>
             <div className="settings-group-body">
-              <form action={updatePaymentsConfig} className="panel module" style={{ display: "grid", gap: 12 }} data-auto-submit-form="true">
+              <form action={updatePaymentsConfig} className="panel module" style={{ display: "grid", gap: 12 }} data-auto-submit-form="true" id="payments-config-form">
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="returnTo" value={returnTo} />
                 <div className="settings-submodule-header">
@@ -637,18 +637,14 @@ export default async function SettingsPage({
                     </div>
                     <div className="field-hint">Pagos sin suscripción activa: buscar coincidencia por identidad + monto.</div>
                   </div>
-                  <label className="toggleControl" aria-label="Conciliación automática de pagos">
-                    <input type="hidden" name="autoReconcileUnlinkedPayments" value="0" />
-                    <input
-                      className="toggleInput"
-                      type="checkbox"
-                      name="autoReconcileUnlinkedPayments"
-                      value="1"
-                      defaultChecked={Boolean(paymentsConfig?.autoReconcileUnlinkedPayments ?? true)}
-                      data-auto-submit="true"
-                    />
-                    <span className="toggle" aria-hidden="true" />
-                  </label>
+                  <AutoSubmitToggle
+                    name="autoReconcileUnlinkedPayments"
+                    checked={Boolean(paymentsConfig?.autoReconcileUnlinkedPayments ?? true)}
+                    requireConfirm={true}
+                    confirmMessage="¿Seguro de cambiar la conciliación automática de pagos no asociados? Esto afecta cómo se intentan recuperar pagos huérfanos."
+                    loadingText="Actualizando..."
+                    form="payments-config-form"
+                  />
                 </div>
 
                 <div className="toggleRow">
@@ -659,18 +655,14 @@ export default async function SettingsPage({
                     </div>
                     <div className="field-hint">Pagos que llegan “sin nada” o no corresponden a ninguna suscripción.</div>
                   </div>
-                  <label className="toggleControl" aria-label="Recibir pagos sin suscripción activa">
-                    <input type="hidden" name="acceptUnlinkedPayments" value="0" />
-                    <input
-                      className="toggleInput"
-                      type="checkbox"
-                      name="acceptUnlinkedPayments"
-                      value="1"
-                      defaultChecked={Boolean(paymentsConfig?.acceptUnlinkedPayments ?? true)}
-                      data-auto-submit="true"
-                    />
-                    <span className="toggle" aria-hidden="true" />
-                  </label>
+                  <AutoSubmitToggle
+                    name="acceptUnlinkedPayments"
+                    checked={Boolean(paymentsConfig?.acceptUnlinkedPayments ?? true)}
+                    requireConfirm={true}
+                    confirmMessage="¿Seguro de cambiar aceptación de pagos sin suscripción activa? Esto puede ocultar o ignorar pagos no asociados."
+                    loadingText="Actualizando..."
+                    form="payments-config-form"
+                  />
                 </div>
 
                 <div className="toggleRow">
@@ -681,18 +673,12 @@ export default async function SettingsPage({
                     </div>
                     <div className="field-hint">Aplica solo a pagos sin `subscriptionId`.</div>
                   </div>
-                  <label className="toggleControl" aria-label="Notificar por WhatsApp estos pagos">
-                    <input type="hidden" name="notifyWhatsappForUnlinkedPayments" value="0" />
-                    <input
-                      className="toggleInput"
-                      type="checkbox"
-                      name="notifyWhatsappForUnlinkedPayments"
-                      value="1"
-                      defaultChecked={Boolean(paymentsConfig?.notifyWhatsappForUnlinkedPayments ?? true)}
-                      data-auto-submit="true"
-                    />
-                    <span className="toggle" aria-hidden="true" />
-                  </label>
+                  <AutoSubmitToggle
+                    name="notifyWhatsappForUnlinkedPayments"
+                    checked={Boolean(paymentsConfig?.notifyWhatsappForUnlinkedPayments ?? true)}
+                    loadingText="Actualizando..."
+                    form="payments-config-form"
+                  />
                 </div>
 
                 <div className="toggleRow">
@@ -703,18 +689,12 @@ export default async function SettingsPage({
                     </div>
                     <div className="field-hint">Impacta “Pagos OK/Fallidos” y “Revenue”.</div>
                   </div>
-                  <label className="toggleControl" aria-label="Incluir estos pagos en métricas">
-                    <input type="hidden" name="includeUnlinkedPaymentsInMetrics" value="0" />
-                    <input
-                      className="toggleInput"
-                      type="checkbox"
-                      name="includeUnlinkedPaymentsInMetrics"
-                      value="1"
-                      defaultChecked={Boolean(paymentsConfig?.includeUnlinkedPaymentsInMetrics ?? true)}
-                      data-auto-submit="true"
-                    />
-                    <span className="toggle" aria-hidden="true" />
-                  </label>
+                  <AutoSubmitToggle
+                    name="includeUnlinkedPaymentsInMetrics"
+                    checked={Boolean(paymentsConfig?.includeUnlinkedPaymentsInMetrics ?? true)}
+                    loadingText="Actualizando..."
+                    form="payments-config-form"
+                  />
                 </div>
 
               </form>
@@ -762,6 +742,7 @@ export default async function SettingsPage({
                   <AutoSubmitToggle
                     name="chargeAtCutoffEnabled"
                     checked={Boolean(autoDebit?.chargeAtCutoffEnabled ?? true)}
+                    disabled={!Boolean(autoDebit?.enabled)}
                     requireConfirm={true}
                     confirmMessage="¿Seguro de cambiar cobro en fecha de corte? Esto afecta cuándo se ejecutan los cobros automáticos."
                     loadingText="Actualizando..."
@@ -794,6 +775,7 @@ export default async function SettingsPage({
                   <AutoSubmitToggle
                     name="retryEnabled"
                     checked={Boolean(autoDebit?.retryEnabled)}
+                    disabled={!Boolean(autoDebit?.enabled)}
                     requireConfirm={true}
                     confirmMessage="¿Seguro de cambiar reintentos? Esto activará/desactivará los cobros automáticos cuando fallen."
                     loadingText="Actualizando..."
@@ -804,7 +786,7 @@ export default async function SettingsPage({
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div className="field">
                     <label>Reintentar cada</label>
-                    <select className="select" name="retryEveryValue" defaultValue={String(retryEveryValue)} data-auto-submit="true">
+                    <select className="select" name="retryEveryValue" defaultValue={String(retryEveryValue)} data-auto-submit="true" disabled={!Boolean(autoDebit?.enabled) || !Boolean(autoDebit?.retryEnabled)}>
                       {retryValueOptions.map((value) => (
                         <option key={`retry-every-${value}`} value={String(value)}>
                           {value}
@@ -814,7 +796,7 @@ export default async function SettingsPage({
                   </div>
                   <div className="field">
                     <label>Unidad de reintento</label>
-                    <select className="select" name="retryEveryUnit" defaultValue={String(retryEveryUnit)} data-auto-submit="true">
+                    <select className="select" name="retryEveryUnit" defaultValue={String(retryEveryUnit)} data-auto-submit="true" disabled={!Boolean(autoDebit?.enabled) || !Boolean(autoDebit?.retryEnabled)}>
                       <option value="SECONDS">Segundos</option>
                       <option value="MINUTES">Minutos</option>
                       <option value="HOURS">Horas</option>
@@ -829,7 +811,7 @@ export default async function SettingsPage({
                   </div>
                   <div className="field">
                     <label>Máximo de reintentos</label>
-                    <select className="select" name="maxRetries" defaultValue={String(autoDebit?.maxRetries ?? 0)} data-auto-submit="true">
+                    <select className="select" name="maxRetries" defaultValue={String(autoDebit?.maxRetries ?? 0)} data-auto-submit="true" disabled={!Boolean(autoDebit?.enabled) || !Boolean(autoDebit?.retryEnabled)}>
                       {maxRetriesOptions.map((value) => (
                         <option key={`retry-max-${value}`} value={String(value)}>
                           {value}

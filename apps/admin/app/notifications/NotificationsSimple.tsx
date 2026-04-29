@@ -5,6 +5,10 @@ import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
 import { AppModal } from "../ui/AppModal";
 import { isNotificationTemplateConfigured } from "../lib/notificationTemplate";
+import {
+  REALTIME_NOTIFICATION_DEFINITIONS,
+  type RealtimeNotificationKey
+} from "./realtimeDefinitions";
 
 type Env = "PRODUCTION" | "SANDBOX";
 
@@ -49,33 +53,14 @@ type Rule = {
   };
 };
 
-type RealtimeKey =
-  | "catalog_link_created_plan"
-  | "catalog_link_created_subscription"
-  | "tokenization_link_created"
-  | "payment_link_created"
-  | "payment_link_created_subscription"
-  | "payment_success"
-  | "payment_failed_link"
-  | "payment_failed_subscription";
-
 const REALTIME_TYPES: Array<{
-  key: RealtimeKey;
+  key: RealtimeNotificationKey;
   label: string;
   aliases?: string[];
   trigger: Rule["trigger"];
   chatwootType: Template["chatwootType"];
   paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK";
-}> = [
-  { key: "catalog_link_created_plan", label: "Catálogo enviado (link de pago)", trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "PLAN" },
-  { key: "catalog_link_created_subscription", label: "Catálogo enviado (suscripción · link de pago)", aliases: ["Catálogo enviado (suscripción)"], trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "SUBSCRIPTION" },
-  { key: "tokenization_link_created", label: "Tokenización enviada (débito automático)", aliases: ["Tokenización enviada"], trigger: "TOKENIZATION_LINK_CREATED", chatwootType: "PAYMENT_LINK" },
-  { key: "payment_link_created", label: "Link de pago creado", trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "LINK" },
-  { key: "payment_link_created_subscription", label: "Link de pago creado (suscripción)", trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "SUBSCRIPTION" },
-  { key: "payment_success", label: "Pago exitoso", trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED" },
-  { key: "payment_failed_link", label: "Pago fallido (link de pago)", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "LINK" },
-  { key: "payment_failed_subscription", label: "Pago fallido (débito automático)", trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "SUBSCRIPTION" }
-];
+}> = REALTIME_NOTIFICATION_DEFINITIONS;
 
 const REMINDER_TPL_DUE_LINK = "tpl_reminder_due_link";
 const REMINDER_TPL_DUE_SUBSCRIPTION = "tpl_reminder_due_subscription";
@@ -83,8 +68,8 @@ const REMINDER_TPL_MORA_LINK = "tpl_reminder_mora_link";
 const REMINDER_TPL_MORA_SUBSCRIPTION = "tpl_reminder_mora_subscription";
 
 const REMINDER_TYPES = [
-  { key: "reminder_due_link", kind: "DUE", paymentType: "LINK", label: "Recordatorio fecha de pago (link de pago)", templateId: REMINDER_TPL_DUE_LINK },
-  { key: "reminder_due_subscription", kind: "DUE", paymentType: "SUBSCRIPTION", label: "Recordatorio fecha de pago (débito automático)", templateId: REMINDER_TPL_DUE_SUBSCRIPTION },
+  { key: "reminder_due_link", kind: "DUE", paymentType: "LINK", label: "Recordatorio de fecha de pago (link de pago)", templateId: REMINDER_TPL_DUE_LINK },
+  { key: "reminder_due_subscription", kind: "DUE", paymentType: "SUBSCRIPTION", label: "Recordatorio de fecha de pago (débito automático)", templateId: REMINDER_TPL_DUE_SUBSCRIPTION },
   { key: "reminder_mora_link", kind: "MORA", paymentType: "LINK", label: "Recordatorio en mora (link de pago)", templateId: REMINDER_TPL_MORA_LINK },
   { key: "reminder_mora_subscription", kind: "MORA", paymentType: "SUBSCRIPTION", label: "Recordatorio en mora (débito automático)", templateId: REMINDER_TPL_MORA_SUBSCRIPTION }
 ] as const;

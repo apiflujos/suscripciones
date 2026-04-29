@@ -7,11 +7,13 @@ import {
   type NotificationsConfig,
   type NotificationRule,
   type NotificationTemplate,
-  type NotificationTrigger,
-  type NotificationPaymentType,
   notificationsConfigSchema,
   setNotificationsConfig
 } from "@suscripciones/core/services/notificationsConfig";
+import {
+  REALTIME_NOTIFICATION_MAP,
+  type RealtimeNotificationKey
+} from "./realtimeDefinitions";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -64,20 +66,6 @@ export async function saveNotificationsConfig(formData: FormData) {
     redirect(`/settings?tab=notificaciones-whatsapp&env=${env}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
-
-type RuleTrigger = NotificationTrigger;
-type ChatwootType = "PAYMENT_LINK" | "PAYMENT_CONFIRMED" | "EXPIRY_WARNING" | "PAYMENT_FAILED";
-
-const REALTIME_MAP: Record<string, { trigger: RuleTrigger; chatwootType: ChatwootType; paymentType?: NotificationPaymentType; label: string }> = {
-  payment_link_created: { trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "LINK", label: "Link de pago creado" },
-  payment_link_created_subscription: { trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "SUBSCRIPTION", label: "Link de pago creado (suscripción)" },
-  catalog_link_created_plan: { trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "PLAN", label: "Catálogo enviado (link de pago)" },
-  catalog_link_created_subscription: { trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "SUBSCRIPTION", label: "Catálogo enviado (suscripción · link de pago)" },
-  tokenization_link_created: { trigger: "TOKENIZATION_LINK_CREATED", chatwootType: "PAYMENT_LINK", label: "Tokenización enviada (débito automático)" },
-  payment_success: { trigger: "PAYMENT_APPROVED", chatwootType: "PAYMENT_CONFIRMED", label: "Pago exitoso" },
-  payment_failed_link: { trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "LINK", label: "Pago fallido (link de pago)" },
-  payment_failed_subscription: { trigger: "PAYMENT_DECLINED", chatwootType: "PAYMENT_FAILED", paymentType: "SUBSCRIPTION", label: "Pago fallido (débito automático)" }
-};
 
 function parseOffsetsCsv(raw: string, sign: 1 | -1) {
   const parts = String(raw || "")
@@ -153,8 +141,8 @@ function shouldDisableRule(trigger: string, paymentType: string | undefined, rul
 export async function saveRealtime(formData: FormData) {
   const environment = normalizeEnv(formData.get("environment"));
   await requireCsrf(formData, environment);
-  const key = String(formData.get("key") || "").trim();
-  const meta = REALTIME_MAP[key];
+  const key = String(formData.get("key") || "").trim() as RealtimeNotificationKey;
+  const meta = REALTIME_NOTIFICATION_MAP[key];
   if (!meta) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=invalid_key`);
   const enabled = String(formData.get("enabled") || "") === "on";
 

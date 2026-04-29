@@ -52,20 +52,7 @@ export function AutoSubmitToggle({
     startTransition(() => {
       const formElement = form ? document.getElementById(form) : e.target.closest("form");
       if (formElement && formElement instanceof HTMLFormElement) {
-        // Crear hidden input para el valor
-        const hiddenInput = document.createElement("input");
-        hiddenInput.type = "hidden";
-        hiddenInput.name = name;
-        hiddenInput.value = newChecked ? "true" : "false";
-        formElement.appendChild(hiddenInput);
-        
-        // Submit
         formElement.requestSubmit();
-        
-        // Limpiar hidden input después de submit
-        setTimeout(() => {
-          hiddenInput.remove();
-        }, 100);
       }
     });
   };
@@ -76,9 +63,12 @@ export function AutoSubmitToggle({
       aria-label={name}
       style={{ opacity: isPending ? 0.7 : 1, pointerEvents: isPending || disabled ? "none" : "auto" }}
     >
+      {!disabled ? <input type="hidden" name={name} value="0" /> : null}
       <input
         className="toggleInput"
         type="checkbox"
+        name={disabled ? undefined : name}
+        value="1"
         checked={localChecked}
         onChange={handleChange}
         disabled={disabled || isPending}

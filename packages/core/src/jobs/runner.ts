@@ -333,6 +333,7 @@ async function ensureDueCutoffRetries() {
   lastEnsureDueCutoffRetriesAtMs = now;
 
   const autoDebitConfig = await getAutoDebitConfig();
+  const autoDebitEnabled = autoDebitConfig.enabled;
   const chargeAtCutoffEnabled = autoDebitConfig.chargeAtCutoffEnabled;
 
   // 1. Limpieza de duplicados (mantiene el más reciente)
@@ -389,7 +390,7 @@ async function ensureDueCutoffRetries() {
       if (mode !== "AUTO_DEBIT" && mode !== "AUTO_LINK") continue;
 
       // Si es AUTO_DEBIT y el cobro en corte está apagado, omitir creación de Job.
-      if (mode === "AUTO_DEBIT" && !chargeAtCutoffEnabled) continue;
+      if (mode === "AUTO_DEBIT" && (!autoDebitEnabled || !chargeAtCutoffEnabled)) continue;
 
       // FIX #1: Si ya hay un payment link pendiente reciente, saltar para evitar spam.
       // Ventana de 2 horas: si se creó un link en las últimas 2h, no crear otro.

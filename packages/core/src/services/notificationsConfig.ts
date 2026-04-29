@@ -108,6 +108,36 @@ function defaultConfig(): NotificationsConfig {
   };
 }
 
+const CANONICAL_TEMPLATE_NAMES: Record<string, string> = {
+  tpl_rt_catalog_link_created_plan: "Catálogo enviado (link de pago)",
+  tpl_rt_catalog_link_created_subscription: "Catálogo enviado (suscripción · link de pago)",
+  tpl_rt_tokenization_link_created: "Tokenización enviada (débito automático)",
+  tpl_rt_payment_link_created: "Link de pago creado",
+  tpl_rt_payment_link_created_subscription: "Link de pago creado (suscripción)",
+  tpl_rt_payment_success: "Pago exitoso",
+  tpl_rt_payment_failed_link: "Pago fallido (link de pago)",
+  tpl_rt_payment_failed_subscription: "Pago fallido (débito automático)",
+  tpl_reminder_due_link: "Recordatorio de fecha de pago (link de pago)",
+  tpl_reminder_due_subscription: "Recordatorio de fecha de pago (débito automático)",
+  tpl_reminder_mora_link: "Recordatorio en mora (link de pago)",
+  tpl_reminder_mora_subscription: "Recordatorio en mora (débito automático)"
+};
+
+const CANONICAL_RULE_NAMES: Record<string, string> = {
+  rule_rt_catalog_link_created_plan: "Catálogo enviado (link de pago)",
+  rule_rt_catalog_link_created_subscription: "Catálogo enviado (suscripción · link de pago)",
+  rule_rt_tokenization_link_created: "Tokenización enviada (débito automático)",
+  rule_rt_payment_link_created: "Link de pago creado",
+  rule_rt_payment_link_created_subscription: "Link de pago creado (suscripción)",
+  rule_rt_payment_success: "Pago exitoso",
+  rule_rt_payment_failed_link: "Pago fallido (link de pago)",
+  rule_rt_payment_failed_subscription: "Pago fallido (débito automático)",
+  rule_reminder_due_link: "Recordatorio de fecha de pago (link de pago)",
+  rule_reminder_due_subscription: "Recordatorio de fecha de pago (débito automático)",
+  rule_reminder_mora_link: "Recordatorio en mora (link de pago)",
+  rule_reminder_mora_subscription: "Recordatorio en mora (débito automático)"
+};
+
 function keyForEnv(env: ActiveEnv) {
   return `NOTIFICATIONS_CONFIG_${env}`;
 }
@@ -138,20 +168,36 @@ export async function getNotificationsConfigForEnv(env: ActiveEnv): Promise<Noti
   }
 }
 
-function isTokenizationTemplate(template: NotificationsConfig["templates"][number] | undefined | null): boolean {
-  if (!template) return false;
-  const name = String(template.chatwootTemplate?.name || template.name || "").toLowerCase();
-  if (name.includes("tokeniz") || name.includes("tokenizaci") || name.includes("debito") || name.includes("débito")) return true;
-  const content = String(template.content || "").toLowerCase();
-  if (content.includes("tokeniz") || content.includes("tokenization") || content.includes("tokenizacion")) return true;
-  const params = template.chatwootTemplate?.processed_params || {};
-  const values: string[] = [];
-  const readValues = (value: unknown) =>
-    Array.isArray(value) ? value.map((entry) => String((entry as { value?: string })?.value || "")) : [];
-  values.push(...readValues((params as { body?: unknown }).body));
-  values.push(...readValues((params as { header?: unknown }).header));
-  values.push(...readValues((params as { buttons?: unknown }).buttons));
-  return values.some((v) => v.toLowerCase().includes("tokeniz") || v.toLowerCase().includes("tokenizacion"));
+function hasTokenizationKeyword(value: unknown): boolean {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized.includes("tokeniz") ||
+    normalized.includes("tokenizaci") ||
+    normalized.includes("tokenization") ||
+    normalized.includes("debito") ||
+    normalized.includes("débito")
+  );
+}
+
+function isLegacyTokenizationRule(args: {
+  rule: NotificationsConfig["rules"][number];
+  template: NotificationsConfig["templates"][number] | undefined | null;
+}): boolean {
+  const rule = args.rule;
+  const template = args.template;
+  const ruleHints = [
+    rule.id,
+    rule.name
+  ];
+  const templateHints = template
+    ? [
+        template.id,
+        template.name,
+        template.chatwootTemplate?.name
+      ]
+    : [];
+  return [...ruleHints, ...templateHints].some((value) => hasTokenizationKeyword(value));
 }
 
 function hasUsableWhatsAppTemplate(template: NotificationsConfig["templates"][number] | undefined | null): boolean {
@@ -221,16 +267,26 @@ export function filterNotificationRules(args: {
 
 function normalizeNotificationsConfig(cfg: NotificationsConfig): NotificationsConfig {
   const templates = Array.isArray(cfg.templates) ? cfg.templates : [];
-  const validTemplates = templates.filter((t) => hasUsableWhatsAppTemplate(t));
+  const validTemplates = templates
+    .map((template) => {
+      const canonicalName = CANONICAL_TEMPLATE_NAMES[String(template.id)];
+      return canonicalName ? { ...template, name: canonicalName } : template;
+    })
+    .filter((t) => hasUsableWhatsAppTemplate(t));
   const templateById = new Map(validTemplates.map((t) => [String(t.id), t]));
   const rules = Array.isArray(cfg.rules) ? cfg.rules : [];
   const nextRules = rules.map((rule) => {
-    const next = { ...rule, conditions: rule.conditions ? { ...rule.conditions } : undefined } as typeof rule;
+    const canonicalName = CANONICAL_RULE_NAMES[String(rule.id)];
+    const next = {
+      ...rule,
+      ...(canonicalName ? { name: canonicalName } : {}),
+      conditions: rule.conditions ? { ...rule.conditions } : undefined
+    } as typeof rule;
     const ruleId = String(next.id || "").trim().toLowerCase();
     const ruleName = String(next.name || "").trim().toLowerCase();
     if (next.trigger === "PAYMENT_LINK_CREATED") {
       const tpl = templateById.get(String(next.templateId));
-      if (isTokenizationTemplate(tpl)) {
+      if (isLegacyTokenizationRule({ rule: next, template: tpl })) {
         next.trigger = "TOKENIZATION_LINK_CREATED";
         if (next.conditions?.requirePaymentTypeIn) delete next.conditions.requirePaymentTypeIn;
       } else if (ruleId.includes("subscription") || ruleName.includes("suscrip")) {
