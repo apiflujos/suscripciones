@@ -4,6 +4,11 @@ import { redirect } from "next/navigation";
 import { assertCsrfToken } from "../lib/csrf";
 import {
   getNotificationsConfigForEnv,
+  type NotificationsConfig,
+  type NotificationRule,
+  type NotificationTemplate,
+  type NotificationTrigger,
+  type NotificationPaymentType,
   notificationsConfigSchema,
   setNotificationsConfig
 } from "@suscripciones/core/services/notificationsConfig";
@@ -14,15 +19,18 @@ function toShortErrorMessage(err: unknown) {
 }
 
 function isNextRedirect(err: unknown) {
-  const digest = (err as any)?.digest;
+  const digest =
+    err && typeof err === "object" && "digest" in err
+      ? (err as { digest?: unknown }).digest
+      : undefined;
   return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
 }
 
-async function getNotificationsConfig(environment: "PRODUCTION" | "SANDBOX") {
-  return (await getNotificationsConfigForEnv(environment)) as any;
+async function getNotificationsConfig(environment: "PRODUCTION" | "SANDBOX"): Promise<NotificationsConfig> {
+  return await getNotificationsConfigForEnv(environment);
 }
 
-async function putNotificationsConfig(environment: "PRODUCTION" | "SANDBOX", config: any) {
+async function putNotificationsConfig(environment: "PRODUCTION" | "SANDBOX", config: NotificationsConfig) {
   const normalized = notificationsConfigSchema.parse(config);
   return setNotificationsConfig(normalized, { environment });
 }
@@ -57,10 +65,10 @@ export async function saveNotificationsConfig(formData: FormData) {
   }
 }
 
-type RuleTrigger = "SUBSCRIPTION_DUE" | "PAYMENT_LINK_CREATED" | "CATALOG_LINK_CREATED" | "TOKENIZATION_LINK_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
+type RuleTrigger = NotificationTrigger;
 type ChatwootType = "PAYMENT_LINK" | "PAYMENT_CONFIRMED" | "EXPIRY_WARNING" | "PAYMENT_FAILED";
 
-const REALTIME_MAP: Record<string, { trigger: RuleTrigger; chatwootType: ChatwootType; paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK"; label: string }> = {
+const REALTIME_MAP: Record<string, { trigger: RuleTrigger; chatwootType: ChatwootType; paymentType?: NotificationPaymentType; label: string }> = {
   payment_link_created: { trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "LINK", label: "Link de pago creado" },
   payment_link_created_subscription: { trigger: "PAYMENT_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "SUBSCRIPTION", label: "Link de pago creado (suscripción)" },
   catalog_link_created_plan: { trigger: "CATALOG_LINK_CREATED", chatwootType: "PAYMENT_LINK", paymentType: "PLAN", label: "Catálogo enviado (link de pago)" },
@@ -91,7 +99,7 @@ function buildProcessedParams(args: { bodyParams?: string[]; headerParams?: stri
   const bodyParams = args.bodyParams?.filter(Boolean) || [];
   const headerParams = args.headerParams?.filter(Boolean) || [];
   const buttonParams = args.buttonParams?.filter(Boolean) || [];
-  const out: Record<string, any> = {};
+  const out: Record<string, unknown> = {};
   if (bodyParams.length) out.body = bodyParams.map((v, idx) => ({ key: String(idx + 1), value: v }));
   if (headerParams.length) out.header = headerParams.map((v, idx) => ({ key: String(idx + 1), value: v }));
   if (buttonParams.length) out.buttons = buttonParams.map((v, idx) => ({ index: String(idx), value: v }));
@@ -124,7 +132,7 @@ function normalizeTemplatePayload(formData: FormData) {
   };
 }
 
-function samePaymentType(rule: any, paymentType?: string) {
+function samePaymentType(rule: NotificationRule, paymentType?: string) {
   const types = rule?.conditions?.requirePaymentTypeIn;
   if (!paymentType) return !types || !types.length;
   return Array.isArray(types) && types.includes(paymentType);
@@ -134,7 +142,7 @@ function isUnifiedPaymentTrigger(trigger: string) {
   return trigger === "PAYMENT_APPROVED";
 }
 
-function shouldDisableRule(trigger: string, paymentType: string | undefined, rule: any) {
+function shouldDisableRule(trigger: string, paymentType: string | undefined, rule: NotificationRule) {
   if (isUnifiedPaymentTrigger(trigger)) return String(rule?.trigger || "") === trigger;
   if (!paymentType || paymentType === "ANY") {
     return String(rule?.trigger || "") === trigger && (!rule?.conditions?.requirePaymentTypeIn || !rule.conditions.requirePaymentTypeIn.length);
@@ -153,13 +161,13 @@ export async function saveRealtime(formData: FormData) {
   try {
     const config = await getNotificationsConfig(environment);
     const baseConfig = config && typeof config === "object" ? config : { version: 1, templates: [], rules: [] };
-    const templates = Array.isArray(baseConfig?.templates) ? baseConfig.templates.slice() : [];
-    const rules = Array.isArray(baseConfig?.rules) ? baseConfig.rules.slice() : [];
+    const templates: NotificationTemplate[] = baseConfig.templates.slice();
+    const rules: NotificationRule[] = baseConfig.rules.slice();
 
     const templateId = `tpl_rt_${key}`;
     const tplPayload = normalizeTemplatePayload(formData);
 
-    const nextTemplates = templates.filter((t: any) => String(t.id) !== templateId);
+    const nextTemplates = templates.filter((t) => String(t.id) !== templateId);
     nextTemplates.push({
       id: templateId,
       name: meta.label,
@@ -170,14 +178,14 @@ export async function saveRealtime(formData: FormData) {
     });
 
     const ruleId = `rule_rt_${key}`;
-    const nextRules = rules.filter((r: any) => {
+    const nextRules = rules.filter((r) => {
       if (String(r.id) === ruleId) return false;
       if (r.trigger !== meta.trigger) return true;
       if (isUnifiedPaymentTrigger(meta.trigger) && !meta.paymentType) return false;
       return !samePaymentType(r, meta.paymentType);
     });
 
-    const rule: any = {
+    const rule: NotificationRule = {
       id: ruleId,
       name: meta.label,
       enabled,
@@ -191,7 +199,7 @@ export async function saveRealtime(formData: FormData) {
     const next = { version: 1, ...(baseConfig || {}), templates: nextTemplates, rules: nextRules };
     await putNotificationsConfig(environment, next);
     redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
-  } catch (err: any) {
+  } catch (err) {
     redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -211,14 +219,14 @@ export async function saveReminder(formData: FormData) {
   try {
     const config = await getNotificationsConfig(environment);
     const baseConfig = config && typeof config === "object" ? config : { version: 1, templates: [], rules: [] };
-    const templates = Array.isArray(baseConfig?.templates) ? baseConfig.templates.slice() : [];
-    const rules = Array.isArray(baseConfig?.rules) ? baseConfig.rules.slice() : [];
+    const templates: NotificationTemplate[] = baseConfig.templates.slice();
+    const rules: NotificationRule[] = baseConfig.rules.slice();
 
     const tplPayload = normalizeTemplatePayload(formData);
     const tplNameBase = kind === "MORA" ? "Recordatorio en mora" : "Recordatorio de fecha de pago";
     const tplName = `${tplNameBase} (${paymentType === "SUBSCRIPTION" ? "débito automático" : "link de pago"})`;
 
-    const nextTemplates = templates.filter((t: any) => String(t.id) !== templateId);
+    const nextTemplates = templates.filter((t) => String(t.id) !== templateId);
     nextTemplates.push({
       id: templateId,
       name: tplName,
@@ -231,12 +239,12 @@ export async function saveReminder(formData: FormData) {
     const ruleIdBase = kind === "MORA" ? "rule_reminder_mora" : "rule_reminder_due";
     const ruleId = `${ruleIdBase}_${paymentType === "SUBSCRIPTION" ? "subscription" : "link"}`;
     const legacyRuleId = ruleIdBase;
-    const nextRules = rules.filter((r: any) => {
+    const nextRules = rules.filter((r) => {
       const id = String(r.id);
       return id !== ruleId && id !== legacyRuleId;
     });
 
-    const rule: any = {
+    const rule: NotificationRule = {
       id: ruleId,
       name: tplName,
       enabled,
@@ -251,7 +259,7 @@ export async function saveReminder(formData: FormData) {
     const next = { version: 1, ...(baseConfig || {}), templates: nextTemplates, rules: nextRules };
     await putNotificationsConfig(environment, next);
     redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
-  } catch (err: any) {
+  } catch (err) {
     redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -264,8 +272,8 @@ export async function toggleRule(formData: FormData) {
   if (!ruleId) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=missing_rule_id`);
   try {
     const config = await getNotificationsConfig(environment);
-    const rules = Array.isArray(config?.rules) ? config.rules.slice() : [];
-    const idx = rules.findIndex((r: any) => String(r.id) === ruleId);
+    const rules: NotificationRule[] = config.rules.slice();
+    const idx = rules.findIndex((r) => String(r.id) === ruleId);
     if (idx === -1) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=rule_not_found`);
     const trigger = String(rules[idx]?.trigger || "");
     if (enabled && trigger) {

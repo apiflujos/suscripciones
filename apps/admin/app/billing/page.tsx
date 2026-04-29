@@ -692,8 +692,10 @@ export default async function BillingPage({
     const isSuspended = r.status === "SUSPENDED";
     const isInactive = isCanceled || isSuspended;
     const alreadyPaidCurrentPeriod = Boolean(r.lastPaidInCurrentPeriod);
+    const customerTokenized = Boolean(r.customerTokenized);
     const paymentLinkBlockedReason = getPaymentLinkBlockedReason(r);
     const tokenizationBlockedReason = getTokenizationBlockedReason(r);
+    const paymentMethodHref = `/customers/${encodeURIComponent(String(r.customerId || ""))}/payment-method?returnTo=${encodeURIComponent(returnTo)}`;
 
     // Botón de cobrar: SIEMPRE visible para débito automático (activo)
     // Es el botón más importante - poder cobrar!
@@ -953,6 +955,15 @@ export default async function BillingPage({
                 />
               )
             ) : null}
+            {isAutoDebit && !isInactive ? (
+              <a
+                className="ghost btn-compact btn-blue contact-action-btn action-card"
+                href={paymentMethodHref}
+                title={customerTokenized ? "Actualizar tarjeta guardada" : "Guardar tarjeta para débito automático"}
+              >
+                {customerTokenized ? "Actualizar tarjeta" : "Guardar tarjeta"}
+              </a>
+            ) : null}
             {alreadyPaidCurrentPeriod ? (
               <ManualUnmarkPaidButton
                 action={unmarkSubscriptionPaidManual}
@@ -1006,7 +1017,7 @@ export default async function BillingPage({
               {sentTokenForRow ? <span>Link de tarjeta enviado.</span> : null}
               {sentPaymentForRow ? <span>Link de pago enviado.</span> : null}
               {createdPaymentForRow ? <span>Link de pago creado.</span> : null}
-              {chargedForRow ? <span>Cobro manual enviado.</span> : null}
+              {chargedForRow ? <span>Cobro manual en proceso.</span> : null}
               {chargeDateScheduledForRow ? <span>Fecha de pago actualizada.</span> : null}
               {rowCheckoutUrl ? (
                 <a

@@ -12,6 +12,7 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
   const tokenRes = await fetchPublicJsonAcrossBases(`/public/tokenization-links/${encodeURIComponent(linkToken)}?allowUsed=1`, apiBases);
   const template = tokenRes.ok ? tokenRes.json?.template || null : null;
   const tenant = tokenRes.ok ? tokenRes.json?.tenant || null : null;
+  const link = tokenRes.ok ? tokenRes.json?.link || null : null;
   const layout = (template?.layout || {}) as any;
 
   const title = String(config?.tokenizationSuccessTitle || "Gracias");
@@ -45,7 +46,17 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
     contactEmail ||
     supportUrl.replace(/^https?:\/\//, "") ||
     "";
-  const redirectUrl = String(config?.tokenizationReturnUrl || config?.publicReturnUrl || "").trim() || "/";
+  const redirectUrl = (() => {
+    const explicit = String(link?.returnUrl || config?.tokenizationReturnUrl || config?.publicReturnUrl || "").trim();
+    if (explicit) return explicit;
+    const linkUrl = String(link?.url || "").trim();
+    if (linkUrl) {
+      try {
+        return new URL(linkUrl).origin;
+      } catch {}
+    }
+    return "/";
+  })();
   const buttonLabel = "Volver";
 
   return (

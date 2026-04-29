@@ -4,21 +4,11 @@ import { getTenantBrand } from "@suscripciones/core/services/tenantBrand";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { tokenMeta } from "@suscripciones/core/lib/tokenMeta";
 import { logger } from "@suscripciones/core/lib/logger";
+import { readCustomerMetadata, type CustomerTokenizationLink } from "@suscripciones/core/lib/customerMetadata";
 import { verifyPublicToken } from "../../../../lib/publicTokens";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-type TokenizationLinkMeta = {
-  token?: string;
-  expiresAt?: string;
-  usedAt?: string;
-  templateId?: string;
-  planId?: string;
-  productId?: string;
-  kind?: string;
-  tenantId?: string;
-};
 
 export async function GET(req: Request, ctx: { params: Promise<{ token: string }> }) {
   const params = await ctx.params;
@@ -47,8 +37,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
     });
   }
 
-  const meta = (customer.metadata ?? {}) as { tokenizationLink?: TokenizationLinkMeta };
-  const link = meta?.tokenizationLink ?? {};
+  const meta = readCustomerMetadata(customer.metadata);
+  const link: CustomerTokenizationLink = meta.tokenizationLink || {};
   const expiresAt = link?.expiresAt ? new Date(link.expiresAt) : null;
   const usedAt = link?.usedAt ? new Date(link.usedAt) : null;
 
@@ -128,6 +118,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
         productId: resolvedProductId,
         productName: resolvedProductName,
         kind: link?.kind || null,
+        url: link?.url || null,
+        returnUrl: link?.returnUrl || null,
         templateId: link?.templateId || null,
         usedAt: usedAt ? usedAt.toISOString() : null
       },

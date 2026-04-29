@@ -94,6 +94,11 @@ export const notificationsConfigSchema = z.object({
 });
 
 export type NotificationsConfig = z.infer<typeof notificationsConfigSchema>;
+export type NotificationTemplate = NotificationsConfig["templates"][number];
+export type NotificationRule = NotificationsConfig["rules"][number];
+export type NotificationPaymentType = NonNullable<
+  NonNullable<NotificationRule["conditions"]>["requirePaymentTypeIn"]
+>[number];
 
 function defaultConfig(): NotificationsConfig {
   return {
@@ -141,9 +146,11 @@ function isTokenizationTemplate(template: NotificationsConfig["templates"][numbe
   if (content.includes("tokeniz") || content.includes("tokenization") || content.includes("tokenizacion")) return true;
   const params = template.chatwootTemplate?.processed_params || {};
   const values: string[] = [];
-  if (Array.isArray((params as any).body)) values.push(...(params as any).body.map((p: any) => String(p?.value || "")));
-  if (Array.isArray((params as any).header)) values.push(...(params as any).header.map((p: any) => String(p?.value || "")));
-  if (Array.isArray((params as any).buttons)) values.push(...(params as any).buttons.map((p: any) => String(p?.value || "")));
+  const readValues = (value: unknown) =>
+    Array.isArray(value) ? value.map((entry) => String((entry as { value?: string })?.value || "")) : [];
+  values.push(...readValues((params as { body?: unknown }).body));
+  values.push(...readValues((params as { header?: unknown }).header));
+  values.push(...readValues((params as { buttons?: unknown }).buttons));
   return values.some((v) => v.toLowerCase().includes("tokeniz") || v.toLowerCase().includes("tokenizacion"));
 }
 
@@ -153,6 +160,65 @@ function hasUsableWhatsAppTemplate(template: NotificationsConfig["templates"][nu
   return Boolean(String(template.chatwootTemplate?.name || "").trim());
 }
 
+export function resolveNotificationRule(args: {
+  rules?: NotificationRule[];
+  trigger: NotificationTrigger;
+  paymentType?: NotificationPaymentType;
+}): NotificationRule | null {
+  const rules = Array.isArray(args.rules) ? args.rules : [];
+  const candidates = rules.filter((rule) => rule.enabled && rule.trigger === args.trigger);
+  if (!candidates.length) return null;
+
+  if (args.paymentType) {
+    const exact =
+      candidates.find((rule) => {
+        const types = rule.conditions?.requirePaymentTypeIn || [];
+        return types.includes(args.paymentType);
+      }) || null;
+    if (exact) return exact;
+  }
+
+  return (
+    candidates.find((rule) => {
+      const types = rule.conditions?.requirePaymentTypeIn || [];
+      return types.length === 0;
+    }) || null
+  );
+}
+
+export function resolveNotificationTemplate(args: {
+  rules?: NotificationRule[];
+  templates?: NotificationTemplate[];
+  trigger: NotificationTrigger;
+  paymentType?: NotificationPaymentType;
+}): NotificationTemplate | null {
+  const rule = resolveNotificationRule({
+    rules: args.rules,
+    trigger: args.trigger,
+    paymentType: args.paymentType
+  });
+  if (!rule) return null;
+
+  const templates = Array.isArray(args.templates) ? args.templates : [];
+  return templates.find((template) => String(template.id) === String(rule.templateId)) || null;
+}
+
+export function filterNotificationRules(args: {
+  rules?: NotificationRule[];
+  trigger: NotificationTrigger;
+  paymentType?: NotificationPaymentType | null;
+}) {
+  const rules = Array.isArray(args.rules) ? args.rules : [];
+  const normalized = String(args.paymentType || "").trim().toUpperCase();
+  return rules.filter((rule) => {
+    if (!rule.enabled || rule.trigger !== args.trigger) return false;
+    const required = rule.conditions?.requirePaymentTypeIn || [];
+    if (!required.length) return true;
+    if (!normalized) return false;
+    return required.includes(normalized as NotificationPaymentType);
+  });
+}
+
 function normalizeNotificationsConfig(cfg: NotificationsConfig): NotificationsConfig {
   const templates = Array.isArray(cfg.templates) ? cfg.templates : [];
   const validTemplates = templates.filter((t) => hasUsableWhatsAppTemplate(t));
@@ -160,14 +226,20 @@ function normalizeNotificationsConfig(cfg: NotificationsConfig): NotificationsCo
   const rules = Array.isArray(cfg.rules) ? cfg.rules : [];
   const nextRules = rules.map((rule) => {
     const next = { ...rule, conditions: rule.conditions ? { ...rule.conditions } : undefined } as typeof rule;
+    const ruleId = String(next.id || "").trim().toLowerCase();
+    const ruleName = String(next.name || "").trim().toLowerCase();
     if (next.trigger === "PAYMENT_LINK_CREATED") {
       const tpl = templateById.get(String(next.templateId));
       if (isTokenizationTemplate(tpl)) {
-        next.trigger = "TOKENIZATION_LINK_CREATED" as any;
+        next.trigger = "TOKENIZATION_LINK_CREATED";
         if (next.conditions?.requirePaymentTypeIn) delete next.conditions.requirePaymentTypeIn;
+      } else if (ruleId.includes("subscription") || ruleName.includes("suscrip")) {
+        next.conditions = { ...(next.conditions || {}), requirePaymentTypeIn: ["SUBSCRIPTION"] };
       } else if (!next.conditions?.requirePaymentTypeIn || next.conditions.requirePaymentTypeIn.length === 0) {
-        next.conditions = { ...(next.conditions || {}), requirePaymentTypeIn: ["LINK"] as any };
+        next.conditions = { ...(next.conditions || {}), requirePaymentTypeIn: ["LINK"] };
       }
+    } else if (next.trigger === "TOKENIZATION_LINK_CREATED") {
+      if (next.conditions?.requirePaymentTypeIn) delete next.conditions.requirePaymentTypeIn;
     }
     return next;
   });

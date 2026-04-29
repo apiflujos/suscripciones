@@ -5,6 +5,7 @@ import { HelpTip } from "../../../ui/HelpTip";
 import { WompiTokenizeWidget } from "./WompiTokenizeWidget";
 import { getAdminSettings } from "../../../admin/_services/settings";
 import { getCustomerById } from "../../../admin/_services/customers";
+import { extractCustomerPaymentSourceId, readCustomerMetadata } from "../../../../../packages/core/src/lib/customerMetadata";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +14,18 @@ export default async function CustomerPaymentMethodPage({
   searchParams
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ error?: string }>;
+  searchParams?: Promise<{ error?: string; returnTo?: string }>;
 }) {
   const p = await params;
   const sp = (await searchParams) ?? {};
+  const returnToRaw = String(sp.returnTo || "").trim();
+  const returnTo =
+    returnToRaw.startsWith("/billing") ||
+    returnToRaw.startsWith("/customers") ||
+    returnToRaw.startsWith("/subscriptions") ||
+    returnToRaw.startsWith("/settings")
+      ? returnToRaw
+      : "";
   const [settings, customer] = await Promise.all([getAdminSettings(), getCustomerById(p.id)]);
   const activeEnv = String((settings as any)?.wompi?.activeEnv || "PRODUCTION").toUpperCase();
   const wompiEnv = activeEnv === "SANDBOX" ? (settings as any)?.wompi?.sandbox : (settings as any)?.wompi?.production;
@@ -42,15 +51,9 @@ export default async function CustomerPaymentMethodPage({
   }
 
   const hasToken = (() => {
-    const meta =
-      (customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {}) as any;
-    const wompiMeta = meta?.wompi || {};
-    const candidates = [wompiMeta?.paymentSourceId, wompiMeta?.payment_source_id, meta?.paymentSourceId, meta?.payment_source_id];
-    const hasPrimary = candidates.some(
-      (v: any) => (typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^\d+$/.test(v))
-    );
-    if (hasPrimary) return true;
-    const sources = wompiMeta?.paymentSources;
+    const meta = readCustomerMetadata(customer?.metadata);
+    if (Number.isFinite(extractCustomerPaymentSourceId(meta))) return true;
+    const sources = meta.wompi?.paymentSources;
     return Array.isArray(sources) && sources.length > 0;
   })();
 
@@ -116,6 +119,7 @@ export default async function CustomerPaymentMethodPage({
                   action={`/customers/${customer.id}/payment-method/process`}
                   style={{ display: "grid", gap: 10 }}
                 >
+                  {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
                   <WompiTokenizeWidget publicKey={publicKey} acceptance={acceptanceLinks} />
                 </form>
               </div>

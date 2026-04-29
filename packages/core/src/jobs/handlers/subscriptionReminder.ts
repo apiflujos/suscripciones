@@ -2,7 +2,9 @@ import { ChatwootMessageType, CredentialProvider, LogLevel, MessageStatus, Payme
 import { z } from "zod";
 import { prisma } from "../../db/prisma";
 import { getCredential } from "../../services/credentials";
+import { readCheckoutConfig } from "../../services/checkoutConfig";
 import { getNotificationsConfig, notificationTriggerSchema } from "../../services/notificationsConfig";
+import { notificationJobPayloadSchema, type NotificationJobPayload } from "../../services/notificationJobPayloads";
 import { createPaymentLinkForSubscription } from "../../services/subscriptionBilling";
 import { systemLog } from "../../services/systemLog";
 import { createPublicCheckoutLink } from "../../services/publicCheckoutLinks";
@@ -13,34 +15,7 @@ import { getAppTimeZone } from "../../services/runtimeConfig";
 import { logger } from "../../lib/logger";
 import { resolveSubscriptionBillingState } from "../../services/billingCycles";
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
-
-const payloadSchema = z.object({
-  trigger: notificationTriggerSchema,
-  ruleId: z.string().min(1),
-  offsetSeconds: z.number().int().optional(),
-  anchorAt: z.string().datetime().optional(),
-  customerId: z.preprocess((v) => {
-    if (v == null) return undefined;
-    const s = String(v || "").trim();
-    return s ? s : undefined;
-  }, z.string().uuid().optional()),
-  subscriptionId: z.preprocess((v) => {
-    if (v == null) return undefined;
-    const s = String(v || "").trim();
-    return s ? s : undefined;
-  }, z.string().uuid().optional()),
-  paymentId: z.preprocess((v) => {
-    if (v == null) return undefined;
-    const s = String(v || "").trim();
-    return s ? s : undefined;
-  }, z.string().uuid().optional()),
-  catalogUrl: z.string().url().optional(),
-  tokenUrl: z.string().url().optional(),
-  immediateSend: z.boolean().optional(),
-  cycleNumber: z.number().int().positive().optional(),
-  paymentStatus: z.enum(["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"]).optional(),
-  paymentType: z.enum(["PLAN", "SUBSCRIPTION", "LINK"]).optional()
-});
+import { readCustomerMetadata } from "../../lib/customerMetadata";
 
 function getPath(obj: any, path: string) {
   const parts = path.split(".").filter(Boolean);
@@ -135,7 +110,7 @@ async function resolveAutoCheckoutTemplateId(args: {
   let defaultTemplateId = "";
   try {
     const rawCfg = await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG");
-    const cfg = rawCfg ? JSON.parse(rawCfg) : {};
+    const cfg = readCheckoutConfig(rawCfg);
     defaultTemplateId =
       desired === PublicCheckoutKind.CART
         ? String(cfg?.defaultCartTemplateId || "").trim()
@@ -184,8 +159,8 @@ function getPaymentType(args: { subscription?: any | null; payment?: any | null 
   return "LINK";
 }
 
-export async function subscriptionReminder(payload: any): Promise<{ ok: boolean; sent?: boolean; queued?: boolean; skipped?: boolean; error?: string }> {
-  const parsed = payloadSchema.safeParse(payload);
+export async function subscriptionReminder(payload: unknown): Promise<{ ok: boolean; sent?: boolean; queued?: boolean; skipped?: boolean; error?: string }> {
+  const parsed = notificationJobPayloadSchema.safeParse(payload);
   if (!parsed.success) {
     await systemLog(LogLevel.WARN, "notifications.dispatch", "Payload inválido para notificación", {
       errors: parsed.error.flatten(),
@@ -202,7 +177,7 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     await systemLog(LogLevel.WARN, "notifications.dispatch", "Regla inactiva o no encontrada", {
       ruleId: parsed.data.ruleId,
       trigger: parsed.data.trigger,
-      jobId: (payload as any)?.jobId || null
+      jobId: typeof payload === "object" && payload && "jobId" in (payload as Record<string, unknown>) ? (payload as Record<string, unknown>).jobId : null
     }, "job:subscriptionReminder").catch((err: any) => {
       logger.warn({ err, ruleId: parsed.data.ruleId }, "subscriptionReminder: fallo escribiendo systemLog de regla inactiva");
     });
@@ -424,7 +399,7 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     }
   }
 
-  const paymentType = parsed.data.paymentType || getPaymentType({ subscription, payment: effectivePayment || payment });
+  const paymentType = ("paymentType" in parsed.data ? parsed.data.paymentType : undefined) || getPaymentType({ subscription, payment: effectivePayment || payment });
 
   if (rule.conditions?.requirePaymentTypeIn && !rule.conditions.requirePaymentTypeIn.includes(paymentType as any)) {
     await systemLog(LogLevel.WARN, "notifications.dispatch", "Tipo de pago no permitido por la regla", {
@@ -469,7 +444,7 @@ export async function subscriptionReminder(payload: any): Promise<{ ok: boolean;
     }
   }
 
-  const meta: any = customer?.metadata && typeof customer.metadata === "object" ? (customer.metadata as any) : {};
+  const meta = readCustomerMetadata(customer?.metadata);
   const templatePaths = extractTemplatePaths([template.content || "", template.chatwootTemplate || null]);
   const checkoutIds = Array.from(
     new Set(

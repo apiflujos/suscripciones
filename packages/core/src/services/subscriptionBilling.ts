@@ -3,7 +3,9 @@ import { prisma } from "../db/prisma";
 import { WompiClient } from "../providers/wompi/client";
 import { systemLog } from "./systemLog";
 import { syncChatwootAttributesForCustomer } from "./chatwootSync";
+import { readCheckoutConfig } from "./checkoutConfig";
 import { getCredential } from "./credentials";
+import { firstNotificationDeliveryError } from "./notificationDelivery";
 import { logger } from "../lib/logger";
 import { buildWompiTransactionSignature, validateWompiCurrency } from "../lib/wompiSignature";
 import { toUtc } from "../lib/dates";
@@ -16,7 +18,7 @@ import {
   getWompiPublicKey,
   getWompiRedirectUrl
 } from "./runtimeConfig";
-import { getNotificationsConfig } from "./notificationsConfig";
+import { getNotificationsConfig, resolveNotificationTemplate } from "./notificationsConfig";
 import { schedulePaymentLinkNotifications } from "./notificationsScheduler";
 import { publishRealtime } from "./realtimePublisher";
 import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
@@ -24,6 +26,7 @@ import { reconcileWompiTransaction } from "./wompiReconcile";
 import { getExpectedSubscriptionTotalInCents, getPlanCollectionMode } from "../lib/metadataSchemas";
 import { resolveSubscriptionBillingState } from "./billingCycles";
 import { createPublicCheckoutLink } from "./publicCheckoutLinks";
+import { extractCustomerPaymentSourceId } from "../lib/customerMetadata";
 
 const PAYMENT_LINK_LOCK_PREFIX = "payment-link";
 const AUTO_DEBIT_LOCK_PREFIX = "auto-debit";
@@ -46,23 +49,42 @@ type SubscriptionMetadata = {
   };
 };
 
-type CheckoutConfig = {
-  planTitle?: string;
-  planDescription?: string;
-  subscriptionTitle?: string;
-  subscriptionDescription?: string;
-};
+type TemplateProductRef = { id?: string } | string | null | undefined;
 
-type CustomerWompiMeta = {
-  paymentSourceId?: number | string;
-  payment_source_id?: number | string;
-};
+function readSubscriptionTemplateId(metadata: unknown): string {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return "";
+  return String((metadata as SubscriptionMetadata).templateId || "").trim();
+}
 
-type CustomerMetadata = {
-  wompi?: CustomerWompiMeta;
-  paymentSourceId?: number | string;
-  payment_source_id?: number | string;
-};
+function readPlanCatalogItemId(metadata: unknown): string {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return "";
+  const catalog = (metadata as { catalog?: { itemId?: string } }).catalog;
+  return String(catalog?.itemId || "").trim();
+}
+
+function readTemplateProductRefs(value: unknown): TemplateProductRef[] {
+  return Array.isArray(value) ? (value as TemplateProductRef[]) : [];
+}
+
+function extractTemplateProductId(entry: TemplateProductRef): string {
+  if (!entry) return "";
+  if (typeof entry === "string") return String(entry).trim();
+  if (typeof entry === "object") return String(entry.id || "").trim();
+  return "";
+}
+
+function resolveSubscriptionProductId(args: {
+  subscriptionProductId?: string | null;
+  planCatalogProductId?: string | null;
+  planMetadata?: unknown;
+}): string | null {
+  const direct = String(args.subscriptionProductId || "").trim();
+  if (direct) return direct;
+  const catalogProductId = String(args.planCatalogProductId || "").trim();
+  if (catalogProductId) return catalogProductId;
+  const fromMeta = readPlanCatalogItemId(args.planMetadata);
+  return fromMeta || null;
+}
 
 async function tryAcquirePaymentLinkLock(key: string) {
   try {
@@ -117,7 +139,7 @@ async function resolvePlanCheckoutTemplateId(args: {
   const tenantId = String(args.tenantId || "").trim();
   if (!tenantId) return null;
 
-  const explicitTemplateId = String((args.subscriptionMetadata as any)?.templateId || "").trim();
+  const explicitTemplateId = readSubscriptionTemplateId(args.subscriptionMetadata);
   if (explicitTemplateId) {
     const explicit = await prisma.publicCheckoutTemplate.findUnique({ where: { id: explicitTemplateId } }).catch(() => null);
     if (explicit && explicit.active !== false && String(explicit.kind || "").toUpperCase() === "PLAN") {
@@ -125,34 +147,27 @@ async function resolvePlanCheckoutTemplateId(args: {
     }
   }
 
-  const productId = String((args.planMetadata as any)?.catalog?.itemId || "").trim();
+  const productId = readPlanCatalogItemId(args.planMetadata);
   const templates = await prisma.publicCheckoutTemplate.findMany({
-    where: { tenantId, active: true, kind: "PLAN" as any },
+    where: { tenantId, active: true, kind: "PLAN" },
     orderBy: { updatedAt: "desc" }
   });
   if (!templates.length) return null;
 
-  const extractProductId = (entry: any) => {
-    if (!entry) return "";
-    if (typeof entry === "string") return String(entry).trim();
-    if (typeof entry === "object") return String(entry?.id || "").trim();
-    return "";
-  };
-
   if (productId) {
     const match = templates.find((t) => {
-      const list = Array.isArray((t as any)?.productIds) ? (t as any).productIds : [];
-      return list.some((entry: any) => String(extractProductId(entry)) === productId);
+      const list = readTemplateProductRefs((t as { productIds?: unknown }).productIds);
+      return list.some((entry) => String(extractTemplateProductId(entry)) === productId);
     });
     if (match?.id) return String(match.id);
   }
 
   try {
     const rawCfg = await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG");
-    const cfg = rawCfg ? JSON.parse(rawCfg) : {};
+    const cfg = readCheckoutConfig(rawCfg);
     const defaultTemplateId = String(cfg?.defaultPlanTemplateId || "").trim();
     if (!defaultTemplateId) return null;
-    const fallback = templates.find((t) => String((t as any)?.id || "").trim() === defaultTemplateId) || null;
+    const fallback = templates.find((t) => String(t.id || "").trim() === defaultTemplateId) || null;
     return fallback?.id ? String(fallback.id) : null;
   } catch {
     return null;
@@ -162,20 +177,16 @@ async function resolvePlanCheckoutTemplateId(args: {
 async function hasUsableSubscriptionPaymentLinkNotification(): Promise<boolean> {
   try {
     const cfg = await getNotificationsConfig();
-    const rules = Array.isArray((cfg as any)?.rules) ? (cfg as any).rules : [];
-    const templates = Array.isArray((cfg as any)?.templates) ? (cfg as any).templates : [];
-    const candidates = rules.filter((rule: any) => {
-      if (!rule?.enabled || String(rule?.trigger || "") !== "PAYMENT_LINK_CREATED") return false;
-      const types = Array.isArray(rule?.conditions?.requirePaymentTypeIn) ? rule.conditions.requirePaymentTypeIn : [];
-      return !types.length || types.includes("SUBSCRIPTION");
+    const template = resolveNotificationTemplate({
+      rules: cfg.rules,
+      templates: cfg.templates,
+      trigger: "PAYMENT_LINK_CREATED",
+      paymentType: "SUBSCRIPTION"
     });
-    const rule = candidates[0] || null;
-    if (!rule) return false;
-    const template = templates.find((item: any) => String(item?.id || "") === String(rule?.templateId || ""));
     return Boolean(
       template &&
-        String(template?.channel || "").toUpperCase() === "CHATWOOT" &&
-        String(template?.chatwootTemplate?.name || "").trim()
+        String(template.channel || "").toUpperCase() === "CHATWOOT" &&
+        String(template.chatwootTemplate?.name || "").trim()
     );
   } catch {
     return false;
@@ -362,7 +373,7 @@ export async function createPaymentLinkForSubscription(args: {
     notificationsScheduled: 0,
     notificationsSent: 0,
     notificationsRulesActive: false,
-    chatwootError: null as string | null
+    chatwootError: null
   };
   const sub = await prisma.subscription.findUnique({
     where: { id: args.subscriptionId },
@@ -519,19 +530,13 @@ export async function createPaymentLinkForSubscription(args: {
       const cliente = sub.customer?.name || sub.customer?.email || "Cliente";
       const producto = sub.plan?.name || "Suscripción";
       const rawConfig = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
-      let cfg: CheckoutConfig | null = null;
-      try {
-        const parsed = rawConfig ? JSON.parse(rawConfig) : null;
-        cfg = parsed && typeof parsed === "object" ? (parsed as CheckoutConfig) : null;
-      } catch {
-        cfg = null;
-      }
+      const cfg = rawConfig ? readCheckoutConfig(rawConfig) : null;
       const collectionMode = resolveSubscriptionCollectionMode(sub);
       // Solo AUTO_DEBIT usa plantilla SUBSCRIPTION; MANUAL_LINK y AUTO_LINK usan PLAN
       const isPlan = collectionMode !== "AUTO_DEBIT";
       const baseTitle = String(isPlan ? cfg?.planTitle : cfg?.subscriptionTitle || "").trim();
       const baseDesc = String(isPlan ? cfg?.planDescription : cfg?.subscriptionDescription || "").trim();
-      const templateId = String((sub.metadata as SubscriptionMetadata | null)?.templateId || "").trim();
+      const templateId = readSubscriptionTemplateId(sub.metadata);
       const template =
         templateId
           ? await prisma.publicCheckoutTemplate.findUnique({ where: { id: templateId } })
@@ -588,7 +593,7 @@ export async function createPaymentLinkForSubscription(args: {
         attemptNo: 0,
         status: "PAYMENT_LINK_CREATED",
         provider: "wompi",
-        response: created.raw as any
+        response: created.raw
       }
     });
 
@@ -612,7 +617,11 @@ export async function createPaymentLinkForSubscription(args: {
         create: {
           tenantId,
           planId: sub.planId,
-          productId: sub.productId || String((sub.plan as any)?.catalogProductId || (sub.plan?.metadata as any)?.catalog?.itemId || "").trim() || null,
+          productId: resolveSubscriptionProductId({
+            subscriptionProductId: sub.productId,
+            planCatalogProductId: (sub.plan as { catalogProductId?: string | null })?.catalogProductId || null,
+            planMetadata: sub.plan?.metadata
+          }),
           subscriptionId: sub.id,
           paymentId: updatedPayment.id,
           wompiPaymentLinkId: created.id,
@@ -623,7 +632,11 @@ export async function createPaymentLinkForSubscription(args: {
         update: {
           tenantId,
           planId: sub.planId,
-          productId: sub.productId || String((sub.plan as any)?.catalogProductId || (sub.plan?.metadata as any)?.catalog?.itemId || "").trim() || null,
+          productId: resolveSubscriptionProductId({
+            subscriptionProductId: sub.productId,
+            planCatalogProductId: (sub.plan as { catalogProductId?: string | null })?.catalogProductId || null,
+            planMetadata: sub.plan?.metadata
+          }),
           subscriptionId: sub.id,
           wompiPaymentLinkId: created.id,
           checkoutUrl: updatedPayment.checkoutUrl || created.checkoutUrl
@@ -709,6 +722,7 @@ export async function createPaymentLinkForSubscription(args: {
     logIgnored(err, "payment link: failed to schedule notifications", { paymentId: updated.id });
     return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
   });
+  const chatwootError = firstNotificationDeliveryError(scheduledInfo) || null;
 
   const chatwoot = await getChatwootConfig();
   if (chatwoot.configured) {
@@ -725,7 +739,7 @@ export async function createPaymentLinkForSubscription(args: {
     notificationsScheduled: scheduledInfo?.scheduled ?? 0,
     notificationsSent: scheduledInfo?.sentNow ?? 0,
     notificationsRulesActive: scheduledInfo?.rulesActive ?? false,
-    chatwootError: scheduledInfo?.errors?.[0] || null
+    chatwootError
   };
 }
 
@@ -756,21 +770,8 @@ export async function createAutoDebitTransactionForSubscription(args: {
     throw new Error("customer_email_required");
   }
 
-  const paymentSourceId = (() => {
-    const meta = ((sub.customer.metadata as CustomerMetadata) ?? {}) as CustomerMetadata;
-    const candidates = [
-      meta?.wompi?.paymentSourceId,
-      meta?.wompi?.payment_source_id,
-      meta?.paymentSourceId,
-      meta?.payment_source_id
-    ];
-    for (const v of candidates) {
-      if (typeof v === "number" && Number.isFinite(v)) return v;
-      if (typeof v === "string" && /^\d+$/.test(v)) return Number(v);
-    }
-    return null;
-  })();
-  if (!Number.isFinite(paymentSourceId as any)) throw new Error("customer_payment_source_missing");
+  const paymentSourceId = extractCustomerPaymentSourceId(sub.customer.metadata);
+  if (paymentSourceId === null) throw new Error("customer_payment_source_missing");
 
   const overrideCycle = Number.isFinite(args.cycleNumberOverride)
     ? Math.max(1, Math.trunc(args.cycleNumberOverride as number))
@@ -895,21 +896,21 @@ export async function createAutoDebitTransactionForSubscription(args: {
         wompiTransactionId: null,
         providerResponse:
           payment.providerResponse && typeof payment.providerResponse === "object"
-            ? ({
+            ? {
                 ...(payment.providerResponse as Record<string, unknown>),
                 retry: {
                   previousReference: payment.reference,
                   previousWompiTransactionId: payment.wompiTransactionId,
                   retriedAt: new Date().toISOString()
                 }
-              } as any)
-            : ({
+              }
+            : {
                 retry: {
                   previousReference: payment.reference,
                   previousWompiTransactionId: payment.wompiTransactionId,
                   retriedAt: new Date().toISOString()
                 }
-              } as any)
+              }
       }
     });
   }
@@ -1008,7 +1009,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
       signature: signed.signature,
       acceptance_token: merchant.acceptanceToken,
       accept_personal_auth: merchant.acceptPersonalAuth,
-      payment_source_id: paymentSourceId as number,
+      payment_source_id: paymentSourceId,
       recurrent: true,
       payment_method: { installments: 1 }
     });
@@ -1071,13 +1072,13 @@ export async function createAutoDebitTransactionForSubscription(args: {
       attemptNo: 0,
       status: "TRANSACTION_CREATED",
       provider: "wompi",
-      response: created.raw as any
+      response: created.raw
     }
   });
 
   const updated = await prisma.payment.update({
     where: { id: payment.id },
-    data: { reference: usedReference, wompiTransactionId: created.id, providerResponse: created.raw as any }
+    data: { reference: usedReference, wompiTransactionId: created.id, providerResponse: created.raw }
   });
 
   await systemLog(LogLevel.INFO, "subscriptions.auto_debit", "Transaction created", {

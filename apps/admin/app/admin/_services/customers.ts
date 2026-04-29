@@ -16,53 +16,18 @@ import {
   getWompiPublicKey
 } from "@suscripciones/core/services/runtimeConfig";
 import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
+import {
+  customerMetadataSchema,
+  readCustomerMetadata,
+  type CustomerMetadata,
+  type CustomerWompiPaymentSource
+} from "@suscripciones/core/lib/customerMetadata";
 
 export const createCustomerSchema = z.object({
   name: z.string().min(1).optional(),
   email: z.string().email(),
   phone: z.string().min(6),
-  metadata: z
-    .object({
-      identificacion: z.string().optional(),
-      identificacionNumero: z.string().optional(),
-      identificationNumber: z.string().optional(),
-      documentNumber: z.string().optional(),
-      document: z.string().optional(),
-      tokenizationLink: z
-        .object({
-          token: z.string(),
-          expiresAt: z.string().datetime().optional(),
-          usedAt: z.string().datetime().optional()
-        })
-        .optional(),
-      wompi: z
-        .object({
-          paymentSourceId: z.number().optional(),
-          paymentSourceType: z.string().optional(),
-          paymentSources: z
-            .array(
-              z.object({
-                id: z.number(),
-                type: z.string(),
-                createdAt: z.string().optional()
-              })
-            )
-            .optional(),
-          acceptancePermalink: z.string().optional(),
-          personalDataPermalink: z.string().optional(),
-          createdAt: z.string().datetime().optional()
-        })
-        .optional(),
-      chatwoot: z
-        .object({
-          contactId: z.number().optional(),
-          sourceId: z.string().optional(),
-          attributesSyncedAt: z.string().datetime().optional()
-        })
-        .optional()
-    })
-    .passthrough()
-    .optional()
+  metadata: customerMetadataSchema.optional()
 });
 
 type ClearPaymentSourceOk = {
@@ -84,13 +49,13 @@ export async function clearCustomerPaymentSource(args: {
   if (!customer) return { ok: false, status: 404, error: "customer_not_found" };
 
   const sourceIdRaw = Number(args.sourceId ?? 0);
-  const existing = (customer.metadata ?? {}) as any;
-  const existingWompi = existing?.wompi && typeof existing.wompi === "object" ? existing.wompi : {};
-  const existingSources = Array.isArray(existingWompi?.paymentSources) ? existingWompi.paymentSources : [];
+  const existing = readCustomerMetadata(customer.metadata);
+  const existingWompi = existing.wompi || {};
+  const existingSources = Array.isArray(existingWompi.paymentSources) ? existingWompi.paymentSources : [];
   const activeId = existingWompi?.paymentSourceId;
   const targetId = Number.isFinite(sourceIdRaw) && sourceIdRaw > 0 ? sourceIdRaw : Number(activeId || 0) || 0;
 
-  const nextSources = targetId ? existingSources.filter((s: any) => Number(s?.id) !== targetId) : existingSources;
+  const nextSources = targetId ? existingSources.filter((source) => Number(source.id) !== targetId) : existingSources;
   const nextActive = nextSources.length ? nextSources[nextSources.length - 1] : null;
 
   const merged = {
@@ -228,7 +193,7 @@ export async function getCustomerWithGamification(args: { customerId: string; te
   return { ok: true, customer, gamification: gamificacionResponse };
 }
 
-export async function updateCustomerMetadata(args: { customerId: string; metadata: any }) {
+export async function updateCustomerMetadata(args: { customerId: string; metadata: CustomerMetadata }) {
   const id = String(args.customerId || "").trim();
   if (!id) return null;
   return prisma.customer.update({
@@ -339,7 +304,7 @@ export async function updateCustomerProfile(args: {
   name?: string | null;
   email?: string | null;
   phone?: string | null;
-  metadata?: any;
+  metadata?: CustomerMetadata;
 }) {
   const customerId = String(args.customerId || "").trim();
   if (!customerId) return { ok: false, status: 400, error: "invalid_id" as const };
@@ -628,11 +593,11 @@ export async function createWompiPaymentSource(args: { customerId: string; type:
     accept_personal_auth: merchant.acceptPersonalAuth
   });
 
-  const existing = (customer.metadata ?? {}) as any;
-  const existingWompi = existing?.wompi && typeof existing.wompi === "object" ? existing.wompi : {};
-  const existingSources = Array.isArray(existingWompi?.paymentSources) ? existingWompi.paymentSources : [];
-  const nextSources = [
-    ...existingSources.filter((s: any) => Number(s?.id) !== created.id),
+  const existing = readCustomerMetadata(customer.metadata);
+  const existingWompi = existing.wompi || {};
+  const existingSources = Array.isArray(existingWompi.paymentSources) ? existingWompi.paymentSources : [];
+  const nextSources: CustomerWompiPaymentSource[] = [
+    ...existingSources.filter((source) => Number(source.id) !== created.id),
     { id: created.id, type: args.type, createdAt: new Date().toISOString() }
   ];
   const merged = {
@@ -665,8 +630,8 @@ export async function consumeTokenizationLink(args: { token: string }) {
   });
   if (!customer) return { ok: false, status: 404, error: "token_no_encontrado" as const };
 
-  const meta: any = customer.metadata ?? {};
-  const link = meta?.tokenizationLink ?? {};
+  const meta = readCustomerMetadata(customer.metadata);
+  const link = meta.tokenizationLink || {};
   const expiresAt = link?.expiresAt ? new Date(link.expiresAt) : null;
   const usedAt = link?.usedAt ? new Date(link.usedAt) : null;
 

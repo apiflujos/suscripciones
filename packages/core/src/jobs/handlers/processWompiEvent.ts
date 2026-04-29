@@ -8,6 +8,7 @@ import { PaymentLinkStatus, PaymentStatus, SubscriptionStatus, WebhookProcessSta
 import { addIntervalUtc } from "../../lib/dates";
 import { getPaymentsConfig, getShopifyForward, getWompiCheckoutLinkBaseUrl } from "../../services/runtimeConfig";
 import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../../services/notificationsScheduler";
+import { firstNotificationDeliveryError } from "../../services/notificationDelivery";
 import { consumeApp } from "../../services/superAdminApp";
 import { syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
 import { getDefaultTenantId } from "../../services/tenantContext";
@@ -51,6 +52,8 @@ type WompiTransaction = {
   status?: string;
   status_message?: string;
   statusMessage?: string;
+  status_reason?: string;
+  statusReason?: string;
   amount_in_cents?: number;
   amountInCents?: number;
   currency?: string;
@@ -64,6 +67,14 @@ type WompiTransaction = {
   createdAt?: string | number;
   paid_at?: string | number;
   paidAt?: string | number;
+  payment_method?: {
+    extra?: {
+      status_message?: string;
+      statusMessage?: string;
+      message?: string;
+      error?: string;
+    };
+  };
 };
 
 type WompiPayload = {
@@ -71,6 +82,8 @@ type WompiPayload = {
     transaction?: WompiTransaction;
     customer_email?: string;
     customerEmail?: string;
+    payment_link?: WompiPaymentLinkRef;
+    paymentLink?: WompiPaymentLinkRef;
   };
   signature?: { checksum?: string };
   event?: string;
@@ -93,14 +106,13 @@ function firstText(...values: unknown[]) {
 function extractFailureMessage(payload: WompiPayload) {
   const tx = getTransactionFromPayload(payload);
   const statusMessage = firstText(
-    (tx as any)?.status_message,
-    (tx as any)?.statusMessage,
-    (tx as any)?.status_reason,
-    (tx as any)?.statusReason
+    tx?.status_message,
+    tx?.statusMessage,
+    tx?.status_reason,
+    tx?.statusReason
   );
   if (statusMessage) return statusMessage;
-  const method = (tx as any)?.payment_method;
-  const extra = method && typeof method === "object" ? (method as any).extra : null;
+  const extra = tx?.payment_method?.extra ?? null;
   const extraMsg = firstText(extra?.status_message, extra?.statusMessage, extra?.message, extra?.error);
   return extraMsg;
 }
@@ -152,8 +164,8 @@ function getPaymentLinkIdFromPayload(payload: WompiPayload): string | undefined 
     normalizeReference(tx?.paymentLinkId) ??
     extractPaymentLinkId(tx?.payment_link) ??
     extractPaymentLinkId(tx?.paymentLink) ??
-    extractPaymentLinkId((payload?.data as any)?.payment_link) ??
-    extractPaymentLinkId((payload?.data as any)?.paymentLink)
+    extractPaymentLinkId(payload?.data?.payment_link) ??
+    extractPaymentLinkId(payload?.data?.paymentLink)
   );
 }
 
@@ -1276,14 +1288,33 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     data: { processStatus: WebhookProcessStatus.PROCESSED, processedAt: new Date() }
   });
 
-  await schedulePaymentStatusNotifications({ paymentId: paymentRecord.id, forceNow: true }).catch((err) => {
+  const paymentNotificationSchedule = await schedulePaymentStatusNotifications({
+    paymentId: paymentRecord.id,
+    forceNow: true
+  }).catch((err) => {
     systemLog(LogLevel.ERROR, "notifications.payment_status", "Fallo al programar notificaciones de pago", {
       paymentId: paymentRecord.id,
       error: String(err?.message || err)
     }, "webhook:wompi").catch((logErr: any) => {
       logger.warn({ err: logErr, paymentId: paymentRecord.id }, "processWompiEvent: fallo escribiendo systemLog de notificaciones de pago");
     });
+    return null;
   });
+  const paymentNotificationError = paymentNotificationSchedule
+    ? firstNotificationDeliveryError(paymentNotificationSchedule)
+    : null;
+  if (paymentNotificationError) {
+    await systemLog(LogLevel.WARN, "notifications.payment_status", "Notificación de pago sin entrega inmediata", {
+      paymentId: paymentRecord.id,
+      status: paymentRecord.status,
+      error: paymentNotificationError,
+      notificationsScheduled: paymentNotificationSchedule?.scheduled ?? 0,
+      notificationsSent: paymentNotificationSchedule?.sentNow ?? 0,
+      notificationsRulesActive: paymentNotificationSchedule?.rulesActive ?? false
+    }, "webhook:wompi").catch((logErr: any) => {
+      logger.warn({ err: logErr, paymentId: paymentRecord.id }, "processWompiEvent: fallo escribiendo systemLog de no entrega de notificación");
+    });
+  }
   await syncChatwootAttributesForCustomer(paymentRecord.customerId).catch((err) => {
     systemLog(LogLevel.WARN, "chatwoot.sync", "Fallo al sincronizar atributos de Chatwoot", {
       customerId: paymentRecord.customerId,

@@ -3,11 +3,13 @@ import { requireApiSession } from "../../_lib/requireApiSession";
 import { getCheckoutConfig } from "../../../admin/_services/settings";
 import { findCheckoutTemplateForProductOrDefault } from "../../../admin/_services/checkoutTemplates";
 import { getCustomerById, updateCustomerMetadata } from "../../../admin/_services/customers";
+import { firstNotificationDeliveryError } from "@suscripciones/core/services/notificationDelivery";
 import { scheduleCatalogLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
-import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
+import { getNotificationsConfig, type NotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
+import { readCustomerMetadata } from "@suscripciones/core/lib/customerMetadata";
 import { logger } from "@suscripciones/core/lib/logger";
-import { isNotificationTemplateConfigured } from "../../../lib/notificationTemplate";
+import { isNotificationTemplateConfigured, resolveNotificationTemplateForTrigger } from "../../../lib/notificationTemplate";
 
 export async function POST(req: Request) {
   const auth = await requireApiSession(req);
@@ -33,16 +35,13 @@ export async function POST(req: Request) {
     return null;
   });
   if (notificationsConfig) {
-    const rules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
-    const templates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
-    const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === "CATALOG_LINK_CREATED");
-    const filtered = candidates.filter((r: any) => {
-      const types = r?.conditions?.requirePaymentTypeIn;
-      if (!Array.isArray(types) || !types.length) return true;
-      return types.includes(catalogType === "SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN");
+    const cfg = notificationsConfig as NotificationsConfig;
+    const tpl = resolveNotificationTemplateForTrigger({
+      rules: cfg.rules,
+      templates: cfg.templates,
+      trigger: "CATALOG_LINK_CREATED",
+      paymentType: catalogType === "SUBSCRIPTION" ? "SUBSCRIPTION" : "PLAN"
     });
-    const rule = filtered[0] || null;
-    const tpl = rule ? templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || "")) : null;
     if (!isNotificationTemplateConfigured(tpl)) {
       return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
     }
@@ -60,7 +59,7 @@ export async function POST(req: Request) {
 
   const selectedTemplate = await findCheckoutTemplateForProductOrDefault({
     tenantId: tenantId || null,
-    kind: "CART" as any,
+    kind: "CART",
     productId: productId || null,
     defaultTemplateId: String(checkoutConfig?.defaultCartTemplateId || "").trim()
   });
@@ -72,14 +71,13 @@ export async function POST(req: Request) {
   if (!customer) return NextResponse.json({ ok: false, error: "customer_not_found" }, { status: 404 });
   const created = await createPublicCheckoutLink({
     customerId,
-    templateId: String((selectedTemplate as any)?.id || "")
+    templateId: String(selectedTemplate.id || "")
   });
   const publicUrl = String(created?.url || "").trim();
   if (!publicUrl) {
     return NextResponse.json({ ok: false, error: "public_checkout_create_failed" }, { status: 500 });
   }
-  const prevMeta =
-    customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {};
+  const prevMeta = readCustomerMetadata(customer.metadata);
 
   const nextMeta = {
     ...prevMeta,
@@ -88,7 +86,7 @@ export async function POST(req: Request) {
       ...(created || {}),
       url: publicUrl,
       token: String(created?.token || "").trim() || prevMeta?.cartLink?.token || null,
-      templateId: String((selectedTemplate as any).id || "").trim() || prevMeta?.cartLink?.templateId || null,
+      templateId: String(selectedTemplate.id || "").trim() || prevMeta?.cartLink?.templateId || null,
       catalogType,
       kind: "CART"
     }
@@ -112,7 +110,20 @@ export async function POST(req: Request) {
   if (!rulesActive) {
     return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
   }
-  const chatwootError = String((schedule as any)?.errors?.[0] || "").trim() || null;
+  const chatwootError = firstNotificationDeliveryError(schedule) || null;
+  if (chatwootError) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: chatwootError,
+        link: publicUrl,
+        notificationsScheduled: schedule?.scheduled ?? 0,
+        notificationsSent: schedule?.sentNow ?? 0,
+        notificationsRulesActive: rulesActive
+      },
+      { status: 502 }
+    );
+  }
 
   return NextResponse.json({
     ok: true,
@@ -120,6 +131,6 @@ export async function POST(req: Request) {
     notificationsScheduled: schedule?.scheduled ?? 0,
     notificationsSent: schedule?.sentNow ?? 0,
     notificationsRulesActive: rulesActive,
-    chatwootError
+    chatwootError: null
   });
 }

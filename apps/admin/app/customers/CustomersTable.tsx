@@ -8,6 +8,7 @@ import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
 import { AppModal } from "../ui/AppModal";
 import { CustomerEditModal } from "./CustomerEditModal";
 import { isNotificationTemplateConfigured, renderNotificationTemplatePreview } from "../lib/notificationTemplate";
+import { extractCustomerPaymentSourceId, readCustomerMetadata } from "../../../../packages/core/src/lib/customerMetadata";
 
 function formatCopFromCents(cents: number) {
   const pesos = Math.trunc(Number(cents || 0) / 100);
@@ -127,18 +128,9 @@ export function CustomersTable({
   function hasToken(customer: CustomerRow) {
     const localState = tokenStateByCustomer[String(customer.id)];
     if (typeof localState === "boolean") return localState;
-    const meta = customer.metadata ?? {};
-    const candidates = [
-      meta?.wompi?.paymentSourceId,
-      meta?.wompi?.payment_source_id,
-      meta?.paymentSourceId,
-      meta?.payment_source_id
-    ];
-    const hasPrimary = candidates.some(
-      (v: any) => (typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^\d+$/.test(v))
-    );
-    if (hasPrimary) return true;
-    const sources = meta?.wompi?.paymentSources;
+    const meta = readCustomerMetadata(customer.metadata);
+    if (Number.isFinite(extractCustomerPaymentSourceId(meta))) return true;
+    const sources = meta.wompi?.paymentSources;
     return Array.isArray(sources) && sources.length > 0;
   }
 

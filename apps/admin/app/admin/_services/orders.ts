@@ -10,8 +10,10 @@ import {
   getWompiPrivateKey,
   getWompiRedirectUrl
 } from "@suscripciones/core/services/runtimeConfig";
+import { readCheckoutConfig } from "@suscripciones/core/services/checkoutConfig";
 import { getCredential } from "@suscripciones/core/services/credentials";
 import { schedulePaymentLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
+import { firstNotificationDeliveryError } from "@suscripciones/core/services/notificationDelivery";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { getEffectiveTenantId } from "@suscripciones/core/services/tenantContext";
 import { DEFAULT_CURRENCY, isSupportedCurrency, normalizeCurrencyCode } from "@suscripciones/core/lib/currencies";
@@ -58,6 +60,13 @@ function computeTotals(input: z.infer<typeof createOrderSchema>) {
   return { subtotal, discount, tax, total };
 }
 
+const EMPTY_NOTIFICATION_RESULT = {
+  scheduled: 0,
+  sentNow: 0,
+  rulesActive: false,
+  errors: [] as string[]
+};
+
 export async function createManualOrder(args: { req: Request; body: any }) {
   const parsed = createOrderSchema.safeParse(args.body);
   if (!parsed.success) {
@@ -68,7 +77,7 @@ export async function createManualOrder(args: { req: Request; body: any }) {
   if (!customer) return { ok: false, status: 404, error: "customer_not_found" };
 
   const compatReq = reqToCompat(args.req, args.body);
-  const tenantId = customer.tenantId || (await getEffectiveTenantId(compatReq as any));
+  const tenantId = customer.tenantId || (await getEffectiveTenantId(compatReq));
   if (!tenantId) return { ok: false, status: 400, error: "tenant_required" };
   await prisma.customerTenant
     .createMany({ data: [{ customerId: customer.id, tenantId }], skipDuplicates: true })
@@ -102,7 +111,7 @@ export async function createManualOrder(args: { req: Request; body: any }) {
           discountPercent: parsed.data.discountPercent,
           expiresAt: parsed.data.expiresAt || null
         }
-      } as any
+      }
     }
   });
 
@@ -122,12 +131,7 @@ export async function createManualOrder(args: { req: Request; body: any }) {
     .format(Math.trunc(totals.total / 100));
 
   const rawConfig = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
-  let cfg: any = null;
-  try {
-    cfg = rawConfig ? JSON.parse(rawConfig) : null;
-  } catch (err: any) {
-    logger.warn({ err }, "Fallo parseando CHECKOUT_CONFIG al crear orden manual");
-  }
+  const cfg = rawConfig ? readCheckoutConfig(rawConfig) : null;
   const templateTitle = String(cfg?.planTitle || "").trim();
   const templateDesc = String(cfg?.planDescription || "").trim();
   const replaceVars = (input: string) =>
@@ -158,7 +162,12 @@ export async function createManualOrder(args: { req: Request; body: any }) {
         where: { id: payment.id },
         data: {
           status: PaymentStatus.ERROR,
-          providerResponse: { ...(payment.providerResponse as any), wompiError: String(err?.message || err) } as any
+          providerResponse: {
+            ...(payment.providerResponse && typeof payment.providerResponse === "object"
+              ? (payment.providerResponse as Record<string, unknown>)
+              : {}),
+            wompiError: String(err?.message || err)
+          }
         }
       })
       .catch((updateErr: any) => {
@@ -183,15 +192,10 @@ export async function createManualOrder(args: { req: Request; body: any }) {
 
   const scheduledInfo =
     parsed.data.sendChatwoot === false
-      ? { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] }
+      ? EMPTY_NOTIFICATION_RESULT
       : await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch((err: any) => {
           logger.warn({ err, paymentId: updated.id }, "Fallo programando notificaciones de payment link en orden manual");
-          return {
-            scheduled: 0,
-            sentNow: 0,
-            rulesActive: false,
-            errors: [] as string[]
-          };
+          return EMPTY_NOTIFICATION_RESULT;
         });
 
   return {
@@ -202,7 +206,7 @@ export async function createManualOrder(args: { req: Request; body: any }) {
     notificationsScheduled: scheduledInfo?.scheduled ?? 0,
     notificationsSent: scheduledInfo?.sentNow ?? 0,
     notificationsRulesActive: scheduledInfo?.rulesActive ?? false,
-    chatwootError: scheduledInfo?.errors?.[0] || null
+    chatwootError: firstNotificationDeliveryError(scheduledInfo) || null
   };
 }
 
@@ -275,7 +279,7 @@ export async function createManualOrderForAdmin(args: {
           discountPercent: parsed.data.discountPercent,
           expiresAt: parsed.data.expiresAt || null
         }
-      } as any
+      }
     }
   });
 
@@ -296,12 +300,7 @@ export async function createManualOrderForAdmin(args: {
   );
 
   const rawConfig = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
-  let cfg: any = null;
-  try {
-    cfg = rawConfig ? JSON.parse(rawConfig) : null;
-  } catch (err: any) {
-    logger.warn({ err }, "Fallo parseando CHECKOUT_CONFIG al crear orden manual admin");
-  }
+  const cfg = rawConfig ? readCheckoutConfig(rawConfig) : null;
   const templateTitle = String(cfg?.planTitle || "").trim();
   const templateDesc = String(cfg?.planDescription || "").trim();
   const replaceVars = (input: string) =>
@@ -333,7 +332,12 @@ export async function createManualOrderForAdmin(args: {
         where: { id: payment.id },
         data: {
           status: PaymentStatus.ERROR,
-          providerResponse: { ...(payment.providerResponse as any), wompiError: String(err?.message || err) } as any
+          providerResponse: {
+            ...(payment.providerResponse && typeof payment.providerResponse === "object"
+              ? (payment.providerResponse as Record<string, unknown>)
+              : {}),
+            wompiError: String(err?.message || err)
+          }
         }
       })
       .catch((updateErr: any) => {
@@ -358,15 +362,10 @@ export async function createManualOrderForAdmin(args: {
 
   const scheduledInfo =
     parsed.data.sendChatwoot === false
-      ? { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] }
+      ? EMPTY_NOTIFICATION_RESULT
       : await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch((err: any) => {
           logger.warn({ err, paymentId: updated.id }, "Fallo programando notificaciones de payment link en orden manual admin");
-          return {
-            scheduled: 0,
-            sentNow: 0,
-            rulesActive: false,
-            errors: [] as string[]
-          };
+          return EMPTY_NOTIFICATION_RESULT;
         });
 
   return {
@@ -377,7 +376,7 @@ export async function createManualOrderForAdmin(args: {
     notificationsScheduled: scheduledInfo?.scheduled ?? 0,
     notificationsSent: scheduledInfo?.sentNow ?? 0,
     notificationsRulesActive: scheduledInfo?.rulesActive ?? false,
-    chatwootError: scheduledInfo?.errors?.[0] || null
+    chatwootError: firstNotificationDeliveryError(scheduledInfo) || null
   };
 }
 

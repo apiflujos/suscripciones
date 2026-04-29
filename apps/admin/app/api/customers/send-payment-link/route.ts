@@ -5,10 +5,11 @@ import { getCheckoutConfig } from "../../../admin/_services/settings";
 import { findCheckoutTemplateForProductOrDefault } from "../../../admin/_services/checkoutTemplates";
 import { getCustomerById } from "../../../admin/_services/customers";
 import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
-import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
+import { firstNotificationDeliveryError } from "@suscripciones/core/services/notificationDelivery";
+import { getNotificationsConfig, type NotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
 import { schedulePaymentLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { logger } from "@suscripciones/core/lib/logger";
-import { isNotificationTemplateConfigured } from "../../../lib/notificationTemplate";
+import { isNotificationTemplateConfigured, resolveNotificationTemplateForTrigger } from "../../../lib/notificationTemplate";
 
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");
@@ -47,16 +48,13 @@ export async function POST(req: Request) {
     return null;
   });
   if (notificationsConfig) {
-    const rules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
-    const templates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
-    const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === "PAYMENT_LINK_CREATED");
-    const filtered = candidates.filter((r: any) => {
-      const types = r?.conditions?.requirePaymentTypeIn;
-      if (!Array.isArray(types) || !types.length) return true;
-      return types.includes("LINK");
+    const cfg = notificationsConfig as NotificationsConfig;
+    const tpl = resolveNotificationTemplateForTrigger({
+      rules: cfg.rules,
+      templates: cfg.templates,
+      trigger: "PAYMENT_LINK_CREATED",
+      paymentType: "LINK"
     });
-    const rule = filtered[0] || null;
-    const tpl = rule ? templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || "")) : null;
     if (!isNotificationTemplateConfigured(tpl)) {
       return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
     }
@@ -73,11 +71,11 @@ export async function POST(req: Request) {
   }
   const selected = await findCheckoutTemplateForProductOrDefault({
     tenantId: tenantId || null,
-    kind: "PLAN" as any,
+    kind: "PLAN",
     productId,
     defaultTemplateId: String(checkoutConfig?.defaultPlanTemplateId || "").trim()
   });
-  const resolvedTemplateId = selected ? String((selected as any).id || "") : "";
+  const resolvedTemplateId = selected ? String(selected.id || "") : "";
   if (!resolvedTemplateId) {
     return NextResponse.json({ ok: false, error: "missing_checkout_for_product" }, { status: 400 });
   }
@@ -120,7 +118,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "public_checkout_create_failed" }, { status: 500 });
   }
 
-  const paymentId = String((orderResult as any)?.payment?.id || "").trim();
+  const paymentId =
+    orderResult && typeof orderResult === "object" && "payment" in orderResult
+      ? String((orderResult as { payment?: { id?: string } }).payment?.id || "").trim()
+      : "";
   if (!paymentId) {
     return NextResponse.json({ ok: false, error: "request_failed" }, { status: 500 });
   }
@@ -132,7 +133,23 @@ export async function POST(req: Request) {
     logger.error({ err, actor: auth.session.sub, customerId, paymentId }, "Fallo programando o enviando payment link");
     throw err;
   });
-  const chatwootError = String((schedule as any)?.errors?.[0] || "").trim() || null;
+  const chatwootError = firstNotificationDeliveryError(schedule) || null;
+  if (chatwootError) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: chatwootError,
+        checkoutUrl: checkoutUrl || null,
+        publicUrl,
+        hasPublicCheckout: Boolean(publicUrl),
+        checkoutTemplateId: resolvedTemplateId || null,
+        notificationsScheduled: schedule?.scheduled ?? 0,
+        notificationsSent: schedule?.sentNow ?? 0,
+        notificationsRulesActive: Boolean(schedule?.rulesActive)
+      },
+      { status: 502 }
+    );
+  }
 
   return NextResponse.json({
     ok: true,
@@ -143,6 +160,6 @@ export async function POST(req: Request) {
     notificationsScheduled: schedule?.scheduled ?? 0,
     notificationsSent: schedule?.sentNow ?? 0,
     notificationsRulesActive: Boolean(schedule?.rulesActive),
-    chatwootError
+    chatwootError: null
   });
 }

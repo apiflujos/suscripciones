@@ -1,22 +1,27 @@
 import { LogLevel, PaymentStatus, RetryJobType } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
-import { getNotificationsActiveEnv, getNotificationsConfig, NotificationTrigger } from "./notificationsConfig";
+import {
+  filterNotificationRules,
+  getNotificationsActiveEnv,
+  getNotificationsConfig,
+  NotificationRule,
+  NotificationTrigger
+} from "./notificationsConfig";
+import type {
+  CatalogLinkCreatedJobPayload,
+  NotificationJobPayload,
+  PaymentLinkCreatedJobPayload,
+  PaymentStatusJobPayload,
+  SubscriptionDueJobPayload,
+  TokenizationLinkCreatedJobPayload
+} from "./notificationJobPayloads";
 import { getAppTimeZone, getPaymentsConfig } from "./runtimeConfig";
 import { systemLog, SystemActor } from "./systemLog";
 import { subscriptionReminder } from "../jobs/handlers/subscriptionReminder";
 import { classifyReference } from "../webhooks/wompi/classifyReference";
 import { resolveSubscriptionBillingState } from "./billingCycles";
 import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
-
-type NotificationRule = {
-  id: string;
-  enabled: boolean;
-  trigger: NotificationTrigger;
-  offsetsSeconds?: number[];
-  offsetsMinutes?: number[];
-  atTimeUtc?: string;
-};
 
 function toMsSeconds(seconds: number) {
   return seconds * 1000;
@@ -79,21 +84,21 @@ function applyAtTimeInZone(date: Date, hhmm: string, timeZone: string) {
   return new Date(guessUtcMs - finalOffset);
 }
 
-function filterRulesByPaymentType<T extends { conditions?: { requirePaymentTypeIn?: string[] } }>(rules: T[], paymentType?: string | null) {
-  const normalized = String(paymentType || "").trim().toUpperCase();
-  return rules.filter((rule) => {
-    const required = Array.isArray(rule.conditions?.requirePaymentTypeIn) ? rule.conditions?.requirePaymentTypeIn : [];
-    if (!required?.length) return true;
-    if (!normalized) return false;
-    return required.includes(normalized);
-  });
-}
-
 async function resolveScheduledRunAt(args: { base: Date; atTime?: string | null }) {
   const atTime = String(args.atTime || "").trim();
   if (!atTime) return args.base;
   const timeZone = await getAppTimeZone().catch(() => "America/Bogota");
   return applyAtTimeInZone(args.base, atTime, timeZone);
+}
+
+async function enqueueNotificationJob(runAt: Date, payload: NotificationJobPayload) {
+  await prisma.retryJob.create({
+    data: {
+      type: RetryJobType.SUBSCRIPTION_REMINDER,
+      runAt,
+      payload
+    }
+  });
 }
 
 export async function scheduleSubscriptionDueNotifications(args: { subscriptionId: string; forceNow?: boolean; actor?: string }) {
@@ -144,21 +149,16 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
         } as any
       });
       if (existing) continue;
-      await prisma.retryJob.create({
-        data: {
-          type: RetryJobType.SUBSCRIPTION_REMINDER,
-          runAt,
-          payload: {
-            trigger: "SUBSCRIPTION_DUE" satisfies NotificationTrigger,
-            ruleId: rule.id,
-            offsetSeconds,
-            subscriptionId: sub.id,
-            customerId: sub.customerId,
-            cycleNumber: collectionCycle.cycleNumber,
-            anchorAt: anchorIso
-          }
-        }
-      });
+      const payload: SubscriptionDueJobPayload = {
+        trigger: "SUBSCRIPTION_DUE",
+        ruleId: rule.id,
+        offsetSeconds,
+        subscriptionId: sub.id,
+        customerId: sub.customerId,
+        cycleNumber: collectionCycle.cycleNumber,
+        anchorAt: anchorIso
+      };
+      await enqueueNotificationJob(runAt, payload);
       scheduled++;
     }
   }
@@ -221,10 +221,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
       : payment.subscriptionId
         ? "SUBSCRIPTION"
         : "LINK";
-  const rules = filterRulesByPaymentType(
-    cfg.rules.filter((r) => r.enabled && r.trigger === trigger),
-    paymentType
-  );
+  const rules = filterNotificationRules({ rules: cfg.rules, trigger, paymentType });
   if (!rules.length) {
     return { scheduled: 0 };
   }
@@ -241,7 +238,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
-      const jobPayload = {
+      const jobPayload: PaymentStatusJobPayload = {
         trigger,
         ruleId: rule.id,
         offsetSeconds,
@@ -252,13 +249,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
         anchorAt: anchorIso
       };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
-        await prisma.retryJob.create({
-          data: {
-            type: RetryJobType.SUBSCRIPTION_REMINDER,
-            runAt,
-            payload: jobPayload
-          }
-        });
+        await enqueueNotificationJob(runAt, jobPayload);
         scheduled++;
       } else {
         await subscriptionReminder(jobPayload).catch((err) => {
@@ -298,10 +289,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
 
   const cfg = await getNotificationsConfig();
   const paymentType = payment.subscriptionId ? "SUBSCRIPTION" : "LINK";
-  const rules = filterRulesByPaymentType(
-    cfg.rules.filter((r) => r.enabled && r.trigger === "PAYMENT_LINK_CREATED"),
-    paymentType
-  );
+  const rules = filterNotificationRules({ rules: cfg.rules, trigger: "PAYMENT_LINK_CREATED", paymentType });
   if (!rules.length) {
     return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
   }
@@ -320,8 +308,8 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
         const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
-      const jobPayload = {
-        trigger: "PAYMENT_LINK_CREATED" satisfies NotificationTrigger,
+      const jobPayload: PaymentLinkCreatedJobPayload = {
+        trigger: "PAYMENT_LINK_CREATED",
         ruleId: rule.id,
         offsetSeconds,
         paymentId: payment.id,
@@ -331,13 +319,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
         ...(args.forceNow ? { immediateSend: true } : {})
       };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
-        await prisma.retryJob.create({
-          data: {
-            type: RetryJobType.SUBSCRIPTION_REMINDER,
-            runAt,
-            payload: jobPayload
-          }
-        });
+        await enqueueNotificationJob(runAt, jobPayload);
         scheduled++;
       } else {
         const result = await subscriptionReminder(jobPayload).catch((err) => {
@@ -356,7 +338,13 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
   await systemLog(
     LogLevel.INFO,
     "notifications.schedule",
-    args.forceNow ? "Notificaciones enviadas" : "Notificaciones programadas",
+    args.forceNow
+      ? sentNow > 0
+        ? "Notificaciones enviadas"
+        : "Notificaciones sin entrega"
+      : scheduled > 0
+        ? "Notificaciones programadas"
+        : "Notificaciones sin programación",
     {
       trigger: "PAYMENT_LINK_CREATED",
       environment: await getNotificationsActiveEnv(),
@@ -379,10 +367,7 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
   if (!customerId || !catalogUrl) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
 
   const cfg = await getNotificationsConfig();
-  const rules = filterRulesByPaymentType(
-    cfg.rules.filter((r) => r.enabled && r.trigger === "CATALOG_LINK_CREATED"),
-    args.paymentType || undefined
-  );
+  const rules = filterNotificationRules({ rules: cfg.rules, trigger: "CATALOG_LINK_CREATED", paymentType: args.paymentType || undefined });
   if (!rules.length) {
     return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
   }
@@ -401,8 +386,8 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
-      const jobPayload = {
-        trigger: "CATALOG_LINK_CREATED" satisfies NotificationTrigger,
+      const jobPayload: CatalogLinkCreatedJobPayload = {
+        trigger: "CATALOG_LINK_CREATED",
         ruleId: rule.id,
         offsetSeconds,
         customerId,
@@ -412,13 +397,7 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
         ...(args.paymentType ? { paymentType: args.paymentType } : {})
       };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
-        await prisma.retryJob.create({
-          data: {
-            type: RetryJobType.SUBSCRIPTION_REMINDER,
-            runAt,
-            payload: jobPayload
-          }
-        });
+        await enqueueNotificationJob(runAt, jobPayload);
         scheduled++;
       } else {
         const result = await subscriptionReminder(jobPayload).catch((err) => {
@@ -434,7 +413,13 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
   await systemLog(
     LogLevel.INFO,
     "notifications.schedule",
-    args.forceNow ? "Notificaciones enviadas" : "Notificaciones programadas",
+    args.forceNow
+      ? sentNow > 0
+        ? "Notificaciones enviadas"
+        : "Notificaciones sin entrega"
+      : scheduled > 0
+        ? "Notificaciones programadas"
+        : "Notificaciones sin programación",
     {
       trigger: "CATALOG_LINK_CREATED",
       environment: await getNotificationsActiveEnv(),
@@ -457,10 +442,7 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
   if (!customerId || !tokenUrl) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
 
   const cfg = await getNotificationsConfig();
-  const rules = filterRulesByPaymentType(
-    cfg.rules.filter((r) => r.enabled && r.trigger === "TOKENIZATION_LINK_CREATED"),
-    "SUBSCRIPTION"
-  );
+  const rules = filterNotificationRules({ rules: cfg.rules, trigger: "TOKENIZATION_LINK_CREATED" });
   if (!rules.length) {
     return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
   }
@@ -479,8 +461,8 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
-      const jobPayload = {
-        trigger: "TOKENIZATION_LINK_CREATED" satisfies NotificationTrigger,
+      const jobPayload: TokenizationLinkCreatedJobPayload = {
+        trigger: "TOKENIZATION_LINK_CREATED",
         ruleId: rule.id,
         offsetSeconds,
         customerId,
@@ -489,13 +471,7 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
         immediateSend: args.forceNow
       };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
-        await prisma.retryJob.create({
-          data: {
-            type: RetryJobType.SUBSCRIPTION_REMINDER,
-            runAt,
-            payload: jobPayload
-          }
-        });
+        await enqueueNotificationJob(runAt, jobPayload);
         scheduled++;
       } else {
         const result = await subscriptionReminder(jobPayload).catch((err) => {
@@ -512,7 +488,9 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
     ? sentNow > 0
       ? "Notificaciones enviadas"
       : "Notificaciones sin entrega"
-    : "Notificaciones programadas";
+    : scheduled > 0
+      ? "Notificaciones programadas"
+      : "Notificaciones sin programación";
 
   await systemLog(
     LogLevel.INFO,

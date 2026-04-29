@@ -4,10 +4,11 @@ import { getCheckoutConfig } from "../../../admin/_services/settings";
 import { findCheckoutTemplateForProductOrDefault } from "../../../admin/_services/checkoutTemplates";
 import { getCustomerById } from "../../../admin/_services/customers";
 import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
+import { firstNotificationDeliveryError } from "@suscripciones/core/services/notificationDelivery";
 import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
-import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
+import { getNotificationsConfig, type NotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
 import { logger } from "@suscripciones/core/lib/logger";
-import { isNotificationTemplateConfigured } from "../../../lib/notificationTemplate";
+import { isNotificationTemplateConfigured, resolveNotificationTemplateForTrigger } from "../../../lib/notificationTemplate";
 
 export async function POST(req: Request) {
   const auth = await requireApiSession(req);
@@ -32,11 +33,12 @@ export async function POST(req: Request) {
       return null;
     });
     if (notificationsConfig) {
-      const rules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
-      const templates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
-      const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === "TOKENIZATION_LINK_CREATED");
-      const rule = candidates[0] || null;
-      const tpl = rule ? templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || "")) : null;
+      const cfg = notificationsConfig as NotificationsConfig;
+      const tpl = resolveNotificationTemplateForTrigger({
+        rules: cfg.rules,
+        templates: cfg.templates,
+        trigger: "TOKENIZATION_LINK_CREATED"
+      });
       if (!isNotificationTemplateConfigured(tpl)) {
         return NextResponse.json({ ok: false, error: "missing_template" }, { status: 400 });
       }
@@ -47,11 +49,11 @@ export async function POST(req: Request) {
     const checkoutConfig = await getCheckoutConfig();
     const selected = await findCheckoutTemplateForProductOrDefault({
       tenantId: String(body?.tenantId || "").trim() || null,
-      kind: "SUBSCRIPTION" as any,
+      kind: "SUBSCRIPTION",
       productId,
       defaultTemplateId: String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim()
     });
-    const resolvedTemplateId = selected ? String((selected as any).id || "") : "";
+    const resolvedTemplateId = selected ? String(selected.id || "") : "";
     if (!resolvedTemplateId) return NextResponse.json({ ok: false, error: "missing_checkout_for_product" }, { status: 400 });
     if (!String(checkoutConfig.subscriptionBaseUrl || "").trim()) {
       return NextResponse.json({ ok: false, error: "missing_subscription_base_url" }, { status: 400 });
@@ -76,7 +78,20 @@ export async function POST(req: Request) {
       actor: auth.session.sub
     });
     const rulesActive = Boolean(schedule?.rulesActive);
-    const chatwootError = String((schedule as any)?.errors?.[0] || "").trim() || null;
+    const chatwootError = firstNotificationDeliveryError(schedule) || null;
+    if (chatwootError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: chatwootError,
+          link: created.url,
+          notificationsScheduled: schedule?.scheduled ?? 0,
+          notificationsSent: schedule?.sentNow ?? 0,
+          notificationsRulesActive: rulesActive
+        },
+        { status: 502 }
+      );
+    }
 
     return NextResponse.json({
       ok: true,

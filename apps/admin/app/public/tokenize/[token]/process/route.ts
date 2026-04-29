@@ -6,6 +6,7 @@ import { createSubscription } from "../../../../admin/_services/subscriptions";
 import { verifyPublicToken } from "../../../../../lib/publicTokens";
 import { resolveTokenizationRedirectBase } from "../../../../lib/tokenizationRedirect";
 import { logger } from "@suscripciones/core/lib/logger";
+import { readCustomerMetadata, type CustomerMetadata } from "@suscripciones/core/lib/customerMetadata";
 
 function detectToken(formData: FormData): string {
   const direct =
@@ -68,8 +69,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=token_not_found`, redirectBase));
   }
 
-  const meta = (customer.metadata ?? {}) as any;
-  const link = meta?.tokenizationLink ?? {};
+  const meta = readCustomerMetadata(customer.metadata);
+  const link = meta.tokenizationLink || {};
   redirectBase = resolveTokenizationRedirectBase({
     requestUrl: req.url,
     storedLinkUrl: String(link?.url || "").trim(),
@@ -128,10 +129,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       return null;
     });
 
-    const prevMeta = customer?.metadata ?? {};
-    const prevTokenizationLink = (prevMeta as any)?.tokenizationLink || {};
-    const nextMeta = {
-      ...(prevMeta as any),
+    const freshCustomer = ("customer" in res && res.customer ? res.customer : customer);
+    const prevMeta = readCustomerMetadata(freshCustomer?.metadata);
+    const prevTokenizationLink = prevMeta.tokenizationLink || {};
+    const nextMeta: CustomerMetadata = {
+      ...prevMeta,
       tokenizationLink: {
         ...prevTokenizationLink,
         usedAt: prevTokenizationLink?.usedAt || new Date().toISOString()
@@ -153,16 +155,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
           tenantIds,
           createPaymentLink: false
         });
-        if (subRes.ok && (subRes as any)?.subscription?.id) {
+        const createdSubscriptionId = subRes.ok && "subscription" in subRes ? String(subRes.subscription?.id || "").trim() : "";
+        if (createdSubscriptionId) {
           const finalMeta = {
             ...nextMeta,
-            tokenizationLink: {
-              ...(nextMeta as any)?.tokenizationLink,
-              subscriptionId: (subRes as any).subscription.id
-            }
+            tokenizationLink: { ...(nextMeta.tokenizationLink || {}), subscriptionId: createdSubscriptionId }
           };
           await updateCustomerProfile({ customerId, metadata: finalMeta }).catch((err: any) => {
-            logger.warn({ err, customerId, subscriptionId: (subRes as any).subscription.id }, "Fallo guardando subscriptionId en metadata tras tokenización pública");
+            logger.warn({ err, customerId, subscriptionId: createdSubscriptionId }, "Fallo guardando subscriptionId en metadata tras tokenización pública");
           });
         }
       } catch (err: any) {

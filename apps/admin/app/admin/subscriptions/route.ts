@@ -21,6 +21,7 @@ import {
 import { reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { scheduleSubscriptionDueNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { consumeApp } from "@suscripciones/core/services/superAdminApp";
+import { extractCustomerPaymentSourceId } from "@suscripciones/core/lib/customerMetadata";
 import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "@suscripciones/core/services/tenantContext";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import { validateWompiCurrency } from "@suscripciones/core/lib/wompiSignature";
@@ -281,15 +282,7 @@ export async function POST(req: Request) {
   }
 
   const collectionMode = String((plan.metadata as any)?.collectionMode || "MANUAL_LINK");
-  const paymentSourceId = (() => {
-    const meta = (customer.metadata as any) ?? {};
-    const candidates = [meta?.wompi?.paymentSourceId, meta?.wompi?.payment_source_id, meta?.paymentSourceId, meta?.payment_source_id];
-    for (const v of candidates) {
-      if (typeof v === "number" && Number.isFinite(v)) return v;
-      if (typeof v === "string" && /^\d+$/.test(v)) return Number(v);
-    }
-    return null;
-  })();
+  const paymentSourceId = extractCustomerPaymentSourceId(customer.metadata);
   const hasPaymentSource = Number.isFinite(paymentSourceId as any);
   const startAt = parsed.data.startAt ? new Date(parsed.data.startAt) : new Date();
   const computedEnd = addIntervalUtc(startAt, plan.intervalUnit, plan.intervalCount);

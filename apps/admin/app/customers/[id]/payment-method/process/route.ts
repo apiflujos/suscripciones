@@ -32,14 +32,23 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return null;
   });
   if (!formData) return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=invalid_form`, req.url));
+  const returnToRaw = String(formData.get("returnTo") || "").trim();
+  const returnTo =
+    returnToRaw.startsWith("/billing") ||
+    returnToRaw.startsWith("/customers") ||
+    returnToRaw.startsWith("/subscriptions") ||
+    returnToRaw.startsWith("/settings")
+      ? returnToRaw
+      : "";
+  const returnToQuery = returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : "";
   const acceptTerms = String(formData.get("accept_terms") || "").trim();
   const acceptPersonal = String(formData.get("accept_personal_data") || "").trim();
   if (acceptTerms !== "1" || acceptPersonal !== "1") {
-    return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=missing_acceptance`, req.url));
+    return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=missing_acceptance${returnToQuery}`, req.url));
   }
 
   const wompiToken = detectToken(formData);
-  if (!wompiToken) return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=missing_token`, req.url));
+  if (!wompiToken) return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=missing_token${returnToQuery}`, req.url));
 
   const type = tokenToType(wompiToken);
 
@@ -47,11 +56,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const res = await createWompiPaymentSource({ customerId: id, type, token: wompiToken });
     if (!res.ok) {
       const error = res.error ? String(res.error) : "No se pudo registrar el método de pago.";
-      return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=${encodeURIComponent(error)}`, req.url));
+      return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=${encodeURIComponent(error)}${returnToQuery}`, req.url));
     }
-    return NextResponse.redirect(new URL(`/customers/${id}/payment-method/success`, req.url));
+    return NextResponse.redirect(new URL(`/customers/${id}/payment-method/success${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`, req.url));
   } catch (err: any) {
     const msg = err?.message ? String(err.message) : "request_failed";
-    return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=${encodeURIComponent(msg)}`, req.url));
+    return NextResponse.redirect(new URL(`/customers/${id}/payment-method?error=${encodeURIComponent(msg)}${returnToQuery}`, req.url));
   }
 }

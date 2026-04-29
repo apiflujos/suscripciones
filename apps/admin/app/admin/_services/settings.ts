@@ -3,19 +3,14 @@ import "server-only";
 import { CredentialProvider } from "@prisma/client";
 import { getCredential, getCredentialsBulk } from "@suscripciones/core/services/credentials";
 import { getGlobalModuleAccess } from "@suscripciones/core/services/moduleAccess";
+import { readCheckoutConfig } from "@suscripciones/core/services/checkoutConfig";
 import { getCheckoutBaseUrlsFromEnv, getPublicReturnUrlFromEnv } from "@suscripciones/core/services/publicBase";
 import { logger } from "@suscripciones/core/lib/logger";
 import { ActiveEnv, maskSecret, toBool, toInt, deriveRetryUnitAndValue } from "../settings/_lib";
 
 export async function getCheckoutConfig() {
   const checkoutConfigRaw = await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG");
-  let checkoutConfig: any = {};
-  try {
-    checkoutConfig = checkoutConfigRaw ? JSON.parse(checkoutConfigRaw) : {};
-  } catch (err: any) {
-    logger.warn({ err }, "Fallo parseando CHECKOUT_CONFIG en getCheckoutConfig");
-    checkoutConfig = {};
-  }
+  const checkoutConfig = readCheckoutConfig(checkoutConfigRaw);
 
   const envBases = getCheckoutBaseUrlsFromEnv();
   const storedPlanBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
@@ -186,13 +181,7 @@ export async function getAdminSettings() {
     apiKeyMasked: maskSecret(deepseekCreds.get("API_KEY") || undefined)
   };
 
-  let checkoutConfig: any = {};
-  try {
-    checkoutConfig = checkoutConfigRaw ? JSON.parse(checkoutConfigRaw) : {};
-  } catch (err: any) {
-    logger.warn({ err }, "Fallo parseando CHECKOUT_CONFIG en getAdminSettings");
-    checkoutConfig = {};
-  }
+  const checkoutConfig = readCheckoutConfig(checkoutConfigRaw);
   const envBases = getCheckoutBaseUrlsFromEnv();
   const storedPlanBaseUrl = String(checkoutConfig?.planBaseUrl || "").trim();
   const storedSubscriptionBaseUrl = String(checkoutConfig?.subscriptionBaseUrl || "").trim();

@@ -3,14 +3,8 @@ import { prisma } from "../db/prisma";
 import { getCredential } from "./credentials";
 import { getCheckoutBaseUrlsFromEnv } from "./publicBase";
 import { signPublicToken } from "./publicTokens";
-
-type CheckoutConfig = {
-  planBaseUrl?: string;
-  subscriptionBaseUrl?: string;
-  cartBaseUrl?: string;
-  tokenExpiryHours?: number;
-  defaultUtmParams?: string;
-};
+import { readCustomerMetadata } from "../lib/customerMetadata";
+import { readCheckoutConfig } from "./checkoutConfig";
 
 function ensureHttps(value: string) {
   if (!value) return value;
@@ -58,12 +52,7 @@ export async function createPublicCheckoutLink(args: {
   if (!template || template.active === false) return null;
 
   const rawCfg = await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG");
-  let cfg: CheckoutConfig = {};
-  try {
-    cfg = rawCfg ? JSON.parse(rawCfg) : {};
-  } catch {
-    cfg = {};
-  }
+  const cfg = readCheckoutConfig(rawCfg);
   const envBases = getCheckoutBaseUrlsFromEnv();
   const planBase = String(cfg.planBaseUrl || "").trim() || envBases.planBaseUrl || "";
   const subscriptionBase = String(cfg.subscriptionBaseUrl || "").trim() || envBases.subscriptionBaseUrl || "";
@@ -103,7 +92,7 @@ export async function createPublicCheckoutLink(args: {
   });
   if (!customer) return null;
 
-  const prevMeta = customer.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? (customer.metadata as any) : {};
+  const prevMeta = readCustomerMetadata(customer.metadata);
   const commonLink = {
     token,
     url,
@@ -121,6 +110,7 @@ export async function createPublicCheckoutLink(args: {
             tokenizationLink: {
               ...(prevMeta?.tokenizationLink || {}),
               ...commonLink,
+              returnUrl: String(cfg.tokenizationReturnUrl || "").trim() || prevMeta?.tokenizationLink?.returnUrl || null,
               tenantId: template.tenantId || null,
               planId: args.planId ?? prevMeta?.tokenizationLink?.planId ?? null,
               productId: args.productId ?? prevMeta?.tokenizationLink?.productId ?? null

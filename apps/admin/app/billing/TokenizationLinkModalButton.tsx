@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { AppModal } from "../ui/AppModal";
-import { isNotificationTemplateConfigured, renderNotificationTemplatePreview } from "../lib/notificationTemplate";
+import { isNotificationTemplateConfigured, renderNotificationTemplatePreview, resolveNotificationTemplateForTrigger } from "../lib/notificationTemplate";
 
 export function TokenizationLinkModalButton({
   customerId,
@@ -34,17 +34,11 @@ export function TokenizationLinkModalButton({
     rules: Array.isArray(notificationRules) ? notificationRules : []
   };
 
-  function resolveNotificationTemplate(trigger: string) {
-    const rules = Array.isArray(notificationsConfig?.rules) ? notificationsConfig.rules : [];
-    const templates = Array.isArray(notificationsConfig?.templates) ? notificationsConfig.templates : [];
-    const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === trigger);
-    const rule = candidates[0] || null;
-    if (!rule) return null;
-    const template = templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || ""));
-    return template || null;
-  }
-
-  const tokenTemplate = resolveNotificationTemplate("TOKENIZATION_LINK_CREATED");
+  const tokenTemplate = resolveNotificationTemplateForTrigger({
+    rules: notificationsConfig.rules,
+    templates: notificationsConfig.templates,
+    trigger: "TOKENIZATION_LINK_CREATED"
+  });
   const hasTemplate = isNotificationTemplateConfigured(tokenTemplate);
   const canSend = hasTemplate && !blockedReason;
   const disabledReason = !hasTemplate

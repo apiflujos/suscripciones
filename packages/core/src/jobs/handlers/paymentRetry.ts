@@ -7,6 +7,7 @@ import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMo
 import { publishRealtime } from "../../services/realtimePublisher";
 import { resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "../../services/billingCycles";
 import { logger } from "../../lib/logger";
+import { extractCustomerPaymentSourceId } from "../../lib/customerMetadata";
 
 function shouldCreateFallbackLinkWhenAutoDebitDisabled() {
   const raw = String(process.env.AUTO_DEBIT_DISABLED_FALLBACK_LINK || "").trim().toLowerCase();
@@ -25,25 +26,37 @@ function asResultMode(raw: string): "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK" {
   return "MANUAL_LINK";
 }
 
-function hasUsableCustomerPaymentSource(metadata: any) {
-  const candidates = [
-    metadata?.wompi?.paymentSourceId,
-    metadata?.wompi?.payment_source_id,
-    metadata?.paymentSourceId,
-    metadata?.payment_source_id
-  ];
-  return candidates.some((value) => {
-    if (typeof value === "number") return Number.isFinite(value);
-    if (typeof value === "string") {
-      const normalized = value.trim();
-      if (!normalized) return false;
-      if (/^(null|undefined)$/i.test(normalized)) return false;
-      if (/^\d+$/.test(normalized)) return true;
-      if (/^src[_-]/i.test(normalized)) return true;
-      return normalized.length >= 6;
-    }
-    return false;
-  });
+function hasUsableCustomerPaymentSource(metadata: unknown) {
+  return Number.isFinite(extractCustomerPaymentSourceId(metadata));
+}
+
+async function createFallbackPaymentLinkOrThrow(args: {
+  subscriptionId: string;
+  customerId: string;
+  reason: string;
+  originalError?: string | null;
+}) {
+  try {
+    await createPaymentLinkForSubscription({ subscriptionId: args.subscriptionId });
+  } catch (err: any) {
+    const fallbackError = err?.message ? String(err.message) : "unknown";
+    await systemLog(
+      LogLevel.ERROR,
+      "jobs.payment_retry",
+      "Fallo al crear link de pago de respaldo",
+      {
+        subscriptionId: args.subscriptionId,
+        customerId: args.customerId,
+        reason: args.reason,
+        originalError: args.originalError || null,
+        fallbackError
+      },
+      SystemActor.JOB_PAYMENT_RETRY
+    ).catch((logErr: any) => {
+      logger.warn({ err: logErr, subscriptionId: args.subscriptionId, customerId: args.customerId }, "Fallo escribiendo systemLog por fallback de link");
+    });
+    throw new Error(`payment_link_fallback_failed:${fallbackError}`);
+  }
 }
 
 export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
@@ -96,9 +109,10 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
           customerId: sub.customerId,
           updatedAt: new Date().toISOString()
         });
-        // Fallback: crear link de pago en vez de fallar
-        await createPaymentLinkForSubscription({ subscriptionId }).catch((err: any) => {
-          logger.warn({ err, subscriptionId }, "Fallback a link de pago falló tras detectar cliente sin token");
+        await createFallbackPaymentLinkOrThrow({
+          subscriptionId,
+          customerId: sub.customerId,
+          reason: "missing_payment_source"
         });
         return {
           status: "processed",
@@ -204,8 +218,10 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
             customerId: sub.customerId,
             updatedAt: new Date().toISOString()
           });
-          await createPaymentLinkForSubscription({ subscriptionId }).catch((err: any) => {
-            logger.warn({ err, subscriptionId }, "Fallback a link de pago falló con débito automático deshabilitado");
+          await createFallbackPaymentLinkOrThrow({
+            subscriptionId,
+            customerId: sub.customerId,
+            reason: "auto_debit_disabled"
           });
           return {
             status: "processed",
@@ -273,22 +289,11 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
           updatedAt: new Date().toISOString()
         });
 
-        // Crear link de pago como fallback
-        await createPaymentLinkForSubscription({ subscriptionId }).catch((linkErr: any) => {
-          // Log secundario si falla el fallback
-          systemLog(
-            LogLevel.ERROR,
-            "jobs.payment_retry",
-            "Fallo al crear link de pago de emergencia",
-            {
-              subscriptionId,
-              customerId: sub.customerId,
-              originalError: msg,
-              fallbackError: linkErr?.message || "unknown"
-            }, SystemActor.JOB_PAYMENT_RETRY
-          ).catch((logErr: any) => {
-            logger.warn({ err: logErr, subscriptionId, customerId: sub.customerId }, "Fallo escribiendo systemLog por fallback de link de emergencia");
-          });
+        await createFallbackPaymentLinkOrThrow({
+          subscriptionId,
+          customerId: sub.customerId,
+          reason: isMissingSource ? "missing_payment_source" : "auto_debit_charge_failed",
+          originalError: msg
         });
 
         if (!isMissingSource) throw err;

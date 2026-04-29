@@ -2,6 +2,7 @@ import "server-only";
 
 import { LogLevel, CredentialProvider } from "@prisma/client";
 import { clearCredential, getCredential, setCredential } from "@suscripciones/core/services/credentials";
+import { checkoutConfigSchema } from "@suscripciones/core/services/checkoutConfig";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { WompiClient } from "@suscripciones/core/providers/wompi/client";
 import { getGlobalModuleAccess } from "@suscripciones/core/services/moduleAccess";
@@ -398,7 +399,7 @@ export async function updateCheckoutConfig(input: unknown) {
   const parsed = checkoutConfigUpdateSchema.safeParse(input ?? {});
   if (!parsed.success) return { ok: false as const, status: 400, error: "invalid_body" as const, details: parsed.error.flatten() };
 
-  const payload = {
+  const payload = checkoutConfigSchema.parse({
     planBaseUrl: parsed.data.planBaseUrl || "",
     subscriptionBaseUrl: parsed.data.subscriptionBaseUrl || "",
     cartBaseUrl: parsed.data.cartBaseUrl || "",
@@ -422,7 +423,7 @@ export async function updateCheckoutConfig(input: unknown) {
     tokenizationSuccessMessage: parsed.data.tokenizationSuccessMessage || "",
     tokenizationErrorMessage: parsed.data.tokenizationErrorMessage || "",
     tokenizationReturnUrl: parsed.data.tokenizationReturnUrl || ""
-  };
+  });
 
   await setCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG", JSON.stringify(payload));
   await systemLog(LogLevel.INFO, "settings.checkout_config", "Checkout config updated");

@@ -746,6 +746,7 @@ a {
 .sidebar {
   padding: 18px 16px;
   border-right: 1px solid var(--stroke);
+  box-sizing: border-box;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--panel) 90%, var(--primary-soft) 10%) 0%, var(--panel) 100%);
   backdrop-filter: blur(10px);
@@ -753,6 +754,7 @@ a {
 
 .sidebarShell {
   height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -845,9 +847,7 @@ a {
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
+  overflow: hidden;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -3943,6 +3943,11 @@ html[data-contrast="high"] .filtersPanel {
 .nav {
   display: grid;
   gap: 6px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
 .nav-item {

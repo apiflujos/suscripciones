@@ -2,6 +2,7 @@ import path from "path";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   transpilePackages: ["@suscripciones/database", "@suscripciones/core"],
   eslint: { ignoreDuringBuilds: true },
   webpack: (config) => {

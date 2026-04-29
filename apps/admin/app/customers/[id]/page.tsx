@@ -12,6 +12,7 @@ import { LocalDateTime } from "../../ui/LocalDateTime";
 import { TimelineScroller } from "../../ui/TimelineScroller";
 import { MapModal } from "../../ui/MapModal";
 import { isNoiseNotification, normalizeSystemText } from "../../lib/logPresentation";
+import { extractCustomerPaymentSourceId, readCustomerMetadata } from "../../../../../packages/core/src/lib/customerMetadata";
 
 export const dynamic = "force-dynamic";
 
@@ -142,16 +143,11 @@ function formatProductTitle(product: any, fallbackPlan?: any) {
   return formatPlanTitle(fallbackPlan);
 }
 
-function tokenMethodLabel(meta: any) {
-  const wompi = meta?.wompi && typeof meta.wompi === "object" ? meta.wompi : {};
+function tokenMethodLabel(meta: unknown) {
+  const customerMeta = readCustomerMetadata(meta);
+  const wompi = customerMeta.wompi || {};
   const sources = Array.isArray(wompi?.paymentSources) ? wompi.paymentSources : [];
-  const activeId = Number(
-    wompi?.paymentSourceId ??
-    wompi?.payment_source_id ??
-    meta?.paymentSourceId ??
-    meta?.payment_source_id ??
-    0
-  );
+  const activeId = Number(extractCustomerPaymentSourceId(customerMeta) ?? 0);
   const active =
     (Number.isFinite(activeId) && activeId > 0
       ? sources.find((src: any) => Number(src?.id) === activeId)
@@ -463,8 +459,7 @@ export default async function CustomerDetailPage({
     { label: "Otras", value: subsOtherCount, color: "var(--chart-b)" }
   ].filter((item) => item.value > 0);
   const lastPaymentAt = lastPayment?.paidAt || lastPayment?.createdAt || null;
-  const meta =
-    (customer?.metadata && typeof customer.metadata === "object" && !Array.isArray(customer.metadata) ? customer.metadata : {}) as any;
+  const meta = readCustomerMetadata(customer?.metadata);
   const nowTs = Date.now();
   const activeSubCycles = activeSub
     ? billingCycles
@@ -481,12 +476,10 @@ export default async function CustomerDetailPage({
     activeSubCycles[0] ||
     null;
   const nextPeriodEnd = activeCycleForSummary?.periodEndAt || null;
-  const wompiMeta = (meta as any)?.wompi || {};
-  const paymentSourceId = wompiMeta?.paymentSourceId || wompiMeta?.payment_source_id || null;
+  const paymentSourceId = extractCustomerPaymentSourceId(meta);
   const activePlanLabel = activeSub ? formatProductTitle(activeSub?.product, activeSub?.plan) : "Sin producto activo";
   const tokenMethod = tokenMethodLabel(meta);
-  const chatwootMeta = (meta as any)?.chatwoot || {};
-  const chatwootContactId = Number(chatwootMeta?.contactId || 0);
+  const chatwootContactId = Number(meta.chatwoot?.contactId || 0);
 
   const amountSeries = payments
     .slice(0, 12)
@@ -522,10 +515,10 @@ export default async function CustomerDetailPage({
   }).length;
 
   const addressParts = [
-    (meta as any)?.address?.line1,
-    (meta as any)?.address?.city,
-    (meta as any)?.address?.dept,
-    (meta as any)?.address?.code5
+    meta?.address?.line1,
+    meta?.address?.city,
+    meta?.address?.dept,
+    meta?.address?.code5
   ].filter(Boolean);
   const addressLabel = addressParts.join(", ");
   const directLat = Number(meta?.address?.lat ?? meta?.geo?.lat ?? meta?.location?.lat);
@@ -605,7 +598,7 @@ export default async function CustomerDetailPage({
                 ID <span className="mono">{customer.id}</span>
               </div>
               <div className="contact-tags">
-                {wompiMeta?.paymentSourceId || wompiMeta?.payment_source_id ? (
+                {Number.isFinite(paymentSourceId) ? (
                   <>
                     <span className="pill pill-ok pill-sm">Tokenizada</span>
                     {tokenMethod ? <span className="token-method-hint">{tokenMethod}</span> : null}
@@ -806,8 +799,8 @@ export default async function CustomerDetailPage({
                 </div>
                 <div className="commercial-card">
                   <span className="commercial-label">Método</span>
-                  <span className="commercial-value">{paymentSourceId ? "Tokenizado" : "Sin token"}</span>
-                  <span className="commercial-meta">{paymentSourceId ? (tokenMethod || "Pago recurrente habilitado") : "Requiere débito automático"}</span>
+                  <span className="commercial-value">{Number.isFinite(paymentSourceId) ? "Tokenizado" : "Sin token"}</span>
+                  <span className="commercial-meta">{Number.isFinite(paymentSourceId) ? (tokenMethod || "Pago recurrente habilitado") : "Requiere débito automático"}</span>
                 </div>
                 <div className="commercial-card">
                   <span className="commercial-label">Recencia</span>

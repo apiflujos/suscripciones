@@ -18,28 +18,8 @@ import { scheduleSubscriptionDueNotifications, schedulePaymentLinkNotifications 
 import { consumeApp } from "@suscripciones/core/services/superAdminApp";
 import { validateWompiCurrency } from "@suscripciones/core/lib/wompiSignature";
 import { logger } from "@suscripciones/core/lib/logger";
+import { extractCustomerPaymentSourceId, readCustomerMetadata } from "@suscripciones/core/lib/customerMetadata";
 import { listPlanIdsForCatalogProducts, resolveOperationalPlanForProduct } from "./productPlanMapping";
-
-function hasUsablePaymentSource(metadata: any) {
-  const candidates = [
-    metadata?.wompi?.paymentSourceId,
-    metadata?.wompi?.payment_source_id,
-    metadata?.paymentSourceId,
-    metadata?.payment_source_id
-  ];
-  return candidates.some((value) => {
-    if (typeof value === "number") return Number.isFinite(value);
-    if (typeof value === "string") {
-      const normalized = value.trim();
-      if (!normalized) return false;
-      if (/^(null|undefined)$/i.test(normalized)) return false;
-      if (/^\d+$/.test(normalized)) return true;
-      if (/^src[_-]/i.test(normalized)) return true;
-      return normalized.length >= 6;
-    }
-    return false;
-  });
-}
 
 const DEFAULT_SUBSCRIPTION_CYCLE_START_DAY = 1;
 const DEFAULT_SUBSCRIPTION_PAYMENT_DAY = 1;
@@ -454,7 +434,7 @@ export async function listSubscriptions(args: {
     const lastLink = lastLinkBySub.get(String(s.id)) || null;
     const nextRetry = nextRetryBySub.get(String(s.id)) || null;
     const resolvedMode = resolveSubscriptionCollectionMode(s);
-    const customerTokenized = hasUsablePaymentSource(s.customer?.metadata);
+    const customerTokenized = extractCustomerPaymentSourceId(s.customer?.metadata) !== null;
     const billingState = billingStateBySubscription.get(String(s.id)) || null;
     const activeCycle = billingState?.activeCycle || null;
     const collectionCycle = billingState?.collectionCycle || activeCycle;
@@ -572,16 +552,8 @@ export async function createSubscription(args: {
   const tenantId = effectiveTenantIds[0];
 
   const collectionMode = String((plan.metadata as any)?.collectionMode || "MANUAL_LINK");
-  const paymentSourceId = (() => {
-    const meta = (customer.metadata as any) ?? {};
-    const candidates = [meta?.wompi?.paymentSourceId, meta?.wompi?.payment_source_id, meta?.paymentSourceId, meta?.payment_source_id];
-    for (const v of candidates) {
-      if (typeof v === "number" && Number.isFinite(v)) return v;
-      if (typeof v === "string" && /^\d+$/.test(v)) return Number(v);
-    }
-    return null;
-  })();
-  const hasPaymentSource = Number.isFinite(paymentSourceId as any);
+  const paymentSourceId = extractCustomerPaymentSourceId(customer.metadata);
+  const hasPaymentSource = paymentSourceId !== null;
   const startAt = args.startAt ? new Date(args.startAt) : new Date();
   const computedEnd = addIntervalUtc(startAt, plan.intervalUnit, plan.intervalCount);
   const periodEnd = args.firstPeriodEndAt ? new Date(args.firstPeriodEndAt) : computedEnd;
@@ -912,11 +884,10 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
     }
   }
 
-  const meta = (subscription.customer?.metadata as any) ?? {};
-  const paymentSource =
-    meta?.wompi?.paymentSourceId || meta?.wompi?.payment_source_id || meta?.paymentSourceId || meta?.payment_source_id;
+  const paymentSource = extractCustomerPaymentSourceId(subscription.customer?.metadata);
   if (!paymentSource) {
-    const details = { availableKeys: Object.keys(meta || {}), wompiKeys: Object.keys(meta?.wompi || {}) };
+    const meta = readCustomerMetadata(subscription.customer?.metadata);
+    const details = { availableKeys: Object.keys(meta || {}), wompiKeys: Object.keys(meta.wompi || {}) };
     const paymentId = await recordManualChargeFailure({
       subscription,
       amountInCentsOverride: args.amountInCents,

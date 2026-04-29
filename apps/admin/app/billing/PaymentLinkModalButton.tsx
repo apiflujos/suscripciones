@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
 import { AppModal } from "../ui/AppModal";
-import { isNotificationTemplateConfigured, renderNotificationTemplatePreview } from "../lib/notificationTemplate";
+import { isNotificationTemplateConfigured, renderNotificationTemplatePreview, resolveNotificationTemplateForTrigger } from "../lib/notificationTemplate";
 
 export function PaymentLinkModalButton({
   subscriptionId,
@@ -38,24 +38,12 @@ export function PaymentLinkModalButton({
     rules: Array.isArray(notificationRules) ? notificationRules : []
   };
 
-  function resolveNotificationTemplate(trigger: string, paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK") {
-    const rules = Array.isArray(notificationsConfig?.rules) ? notificationsConfig.rules : [];
-    const templates = Array.isArray(notificationsConfig?.templates) ? notificationsConfig.templates : [];
-    const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === trigger);
-    const filtered = paymentType
-      ? candidates.filter((r: any) => {
-          const types = r?.conditions?.requirePaymentTypeIn;
-          if (!Array.isArray(types) || !types.length) return true;
-          return types.includes(paymentType);
-        })
-      : candidates;
-    const rule = filtered[0] || candidates[0] || null;
-    if (!rule) return null;
-    const template = templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || ""));
-    return template || null;
-  }
-
-  const paymentLinkTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", paymentType);
+  const paymentLinkTemplate = resolveNotificationTemplateForTrigger({
+    rules: notificationsConfig.rules,
+    templates: notificationsConfig.templates,
+    trigger: "PAYMENT_LINK_CREATED",
+    paymentType
+  });
   const hasTemplate = isNotificationTemplateConfigured(paymentLinkTemplate);
   const canSend = hasTemplate && !blockedReason;
   const templateHint =

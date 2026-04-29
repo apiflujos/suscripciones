@@ -28,9 +28,12 @@ import { getAdminSettings } from "../admin/_services/settings";
 import { findCheckoutTemplateForProductOrDefault } from "../admin/_services/checkoutTemplates";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { schedulePaymentLinkNotifications, scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
+import { firstNotificationDeliveryError } from "@suscripciones/core/services/notificationDelivery";
 import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
 import { logger } from "@suscripciones/core/lib/logger";
-import { isNotificationTemplateConfigured } from "../lib/notificationTemplate";
+import { readCheckoutConfig } from "@suscripciones/core/services/checkoutConfig";
+import { isNotificationTemplateConfigured, resolveNotificationTemplateForTrigger } from "../lib/notificationTemplate";
+import type { NotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
@@ -107,21 +110,58 @@ function humanizeChargeError(raw: string) {
   return "No se pudo cobrar la suscripción.";
 }
 
+function humanizeNotificationError(raw: string) {
+  const msg = String(raw || "").trim();
+  if (!msg) return "No se pudo enviar la notificación.";
+  if (msg === "missing_template") return "Falta una plantilla activa para este envío.";
+  if (msg === "notification_not_delivered") return "La notificación no se pudo entregar.";
+  if (msg === "chatwoot_send_failed") return "La central de comunicaciones no pudo enviar el mensaje.";
+  return msg;
+}
+
+function normalizeManualMethod(value: unknown): "TRANSFERENCIA" | "BREB" | "EFECTIVO" | null {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "TRANSFERENCIA" || normalized === "BREB" || normalized === "EFECTIVO") return normalized;
+  return null;
+}
+
+function normalizeIntervalUnit(value: unknown): "DAY" | "WEEK" | "MONTH" {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "DAY" || normalized === "WEEK" || normalized === "MONTH") return normalized;
+  return "MONTH";
+}
+
+function readSubscriptionMetadata(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function readTemplateId(metadata: unknown): string {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return "";
+  return String((metadata as { templateId?: string }).templateId || "").trim();
+}
+
+function readPlanCatalogItemId(metadata: unknown): string {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return "";
+  const catalog = (metadata as { catalog?: { itemId?: string } }).catalog;
+  return String(catalog?.itemId || "").trim();
+}
+
+function readPlanCatalogProductId(plan: unknown): string {
+  if (!plan || typeof plan !== "object" || Array.isArray(plan)) return "";
+  return String((plan as { catalogProductId?: string }).catalogProductId || "").trim();
+}
+
 async function hasNotificationRule(trigger: string, paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK"): Promise<boolean | null> {
   try {
     const cfg = await getNotificationsConfigForEnv("PRODUCTION");
-    const rules = Array.isArray((cfg as any)?.rules) ? (cfg as any).rules : [];
-    const templates = Array.isArray((cfg as any)?.templates) ? (cfg as any).templates : [];
-    const candidates = rules.filter((r: any) => {
-      if (!r?.enabled || r?.trigger !== trigger) return false;
-      if (!paymentType) return true;
-      const types = Array.isArray(r?.conditions?.requirePaymentTypeIn) ? r.conditions.requirePaymentTypeIn : [];
-      return !types.length || types.includes(paymentType);
+    const typedCfg = cfg as NotificationsConfig;
+    const template = resolveNotificationTemplateForTrigger({
+      rules: typedCfg.rules,
+      templates: typedCfg.templates,
+      trigger,
+      paymentType
     });
-    const match = candidates[0] || null;
-    if (!match) return false;
-    const tpl = templates.find((t: any) => String(t?.id || "") === String(match?.templateId || ""));
-    return isNotificationTemplateConfigured(tpl);
+    return isNotificationTemplateConfigured(template);
   } catch {
     return null;
   }
@@ -157,7 +197,7 @@ async function resolveSubscriptionPlanCheckoutTemplate(args: { subscriptionId: s
   });
   if (!subscription) return null;
 
-  const explicitTemplateId = String((subscription.metadata as any)?.templateId || "").trim();
+  const explicitTemplateId = readTemplateId(subscription.metadata);
   if (explicitTemplateId) {
     const explicit = await prisma.publicCheckoutTemplate.findUnique({ where: { id: explicitTemplateId } }).catch(() => null);
     if (explicit && explicit.active !== false && String(explicit.kind || "").toUpperCase() === "PLAN") {
@@ -166,15 +206,20 @@ async function resolveSubscriptionPlanCheckoutTemplate(args: { subscriptionId: s
   }
 
   const settings = await getAdminSettings().catch(() => null);
-  const productId = String(subscription.productId || (subscription.plan as any)?.catalogProductId || (subscription.plan?.metadata as any)?.catalog?.itemId || "").trim();
+  const checkoutConfig = readCheckoutConfig(settings?.checkoutConfig || null);
+  const productId = String(
+    subscription.productId ||
+      readPlanCatalogProductId(subscription.plan) ||
+      readPlanCatalogItemId(subscription.plan?.metadata)
+  ).trim();
   if (!productId) return null;
   const selected = await findCheckoutTemplateForProductOrDefault({
     tenantId: String(args.tenantId || subscription.tenantId || "").trim() || null,
-    kind: "PLAN" as any,
+    kind: "PLAN",
     productId,
-    defaultTemplateId: String((settings as any)?.checkoutConfig?.defaultPlanTemplateId || "").trim()
+    defaultTemplateId: String(checkoutConfig?.defaultPlanTemplateId || "").trim()
   });
-  const templateId = selected ? String((selected as any).id || "") : "";
+  const templateId = selected ? String(selected.id || "") : "";
   return templateId ? { subscription, templateId } : null;
 }
 
@@ -250,7 +295,7 @@ export async function createCustomerFromBilling(formData: FormData) {
         email: email || undefined,
         phone: phone || undefined,
         metadata
-      } as any,
+      },
       tenantIds: tenantId ? [tenantId] : []
     });
     if (!res.ok) throw new Error(res.error);
@@ -327,7 +372,7 @@ export async function createPlanTemplate(formData: FormData) {
         }
       });
       if (!created.ok) throw new Error(created.error);
-      const createdItemId = (created as any)?.productId ? String((created as any).productId) : "";
+      const createdItemId = created.productId ? String(created.productId) : "";
       if (!createdItemId) throw new Error("crear_producto_failed");
 
       item = {
@@ -379,7 +424,7 @@ export async function createPlanTemplate(formData: FormData) {
       name: name || `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name}`,
       priceInCents: totals.totalInCents,
       currency: item.currency || "COP",
-      intervalUnit: intervalUnit as any,
+      intervalUnit: normalizeIntervalUnit(intervalUnit),
       intervalCount,
       collectionMode,
       metadata: {
@@ -408,7 +453,7 @@ export async function createPlanTemplate(formData: FormData) {
     });
     if (!createdPlan.ok) throw new Error(createdPlan.error);
 
-    const planId = (createdPlan as any)?.plan?.id ? String((createdPlan as any).plan.id) : "";
+    const planId = createdPlan.plan?.id ? String(createdPlan.plan.id) : "";
     redirect(mergeQuery(returnTo, { planCreated: "1", ...(planId ? { selectPlanId: planId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
@@ -431,7 +476,7 @@ export async function updatePlanRecurrence(formData: FormData) {
   try {
     const res = await updatePlanRecurrenceService({
       planId,
-      intervalUnit: intervalUnit as any,
+      intervalUnit: normalizeIntervalUnit(intervalUnit),
       intervalCount,
       tenantId: tenantId || null
     });
@@ -457,7 +502,7 @@ export async function chargeSubscriptionNow(formData: FormData) {
       tenantId: tenantId || null
     });
     if (!res.ok) throw new Error(res.error);
-    const paymentId = (res as any)?.paymentId ? String((res as any).paymentId) : "";
+    const paymentId = res.paymentId ? String(res.paymentId) : "";
     redirect(
       mergeQuery(returnTo, {
         chargeStatus: "processing",
@@ -509,10 +554,12 @@ export async function markSubscriptionPaidManual(formData: FormData) {
   const actor = session?.email ? `admin:${session.email}` : "admin:unknown";
 
   try {
+    const method = normalizeManualMethod(manualMethod);
+    if (!method) throw new Error("invalid_payment_method");
     const res = await markSubscriptionPaidManualService({
       subscriptionId,
       tenantId: tenantId || null,
-      method: manualMethod as any,
+      method,
       actor
     });
     if (!res.ok) throw new Error(res.error);
@@ -886,7 +933,7 @@ export async function createPlanAndSubscription(formData: FormData) {
       return redirect(mergeQuery(returnTo, { error: "customer_required" }));
     }
 
-    const customer = (await getCustomerById(resolvedCustomerId)) as any;
+    const customer = await getCustomerById(resolvedCustomerId);
     if (tenantIds.length) {
       const customerTenantId = String(customer?.tenantId || "").trim();
       if (customerTenantId && !tenantIds.includes(customerTenantId)) {
@@ -908,7 +955,7 @@ export async function createPlanAndSubscription(formData: FormData) {
     const hasToken = Boolean(paymentSource);
 
     const settings = await getAdminSettings().catch(() => null);
-    const checkoutConfig = (settings as any)?.checkoutConfig || {};
+    const checkoutConfig = readCheckoutConfig(settings?.checkoutConfig || null);
     const planBase = normalizeCheckoutBase(String(checkoutConfig?.planBaseUrl || "").trim(), "plan");
     const subBase = normalizeCheckoutBase(String(checkoutConfig?.subscriptionBaseUrl || "").trim(), "suscripcion");
     if (billingType === "PLAN" && !planBase) {
@@ -994,7 +1041,7 @@ export async function createPlanAndSubscription(formData: FormData) {
       name: `${billingType === "PLAN" ? "Plan" : "Suscripción"} - ${item.name} - ${nameSuffix}`,
       priceInCents: totals.totalInCents,
       currency: item.currency || "COP",
-      intervalUnit: intervalUnit as any,
+      intervalUnit: normalizeIntervalUnit(intervalUnit),
       intervalCount,
       collectionMode,
       metadata: {
@@ -1024,7 +1071,7 @@ export async function createPlanAndSubscription(formData: FormData) {
     });
     if (!createdPlan.ok) throw new Error(createdPlan.error);
 
-    const planId = (createdPlan as any)?.plan?.id ? String((createdPlan as any).plan.id) : "";
+    const planId = createdPlan.plan?.id ? String(createdPlan.plan.id) : "";
     if (!planId) throw new Error("create_plan_failed");
 
     const shouldCreateLink = billingType === "PLAN" && submitAction === "LINK_NOW";
@@ -1043,7 +1090,7 @@ export async function createPlanAndSubscription(formData: FormData) {
       createPaymentLink: shouldCreateLink
     });
     if (!sub.ok) throw new Error(sub.error);
-    const subscriptionId = String((sub as any)?.subscription?.id || "").trim();
+    const subscriptionId = String(sub.subscription?.id || "").trim();
     if (!subscriptionId) throw new Error("create_subscription_failed");
 
     if (paymentId) {
@@ -1061,7 +1108,7 @@ export async function createPlanAndSubscription(formData: FormData) {
       }
     }
 
-    const checkoutUrl = (sub as any)?.checkoutUrl ? String((sub as any).checkoutUrl) : "";
+    const checkoutUrl = sub.checkoutUrl ? String(sub.checkoutUrl) : "";
 
     if (billingType === "PLAN" && checkoutUrl) {
       const createdPaymentLink = await createPublicCheckoutLink({
@@ -1125,14 +1172,14 @@ export async function createPlanAndSubscription(formData: FormData) {
       let notificationError = "";
       try {
         const scheduled = await scheduleTokenizationLinkNotifications({ customerId: resolvedCustomerId, tokenUrl: url, forceNow: true });
-        notificationError = String((scheduled as any)?.errors?.[0] || "").trim();
+        notificationError = firstNotificationDeliveryError(scheduled);
       } catch (err: any) {
         logger.warn({ err, customerId: resolvedCustomerId, planId }, "Fallo programando notificaciones de tokenización");
       }
       if (notificationError) {
         redirect(
           mergeQuery(returnTo, {
-            error: notificationError,
+            error: humanizeNotificationError(notificationError),
             checkoutUrl: url,
             customerId: resolvedCustomerId,
             subscriptionId,
@@ -1193,7 +1240,7 @@ export async function sendWhatsAppPaymentLink(formData: FormData) {
       sendNotifications: false
     });
     if (!res.ok) throw new Error(res.error);
-    const checkoutUrl = String((res as any)?.checkoutUrl || "").trim();
+    const checkoutUrl = String(res?.checkoutUrl || "").trim();
     if (!checkoutUrl) return redirect(mergeQuery(returnTo, { error: "checkout_url_missing", ...(tenantId ? { tenantId } : {}) }));
 
     const publicLink = await createPublicCheckoutLink({
@@ -1214,13 +1261,21 @@ export async function sendWhatsAppPaymentLink(formData: FormData) {
       if (rulesActive !== true) {
         return redirect(mergeQuery(returnTo, { error: "missing_template", ...(tenantId ? { tenantId } : {}) }));
       }
-      const paymentId = String((res as any)?.paymentId || "").trim();
+      const paymentId = String(res?.paymentId || "").trim();
       const scheduled = paymentId
         ? await schedulePaymentLinkNotifications({ paymentId, forceNow: true })
         : null;
-      const chatwootError = String((scheduled as any)?.errors?.[0] || "").trim();
+      const chatwootError = firstNotificationDeliveryError(scheduled);
       if (chatwootError) {
-        return redirect(mergeQuery(returnTo, { error: chatwootError, checkoutUrl: publicUrl, customerId, subscriptionId, ...(tenantId ? { tenantId } : {}) }));
+        return redirect(
+          mergeQuery(returnTo, {
+            error: humanizeNotificationError(chatwootError),
+            checkoutUrl: publicUrl,
+            customerId,
+            subscriptionId,
+            ...(tenantId ? { tenantId } : {})
+          })
+        );
       }
     }
 
@@ -1260,13 +1315,15 @@ export async function sendWhatsAppTokenizationLink(formData: FormData) {
           }).catch(() => null)
         : Promise.resolve(null)
     ]);
-    const checkoutConfig = (settings as any)?.checkoutConfig || {};
+    const checkoutConfig = readCheckoutConfig(settings?.checkoutConfig || null);
     const base = normalizeCheckoutBase(String(checkoutConfig?.subscriptionBaseUrl || "").trim(), "suscripcion");
     if (!base) {
       return redirect(mergeQuery(returnTo, { error: "missing_subscription_base_url", ...(tenantId ? { tenantId } : {}) }));
     }
 
-    const resolvedProductId = productId || String((plan as any)?.catalogProductId || (plan?.metadata as any)?.catalog?.itemId || "").trim();
+    const resolvedProductId =
+      productId ||
+      String(readPlanCatalogProductId(plan) || readPlanCatalogItemId(plan?.metadata)).trim();
     if (!resolvedProductId) {
       return redirect(mergeQuery(returnTo, { error: "missing_checkout_for_product", ...(tenantId ? { tenantId } : {}) }));
     }
@@ -1316,12 +1373,12 @@ export async function sendWhatsAppTokenizationLink(formData: FormData) {
     let notificationError = "";
     try {
       const scheduled = await scheduleTokenizationLinkNotifications({ customerId, tokenUrl: url, forceNow: true });
-      notificationError = String((scheduled as any)?.errors?.[0] || "").trim();
+      notificationError = firstNotificationDeliveryError(scheduled);
     } catch (err: any) {
       logger.warn({ err, customerId, planId: resolvedPlanId || planId, productId: resolvedProductId }, "Fallo programando notificaciones de tokenización en envío manual");
     }
     if (notificationError) {
-      return redirect(mergeQuery(returnTo, { error: notificationError, ...(tenantId ? { tenantId } : {}) }));
+      return redirect(mergeQuery(returnTo, { error: humanizeNotificationError(notificationError), ...(tenantId ? { tenantId } : {}) }));
     }
 
     redirect(mergeQuery(returnTo, { central: "sent", tokenUrl: url, customerId, ...(tenantId ? { tenantId } : {}) }));
@@ -1418,14 +1475,21 @@ export async function setBillingChargeDate(formData: FormData) {
     await prisma.subscription.update({
       where: { id: subscriptionId },
       data: {
-        metadata: {
-          ...(sub as any).metadata,
-          billing: {
-            ...((sub as any).metadata?.billing || {}),
-            lastChargeDateChange: new Date().toISOString(),
-            chargeDateManuallySet: true
-          }
-        }
+        metadata: (() => {
+          const currentMetadata = readSubscriptionMetadata(sub.metadata);
+          const currentBilling =
+            currentMetadata.billing && typeof currentMetadata.billing === "object" && !Array.isArray(currentMetadata.billing)
+              ? (currentMetadata.billing as Record<string, unknown>)
+              : {};
+          return {
+            ...currentMetadata,
+            billing: {
+              ...currentBilling,
+              lastChargeDateChange: new Date().toISOString(),
+              chargeDateManuallySet: true
+            }
+          };
+        })()
       }
     });
 
