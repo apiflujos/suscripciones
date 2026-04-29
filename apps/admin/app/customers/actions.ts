@@ -81,13 +81,13 @@ export async function createCustomer(formData: FormData) {
     const metadata = buildCustomerMetadata({ addressLine1, dept, city, code5, dane8, idType, idNumber });
 
     const name = nameRaw || undefined;
-    const email = emailRaw || undefined;
-    const phone = phoneRaw || undefined;
+    const email = emailRaw;
+    const phone = phoneRaw;
     const res = await createCustomerService({
       data: {
         name,
-        email: email || undefined,
-        phone: phone || undefined,
+        email,
+        phone,
         metadata
       },
       tenantIds: tenantId ? [tenantId] : []
