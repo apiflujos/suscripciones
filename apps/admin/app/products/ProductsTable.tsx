@@ -10,7 +10,11 @@ import { DeleteProductButton } from "./DeleteProductButton";
 import { PendingButton } from "../ui/PendingButton";
 import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
 import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, normalizeSupportedCurrency } from "../lib/currencies";
-import { isNotificationTemplateConfigured, renderNotificationTemplatePreview } from "../lib/notificationTemplate";
+import {
+  isNotificationTemplateConfigured,
+  renderNotificationTemplatePreview,
+  resolveNotificationTemplateForTrigger
+} from "../lib/notificationTemplate";
 
 function formatCurrencyInput(input: string, currency: string): string {
   const digits = String(input || "").replace(/[^\d]/g, "");
@@ -416,21 +420,16 @@ export function ProductsTable({
     return "";
   }
 
-  function resolveNotificationTemplate(trigger: string, paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK") {
-    const rules = Array.isArray(notificationsConfig?.rules) ? notificationsConfig.rules : [];
-    const templates = Array.isArray(notificationsConfig?.templates) ? notificationsConfig.templates : [];
-    const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === trigger);
-    const filtered = paymentType
-      ? candidates.filter((r: any) => {
-          const types = r?.conditions?.requirePaymentTypeIn;
-          if (!Array.isArray(types) || !types.length) return true;
-          return types.includes(paymentType);
-        })
-      : candidates;
-    const rule = filtered[0] || candidates[0] || null;
-    if (!rule) return null;
-    const template = templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || ""));
-    return template || null;
+  function resolveNotificationTemplate(
+    trigger: Parameters<typeof resolveNotificationTemplateForTrigger>[0]["trigger"],
+    paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK"
+  ) {
+    return resolveNotificationTemplateForTrigger({
+      rules: Array.isArray(notificationsConfig?.rules) ? notificationsConfig.rules : [],
+      templates: Array.isArray(notificationsConfig?.templates) ? notificationsConfig.templates : [],
+      trigger,
+      paymentType
+    });
   }
 
   const paymentLinkTemplate = resolveNotificationTemplate("PAYMENT_LINK_CREATED", "LINK");

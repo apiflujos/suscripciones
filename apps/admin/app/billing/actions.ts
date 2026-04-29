@@ -31,9 +31,8 @@ import { schedulePaymentLinkNotifications, scheduleTokenizationLinkNotifications
 import { firstNotificationDeliveryError } from "@suscripciones/core/services/notificationDelivery";
 import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
 import { logger } from "@suscripciones/core/lib/logger";
-import { readCheckoutConfig } from "@suscripciones/core/services/checkoutConfig";
 import { isNotificationTemplateConfigured, resolveNotificationTemplateForTrigger } from "../lib/notificationTemplate";
-import type { NotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
+import type { NotificationTrigger, NotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
@@ -151,7 +150,7 @@ function readPlanCatalogProductId(plan: unknown): string {
   return String((plan as { catalogProductId?: string }).catalogProductId || "").trim();
 }
 
-async function hasNotificationRule(trigger: string, paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK"): Promise<boolean | null> {
+async function hasNotificationRule(trigger: NotificationTrigger, paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK"): Promise<boolean | null> {
   try {
     const cfg = await getNotificationsConfigForEnv("PRODUCTION");
     const typedCfg = cfg as NotificationsConfig;
@@ -206,7 +205,7 @@ async function resolveSubscriptionPlanCheckoutTemplate(args: { subscriptionId: s
   }
 
   const settings = await getAdminSettings().catch(() => null);
-  const checkoutConfig = readCheckoutConfig(settings?.checkoutConfig || null);
+  const checkoutConfig = settings?.checkoutConfig || null;
   const productId = String(
     subscription.productId ||
       readPlanCatalogProductId(subscription.plan) ||
@@ -284,16 +283,22 @@ export async function createCustomerFromBilling(formData: FormData) {
       : undefined;
 
   const identificacion = idType && idNumber ? `${idType} ${idNumber}` : idNumber || "";
-  const idMeta = identificacion ? { identificacion, identificacionTipo: idType || null, identificacionNumero: idNumber || null } : undefined;
+  const idMeta = identificacion
+    ? {
+        identificacion,
+        ...(idType ? { identificacionTipo: idType } : {}),
+        ...(idNumber ? { identificacionNumero: idNumber } : {})
+      }
+    : undefined;
 
   const metadata = address || idMeta ? { ...(address ? { address } : {}), ...(idMeta ? idMeta : {}) } : undefined;
 
   try {
     const res = await createCustomerService({
       data: {
-        name: name || undefined,
-        email: email || undefined,
-        phone: phone || undefined,
+        ...(name ? { name } : {}),
+        email,
+        phone,
         metadata
       },
       tenantIds: tenantId ? [tenantId] : []
@@ -502,7 +507,10 @@ export async function chargeSubscriptionNow(formData: FormData) {
       tenantId: tenantId || null
     });
     if (!res.ok) throw new Error(res.error);
-    const paymentId = res.paymentId ? String(res.paymentId) : "";
+    const paymentId =
+      "paymentId" in res && typeof res.paymentId === "string" && res.paymentId.trim()
+        ? res.paymentId.trim()
+        : "";
     redirect(
       mergeQuery(returnTo, {
         chargeStatus: "processing",
@@ -955,7 +963,7 @@ export async function createPlanAndSubscription(formData: FormData) {
     const hasToken = Boolean(paymentSource);
 
     const settings = await getAdminSettings().catch(() => null);
-    const checkoutConfig = readCheckoutConfig(settings?.checkoutConfig || null);
+    const checkoutConfig = settings?.checkoutConfig || null;
     const planBase = normalizeCheckoutBase(String(checkoutConfig?.planBaseUrl || "").trim(), "plan");
     const subBase = normalizeCheckoutBase(String(checkoutConfig?.subscriptionBaseUrl || "").trim(), "suscripcion");
     if (billingType === "PLAN" && !planBase) {
@@ -1090,7 +1098,10 @@ export async function createPlanAndSubscription(formData: FormData) {
       createPaymentLink: shouldCreateLink
     });
     if (!sub.ok) throw new Error(sub.error);
-    const subscriptionId = String(sub.subscription?.id || "").trim();
+    const subscriptionId =
+      "subscription" in sub && sub.subscription && typeof sub.subscription === "object" && "id" in sub.subscription
+        ? String(sub.subscription.id || "").trim()
+        : "";
     if (!subscriptionId) throw new Error("create_subscription_failed");
 
     if (paymentId) {
@@ -1108,7 +1119,10 @@ export async function createPlanAndSubscription(formData: FormData) {
       }
     }
 
-    const checkoutUrl = sub.checkoutUrl ? String(sub.checkoutUrl) : "";
+    const checkoutUrl =
+      "checkoutUrl" in sub && typeof sub.checkoutUrl === "string" && sub.checkoutUrl.trim()
+        ? sub.checkoutUrl.trim()
+        : "";
 
     if (billingType === "PLAN" && checkoutUrl) {
       const createdPaymentLink = await createPublicCheckoutLink({
@@ -1240,7 +1254,10 @@ export async function sendWhatsAppPaymentLink(formData: FormData) {
       sendNotifications: false
     });
     if (!res.ok) throw new Error(res.error);
-    const checkoutUrl = String(res?.checkoutUrl || "").trim();
+    const checkoutUrl =
+      "checkoutUrl" in res && typeof res.checkoutUrl === "string" && res.checkoutUrl.trim()
+        ? res.checkoutUrl.trim()
+        : "";
     if (!checkoutUrl) return redirect(mergeQuery(returnTo, { error: "checkout_url_missing", ...(tenantId ? { tenantId } : {}) }));
 
     const publicLink = await createPublicCheckoutLink({
@@ -1261,7 +1278,10 @@ export async function sendWhatsAppPaymentLink(formData: FormData) {
       if (rulesActive !== true) {
         return redirect(mergeQuery(returnTo, { error: "missing_template", ...(tenantId ? { tenantId } : {}) }));
       }
-      const paymentId = String(res?.paymentId || "").trim();
+      const paymentId =
+        "paymentId" in res && typeof res.paymentId === "string" && res.paymentId.trim()
+          ? res.paymentId.trim()
+          : "";
       const scheduled = paymentId
         ? await schedulePaymentLinkNotifications({ paymentId, forceNow: true })
         : null;
@@ -1315,7 +1335,7 @@ export async function sendWhatsAppTokenizationLink(formData: FormData) {
           }).catch(() => null)
         : Promise.resolve(null)
     ]);
-    const checkoutConfig = readCheckoutConfig(settings?.checkoutConfig || null);
+    const checkoutConfig = settings?.checkoutConfig || null;
     const base = normalizeCheckoutBase(String(checkoutConfig?.subscriptionBaseUrl || "").trim(), "suscripcion");
     if (!base) {
       return redirect(mergeQuery(returnTo, { error: "missing_subscription_base_url", ...(tenantId ? { tenantId } : {}) }));

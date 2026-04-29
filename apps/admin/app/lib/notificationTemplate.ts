@@ -1,5 +1,32 @@
-import type { NotificationPaymentType, NotificationRule, NotificationTemplate, NotificationTrigger } from "@suscripciones/core/services/notificationsConfig";
-import { resolveNotificationTemplate } from "@suscripciones/core/services/notificationsConfig";
+type NotificationPaymentType = "PLAN" | "SUBSCRIPTION" | "LINK";
+type NotificationTrigger =
+  | "SUBSCRIPTION_DUE"
+  | "PAYMENT_LINK_CREATED"
+  | "PAYMENT_APPROVED"
+  | "PAYMENT_DECLINED"
+  | "CATALOG_LINK_CREATED"
+  | "TOKENIZATION_LINK_CREATED";
+
+type NotificationRule = {
+  id: string;
+  enabled?: boolean | null;
+  trigger: NotificationTrigger;
+  templateId: string;
+  conditions?: {
+    requirePaymentTypeIn?: NotificationPaymentType[] | null;
+  } | null;
+};
+
+type NotificationTemplate = {
+  id: string;
+  chatwootTemplate?: {
+    name?: string | null;
+    language?: string | null;
+    processed_params?: {
+      body?: Array<{ value?: string | null }> | null;
+    } | null;
+  } | null;
+};
 
 export const MISSING_WHATSAPP_TEMPLATE_MESSAGE =
   "Falta configurar una plantilla WhatsApp activa en Notificaciones para este envío.";
@@ -26,10 +53,26 @@ export function resolveNotificationTemplateForTrigger(args: {
   trigger: NotificationTrigger;
   paymentType?: NotificationPaymentType;
 }) {
-  return resolveNotificationTemplate({
-    rules: args.rules,
-    templates: args.templates,
-    trigger: args.trigger,
-    paymentType: args.paymentType
-  });
+  const rules = Array.isArray(args.rules) ? args.rules : [];
+  const templates = Array.isArray(args.templates) ? args.templates : [];
+  const candidates = rules.filter((rule) => rule.enabled !== false && rule.trigger === args.trigger);
+  const selectedRule =
+    (args.paymentType
+      ? candidates.find((rule) => {
+          const types = Array.isArray(rule.conditions?.requirePaymentTypeIn)
+            ? rule.conditions?.requirePaymentTypeIn
+            : [];
+          return types.includes(args.paymentType as NotificationPaymentType);
+        })
+      : null) ||
+    candidates.find((rule) => {
+      const types = Array.isArray(rule.conditions?.requirePaymentTypeIn)
+        ? rule.conditions?.requirePaymentTypeIn
+        : [];
+      return types.length === 0;
+    }) ||
+    null;
+
+  if (!selectedRule) return null;
+  return templates.find((template) => String(template.id) === String(selectedRule.templateId)) || null;
 }

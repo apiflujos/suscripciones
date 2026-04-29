@@ -85,8 +85,8 @@ export async function POST(req: Request) {
       ...(prevMeta?.cartLink || {}),
       ...(created || {}),
       url: publicUrl,
-      token: String(created?.token || "").trim() || prevMeta?.cartLink?.token || null,
-      templateId: String(selectedTemplate.id || "").trim() || prevMeta?.cartLink?.templateId || null,
+      token: String(created?.token || "").trim() || prevMeta?.cartLink?.token || undefined,
+      templateId: String(selectedTemplate.id || "").trim() || prevMeta?.cartLink?.templateId || undefined,
       catalogType,
       kind: "CART"
     }

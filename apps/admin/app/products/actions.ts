@@ -19,7 +19,7 @@ import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notif
 import { schedulePaymentLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
 import { logger } from "@suscripciones/core/lib/logger";
-import { isNotificationTemplateConfigured } from "../lib/notificationTemplate";
+import { isNotificationTemplateConfigured, resolveNotificationTemplateForTrigger } from "../lib/notificationTemplate";
 
 function pesosToCents(input: string): number {
   const digits = String(input || "").replace(/[^\d-]/g, "");
@@ -81,21 +81,17 @@ function buildOrderReference(product: { sku?: string | null; id: string }) {
   return `PROD_${base}_${stamp}`.slice(0, 50);
 }
 
-function resolveNotificationTemplate(config: any, trigger: string, paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK") {
-  const rules = Array.isArray(config?.rules) ? config.rules : [];
-  const templates = Array.isArray(config?.templates) ? config.templates : [];
-  const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === trigger);
-  const filtered = paymentType
-    ? candidates.filter((r: any) => {
-        const types = r?.conditions?.requirePaymentTypeIn;
-        if (!Array.isArray(types) || !types.length) return true;
-        return types.includes(paymentType);
-      })
-    : candidates;
-  const rule = filtered[0] || candidates[0] || null;
-  if (!rule) return null;
-  const template = templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || ""));
-  return template || null;
+function resolveNotificationTemplate(
+  config: any,
+  trigger: Parameters<typeof resolveNotificationTemplateForTrigger>[0]["trigger"],
+  paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK"
+) {
+  return resolveNotificationTemplateForTrigger({
+    rules: Array.isArray(config?.rules) ? config.rules : [],
+    templates: Array.isArray(config?.templates) ? config.templates : [],
+    trigger,
+    paymentType
+  });
 }
 
 export async function createProduct(formData: FormData) {

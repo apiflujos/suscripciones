@@ -155,6 +155,12 @@ function tokenMethodLabel(meta: unknown) {
     sources[0] ||
     null;
   if (!active && !Number.isFinite(activeId)) return "";
+  const activeMeta = active && typeof active === "object" ? (active as Record<string, unknown>) : null;
+  const activeCard = activeMeta?.card && typeof activeMeta.card === "object" ? (activeMeta.card as Record<string, unknown>) : null;
+  const activePaymentMethod =
+    activeMeta?.paymentMethod && typeof activeMeta.paymentMethod === "object"
+      ? (activeMeta.paymentMethod as Record<string, unknown>)
+      : null;
   const methodTypeRaw = String(active?.type || wompi?.paymentSourceType || "").trim().toUpperCase();
   const methodType =
     methodTypeRaw === "CARD" ? "Tarjeta" :
@@ -162,19 +168,19 @@ function tokenMethodLabel(meta: unknown) {
     methodTypeRaw === "PSE" ? "PSE" :
     "Método";
   const brandRaw = String(
-    active?.brand ||
-    active?.cardBrand ||
-    active?.card?.brand ||
-    active?.paymentMethod?.brand ||
+    activeMeta?.brand ||
+    activeMeta?.cardBrand ||
+    activeCard?.brand ||
+    activePaymentMethod?.brand ||
     ""
   ).trim();
   const brand = brandRaw ? brandRaw.toUpperCase() : "";
   const last4Raw = String(
-    active?.last4 ||
-    active?.last_four ||
-    active?.card?.last4 ||
-    active?.card?.last_four ||
-    active?.cardLast4 ||
+    activeMeta?.last4 ||
+    activeMeta?.last_four ||
+    activeCard?.last4 ||
+    activeCard?.last_four ||
+    activeMeta?.cardLast4 ||
     ""
   ).trim();
   const last4Digits = last4Raw.replace(/\D+/g, "");
@@ -479,7 +485,16 @@ export default async function CustomerDetailPage({
   const paymentSourceId = extractCustomerPaymentSourceId(meta);
   const activePlanLabel = activeSub ? formatProductTitle(activeSub?.product, activeSub?.plan) : "Sin producto activo";
   const tokenMethod = tokenMethodLabel(meta);
-  const chatwootContactId = Number(meta.chatwoot?.contactId || 0);
+  const chatwootMeta = meta?.chatwoot && typeof meta.chatwoot === "object" ? (meta.chatwoot as Record<string, unknown>) : null;
+  const documentLabel = String(
+    meta?.identificacion ||
+      meta?.identificationNumber ||
+      meta?.documentNumber ||
+      meta?.documento ||
+      meta?.document ||
+      ""
+  ).trim();
+  const chatwootContactId = Number(chatwootMeta?.contactId || 0);
 
   const amountSeries = payments
     .slice(0, 12)
@@ -514,15 +529,18 @@ export default async function CustomerDetailPage({
     return at >= Date.now() - 30 * 24 * 60 * 60 * 1000;
   }).length;
 
+  const addressMeta = meta?.address && typeof meta.address === "object" ? (meta.address as Record<string, unknown>) : null;
+  const geoMeta = meta?.geo && typeof meta.geo === "object" ? (meta.geo as Record<string, unknown>) : null;
+  const locationMeta = meta?.location && typeof meta.location === "object" ? (meta.location as Record<string, unknown>) : null;
   const addressParts = [
-    meta?.address?.line1,
-    meta?.address?.city,
-    meta?.address?.dept,
-    meta?.address?.code5
+    addressMeta?.line1,
+    addressMeta?.city,
+    addressMeta?.dept,
+    addressMeta?.code5
   ].filter(Boolean);
   const addressLabel = addressParts.join(", ");
-  const directLat = Number(meta?.address?.lat ?? meta?.geo?.lat ?? meta?.location?.lat);
-  const directLon = Number(meta?.address?.lon ?? meta?.address?.lng ?? meta?.geo?.lon ?? meta?.geo?.lng ?? meta?.location?.lon ?? meta?.location?.lng);
+  const directLat = Number(addressMeta?.lat ?? geoMeta?.lat ?? locationMeta?.lat);
+  const directLon = Number(addressMeta?.lon ?? addressMeta?.lng ?? geoMeta?.lon ?? geoMeta?.lng ?? locationMeta?.lon ?? locationMeta?.lng);
   const geo =
     Number.isFinite(directLat) && Number.isFinite(directLon)
       ? { lat: directLat, lon: directLon, label: addressLabel }
@@ -633,7 +651,7 @@ export default async function CustomerDetailPage({
               <div className="hero-right-top">
                 <div className="hero-id-block">
                   <span className="hero-id-label">NIT / ID</span>
-                  <span className="hero-id-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
+                  <span className="hero-id-value mono">{documentLabel || "—"}</span>
                   <span className="hero-id-sub">{tenantName || customer.tenantId || "—"}</span>
                 </div>
               </div>
@@ -754,7 +772,7 @@ export default async function CustomerDetailPage({
                   </div>
                   <div className="customer-info-row">
                     <span className="customer-info-label">Documento</span>
-                    <span className="customer-info-value mono">{meta?.identificacion || meta?.identificationNumber || meta?.documentNumber || "—"}</span>
+                    <span className="customer-info-value mono">{documentLabel || "—"}</span>
                   </div>
                 </div>
                 <div className="customer-info-card">

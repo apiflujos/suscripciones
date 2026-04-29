@@ -7,7 +7,11 @@ import { LocalDateTime } from "../ui/LocalDateTime";
 import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
 import { AppModal } from "../ui/AppModal";
 import { CustomerEditModal } from "./CustomerEditModal";
-import { isNotificationTemplateConfigured, renderNotificationTemplatePreview } from "../lib/notificationTemplate";
+import {
+  isNotificationTemplateConfigured,
+  renderNotificationTemplatePreview,
+  resolveNotificationTemplateForTrigger
+} from "../lib/notificationTemplate";
 import { extractCustomerPaymentSourceId, readCustomerMetadata } from "@suscripciones/core/lib/customerMetadata";
 
 function formatCopFromCents(cents: number) {
@@ -208,22 +212,17 @@ export function CustomersTable({
   }
 
 
-  function resolveNotificationTemplate(trigger: string, paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK") {
+  function resolveNotificationTemplate(
+    trigger: Parameters<typeof resolveNotificationTemplateForTrigger>[0]["trigger"],
+    paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK"
+  ) {
     const cfg = notificationsConfig || {};
-    const rules = Array.isArray(cfg?.rules) ? cfg.rules : [];
-    const templates = Array.isArray(cfg?.templates) ? cfg.templates : [];
-    const candidates = rules.filter((r: any) => r?.enabled && String(r?.trigger || "") === trigger);
-    const filtered = paymentType
-      ? candidates.filter((r: any) => {
-          const types = r?.conditions?.requirePaymentTypeIn;
-          if (!Array.isArray(types) || !types.length) return true;
-          return types.includes(paymentType);
-        })
-      : candidates;
-    const rule = filtered[0] || candidates[0] || null;
-    if (!rule) return null;
-    const template = templates.find((t: any) => String(t?.id || "") === String(rule?.templateId || ""));
-    return template || null;
+    return resolveNotificationTemplateForTrigger({
+      rules: Array.isArray(cfg?.rules) ? cfg.rules : [],
+      templates: Array.isArray(cfg?.templates) ? cfg.templates : [],
+      trigger,
+      paymentType
+    });
   }
 
   function resolveActionBlockReason(customer: CustomerRow, action: "PAYMENT" | "TOKEN" | "CATALOG_PLAN" | "CATALOG_SUBSCRIPTION") {
