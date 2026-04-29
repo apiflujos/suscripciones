@@ -425,7 +425,7 @@ export function NotificationsSimple({
     return map;
   }, [rules]);
 
-  const templateForKey = (key: RealtimeKey, chatwootType?: Template["chatwootType"], label?: string, aliases?: string[]) => {
+  const templateForKey = (key: RealtimeNotificationKey, chatwootType?: Template["chatwootType"], label?: string, aliases?: string[]) => {
     const rule = rulesByKey.get(key);
     if (rule) {
       const tpl = templateById.get(String(rule.templateId));
@@ -463,7 +463,7 @@ export function NotificationsSimple({
   const lastFieldRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [pickerOpen, setPickerOpen] = useState<null | "vars">(null);
   const [activeModal, setActiveModal] = useState<
-    null | { type: "realtime"; key: RealtimeKey } | { type: "reminder"; kind: "DUE" | "MORA"; paymentType: "LINK" | "SUBSCRIPTION" }
+    null | { type: "realtime"; key: RealtimeNotificationKey } | { type: "reminder"; kind: "DUE" | "MORA"; paymentType: "LINK" | "SUBSCRIPTION" }
   >(null);
   const [wizardStep, setWizardStep] = useState<1 | 2>(1);
   const [reminderOffsets, setReminderOffsets] = useState<OffsetItem[]>([]);
@@ -555,7 +555,7 @@ export function NotificationsSimple({
     const params = new URLSearchParams(window.location.search);
     const open = String(params.get("open") || "").trim();
     if (!open) return;
-    const key = open as RealtimeKey;
+    const key = open as RealtimeNotificationKey;
     const exists = REALTIME_TYPES.some((r) => r.key === key);
     if (exists) {
       setActiveModal({ type: "realtime", key });
