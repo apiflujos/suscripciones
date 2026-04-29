@@ -185,7 +185,7 @@ export async function saveRealtime(formData: FormData) {
     if (meta.paymentType) rule.conditions = { requirePaymentTypeIn: [meta.paymentType] };
     nextRules.push(rule);
 
-    const next = { version: 1, ...(baseConfig || {}), templates: nextTemplates, rules: nextRules };
+    const next = { ...(baseConfig || {}), templates: nextTemplates, rules: nextRules, version: 1 };
     await putNotificationsConfig(environment, next);
     redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
   } catch (err) {
@@ -245,7 +245,7 @@ export async function saveReminder(formData: FormData) {
     };
     nextRules.push(rule);
 
-    const next = { version: 1, ...(baseConfig || {}), templates: nextTemplates, rules: nextRules };
+    const next = { ...(baseConfig || {}), templates: nextTemplates, rules: nextRules, version: 1 };
     await putNotificationsConfig(environment, next);
     redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
   } catch (err) {
