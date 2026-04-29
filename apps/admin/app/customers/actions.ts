@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { assertCsrfToken } from "../lib/csrf";
 import { createCustomer as createCustomerService, updateCustomerProfile, deleteCustomerProfile } from "../admin/_services/customers";
+import type { CustomerMetadata } from "@suscripciones/core/lib/customerMetadata";
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
@@ -21,6 +22,40 @@ function mergeQuery(path: string, extra: Record<string, string | undefined>) {
   }
   const qs = url.searchParams.toString();
   return `${url.pathname}${qs ? `?${qs}` : ""}`;
+}
+
+function buildCustomerMetadata(input: {
+  addressLine1: string;
+  dept: string;
+  city: string;
+  code5: string;
+  dane8: string;
+  idType: string;
+  idNumber: string;
+}): CustomerMetadata | undefined {
+  const { addressLine1, dept, city, code5, dane8, idType, idNumber } = input;
+
+  const address =
+    addressLine1 || dept || city || code5 || dane8
+      ? {
+          line1: addressLine1 || undefined,
+          dept: dept || undefined,
+          city: city || undefined,
+          code5: code5 || undefined,
+          dane8: dane8 || undefined
+        }
+      : undefined;
+
+  const identificacion = idType && idNumber ? `${idType} ${idNumber}` : idNumber || "";
+  const idMeta: CustomerMetadata | undefined = identificacion
+    ? {
+        identificacion,
+        ...(idNumber ? { identificacionNumero: idNumber } : {}),
+        ...(idType ? { identificacionTipo: idType } : {})
+      }
+    : undefined;
+
+  return address || idMeta ? { ...(address ? { address } : {}), ...(idMeta ? idMeta : {}) } : undefined;
 }
 
 export async function createCustomer(formData: FormData) {
@@ -43,21 +78,7 @@ export async function createCustomer(formData: FormData) {
   }
 
   try {
-    const address =
-      addressLine1 || dept || city || code5 || dane8
-        ? {
-            line1: addressLine1 || undefined,
-            dept: dept || undefined,
-            city: city || undefined,
-            code5: code5 || undefined,
-            dane8: dane8 || undefined
-          }
-        : undefined;
-
-    const identificacion = idType && idNumber ? `${idType} ${idNumber}` : idNumber || "";
-    const idMeta = identificacion ? { identificacion, identificacionTipo: idType || null, identificacionNumero: idNumber || null } : undefined;
-
-    const metadata = address || idMeta ? { ...(address ? { address } : {}), ...(idMeta ? idMeta : {}) } : undefined;
+    const metadata = buildCustomerMetadata({ addressLine1, dept, city, code5, dane8, idType, idNumber });
 
     const name = nameRaw || undefined;
     const email = emailRaw || undefined;
@@ -68,7 +89,7 @@ export async function createCustomer(formData: FormData) {
         email: email || undefined,
         phone: phone || undefined,
         metadata
-      } as any,
+      },
       tenantIds: tenantId ? [tenantId] : []
     });
     if (!res.ok) throw new Error(res.error);
@@ -104,21 +125,7 @@ export async function updateCustomer(formData: FormData) {
   if (!phone) return redirect(mergeQuery(returnTo, { error: "telefono_requerido", ...(scopeTenantId ? { tenantId: scopeTenantId } : {}) }));
 
   try {
-    const address =
-      addressLine1 || dept || city || code5 || dane8
-        ? {
-            line1: addressLine1 || undefined,
-            dept: dept || undefined,
-            city: city || undefined,
-            code5: code5 || undefined,
-            dane8: dane8 || undefined
-          }
-        : undefined;
-
-    const identificacion = idType && idNumber ? `${idType} ${idNumber}` : idNumber || "";
-    const idMeta = identificacion ? { identificacion, identificacionTipo: idType || null, identificacionNumero: idNumber || null } : undefined;
-
-    const metadata = address || idMeta ? { ...(address ? { address } : {}), ...(idMeta ? idMeta : {}) } : undefined;
+    const metadata = buildCustomerMetadata({ addressLine1, dept, city, code5, dane8, idType, idNumber });
 
     const updated = await updateCustomerProfile({
       customerId: id,
