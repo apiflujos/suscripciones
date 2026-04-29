@@ -5,6 +5,7 @@ import { assertCsrfToken } from "../lib/csrf";
 import {
   getNotificationsConfigForEnv,
   type NotificationsConfig,
+  type NotificationPaymentType,
   type NotificationRule,
   type NotificationTemplate,
   notificationsConfigSchema,
@@ -120,7 +121,7 @@ function normalizeTemplatePayload(formData: FormData) {
   };
 }
 
-function samePaymentType(rule: NotificationRule, paymentType?: string) {
+function samePaymentType(rule: NotificationRule, paymentType?: NotificationPaymentType) {
   const types = rule?.conditions?.requirePaymentTypeIn;
   if (!paymentType) return !types || !types.length;
   return Array.isArray(types) && types.includes(paymentType);
@@ -130,7 +131,7 @@ function isUnifiedPaymentTrigger(trigger: string) {
   return trigger === "PAYMENT_APPROVED";
 }
 
-function shouldDisableRule(trigger: string, paymentType: string | undefined, rule: NotificationRule) {
+function shouldDisableRule(trigger: string, paymentType: NotificationPaymentType | "ANY" | undefined, rule: NotificationRule) {
   if (isUnifiedPaymentTrigger(trigger)) return String(rule?.trigger || "") === trigger;
   if (!paymentType || paymentType === "ANY") {
     return String(rule?.trigger || "") === trigger && (!rule?.conditions?.requirePaymentTypeIn || !rule.conditions.requirePaymentTypeIn.length);
