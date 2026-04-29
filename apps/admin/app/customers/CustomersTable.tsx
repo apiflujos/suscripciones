@@ -8,7 +8,7 @@ import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
 import { AppModal } from "../ui/AppModal";
 import { CustomerEditModal } from "./CustomerEditModal";
 import { isNotificationTemplateConfigured, renderNotificationTemplatePreview } from "../lib/notificationTemplate";
-import { extractCustomerPaymentSourceId, readCustomerMetadata } from "../../../../packages/core/src/lib/customerMetadata";
+import { extractCustomerPaymentSourceId, readCustomerMetadata } from "@suscripciones/core/lib/customerMetadata";
 
 function formatCopFromCents(cents: number) {
   const pesos = Math.trunc(Number(cents || 0) / 100);

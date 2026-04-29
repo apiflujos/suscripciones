@@ -12,7 +12,7 @@ import { LocalDateTime } from "../../ui/LocalDateTime";
 import { TimelineScroller } from "../../ui/TimelineScroller";
 import { MapModal } from "../../ui/MapModal";
 import { isNoiseNotification, normalizeSystemText } from "../../lib/logPresentation";
-import { extractCustomerPaymentSourceId, readCustomerMetadata } from "../../../../../packages/core/src/lib/customerMetadata";
+import { extractCustomerPaymentSourceId, readCustomerMetadata } from "@suscripciones/core/lib/customerMetadata";
 
 export const dynamic = "force-dynamic";
 

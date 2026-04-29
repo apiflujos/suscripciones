@@ -5,7 +5,7 @@ import { HelpTip } from "../../../ui/HelpTip";
 import { WompiTokenizeWidget } from "./WompiTokenizeWidget";
 import { getAdminSettings } from "../../../admin/_services/settings";
 import { getCustomerById } from "../../../admin/_services/customers";
-import { extractCustomerPaymentSourceId, readCustomerMetadata } from "../../../../../packages/core/src/lib/customerMetadata";
+import { extractCustomerPaymentSourceId, readCustomerMetadata } from "@suscripciones/core/lib/customerMetadata";
 
 export const dynamic = "force-dynamic";
 
