@@ -416,8 +416,15 @@ export async function createPaymentLinkForSubscription(args: {
     },
     update: {
       tenantId,
+      customerId: sub.customerId,
+      subscriptionId: sub.id,
       amountInCents,
       currency,
+      cycleNumber: cycle,
+      subscriptionCycleKey,
+      origin: "AUTO_LINK",
+      associationReason: "SUB_REF",
+      associatedBy: "system",
       reference,
       status: PaymentStatus.PENDING
     }
