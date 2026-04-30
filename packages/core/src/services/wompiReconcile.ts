@@ -137,7 +137,7 @@ export async function reconcileWompiTransaction(args: {
       });
   }
 
-  if (shopify?.url && shouldForwardToShopify(raw)) {
+  if (shopify?.url && shouldForwardToShopify(payload)) {
     await prisma.retryJob
       .create({
         data: {
