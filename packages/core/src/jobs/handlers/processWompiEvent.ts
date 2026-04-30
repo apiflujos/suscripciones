@@ -9,6 +9,7 @@ import { addIntervalUtc } from "../../lib/dates";
 import { getPaymentsConfig, getShopifyForward, getWompiCheckoutLinkBaseUrl } from "../../services/runtimeConfig";
 import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../../services/notificationsScheduler";
 import { firstNotificationDeliveryError } from "../../services/notificationDelivery";
+import type { NotificationScheduleResult } from "../../services/notificationDelivery";
 import { consumeApp } from "../../services/superAdminApp";
 import { syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
 import { getDefaultTenantId } from "../../services/tenantContext";
@@ -1288,7 +1289,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     data: { processStatus: WebhookProcessStatus.PROCESSED, processedAt: new Date() }
   });
 
-  const paymentNotificationSchedule = await schedulePaymentStatusNotifications({
+  const paymentNotificationSchedule: NotificationScheduleResult | null = await schedulePaymentStatusNotifications({
     paymentId: paymentRecord.id,
     forceNow: true
   }).catch((err) => {
