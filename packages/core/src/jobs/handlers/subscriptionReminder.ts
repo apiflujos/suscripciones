@@ -204,7 +204,7 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
     paymentId: parsed.data.paymentId || null,
     offsetSeconds: parsed.data.offsetSeconds,
     anchorAt: parsed.data.anchorAt,
-    cycleNumber: parsed.data.cycleNumber
+    cycleNumber: parsed.data.trigger === "SUBSCRIPTION_DUE" ? parsed.data.cycleNumber : undefined
   }, "job:subscriptionReminder").catch((err: any) => {
     logger.warn({ err, trigger: parsed.data.trigger, ruleId: parsed.data.ruleId }, "subscriptionReminder: fallo escribiendo systemLog de inicio");
   });
@@ -226,6 +226,7 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   const subscriptionBillingState = subscription ? await resolveSubscriptionBillingState({ subscriptionId: subscription.id }) : null;
   const activeCycle = subscriptionBillingState?.activeCycle || null;
   const collectionCycle = subscriptionBillingState?.collectionCycle || activeCycle;
+  const cycleNumberForLogs = parsed.data.trigger === "SUBSCRIPTION_DUE" ? parsed.data.cycleNumber : undefined;
 
   if (!customer) {
     await systemLog(LogLevel.WARN, "notifications.dispatch", "Contacto no encontrado", {
@@ -608,7 +609,7 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
     ruleId: rule.id,
     subscriptionId: subscription?.id,
     paymentId: effectivePayment?.id,
-    cycleNumber: parsed.data.cycleNumber,
+    cycleNumber: cycleNumberForLogs,
     offsetSeconds: parsed.data.offsetSeconds
   });
 
