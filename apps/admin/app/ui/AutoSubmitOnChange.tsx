@@ -14,6 +14,7 @@ export function AutoSubmitOnChange({ selector = "form[data-auto-submit-form='tru
     for (const form of forms) {
       const autoFields = Array.from(form.querySelectorAll<HTMLElement>("[data-auto-submit='true']"));
       for (const field of autoFields) {
+        if (field.dataset.autoSubmitSelf === "true") continue;
         const onChange = () => form.requestSubmit();
         field.addEventListener("change", onChange);
         cleanups.push(() => field.removeEventListener("change", onChange));

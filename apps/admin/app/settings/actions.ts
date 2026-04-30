@@ -212,7 +212,7 @@ export async function updateAutoDebitConfig(formData: FormData) {
       ...(maxRetries ? { maxRetries } : {})
     });
     assertOk(out as any);
-    redirectWith("auto_debit_save", "ok", undefined, returnTo);
+    return;
   } catch (err) {
     if (isNextRedirect(err)) throw err;
     redirectWith("auto_debit_save", "fail", toShortErrorMessage(err), returnTo);
@@ -235,7 +235,7 @@ export async function updatePaymentsConfig(formData: FormData) {
       ...(includeUnlinkedPaymentsInMetrics ? { includeUnlinkedPaymentsInMetrics } : {})
     });
     assertOk(out as any);
-    redirectWith("payments_config_save", "ok", undefined, returnTo);
+    return;
   } catch (err) {
     if (isNextRedirect(err)) throw err;
     redirectWith("payments_config_save", "fail", toShortErrorMessage(err), returnTo);
