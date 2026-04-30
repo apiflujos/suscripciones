@@ -6,6 +6,7 @@ import { randomUUID } from "crypto";
 import { processWompiEventLogic } from "../jobs/handlers/processWompiEvent";
 import { logger } from "../lib/logger";
 import { getDefaultTenantId } from "./tenantContext";
+import { classifyReference } from "../webhooks/wompi/classifyReference";
 
 const FINAL_WOMPI_STATUSES = new Set(["APPROVED", "DECLINED", "VOIDED", "ERROR"]);
 
@@ -29,6 +30,14 @@ function extractWompiTransactionFromRaw(raw: unknown): Record<string, unknown> |
     return nested as Record<string, unknown>;
   }
   return null;
+}
+
+function shouldForwardToShopify(raw: unknown): boolean {
+  const tx = extractWompiTransactionFromRaw(raw);
+  const root = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+  const reference = String(tx?.reference || root?.reference || "").trim();
+  if (!reference) return false;
+  return classifyReference(reference).kind === "shopify";
 }
 
 export async function reconcileWompiTransaction(args: {
@@ -128,7 +137,7 @@ export async function reconcileWompiTransaction(args: {
       });
   }
 
-  if (shopify?.url) {
+  if (shopify?.url && shouldForwardToShopify(raw)) {
     await prisma.retryJob
       .create({
         data: {

@@ -27,6 +27,13 @@ function getTxFromPayload(payload: any): Record<string, unknown> | null {
   return tx && typeof tx === "object" ? (tx as Record<string, unknown>) : null;
 }
 
+function shouldForwardPayloadToShopify(payload: any): boolean {
+  const tx = getTxFromPayload(payload);
+  const reference = normalizeRef(tx?.reference || payload?.data?.reference || payload?.reference);
+  if (!reference) return false;
+  return classifyReference(reference).kind === "shopify";
+}
+
 async function resolveWebhookTenantId(payload: any): Promise<string | null> {
   const tx = getTxFromPayload(payload);
   const transactionId = normalizeRef(tx?.id);
@@ -242,7 +249,7 @@ export async function POST(req: Request) {
     }
 
     const shopify = await getShopifyForward();
-    if (shopify.url) {
+    if (shopify.url && shouldForwardPayloadToShopify(parsed.data)) {
       await prisma.retryJob.create({
         data: {
           type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY,
