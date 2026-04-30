@@ -543,8 +543,10 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
         url: autoCartUrl
       }
     : (meta?.cartLink ?? null);
-  const tokenizationUrl = parsed.data.tokenUrl || String(effectiveTokenizationLink?.url || "").trim() || "";
-  const catalogUrl = parsed.data.catalogUrl || String(effectiveCartLink?.url || "").trim() || "";
+  const tokenUrlFromPayload = parsed.data.trigger === "TOKENIZATION_LINK_CREATED" ? parsed.data.tokenUrl : "";
+  const catalogUrlFromPayload = parsed.data.trigger === "CATALOG_LINK_CREATED" ? parsed.data.catalogUrl : "";
+  const tokenizationUrl = tokenUrlFromPayload || String(effectiveTokenizationLink?.url || "").trim() || "";
+  const catalogUrl = catalogUrlFromPayload || String(effectiveCartLink?.url || "").trim() || "";
   const subscriptionTemplate = subscription
       ? {
         ...subscription,

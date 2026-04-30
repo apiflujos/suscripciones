@@ -91,11 +91,16 @@ export function readCustomerMetadata(value: unknown): CustomerMetadata {
 
 export function extractCustomerPaymentSourceId(value: unknown): number | null {
   const meta = readCustomerMetadata(value);
+  const rawMeta = meta as Record<string, unknown>;
+  const rawWompi =
+    meta.wompi && typeof meta.wompi === "object"
+      ? (meta.wompi as Record<string, unknown>)
+      : null;
   const candidates = [
     meta.wompi?.paymentSourceId,
-    meta.wompi?.payment_source_id,
+    rawWompi?.payment_source_id,
     meta.paymentSourceId,
-    meta.payment_source_id
+    rawMeta.payment_source_id
   ];
   for (const entry of candidates) {
     if (typeof entry === "number" && Number.isFinite(entry)) return entry;

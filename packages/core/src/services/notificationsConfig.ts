@@ -216,10 +216,11 @@ export function resolveNotificationRule(args: {
   if (!candidates.length) return null;
 
   if (args.paymentType) {
+    const paymentType = args.paymentType;
     const exact =
       candidates.find((rule) => {
         const types = rule.conditions?.requirePaymentTypeIn || [];
-        return types.includes(args.paymentType);
+        return types.includes(paymentType);
       }) || null;
     if (exact) return exact;
   }
