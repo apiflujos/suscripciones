@@ -729,14 +729,17 @@ a {
 /* Layout y espaciamiento */
 .app-shell {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 220px 1fr;
+  display: block;
   position: relative;
   overflow-x: hidden;
 }
 
 .app-shell.is-collapsed {
-  grid-template-columns: 70px 1fr;
+  --sidebar-width: 70px;
+}
+
+.app-shell {
+  --sidebar-width: 220px;
 }
 
 .sidebarOverlay {
@@ -744,6 +747,12 @@ a {
 }
 
 .sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  z-index: 120;
   padding: 18px 16px;
   border-right: 1px solid var(--stroke);
   box-sizing: border-box;
@@ -822,6 +831,7 @@ a {
 }
 
 .content {
+  margin-left: var(--sidebar-width);
   padding: 20px 24px 32px;
   display: grid;
   gap: 16px;
@@ -844,10 +854,8 @@ a {
 }
 
 .sidebar {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -11307,7 +11315,7 @@ textarea.input {
 /* Responsive */
 @media (max-width: 920px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    --sidebar-width: 0px;
   }
 
   .ui-grid-2,
@@ -11346,6 +11354,7 @@ textarea.input {
   }
 
   .content {
+    margin-left: 0;
     padding: 12px 12px 24px;
   }
 

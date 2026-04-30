@@ -59,6 +59,27 @@ export function pickProviderFailureMessage(providerResponse: unknown): string | 
       stringOrNull((webhookTx as any).status_reason);
     if (webhookMsg) return webhookMsg;
   }
+  const nestedTx =
+    (root?.data && typeof root.data === "object" ? (root.data as any).transaction : null) ||
+    (root?.transaction && typeof root.transaction === "object" ? root.transaction : null);
+  if (nestedTx && typeof nestedTx === "object") {
+    const nestedMsg =
+      stringOrNull((nestedTx as any).status_message) ||
+      stringOrNull((nestedTx as any).statusMessage) ||
+      stringOrNull((nestedTx as any).status_reason) ||
+      stringOrNull((nestedTx as any).message);
+    if (nestedMsg) return nestedMsg;
+  }
+  const rootData = root?.data;
+  if (rootData && typeof rootData === "object") {
+    const rootDataMsg =
+      stringOrNull((rootData as any).status_message) ||
+      stringOrNull((rootData as any).statusMessage) ||
+      stringOrNull((rootData as any).reason) ||
+      stringOrNull((rootData as any).error_message) ||
+      stringOrNull((rootData as any).message);
+    if (rootDataMsg) return rootDataMsg;
+  }
   return null;
 }
 
