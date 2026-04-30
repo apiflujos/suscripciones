@@ -1304,14 +1304,25 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   const paymentNotificationError = paymentNotificationSchedule
     ? firstNotificationDeliveryError(paymentNotificationSchedule)
     : null;
+  const paymentNotificationSummary = {
+    scheduled: Number(
+      (paymentNotificationSchedule as { scheduled?: number } | null | undefined)?.scheduled || 0
+    ),
+    sentNow: Number(
+      (paymentNotificationSchedule as { sentNow?: number } | null | undefined)?.sentNow || 0
+    ),
+    rulesActive: Boolean(
+      (paymentNotificationSchedule as { rulesActive?: boolean } | null | undefined)?.rulesActive
+    )
+  };
   if (paymentNotificationError) {
     await systemLog(LogLevel.WARN, "notifications.payment_status", "Notificación de pago sin entrega inmediata", {
       paymentId: paymentRecord.id,
       status: paymentRecord.status,
       error: paymentNotificationError,
-      notificationsScheduled: paymentNotificationSchedule?.scheduled ?? 0,
-      notificationsSent: paymentNotificationSchedule?.sentNow ?? 0,
-      notificationsRulesActive: paymentNotificationSchedule?.rulesActive ?? false
+      notificationsScheduled: paymentNotificationSummary.scheduled,
+      notificationsSent: paymentNotificationSummary.sentNow,
+      notificationsRulesActive: paymentNotificationSummary.rulesActive
     }, "webhook:wompi").catch((logErr: any) => {
       logger.warn({ err: logErr, paymentId: paymentRecord.id }, "processWompiEvent: fallo escribiendo systemLog de no entrega de notificación");
     });
