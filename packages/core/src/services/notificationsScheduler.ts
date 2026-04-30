@@ -22,6 +22,7 @@ import { subscriptionReminder } from "../jobs/handlers/subscriptionReminder";
 import { classifyReference } from "../webhooks/wompi/classifyReference";
 import { resolveSubscriptionBillingState } from "./billingCycles";
 import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
+import type { NotificationScheduleResult } from "./notificationDelivery";
 
 function toMsSeconds(seconds: number) {
   return seconds * 1000;
@@ -101,9 +102,9 @@ async function enqueueNotificationJob(runAt: Date, payload: NotificationJobPaylo
   });
 }
 
-export async function scheduleSubscriptionDueNotifications(args: { subscriptionId: string; forceNow?: boolean; actor?: string }) {
+export async function scheduleSubscriptionDueNotifications(args: { subscriptionId: string; forceNow?: boolean; actor?: string }): Promise<NotificationScheduleResult> {
   const subscriptionId = String(args.subscriptionId || "").trim();
-  if (!subscriptionId) return { scheduled: 0 };
+  if (!subscriptionId) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] };
 
   const sub = await prisma.subscription.findUnique({
     where: { id: subscriptionId },
@@ -112,16 +113,16 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
       customerId: true
     }
   });
-  if (!sub) return { scheduled: 0 };
+  if (!sub) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] };
 
   const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id });
   const collectionCycle = billingState?.collectionCycle || null;
-  if (!collectionCycle) return { scheduled: 0 };
+  if (!collectionCycle) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] };
 
   const cfg = await getNotificationsConfig();
   const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "SUBSCRIPTION_DUE");
   if (!rules.length) {
-    return { scheduled: 0 };
+    return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] };
   }
 
   const now = new Date();
@@ -181,36 +182,36 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
     logger.warn({ err, subscriptionId: sub.id }, '[Notifications/Schedule] Fallo creando systemLog');
   });
 
-  return { scheduled };
+  return { scheduled, sentNow: 0, rulesActive: rules.length > 0, errors: [] };
 }
 
-export async function schedulePaymentStatusNotifications(args: { paymentId: string; forceNow?: boolean; actor?: string }) {
+export async function schedulePaymentStatusNotifications(args: { paymentId: string; forceNow?: boolean; actor?: string }): Promise<NotificationScheduleResult> {
   const paymentId = String(args.paymentId || "").trim();
-  if (!paymentId) return { scheduled: 0 };
+  if (!paymentId) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] };
 
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
     select: { id: true, customerId: true, subscriptionId: true, status: true, providerResponse: true, reference: true }
   });
-  if (!payment) return { scheduled: 0 };
+  if (!payment) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] };
 
   const paymentsCfg = await getPaymentsConfig().catch(() => null);
   const reconciliationStatus = (() => {
     const resp: any = payment.providerResponse && typeof payment.providerResponse === "object" ? (payment.providerResponse as any) : null;
     return String(resp?.reconciliation?.status || "").toUpperCase();
   })();
-  if (reconciliationStatus === "IGNORED_EXTERNAL") return { scheduled: 0 };
-  if (!payment.subscriptionId && paymentsCfg && paymentsCfg.notifyWhatsappForUnlinkedPayments === false) return { scheduled: 0 };
+  if (reconciliationStatus === "IGNORED_EXTERNAL") return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] };
+  if (!payment.subscriptionId && paymentsCfg && paymentsCfg.notifyWhatsappForUnlinkedPayments === false) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] };
 
   const referenceInfo = classifyReference(payment.reference);
   const isInternalRef = referenceInfo.kind === "subscription" || referenceInfo.kind === "order";
   const isShopifyRef = referenceInfo.kind === "shopify";
-  if (!payment.subscriptionId && !isInternalRef) return { scheduled: 0 };
-  if (isShopifyRef) return { scheduled: 0 };
+  if (!payment.subscriptionId && !isInternalRef) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] };
+  if (isShopifyRef) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] };
 
   const trigger: NotificationTrigger | null =
     payment.status === PaymentStatus.APPROVED ? "PAYMENT_APPROVED" : payment.status === PaymentStatus.DECLINED ? "PAYMENT_DECLINED" : null;
-  if (!trigger) return { scheduled: 0 };
+  if (!trigger) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] };
 
   const cfg = await getNotificationsConfig();
   const billingState = payment.subscriptionId ? await resolveSubscriptionBillingState({ subscriptionId: payment.subscriptionId }).catch(() => null) : null;
@@ -223,7 +224,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
         : "LINK";
   const rules = filterNotificationRules({ rules: cfg.rules, trigger, paymentType });
   if (!rules.length) {
-    return { scheduled: 0 };
+    return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] };
   }
 
   const now = new Date();
@@ -274,7 +275,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
     logger.warn({ err, paymentId }, '[Notifications/Schedule] Fallo creando systemLog');
   });
 
-  return { scheduled };
+  return { scheduled, sentNow: 0, rulesActive: rules.length > 0, errors: [] };
 }
 
 export async function schedulePaymentLinkNotifications(args: { paymentId: string; forceNow?: boolean; actor?: string }) {
