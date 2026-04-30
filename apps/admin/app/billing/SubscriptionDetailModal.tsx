@@ -148,6 +148,7 @@ export function SubscriptionDetailModal({
   const showResume = subscription.status === "SUSPENDED";
   const showActivate = subscription.status === "CANCELED";
   const showCancelSuspend = !showResume && !showActivate;
+  const paymentMethodHref = `/customers/${encodeURIComponent(String(subscription.customerId || ""))}/payment-method?returnTo=${encodeURIComponent(returnTo)}`;
 
   return (
     <>
@@ -484,6 +485,15 @@ export function SubscriptionDetailModal({
                     action={sendWhatsAppTokenizationLink}
                   />
                 )
+              ) : null}
+              {showTokenizationLink ? (
+                <a
+                  className="ghost btn-compact btn-blue contact-action-btn action-card"
+                  href={paymentMethodHref}
+                  title={subscription.customerTokenized ? "Actualizar tarjeta guardada" : "Guardar tarjeta para débito automático"}
+                >
+                  {subscription.customerTokenized ? "Actualizar tarjeta" : "Guardar tarjeta"}
+                </a>
               ) : null}
             </div>
           </div>
