@@ -19,6 +19,18 @@ function toStatusChip(level: string) {
   return { cls: "is-success", label: "Exitoso" };
 }
 
+function resolveLogChip(item: LogItem) {
+  const source = String(item.source || "").trim().toLowerCase();
+  const message = String(item.message || "").trim().toLowerCase();
+  if (
+    source === "notifications.schedule" &&
+    (message.includes("sin entrega") || message.includes("sin programación") || message.includes("sin programacion"))
+  ) {
+    return { cls: "is-warning", label: "Sin entrega" };
+  }
+  return toStatusChip(String(item.level || ""));
+}
+
 export function LogsSystemTable({ items }: { items: LogItem[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
   return (
@@ -45,7 +57,7 @@ export function LogsSystemTable({ items }: { items: LogItem[] }) {
         <tbody>
           {items.map((l, idx) => {
             const id = String(l.id ?? "");
-            const chip = toStatusChip(String(l.level || ""));
+            const chip = resolveLogChip(l);
             const isOpen = Boolean(id) && openId === id;
             const rawMessage = String(l.message || "—");
             const shortMessage = rawMessage.length > 300 ? `${rawMessage.slice(0, 300)}…` : rawMessage;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { hasActiveCustomerPaymentSource } from "@suscripciones/core/lib/customerMetadata";
 import { AppModal } from "../ui/AppModal";
 import { NewCustomerForm } from "../customers/NewCustomerForm";
 import { enterToNextField } from "../lib/enterToNext";
@@ -176,19 +177,7 @@ export function NewBillingAssignmentForm({
   const selectedContactFromEmpresa = selectedEmpresa?.contactoPrincipal || null;
 
   const hasToken = useMemo(() => {
-    const meta = selectedCustomer?.metadata ?? {};
-    const candidates = [
-      meta?.wompi?.paymentSourceId,
-      meta?.wompi?.payment_source_id,
-      meta?.paymentSourceId,
-      meta?.payment_source_id
-    ];
-    const hasPrimary = candidates.some(
-      (v: any) => (typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^\d+$/.test(v))
-    );
-    if (hasPrimary) return true;
-    const sources = meta?.wompi?.paymentSources;
-    return Array.isArray(sources) && sources.length > 0;
+    return hasActiveCustomerPaymentSource(selectedCustomer?.metadata);
   }, [selectedCustomer]);
 
   // Variantes y fechas simplificadas en este flujo.

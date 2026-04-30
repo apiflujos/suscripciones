@@ -336,8 +336,17 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
     }
   }
 
+  const logLevel =
+    args.forceNow
+      ? sentNow > 0
+        ? LogLevel.INFO
+        : LogLevel.WARN
+      : scheduled > 0
+        ? LogLevel.INFO
+        : LogLevel.WARN;
+
   await systemLog(
-    LogLevel.INFO,
+    logLevel,
     "notifications.schedule",
     args.forceNow
       ? sentNow > 0
@@ -352,7 +361,9 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
       paymentId: payment.id,
       customerId: payment.customerId,
       paymentType,
-      scheduled
+      scheduled,
+      sentNow,
+      errorsCount: errors.length
     },
     args.actor || SystemActor.SYSTEM
   ).catch((err) => {
@@ -411,8 +422,17 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
     }
   }
 
+  const logLevel =
+    args.forceNow
+      ? sentNow > 0
+        ? LogLevel.INFO
+        : LogLevel.WARN
+      : scheduled > 0
+        ? LogLevel.INFO
+        : LogLevel.WARN;
+
   await systemLog(
-    LogLevel.INFO,
+    logLevel,
     "notifications.schedule",
     args.forceNow
       ? sentNow > 0
@@ -493,8 +513,17 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
       ? "Notificaciones programadas"
       : "Notificaciones sin programación";
 
+  const logLevel =
+    args.forceNow
+      ? sentNow > 0
+        ? LogLevel.INFO
+        : LogLevel.WARN
+      : scheduled > 0
+        ? LogLevel.INFO
+        : LogLevel.WARN;
+
   await systemLog(
-    LogLevel.INFO,
+    logLevel,
     "notifications.schedule",
     logMessage,
     {

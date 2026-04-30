@@ -108,3 +108,7 @@ export function extractCustomerPaymentSourceId(value: unknown): number | null {
   }
   return null;
 }
+
+export function hasActiveCustomerPaymentSource(value: unknown): boolean {
+  return extractCustomerPaymentSourceId(value) !== null;
+}

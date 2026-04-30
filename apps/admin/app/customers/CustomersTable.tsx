@@ -12,7 +12,7 @@ import {
   renderNotificationTemplatePreview,
   resolveNotificationTemplateForTrigger
 } from "../lib/notificationTemplate";
-import { extractCustomerPaymentSourceId, readCustomerMetadata } from "@suscripciones/core/lib/customerMetadata";
+import { hasActiveCustomerPaymentSource } from "@suscripciones/core/lib/customerMetadata";
 
 function formatCopFromCents(cents: number) {
   const pesos = Math.trunc(Number(cents || 0) / 100);
@@ -132,10 +132,7 @@ export function CustomersTable({
   function hasToken(customer: CustomerRow) {
     const localState = tokenStateByCustomer[String(customer.id)];
     if (typeof localState === "boolean") return localState;
-    const meta = readCustomerMetadata(customer.metadata);
-    if (Number.isFinite(extractCustomerPaymentSourceId(meta))) return true;
-    const sources = meta.wompi?.paymentSources;
-    return Array.isArray(sources) && sources.length > 0;
+    return hasActiveCustomerPaymentSource(customer.metadata);
   }
 
   function initialsFor(customer: CustomerRow) {

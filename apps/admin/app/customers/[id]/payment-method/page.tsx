@@ -5,7 +5,7 @@ import { HelpTip } from "../../../ui/HelpTip";
 import { WompiTokenizeWidget } from "./WompiTokenizeWidget";
 import { getAdminSettings } from "../../../admin/_services/settings";
 import { getCustomerById } from "../../../admin/_services/customers";
-import { extractCustomerPaymentSourceId, readCustomerMetadata } from "@suscripciones/core/lib/customerMetadata";
+import { hasActiveCustomerPaymentSource } from "@suscripciones/core/lib/customerMetadata";
 
 export const dynamic = "force-dynamic";
 
@@ -51,10 +51,7 @@ export default async function CustomerPaymentMethodPage({
   }
 
   const hasToken = (() => {
-    const meta = readCustomerMetadata(customer?.metadata);
-    if (Number.isFinite(extractCustomerPaymentSourceId(meta))) return true;
-    const sources = meta.wompi?.paymentSources;
-    return Array.isArray(sources) && sources.length > 0;
+    return hasActiveCustomerPaymentSource(customer?.metadata);
   })();
 
   return (
