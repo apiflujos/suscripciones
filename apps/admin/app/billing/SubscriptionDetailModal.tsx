@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AppModal } from "../ui/AppModal";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { HelpTip } from "../ui/HelpTip";
@@ -240,6 +241,14 @@ export function SubscriptionDetailModal({
                         <span className="pill pill-sm pill-warn">Sin tarjeta</span>
                       )}
                     </div>
+                  </div>
+                  <div>
+                    <Link
+                      href={`/customers/${encodeURIComponent(String(subscription.customerId || ""))}?returnTo=${encodeURIComponent(returnTo)}`}
+                      className="btn btn-sm"
+                    >
+                      Abrir este contacto
+                    </Link>
                   </div>
                 </div>
               </div>

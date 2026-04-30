@@ -317,6 +317,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
         customerId: payment.customerId,
         ...(payment.subscriptionId ? { subscriptionId: payment.subscriptionId } : {}),
         anchorAt: anchorIso,
+        paymentType,
         ...(args.forceNow ? { immediateSend: true } : {})
       };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
