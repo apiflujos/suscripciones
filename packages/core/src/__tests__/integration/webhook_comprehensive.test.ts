@@ -9,7 +9,7 @@
  *   - Payment link fallback flows
  */
 
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, beforeAll } from "vitest";
 import { PaymentStatus, WebhookProcessStatus, SubscriptionStatus } from "@prisma/client";
 
 // Test timeout configuration
@@ -396,6 +396,13 @@ function approvedTransactionPayload(opts: {
     timestamp: Date.now()
   };
 }
+
+// Pre-load the large processWompiEvent module once to warm the ESM cache
+// before individual tests run their dynamic imports. Without this, the first
+// dynamic import can hit ENOMEM on WSL2 when reading the 1500+ line file.
+beforeAll(async () => {
+  await import("../../jobs/handlers/processWompiEvent");
+});
 
 // ═══════════════════════════════════════════════════
 // TEST #1: Duplicate payment (same transactionId)
