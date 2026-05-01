@@ -5,7 +5,7 @@ import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobSche
 import { BillingCycleStatus, LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
-import { addIntervalUtc, toUtc } from "@suscripciones/core/lib/dates";
+import { addIntervalUtc, getCivilDateAnchorUtc, toUtc } from "@suscripciones/core/lib/dates";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { attachPaymentToCycle, buildSubscriptionBillingStateIndex, computeBillingCycleDueAt, ensureBillingCyclesForSubscription, ensureBillingCyclesForSubscriptions, resolveConfiguredCollectionCycle, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "@suscripciones/core/services/billingCycles";
 import {
@@ -413,6 +413,7 @@ export async function listSubscriptions(args: {
   }
 
   const autoDebitCfg = await getAutoDebitConfig();
+  const billingAsOf = getCivilDateAnchorUtc(new Date());
   const billingStateBySubscription = await buildSubscriptionBillingStateIndex({
     subscriptions: items.map((s: any) => ({
       id: s.id,
@@ -426,6 +427,7 @@ export async function listSubscriptions(args: {
         intervalCount: s.plan.intervalCount
       }
     })),
+    asOf: billingAsOf,
     ensureCycles: false
   });
   const mapped = items.map((s: any) => {

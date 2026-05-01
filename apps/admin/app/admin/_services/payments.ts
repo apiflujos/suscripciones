@@ -5,8 +5,9 @@ import { prisma } from "@suscripciones/database";
 import { reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { logger } from "@suscripciones/core/lib/logger";
-import { ensureBillingCyclesForSubscription, findBestBillingCycleForPayment, resolveConfiguredCollectionCycle } from "@suscripciones/core/services/billingCycles";
+import { ensureBillingCyclesForSubscription, findBestBillingCycleForPayment, resolveConfiguredCollectionCycle, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
 import { getExpectedSubscriptionTotalInCents } from "@suscripciones/core/lib/metadataSchemas";
+import { getCivilDateAnchorUtc } from "@suscripciones/core/lib/dates";
 
 type SuggestedCycle = {
   id: string;
@@ -397,9 +398,21 @@ export async function listSubscriptionBillingCycles(args: { subscriptionId: stri
     }
   });
 
-  const items = rawItems.map((cycle) => {
-    const hasPayment = cycle.paymentId != null;
-    const status = hasPayment || cycle.status === "PAID" ? "PAID" : String(cycle.status || "PENDING").toUpperCase();
+  const billingState = await resolveSubscriptionBillingState({
+    subscriptionId,
+    asOf: getCivilDateAnchorUtc(new Date())
+  }).catch(() => null);
+  const activeCycleNumber = billingState?.activeCycle?.cycleNumber ?? null;
+  const collectionCycleNumber = billingState?.collectionCycle?.cycleNumber ?? null;
+  const visibleCycleNumbers = new Set<number>();
+  if (typeof activeCycleNumber === "number") visibleCycleNumbers.add(activeCycleNumber);
+  if (typeof collectionCycleNumber === "number") visibleCycleNumbers.add(collectionCycleNumber);
+  if (visibleCycleNumbers.size === 1 && typeof activeCycleNumber === "number" && activeCycleNumber > 1) {
+    visibleCycleNumbers.add(activeCycleNumber - 1);
+  }
+
+  const mapped = rawItems.map((cycle) => {
+    const status = String(cycle.status || "PENDING").toUpperCase();
 
     return {
       ...cycle,
@@ -415,6 +428,10 @@ export async function listSubscriptionBillingCycles(args: { subscriptionId: stri
       } : null
     };
   });
+
+  const items = visibleCycleNumbers.size
+    ? mapped.filter((cycle) => visibleCycleNumbers.has(Number(cycle.cycleNumber || 0)))
+    : mapped;
 
   return { ok: true as const, items };
 }

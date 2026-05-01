@@ -72,3 +72,22 @@ export function formatDateTimeEs(date: Date, timeZone: string = "America/Bogota"
     return date.toISOString();
   }
 }
+
+export function getCivilDateKey(date: Date, timeZone: string = process.env.APP_TIMEZONE || "America/Bogota") {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value || "0000";
+  const month = parts.find((part) => part.type === "month")?.value || "01";
+  const day = parts.find((part) => part.type === "day")?.value || "01";
+  return `${year}-${month}-${day}`;
+}
+
+export function getCivilDateAnchorUtc(date: Date, timeZone: string = process.env.APP_TIMEZONE || "America/Bogota") {
+  const key = getCivilDateKey(date, timeZone);
+  const [year, month, day] = key.split("-").map((part) => Number(part));
+  return new Date(Date.UTC(year, (month || 1) - 1, day || 1, 12, 0, 0, 0));
+}

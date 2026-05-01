@@ -17,6 +17,7 @@ import { resolveTenantId } from "../admin/_services/tenantResolver";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { getCsrfToken } from "../lib/csrf";
 import { type PlanOption } from "./ChangePlanButton";
+import { getCivilDateAnchorUtc, getCivilDateKey } from "@suscripciones/core/lib/dates";
 import { SubscriptionEditModal } from "./SubscriptionEditModal";
 import { PaymentHistoryButton } from "./PaymentHistoryButton";
 import { PaymentCyclesModal } from "./PaymentCyclesModal";
@@ -109,16 +110,20 @@ function getCollectionStatusLabel(args: {
   dueAt: any;
   graceDays?: number;
   collectionCyclePaid?: boolean;
-  nowTs?: number;
+  nowDate?: Date;
 }) {
   if (args.collectionCyclePaid) return "Al día";
   const status = String(args.status || "").toUpperCase();
-  const dueAtTs = args.dueAt ? new Date(args.dueAt).getTime() : NaN;
   const graceDays = Number.isFinite(Number(args.graceDays)) ? Math.max(0, Math.trunc(Number(args.graceDays))) : 5;
-  const nowTs = Number.isFinite(args.nowTs as number) ? Number(args.nowTs) : Date.now();
-  if (!Number.isFinite(dueAtTs)) return status === "PAST_DUE" || status === "EXPIRED" ? "En mora" : "Al día";
-  if (nowTs <= dueAtTs) return "Al día";
-  const daysLate = Math.ceil((nowTs - dueAtTs) / (24 * 60 * 60 * 1000));
+  const dueAt = args.dueAt ? new Date(args.dueAt) : null;
+  const nowDate = args.nowDate instanceof Date ? args.nowDate : getCivilDateAnchorUtc(new Date());
+  if (!dueAt || Number.isNaN(dueAt.getTime())) return status === "PAST_DUE" || status === "EXPIRED" ? "En mora" : "Al día";
+  const dueKey = getCivilDateKey(dueAt);
+  const nowKey = getCivilDateKey(nowDate);
+  if (nowKey <= dueKey) return "Al día";
+  const dueAnchor = getCivilDateAnchorUtc(dueAt);
+  const nowAnchor = getCivilDateAnchorUtc(nowDate);
+  const daysLate = Math.ceil((nowAnchor.getTime() - dueAnchor.getTime()) / (24 * 60 * 60 * 1000));
   if (daysLate <= graceDays) return "En gracia";
   return "En mora";
 }
@@ -303,7 +308,7 @@ export default async function BillingPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const renderNowTs = Date.now();
+  const renderNowDate = getCivilDateAnchorUtc(new Date());
   const csrfToken = await getCsrfToken();
   const sp = (await searchParams) ?? {};
 
@@ -468,15 +473,18 @@ export default async function BillingPage({
       const dueAtDate = s.nextBillingDate ? new Date(s.nextBillingDate) : null;
       const collectionCyclePaid = typeof s?.collectionCyclePaid === "boolean" ? s.collectionCyclePaid : false;
       const dueAt = dueAtDate ? dueAtDate.getTime() : null;
-      const nowTs = renderNowTs;
-      const daysLate = collectionCyclePaid || !dueAt || nowTs <= dueAt ? 0 : Math.ceil((nowTs - dueAt) / (24 * 60 * 60 * 1000));
+      const nowTs = renderNowDate.getTime();
+      const daysLate =
+        collectionCyclePaid || !dueAtDate || getCivilDateKey(renderNowDate) <= getCivilDateKey(dueAtDate)
+          ? 0
+          : Math.ceil((getCivilDateAnchorUtc(renderNowDate).getTime() - getCivilDateAnchorUtc(dueAtDate).getTime()) / (24 * 60 * 60 * 1000));
       const graceDays = Number(s.graceDays || 5);
       const paymentCollectionState = getCollectionStatusLabel({
         status: String(s.status || ""),
         dueAt: dueAtDate ? dueAtDate.toISOString() : null,
         graceDays,
         collectionCyclePaid,
-        nowTs: renderNowTs
+        nowDate: renderNowDate
       });
       const inGrace = paymentCollectionState === "En gracia";
       const inArrears = paymentCollectionState === "En mora";
