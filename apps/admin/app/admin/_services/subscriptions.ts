@@ -27,7 +27,6 @@ const DEFAULT_SUBSCRIPTION_PAYMENT_TIMING: "EN_CURSO" | "ANTICIPADO" = "EN_CURSO
 
 function isBillingCyclePaid(cycle: { status?: unknown; paymentId?: unknown } | null | undefined) {
   if (!cycle) return false;
-  if (cycle.paymentId) return true;
   return String(cycle.status || "").toUpperCase() === "PAID";
 }
 

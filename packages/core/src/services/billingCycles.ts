@@ -237,7 +237,7 @@ export function resolveConfiguredCollectionCycle(args: {
 
 export function isBillingCyclePaid(cycle: { status?: BillingCycleStatus | string | null; paymentId?: string | null } | null | undefined) {
   if (!cycle) return false;
-  return Boolean(cycle.paymentId) || String(cycle.status || "").toUpperCase() === BillingCycleStatus.PAID;
+  return String(cycle.status || "").toUpperCase() === BillingCycleStatus.PAID;
 }
 
 export function resolveCollectionDelinquency(args: {
