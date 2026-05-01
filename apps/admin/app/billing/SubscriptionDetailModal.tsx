@@ -539,12 +539,14 @@ export function SubscriptionDetailModal({
         />
       )}
       <PaymentHistoryButton
+        key={`history-${subscription.id}`}
         subscriptionId={subscription.id}
         tenantId={tenantId}
         forceOpen={historyOpen}
         onOpenChange={setHistoryOpen}
       />
       <PaymentCyclesModal
+        key={`cycles-${subscription.id}`}
         subscriptionId={subscription.id}
         csrfToken={csrfToken}
         returnTo={returnTo}

@@ -149,6 +149,7 @@ export function SubscriptionDetailModalWrapper({
       )}
       {open && (
         <SubscriptionDetailModal
+          key={subscription.id}
           subscription={subscription}
           csrfToken={csrfToken}
           returnTo={returnTo}
