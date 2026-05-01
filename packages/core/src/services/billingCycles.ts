@@ -229,6 +229,17 @@ export function resolveConfiguredCollectionCycle(args: {
     return nextFuture || current || unpaid[0];
   }
 
+  // EN_CURSO: si hay ciclos cuyo dueAt ya pasó (mora), retornar el más antiguo.
+  // Esto garantiza que un ciclo vencido de un período anterior tenga máxima prioridad
+  // sobre el ciclo del período actual, aunque éste ya haya comenzado.
+  const overdue = unpaid.filter((cycle) => {
+    const dueTs = cycle.dueAt
+      ? new Date(cycle.dueAt).getTime()
+      : new Date(cycle.periodEndAt).getTime();
+    return dueTs < asOfTs;
+  });
+  if (overdue.length > 0) return overdue[0];
+
   const latestOpen = [...unpaid]
     .filter((cycle) => new Date(cycle.periodStartAt).getTime() <= asOfTs)
     .sort((a, b) => new Date(b.periodStartAt).getTime() - new Date(a.periodStartAt).getTime())[0];

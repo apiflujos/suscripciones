@@ -407,7 +407,12 @@ export async function listSubscriptionBillingCycles(args: { subscriptionId: stri
   const visibleCycleNumbers = new Set<number>();
   if (typeof activeCycleNumber === "number") visibleCycleNumbers.add(activeCycleNumber);
   if (typeof collectionCycleNumber === "number") visibleCycleNumbers.add(collectionCycleNumber);
-  if (visibleCycleNumbers.size === 1 && typeof activeCycleNumber === "number" && activeCycleNumber > 1) {
+  // Always show one cycle before the collection cycle for history context (e.g., last paid cycle)
+  if (typeof collectionCycleNumber === "number" && collectionCycleNumber > 1) {
+    visibleCycleNumbers.add(collectionCycleNumber - 1);
+  }
+  // Also one before active if not already covered
+  if (typeof activeCycleNumber === "number" && activeCycleNumber > 1) {
     visibleCycleNumbers.add(activeCycleNumber - 1);
   }
 
