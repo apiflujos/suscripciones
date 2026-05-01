@@ -9,8 +9,10 @@
  *   - Payment link fallback flows
  */
 
-import { describe, expect, it, vi, beforeEach, beforeAll } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { PaymentStatus, WebhookProcessStatus, SubscriptionStatus } from "@prisma/client";
+import { processWompiEventLogic } from "../../jobs/handlers/processWompiEvent";
+import { phonesMatch } from "../../jobs/handlers/processWompiEvent/resolveAssociation";
 
 // Test timeout configuration
 vi.setConfig({ testTimeout: 15000 });
@@ -397,13 +399,6 @@ function approvedTransactionPayload(opts: {
   };
 }
 
-// Pre-load the large processWompiEvent module once to warm the ESM cache
-// before individual tests run their dynamic imports. Without this, the first
-// dynamic import can hit ENOMEM on WSL2 when reading the 1500+ line file.
-beforeAll(async () => {
-  await import("../../jobs/handlers/processWompiEvent");
-});
-
 // ═══════════════════════════════════════════════════
 // TEST #1: Duplicate payment (same transactionId)
 // ═══════════════════════════════════════════════════
@@ -421,7 +416,7 @@ describe("Webhook: Duplicate Payment (same transactionId)", () => {
     createWebhookEvent(store, "evt-1", payload);
 
     // Import and run
-    const { processWompiEventLogic } = await import("../../jobs/handlers/processWompiEvent");
+    // processWompiEventLogic is statically imported at the top of this file
     await processWompiEventLogic("evt-1", db);
 
     // Count payments
@@ -468,7 +463,7 @@ describe("Webhook: Late Payment (pays several cycles behind)", () => {
     });
     createWebhookEvent(store, "evt-late", payload);
 
-    const { processWompiEventLogic } = await import("../../jobs/handlers/processWompiEvent");
+    // processWompiEventLogic is statically imported at the top of this file
     await processWompiEventLogic("evt-late", db);
 
     // Verify payment was created
@@ -514,7 +509,7 @@ describe("Webhook: Early Payment (pays before due date)", () => {
     };
     createWebhookEvent(store, "evt-early", payload);
 
-    const { processWompiEventLogic } = await import("../../jobs/handlers/processWompiEvent");
+    // processWompiEventLogic is statically imported at the top of this file
     await processWompiEventLogic("evt-early", db);
 
     expect(store.webhookEvent["evt-early"].processStatus).toBe(WebhookProcessStatus.PROCESSED);
@@ -577,7 +572,7 @@ describe("Auto-debit: Customer without email", () => {
     };
     createWebhookEvent(store, "evt-noemail", payload);
 
-    const { processWompiEventLogic } = await import("../../jobs/handlers/processWompiEvent");
+    // processWompiEventLogic is statically imported at the top of this file
 
     // Should NOT throw — it should handle gracefully
     await expect(processWompiEventLogic("evt-noemail", db)).resolves.not.toThrow();
@@ -673,7 +668,7 @@ describe("Payment: Link created and paid", () => {
     };
     createWebhookEvent(store, "evt-link-paid", payload);
 
-    const { processWompiEventLogic } = await import("../../jobs/handlers/processWompiEvent");
+    // processWompiEventLogic is statically imported at the top of this file
     await processWompiEventLogic("evt-link-paid", db);
 
     expect(store.webhookEvent["evt-link-paid"].processStatus).toBe(WebhookProcessStatus.PROCESSED);
@@ -739,7 +734,7 @@ describe("Worker: Multiple workers processing same job", () => {
     });
     createWebhookEvent(store, "evt-race", payload);
 
-    const { processWompiEventLogic } = await import("../../jobs/handlers/processWompiEvent");
+    // processWompiEventLogic is statically imported at the top of this file
 
     // Simulate two workers processing the same event concurrently
     const [result1, result2] = await Promise.allSettled([
@@ -806,7 +801,7 @@ describe("Webhook: Identity match by name + amount", () => {
     };
     createWebhookEvent(store, "evt-named", payload);
 
-    const { processWompiEventLogic } = await import("../../jobs/handlers/processWompiEvent");
+    // processWompiEventLogic is statically imported at the top of this file
 
     // The event should process without throwing
     await expect(processWompiEventLogic("evt-named", db)).resolves.not.toThrow();
@@ -843,7 +838,7 @@ describe("Webhook: DECLINED payment", () => {
     };
     createWebhookEvent(store, "evt-declined", payload);
 
-    const { processWompiEventLogic } = await import("../../jobs/handlers/processWompiEvent");
+    // processWompiEventLogic is statically imported at the top of this file
     await processWompiEventLogic("evt-declined", db);
 
     expect(store.webhookEvent["evt-declined"].processStatus).toBe(WebhookProcessStatus.PROCESSED);
@@ -872,7 +867,7 @@ describe("Webhook: Subscription status transitions", () => {
     });
     createWebhookEvent(store, "evt-restore", payload);
 
-    const { processWompiEventLogic } = await import("../../jobs/handlers/processWompiEvent");
+    // processWompiEventLogic is statically imported at the top of this file
     await processWompiEventLogic("evt-restore", db);
 
     expect(store.webhookEvent["evt-restore"].processStatus).toBe(WebhookProcessStatus.PROCESSED);
@@ -966,7 +961,7 @@ describe("Retry Job: ensurePaymentRetryJob deduplication", () => {
 // ═══════════════════════════════════════════════════
 describe("Phone matching: normalization", () => {
   it("should match phone numbers with different formats", async () => {
-    const { phonesMatch } = await import("../../jobs/handlers/processWompiEvent/resolveAssociation");
+    // phonesMatch is statically imported at the top of this file
 
     expect(phonesMatch("+57 300 123 4567", "3001234567")).toBe(true);
     expect(phonesMatch("573001234567", "3001234567")).toBe(true);
