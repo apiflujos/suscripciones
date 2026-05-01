@@ -212,7 +212,7 @@ describe("notificationsScheduler", () => {
     expect(result.sentNow).toBe(0);
     expect(result.errors).toEqual(["chatwoot_send_failed"]);
     expect(systemLog).toHaveBeenCalledWith(
-      "INFO",
+      "WARN",
       "notifications.schedule",
       "Notificaciones sin entrega",
       expect.objectContaining({

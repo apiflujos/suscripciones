@@ -20,7 +20,8 @@ vi.mock("@suscripciones/core/lib/logger", () => ({
 vi.mock("@suscripciones/core/services/billingCycles", () => ({
   ensureBillingCyclesForSubscription: vi.fn(() => Promise.resolve()),
   findBestBillingCycleForPayment: vi.fn(() => null),
-  resolveConfiguredCollectionCycle: vi.fn(() => null)
+  resolveConfiguredCollectionCycle: vi.fn(() => null),
+  resolveSubscriptionBillingState: vi.fn(() => Promise.resolve(null))
 }));
 
 describe("payments admin service", () => {
