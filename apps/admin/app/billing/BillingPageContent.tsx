@@ -1,7 +1,6 @@
 import { activateSubscription, cancelSubscription, deleteSubscription, mergeDuplicateSubscriptions, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
-import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, sendWhatsAppPaymentLink, sendWhatsAppTokenizationLink, updateSubscriptionTenants, updateSubscriptionBillingSettings, markSubscriptionPaidManual, unmarkSubscriptionPaidManual, setBillingChargeDate } from "./actions";
+import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, sendWhatsAppPaymentLink, sendWhatsAppTokenizationLink, updateSubscriptionTenants, updateSubscriptionBillingSettings, markSubscriptionPaidManual, unmarkSubscriptionPaidManual } from "./actions";
 import { ChargeStatusModal } from "./ChargeStatusModal";
-import { BillingModals } from "./BillingModals";
 import { listSubscriptions } from "../admin/_services/subscriptions";
 import { listCustomers } from "../admin/_services/customers";
 import { listCatalogProducts } from "../admin/_services/products";
@@ -13,23 +12,18 @@ import { resolveTenantId } from "../admin/_services/tenantResolver";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { getCsrfToken } from "../lib/csrf";
 import { type PlanOption } from "./ChangePlanButton";
-import { getCivilDateAnchorUtc, getCivilDateKey } from "@suscripciones/core/lib/dates";
+import { getCivilDateAnchorUtc } from "@suscripciones/core/lib/dates";
 import { SubscriptionDetailModal } from "./SubscriptionDetailModal";
-import { SmartViewsBar } from "../smart-views/SmartViewsBar";
-import { FilterButton } from "../ui/FilterButton";
-import { ListCsvActions } from "../ui/ListCsvActions";
-import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
-import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
-import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
-import { PageToolbar } from "../ui/PageToolbar";
+import { resolveSmartViewIds, parseFiltersParam } from "@suscripciones/core/services/smartViews";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { MISSING_WHATSAPP_TEMPLATE_MESSAGE } from "../lib/notificationTemplate";
 import { BillingCard } from "./BillingCard";
+import { BillingHeader } from "./BillingHeader";
 import { BillingViewCards } from "./BillingViewCards";
 import { BillingViewKanban } from "./BillingViewKanban";
 import { BillingViewLista } from "./BillingViewLista";
-import { extractTemplateProductId, fmtEvery, fmtMoney, formatLongCivilDate, formatPlanTitle, getActivo, getCollectionStatusLabel, getEstado, getTipo, getTipoPago, hasUsablePaymentSource, normalizeImageUrl, readPlanPricing, splitPlanDisplay, splitProductDisplay, subscriptionRank, templateMatchesProduct, templateMatchesTenant } from "./billingDisplayHelpers";
+import { createBillingCardHelpers, buildBillingRows } from "./billingPageModel";
 import type { BillingCardContext, BillingPageContentProps, BillingRow, TenantOption } from "./billingTypes";
 
 export async function BillingPageContent({
@@ -141,7 +135,6 @@ export async function BillingPageContent({
   const productById = new Map(productItems.map((p: any) => [String(p.id), p]));
   const tenants = (tenantsRes ?? []) as TenantOption[];
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
-  const autoDebitSettings = settings?.autoDebit || {};
   const checkoutConfig = settings?.checkoutConfig || {};
   const notificationsTemplates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
   const notificationsRules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
@@ -168,209 +161,28 @@ export async function BillingPageContent({
     };
   });
 
-  const rows: BillingRow[] = subItems
-    .map((s) => {
-      const plan = s.plan;
-      const customer = (s.customer as any) || {};
-      const customerMeta = (customer?.metadata ?? {}) as any;
-      const collectionMode = String(s?.collectionModeResolved || "").trim().toUpperCase() || resolveSubscriptionCollectionMode({ metadata: s?.metadata, plan });
-      const tipoTx = getTipo(collectionMode);
-      const activo = getActivo(s.status);
-      const estadoInfo = getEstado(s.status);
-      const ident =
-        customerMeta?.identificacion ||
-        customerMeta?.identificationNumber ||
-        customerMeta?.documentNumber ||
-        customerMeta?.document ||
-        "";
+  const rows = buildBillingRows({
+    subItems,
+    productById,
+    tenantById,
+    renderNowDate,
+    q,
+    tipo,
+    estado,
+    ordenar
+  });
 
-      const tenantIds = Array.isArray(s.tenantIds) && s.tenantIds.length ? s.tenantIds : [s.tenantId || plan?.tenantId].filter(Boolean);
-      const tenantNameList = tenantIds.map((id: string) => tenantById.get(String(id))).filter(Boolean) as string[];
-      const subscriptionPricing = readPlanPricing((s?.metadata as any) ?? {});
-      const planPricing = readPlanPricing((plan?.metadata as any) ?? {});
-      const resolvedProductId = String((s as any)?.productId || (plan as any)?.catalogProductId || (plan?.metadata as any)?.catalog?.itemId || "");
-      const catalogProduct = productById.get(resolvedProductId);
-      const totalInCents = Number(subscriptionPricing?.totalInCents || plan?.priceInCents || 0);
-      const shippingInCents = Number(subscriptionPricing?.shippingInCents ?? planPricing?.shippingInCents ?? 0);
-      const requiresShipping =
-        String(catalogProduct?.kind || "PRODUCT").toUpperCase() !== "SERVICE" &&
-        (catalogProduct?.requiresShipping !== false);
-      const shippingAppliedInCents = requiresShipping ? Math.max(0, shippingInCents) : 0;
-      const baseValueInCents = Math.max(0, totalInCents - shippingAppliedInCents);
-      const dueAtDate = s.nextBillingDate ? new Date(s.nextBillingDate) : null;
-      const collectionCyclePaid = typeof s?.collectionCyclePaid === "boolean" ? s.collectionCyclePaid : false;
-      const dueAt = dueAtDate ? dueAtDate.getTime() : null;
-      const nowTs = renderNowDate.getTime();
-      const daysLate =
-        collectionCyclePaid || !dueAtDate || getCivilDateKey(renderNowDate) <= getCivilDateKey(dueAtDate)
-          ? 0
-          : Math.ceil((getCivilDateAnchorUtc(renderNowDate).getTime() - getCivilDateAnchorUtc(dueAtDate).getTime()) / (24 * 60 * 60 * 1000));
-      const graceDays = Number(s.graceDays || 5);
-      const paymentCollectionState = getCollectionStatusLabel({
-        status: String(s.status || ""),
-        dueAt: dueAtDate ? dueAtDate.toISOString() : null,
-        graceDays,
-        collectionCyclePaid,
-        nowDate: renderNowDate
-      });
-      const inGrace = paymentCollectionState === "En gracia";
-      const inArrears = paymentCollectionState === "En mora";
-      return {
-        id: String(s.id),
-        planId: String(plan?.id || ""),
-        intervalUnit: String(plan?.intervalUnit || "MONTH"),
-        intervalCount: Number(plan?.intervalCount || 1),
-        planIntervalUnit: String(plan?.intervalUnit || "MONTH"),
-        planIntervalCount: Number(plan?.intervalCount || 1),
-        tenantId: String(s.tenantId || plan?.tenantId || ""),
-        productId: resolvedProductId,
-        productName: String((s as any)?.productName || catalogProduct?.name || formatPlanTitle(plan) || "Producto"),
-        tenantIds,
-        customerId: String(s.customerId || ""),
-        customerName: String(customer?.name || customer?.email || s.customerId || "—"),
-        customerEmail: String(customer?.email || ""),
-        customerPhone: String(customer?.phone || customerMeta?.phone || customerMeta?.telefono || ""),
-        customerTokenized: typeof s?.customerTokenized === "boolean" ? s.customerTokenized : hasUsablePaymentSource(customerMeta),
-        customerMetadata: customerMeta || {},
-        identificacion: String(ident || "—"),
-        tipoTx,
-        tipoPago: getTipoPago(collectionMode),
-        activo,
-        status: String(s.status || "—"),
-        estadoInfo,
-        planName: formatPlanTitle(plan),
-        planImageUrl: normalizeImageUrl((plan?.metadata as any)?.imageUrl || (catalogProduct?.imageUrl ?? "")),
-        montoInCents: totalInCents,
-        valorBaseInCents: baseValueInCents,
-        totalInCents,
-        moneda: String(plan?.currency || "COP"),
-        cada: fmtEvery(plan?.intervalUnit, plan?.intervalCount),
-        pagoAt: s.lastPayment?.paidAt || null,
-        pagoTxId: s.lastPayment?.wompiTransactionId || null,
-        pagoMonto: s.lastPayment?.amountInCents || null,
-        lastPaymentLink: s.lastPaymentLink || null,
-        vencimientoAt: dueAtDate ? dueAtDate.toISOString() : null,
-        periodoInicioAt: s.activeCycleStartAt || null,
-        periodoFinAt: s.activeCycleEndAt || null,
-        cycleStartDay: Number(s.cycleStartDay || 1),
-        paymentDay: Number(s.paymentDay || 1),
-        paymentTiming: String(s.paymentTiming || "EN_CURSO"),
-        graceDays: Number(s.graceDays || 5),
-        daysLate,
-        inGrace,
-        inArrears,
-        nextRetryAt: s.nextRetryJob?.runAt || (s.metadata as any)?.manualRetry?.nextRetryAt || (s.metadata as any)?.autoRetry?.nextRetryAt || null,
-        mode: collectionMode,
-        canManualCharge: typeof s?.canManualCharge === "boolean" ? s.canManualCharge : undefined,
-        canManualMarkPaid: typeof s?.canManualMarkPaid === "boolean" ? s.canManualMarkPaid : undefined,
-        manualChargeEnabled: typeof s?.manualChargeEnabled === "boolean" ? s.manualChargeEnabled : undefined,
-        manualMarkPaidEnabled: typeof s?.manualMarkPaidEnabled === "boolean" ? s.manualMarkPaidEnabled : undefined,
-        chargeDue: typeof s?.chargeDue === "boolean" ? s.chargeDue : undefined,
-        lastPaidInCurrentPeriod: typeof s?.lastPaidInCurrentPeriod === "boolean" ? s.lastPaidInCurrentPeriod : false,
-        collectionCyclePaid,
-        tenantName: tenantNameList.length ? tenantNameList.join(", ") : "—",
-        currentShippingInCents: shippingAppliedInCents,
-        currentRequiresShipping: requiresShipping
-      };
-    })
-    .filter((r) => {
-      if (tipo === "planes" && r.tipoTx !== "Link de pago") return false;
-      if (tipo === "suscripciones" && r.tipoTx !== "Débito automático") return false;
-      if (estado === "si" && r.estadoInfo.key !== "si") return false;
-      if (estado === "no" && r.estadoInfo.key !== "no") return false;
-      if (estado === "mora" && r.estadoInfo.key !== "mora") return false;
-      if (q) {
-        const t = q.toLowerCase();
-        const hay =
-          r.customerName.toLowerCase().includes(t) ||
-          r.customerEmail.toLowerCase().includes(t) ||
-          String(r.identificacion || "").toLowerCase().includes(t);
-        if (!hay) return false;
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      if (ordenar === "pago") {
-        const ad = a.pagoAt ? new Date(a.pagoAt).getTime() : 0;
-        const bd = b.pagoAt ? new Date(b.pagoAt).getTime() : 0;
-        return bd - ad;
-      }
-      if (ordenar === "monto") return (b.montoInCents || 0) - (a.montoInCents || 0);
-      const ad = a.vencimientoAt ? new Date(a.vencimientoAt).getTime() : Number.POSITIVE_INFINITY;
-      const bd = b.vencimientoAt ? new Date(b.vencimientoAt).getTime() : Number.POSITIVE_INFINITY;
-      return ad - bd;
-    });
-
-  const findCheckoutTemplateForRow = (kind: "PLAN" | "SUBSCRIPTION", row: any) => {
-    const tenantId = String(row?.tenantId || "").trim();
-    const productId = String(row?.productId || "").trim();
-    const candidates = checkoutTemplates.filter((template: any) => {
-      return Boolean(template?.active) && String(template?.kind || "") === kind && templateMatchesTenant(template, tenantId);
-    });
-    if (productId) {
-      const exactTenantMatch =
-        candidates.find((template: any) => String(template?.tenantId || "").trim() === tenantId && templateMatchesProduct(template, productId)) || null;
-      if (exactTenantMatch) return exactTenantMatch;
-      const productMatch = candidates.find((template: any) => templateMatchesProduct(template, productId)) || null;
-      if (productMatch) return productMatch;
-    }
-    const defaultTemplateId =
-      kind === "PLAN"
-        ? String(checkoutConfig?.defaultPlanTemplateId || "").trim()
-        : String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim();
-    if (!defaultTemplateId) return null;
-    const exactDefault =
-      candidates.find((template: any) => String(template?.tenantId || "").trim() === tenantId && String(template?.id || "").trim() === defaultTemplateId) || null;
-    if (exactDefault) return exactDefault;
-    return candidates.find((template: any) => String(template?.id || "").trim() === defaultTemplateId) || null;
-  };
-
-  const getPaymentLinkBlockedReason = (row: any) => {
-    if (!findCheckoutTemplateForRow("PLAN", row)) return "No hay checkout público de link de pago asociado al producto de esta suscripción.";
-    if (!planBaseUrl) return "Falta configurar la URL base de link de pago en Checkout público.";
-    return "";
-  };
-
-  const getTokenizationBlockedReason = (row: any) => {
-    if (!findCheckoutTemplateForRow("SUBSCRIPTION", row)) return "No hay checkout público de débito automático asociado al producto de esta suscripción.";
-    if (!subscriptionBaseUrl) return "Falta configurar la URL base de suscripción en Checkout público.";
-    return "";
-  };
-
-  const resolveDuplicateKey = (row: any) => {
-    const customerId = String(row?.customerId || "").trim();
-    const productOrPlanId = String(row?.productId || row?.planId || "").trim();
-    if (!customerId || !productOrPlanId) return "";
-    return `${customerId}:${productOrPlanId}`;
-  };
-
-  const duplicateCountByKey = rows.reduce((acc, row) => {
-    const key = resolveDuplicateKey(row);
-    if (!key) return acc;
-    acc.set(key, (acc.get(key) || 0) + 1);
-    return acc;
-  }, new Map<string, number>());
-  const duplicateKeepByKey = rows.reduce((acc, row) => {
-    const key = resolveDuplicateKey(row);
-    if (!key) return acc;
-    const prev = acc.get(key);
-    if (!prev) {
-      acc.set(key, row);
-      return acc;
-    }
-    const prevRank = subscriptionRank(prev.status);
-    const currRank = subscriptionRank(row.status);
-    if (currRank < prevRank) {
-      acc.set(key, row);
-      return acc;
-    }
-    if (currRank === prevRank) {
-      const prevCutoff = prev.vencimientoAt ? new Date(prev.vencimientoAt).getTime() : 0;
-      const currCutoff = row.vencimientoAt ? new Date(row.vencimientoAt).getTime() : 0;
-      if (currCutoff >= prevCutoff) acc.set(key, row);
-    }
-    return acc;
-  }, new Map<string, BillingRow>());
+  const helperSet = createBillingCardHelpers({
+    rows,
+    checkoutTemplates,
+    checkoutConfig,
+    planBaseUrl,
+    subscriptionBaseUrl,
+    renderNowDate,
+    actionSubscriptionId,
+    checkoutCustomerId,
+    checkoutUrl
+  });
 
   const paginationBase = {
     ...(tenantId ? { tenantId } : {}),
@@ -381,29 +193,6 @@ export async function BillingPageContent({
     ...(vista ? { vista } : {}),
     ...(viewId ? { viewId } : {}),
     ...(filters ? { filters } : {})
-  };
-
-  const resolveRowTokenUrl = (r: any, transientUrl = "") => {
-    const tokenMeta = (r.customerMetadata?.tokenizationLink as any) || {};
-    const tokenMetaUrl = String(tokenMeta?.url || "").trim();
-    const tokenMetaUsedAt = tokenMeta?.usedAt ? Date.parse(String(tokenMeta.usedAt)) : NaN;
-    const tokenMetaExpiresAt = tokenMeta?.expiresAt ? Date.parse(String(tokenMeta.expiresAt)) : NaN;
-    const now = renderNowDate.getTime();
-    const tokenMetaValid =
-      Boolean(tokenMetaUrl) &&
-      !Number.isFinite(tokenMetaUsedAt) &&
-      (!Number.isFinite(tokenMetaExpiresAt) || tokenMetaExpiresAt > now);
-    return transientUrl || (tokenMetaValid ? tokenMetaUrl : "");
-  };
-
-  const matchesTransientSubscription = (r: any) => {
-    if (actionSubscriptionId) return actionSubscriptionId === r.id;
-    return Boolean(checkoutCustomerId && checkoutCustomerId === r.customerId);
-  };
-
-  const resolveRowCheckoutUrl = (r: any) => {
-    if (!checkoutUrl) return "";
-    return matchesTransientSubscription(r) ? checkoutUrl : "";
   };
 
   const cardContext: BillingCardContext = {
@@ -444,15 +233,7 @@ export async function BillingPageContent({
       activateSubscription
     },
     helpers: {
-      findCheckoutTemplateForRow,
-      getPaymentLinkBlockedReason,
-      getTokenizationBlockedReason,
-      resolveDuplicateKey,
-      resolveRowTokenUrl,
-      resolveRowCheckoutUrl,
-      matchesTransientSubscription,
-      duplicateCountByKey,
-      duplicateKeepByKey
+      ...helperSet
     }
   };
 
@@ -500,96 +281,34 @@ export async function BillingPageContent({
       ) : null}
 
       <section className="settings-group">
-        <PageToolbar
-          className="compact"
-          search={(
-            <form action="/billing" method="GET" className="filtersForm filtersSearch">
-              {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-              {tipo ? <input type="hidden" name="tipo" value={tipo} /> : null}
-              {estado ? <input type="hidden" name="estado" value={estado} /> : null}
-              {ordenar ? <input type="hidden" name="ordenar" value={ordenar} /> : null}
-              {vista ? <input type="hidden" name="vista" value={vista} /> : null}
-              {viewId ? <input type="hidden" name="viewId" value={viewId} /> : null}
-              {filters ? <input type="hidden" name="filters" value={filters} /> : null}
-              <input
-                className="input"
-                type="search"
-                name="q"
-                defaultValue={q}
-                placeholder="Buscar por contacto, email o identificación..."
-                aria-label="Buscar suscripciones"
-              />
-              <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-            </form>
-          )}
-          searchActions={(
-            <FilterButton
-              scope="billing"
-              baseParams={{
-                ...(tenantId ? { tenantId } : {}),
-                ...(q ? { q } : {}),
-                ...(tipo ? { tipo } : {}),
-                ...(estado ? { estado } : {}),
-                ...(ordenar ? { ordenar } : {})
-              }}
-              initialFields={getSmartViewFields("billing")}
-            />
-          )}
-          smartViews={(
-            <SmartViewsBar
-              scope="billing"
-              initialViewId={viewId}
-              initialFilters={filters}
-              baseParams={{
-                ...(tenantId ? { tenantId } : {}),
-                ...(q ? { q } : {}),
-                ...(tipo ? { tipo } : {}),
-                ...(estado ? { estado } : {}),
-                ...(ordenar ? { ordenar } : {})
-              }}
-              initialFields={getSmartViewFields("billing")}
-              compactInline
-              hideFilterButton
-            />
-          )}
-          views={(
-            <ViewModeToggles
-              currentMode={vistaTyped}
-              baseParams={{
-                ...(tenantId ? { tenantId } : {}),
-                ...(q ? { q } : {}),
-                ...(tipo ? { tipo } : {}),
-                ...(estado ? { estado } : {}),
-                ...(ordenar ? { ordenar } : {})
-              }}
-              showKanban
-            />
-          )}
-          configHref="/settings?tab=cobros"
-          summary={(
-            <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="payments" allowImport={false} />
-          )}
+        <BillingHeader
+          filters={{
+            tenantId,
+            q,
+            tipo,
+            estado,
+            ordenar,
+            vista: vistaTyped,
+            viewId,
+            filters
+          }}
+          data={{
+            rows,
+            tenants,
+            customerItems,
+            empresas,
+            productItems,
+            csrfToken,
+            returnTo,
+            exportHref,
+            crear,
+            selectCustomerId
+          }}
+          actions={{
+            createCustomerFromBilling,
+            createPlanAndSubscription
+          }}
         />
-
-        <div className="page-results-left">
-          <span className="muted">{rows.length} resultados</span>
-        </div>
-
-        <div className="page-actions-right">
-          <BillingModals
-            customers={customerItems}
-            empresas={empresas}
-            catalogItems={productItems}
-            csrfToken={csrfToken}
-            tenantId={tenantId}
-            tenants={tenants}
-            returnTo={returnTo}
-            defaultOpen={Boolean(crear) || Boolean(selectCustomerId)}
-            defaultSelectedCustomerId={selectCustomerId}
-            createCustomer={createCustomerFromBilling}
-            createPlanAndSubscription={createPlanAndSubscription}
-          />
-        </div>
 
         <div className="settings-group-body">
           {vista === "cards" ? (
