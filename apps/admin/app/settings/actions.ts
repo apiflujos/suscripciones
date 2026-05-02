@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { CredentialProvider } from "@prisma/client";
 import { getCredential } from "@suscripciones/core/services/credentials";
 import { assertCsrfToken } from "../lib/csrf";
@@ -212,6 +213,7 @@ export async function updateAutoDebitConfig(formData: FormData) {
       ...(maxRetries ? { maxRetries } : {})
     });
     assertOk(out as any);
+    revalidatePath("/settings");
     return;
   } catch (err) {
     if (isNextRedirect(err)) throw err;
@@ -235,6 +237,7 @@ export async function updatePaymentsConfig(formData: FormData) {
       ...(includeUnlinkedPaymentsInMetrics ? { includeUnlinkedPaymentsInMetrics } : {})
     });
     assertOk(out as any);
+    revalidatePath("/settings");
     return;
   } catch (err) {
     if (isNextRedirect(err)) throw err;
