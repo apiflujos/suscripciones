@@ -47,6 +47,9 @@ let lastShopifyForwardRetryAt = 0;
 let lastHeartbeatAtMs = 0;
 
 const BOGOTA_UTC_OFFSET_MS = -5 * 60 * 60 * 1000;
+const MAX_SUBSCRIPTIONS_PER_CUTOFF_CYCLE = Number(
+  process.env.MAX_SUBSCRIPTIONS_PER_CUTOFF_CYCLE ?? "2000"
+);
 
 function monthKeyUtc(y: number, m0: number) {
   return `${y}-${String(m0 + 1).padStart(2, "0")}`;
@@ -457,6 +460,14 @@ async function ensureDueCutoffRetries() {
           logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo al actualizar metadata de reintento');
         });
       }
+    }
+
+    if (processedTotal >= MAX_SUBSCRIPTIONS_PER_CUTOFF_CYCLE) {
+      logger.info(
+        { processedTotal, limit: MAX_SUBSCRIPTIONS_PER_CUTOFF_CYCLE },
+        "[Jobs/SafetySync] Límite de suscripciones por ciclo alcanzado, continuará en el siguiente ciclo"
+      );
+      break;
     }
 
     // Avanzar cursor
