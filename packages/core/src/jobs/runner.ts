@@ -21,6 +21,19 @@ import { handleSubscriptionPaymentFailure, ensureExpiredSubscriptions } from "..
 import { runWithActor } from "../services/actorStore";
 import { publishRealtime } from "../services/realtimePublisher";
 import { resolveSubscriptionBillingState } from "../services/billingCycles";
+import type {
+  AiAssistPayload,
+  BillingReportPayload,
+  DataTrainerPayload,
+  ForwardToShopifyPayload,
+  GamificationRecalcPayload,
+  PaymentRetryPayload,
+  ProcessWompiEventPayload,
+  SendCampaignPayload,
+  SendChatwootMessagePayload,
+  SubscriptionReminderPayload,
+  SyncSmartListsPayload
+} from "../types/job-payloads";
 
 loadEnv(process.env);
 const workerId = `jobs:${process.pid}`;
@@ -516,33 +529,43 @@ async function runOnce() {
     const actor = getActorForJobType(job.type);
     await runWithActor(actor, async () => {
       try {
-        const payload = job.payload as any;
         let paymentRetryOutcome:
           | { status: "processed" | "deferred" | "skipped"; reason?: string; nextRunAt?: Date; action?: string }
           | null = null;
 
         if (job.type === RetryJobType.PROCESS_WOMPI_EVENT) {
-          await processWompiEvent(payload.webhookEventId);
+          const p = job.payload as ProcessWompiEventPayload;
+          await processWompiEvent(p.webhookEventId);
         } else if (job.type === RetryJobType.FORWARD_WOMPI_TO_SHOPIFY) {
-          await forwardWompiToShopify(payload.webhookEventId);
+          const p = job.payload as ForwardToShopifyPayload;
+          await forwardWompiToShopify(p.webhookEventId);
         } else if (job.type === RetryJobType.SEND_CHATWOOT_MESSAGE) {
-          await sendChatwootMessage(payload.chatwootMessageId);
+          const p = job.payload as SendChatwootMessagePayload;
+          await sendChatwootMessage(p.chatwootMessageId);
         } else if (job.type === RetryJobType.PAYMENT_RETRY) {
-          paymentRetryOutcome = await paymentRetry(payload);
+          const p = job.payload as PaymentRetryPayload;
+          paymentRetryOutcome = await paymentRetry(p);
         } else if (job.type === RetryJobType.SUBSCRIPTION_REMINDER) {
-          await subscriptionReminder(payload);
+          const p = job.payload as SubscriptionReminderPayload;
+          await subscriptionReminder(p);
         } else if (job.type === RetryJobType.BILLING_MONTHLY_REPORT) {
-          await billingMonthlyReport(payload);
+          const p = job.payload as BillingReportPayload;
+          await billingMonthlyReport(p);
         } else if (job.type === RetryJobType.SEND_CAMPAIGN) {
-          await sendCampaign(payload);
+          const p = job.payload as SendCampaignPayload;
+          await sendCampaign(p);
         } else if (job.type === RetryJobType.SYNC_SMART_LISTS) {
+          const _p = job.payload as SyncSmartListsPayload;
           await syncSmartLists();
         } else if (job.type === RetryJobType.AI_ASSIST) {
-          await aiAssist(payload);
+          const p = job.payload as AiAssistPayload;
+          await aiAssist(p);
         } else if (job.type === RetryJobType.GAMIFICATION_RECALC) {
-          await gamificationRecalc(payload);
+          const p = job.payload as GamificationRecalcPayload;
+          await gamificationRecalc(p);
         } else if (job.type === RetryJobType.DATA_TRAINER) {
-          await dataTrainer(payload);
+          const p = job.payload as DataTrainerPayload;
+          await dataTrainer(p);
         } else {
           logger.warn({ jobId: job.id, type: job.type }, "Unhandled job type");
         }
@@ -618,7 +641,7 @@ async function runOnce() {
           runAt = canRetry ? nextRunAtMinutes(cfg.retryEveryMinutes) : undefined;
           
           if (status === RetryJobStatus.FAILED) {
-            const subId = (job.payload as any)?.subscriptionId;
+            const subId = (job.payload as PaymentRetryPayload | null | undefined)?.subscriptionId;
             if (subId) {
               await handleSubscriptionPaymentFailure(subId, errMsg).catch((err) => {
                 logger.warn({ err, subscriptionId: subId }, '[Jobs/Runner] Fallo manejando pago fallido');
