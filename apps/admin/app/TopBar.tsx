@@ -157,7 +157,9 @@ export function TopBar({ session }: { session: AdminSession | null }) {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.ok) {
-        console.warn("create_contact_failed", json?.error || res.status);
+        globalThis.reportError?.(
+          new Error(`create_contact_failed: ${String(json?.error || res.status)}`)
+        );
         return;
       }
       markNotification(n.id, true);
@@ -165,7 +167,9 @@ export function TopBar({ session }: { session: AdminSession | null }) {
         window.location.href = `/customers/${encodeURIComponent(json.customerId)}`;
       }
     } catch (err) {
-      console.warn("create_contact_failed", err);
+      globalThis.reportError?.(
+        err instanceof Error ? err : new Error(`create_contact_failed: ${String(err)}`)
+      );
     } finally {
       setCreatingContactId((prev) => (prev === n.id ? null : prev));
     }

@@ -6,6 +6,7 @@ import { PublicAlert } from "../../_components/PublicAlert";
 import { PublicErrorPage } from "../../_components/PublicErrorPage";
 import { PUBLIC_COPY } from "../../_components/publicCopy";
 import { fetchPublicJsonAcrossBases, getPublicApiBases } from "../../_components/publicRuntime";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -85,10 +86,7 @@ export default async function PublicTokenizePage({
             : errorKey === "unauthorized"
               ? "Este link no es válido. Solicita uno nuevo."
               : "Este link no existe o ya no es válido. Solicita uno nuevo.";
-    console.info("public_tokenize_error", {
-      status: tokenRes.status,
-      message: msg
-    });
+    logger.info({ status: tokenRes.status, message: msg }, "public_tokenize_error");
     return (
       <PublicErrorPage
         title={title}

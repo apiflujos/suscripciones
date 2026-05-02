@@ -37,7 +37,9 @@ export function publishToChannel(channel: string, payload: ChannelPayload): bool
     try {
       callback(payload);
     } catch (err) {
-      console.error(`Error in channel ${channel} subscriber:`, err);
+      globalThis.reportError?.(
+        err instanceof Error ? err : new Error(`Error in channel ${channel} subscriber: ${String(err)}`)
+      );
     }
   });
 

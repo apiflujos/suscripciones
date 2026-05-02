@@ -3,6 +3,7 @@ import { PublicAlert } from "../../_components/PublicAlert";
 import { PublicErrorPage } from "../../_components/PublicErrorPage";
 import { PUBLIC_COPY } from "../../_components/publicCopy";
 import { fetchPublicJsonAcrossBases, getPublicApiBases } from "../../_components/publicRuntime";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -48,11 +49,7 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
 
   if (!linkRes.ok) {
     const msg = linkRes.status === 410 ? PUBLIC_COPY.errorExpiredLink : PUBLIC_COPY.errorInvalidLink;
-    console.info("public_plan_error", {
-      status: linkRes.status,
-      token,
-      message: msg
-    });
+    logger.info({ status: linkRes.status, token, message: msg }, "public_plan_error");
     return (
       <PublicErrorPage
         title={title}

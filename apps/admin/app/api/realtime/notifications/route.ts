@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { requireApiSession } from "../../_lib/requireApiSession";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../../lib/session";
 import { listChatwootMessages, listPaymentLogs } from "../../../admin/_services/logs";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -120,7 +121,7 @@ export async function GET(req: NextRequest) {
       }
     });
   } catch (error) {
-    console.error("Error in realtime notifications:", error);
+    logger.error({ error }, "Error in realtime notifications");
     return new Response(JSON.stringify({ notifications: [], error: "Internal error" }), {
       status: 200,
       headers: { "Content-Type": "application/json; charset=utf-8" }

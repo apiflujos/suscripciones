@@ -527,13 +527,16 @@ export async function chargeSubscriptionNow(formData: FormData) {
         : err?.details
           ? String(err.details)
           : "";
-    console.error("[billing.charge_now] Error al cobrar suscripción", {
-      subscriptionId,
-      tenantId: tenantId || null,
-      error: String(err?.message || "charge_now_failed"),
-      details: err?.details ?? null,
-      paymentId: err?.paymentId ? String(err.paymentId) : null
-    });
+    logger.error(
+      {
+        subscriptionId,
+        tenantId: tenantId || null,
+        error: String(err?.message || "charge_now_failed"),
+        details: err?.details ?? null,
+        paymentId: err?.paymentId ? String(err.paymentId) : null
+      },
+      "[billing.charge_now] Error al cobrar suscripción"
+    );
     redirect(
       mergeQuery(returnTo, {
         chargeStatus: "fail",
