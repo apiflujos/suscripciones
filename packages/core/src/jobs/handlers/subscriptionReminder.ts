@@ -81,7 +81,8 @@ async function resolveAutoCheckoutTemplateId(args: {
   let desired: PublicCheckoutKind = PublicCheckoutKind.PLAN;
   if (trigger === "CATALOG_LINK_CREATED") desired = PublicCheckoutKind.CART;
   else if (trigger === "TOKENIZATION_LINK_CREATED") desired = PublicCheckoutKind.SUBSCRIPTION;
-  else if (String(paymentType).toUpperCase() === "SUBSCRIPTION") desired = PublicCheckoutKind.SUBSCRIPTION;
+  // PAYMENT_LINK_CREATED always uses PLAN template (it's a payment link, not tokenization)
+  // even when paymentType=SUBSCRIPTION. The SUBSCRIPTION kind is only for tokenization links.
   else desired = PublicCheckoutKind.PLAN;
 
   const byKind = templates.filter((t) => t.kind === desired);
