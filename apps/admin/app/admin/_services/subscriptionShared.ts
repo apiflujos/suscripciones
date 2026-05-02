@@ -1,7 +1,7 @@
 import "server-only";
 
 import { prisma } from "@suscripciones/database";
-import { PaymentStatus, Prisma } from "@prisma/client";
+import { PaymentStatus, PlanIntervalUnit, Prisma } from "@prisma/client";
 import { addIntervalUtc, toUtc } from "@suscripciones/core/lib/dates";
 import { computeBillingCycleDueAt, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
 import { readSubscriptionTotalInCents } from "@suscripciones/core/services/subscriptionBilling";
@@ -24,7 +24,7 @@ function daysInMonthUtc(year: number, month0: number) {
   return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
 }
 
-export function subtractIntervalUtc(date: Date, unit: any, count: number): Date {
+export function subtractIntervalUtc(date: Date, unit: string, count: number): Date {
   const normalizedDate = toUtc(date);
   const c = Math.max(0, Math.trunc(count || 0));
   const d = new Date(normalizedDate.getTime());
@@ -110,7 +110,7 @@ export function resolvePeriodStartFromAnchor(now: Date, anchor: Date, unit: stri
     const nowMonth = normalizedNow.getUTCMonth();
     const monthsDiff = (nowYear - anchorYear) * 12 + (nowMonth - anchorMonth);
     const steps = monthsDiff >= 0 ? Math.floor(monthsDiff / safeCount) : 0;
-    return addIntervalUtc(normalizedAnchor, "MONTH" as any, steps * safeCount);
+    return addIntervalUtc(normalizedAnchor, PlanIntervalUnit.MONTH, steps * safeCount);
   }
 
   return normalizedAnchor;
@@ -161,17 +161,25 @@ export function computePlanTotalInCents(args: {
   return { subtotalInCents: subtotal, taxInCents, totalInCents: subtotal + taxInCents };
 }
 
-export function readPlanPricing(meta: any) {
+export function readPlanPricing(meta: unknown) {
   if (!meta || typeof meta !== "object") return {};
-  const root = meta?.pricing;
-  const legacy = meta?.catalog?.pricing;
+  const source = meta as Record<string, unknown>;
+  const root = source.pricing;
+  const catalog = source.catalog;
+  const legacy = catalog && typeof catalog === "object" ? (catalog as Record<string, unknown>).pricing : undefined;
   if (root && typeof root === "object") return root;
   if (legacy && typeof legacy === "object") return legacy;
   return {};
 }
 
 export async function recordManualChargeFailure(args: {
-  subscription: any;
+  subscription: {
+    id?: string | null;
+    customerId?: string | null;
+    tenantId?: string | null;
+    metadata?: unknown;
+    plan?: { tenantId?: string | null; priceInCents?: number | null; currency?: string | null } | null;
+  };
   amountInCentsOverride?: number;
   errorCode: string;
   details?: unknown;
@@ -185,7 +193,7 @@ export async function recordManualChargeFailure(args: {
   const reference = `SUB_${subscription.id}_${cycle}`;
   const subscriptionCycleKey = `${subscription.id}:${cycle}`;
   const amountInCents = Math.trunc(args.amountInCentsOverride ?? readSubscriptionTotalInCents(subscription.metadata, subscription.plan?.priceInCents ?? 0));
-  const currency = validateWompiCurrency(subscription.plan?.currency);
+  const currency = validateWompiCurrency(String(subscription.plan?.currency || "COP"));
   const existing = await prisma.payment.findUnique({
     where: { subscriptionCycleKey },
     select: { id: true, status: true }
@@ -231,7 +239,7 @@ export async function recordManualChargeFailure(args: {
       errorCode: args.errorCode,
       errorMessage: args.errorCode,
       provider: "apiflujos",
-      response: args.details ? (args.details as any) : undefined
+      response: args.details ? (args.details as Prisma.InputJsonValue) : undefined
     }
   });
 

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { prisma } from "@suscripciones/database";
-import { PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { PaymentStatus, Prisma, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
 import { getCivilDateAnchorUtc } from "@suscripciones/core/lib/dates";
@@ -32,7 +32,7 @@ export async function listSubscriptions(args: {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const ids = rawIds.filter((id) => uuidRegex.test(id));
 
-  const where: any = {};
+  const where: Prisma.SubscriptionWhereInput = {};
   if (tenantId) {
     const tenantFilter = { OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }] };
     where.AND = Array.isArray(where.AND) ? [...where.AND, tenantFilter] : [tenantFilter];
@@ -79,7 +79,7 @@ export async function listSubscriptions(args: {
     include: { customer: true, product: true, plan: { include: { tenantLinks: true } }, tenantLinks: true }
   });
   const total = await prisma.subscription.count({ where });
-  const subscriptionIds = items.map((s: any) => s.id);
+  const subscriptionIds = items.map((s) => s.id);
   const approvedPayments = await prisma.payment.findMany({
     where: { subscriptionId: { in: subscriptionIds }, status: PaymentStatus.APPROVED, paidAt: { not: null } },
     orderBy: { paidAt: "desc" },
@@ -113,7 +113,8 @@ export async function listSubscriptions(args: {
     : [];
   const nextRetryBySub = new Map<string, { runAt: Date }>();
   for (const job of pendingRetries) {
-    const subId = String((job.payload as any)?.subscriptionId || "");
+    const payload = job.payload && typeof job.payload === "object" ? (job.payload as Record<string, unknown>) : {};
+    const subId = String(payload.subscriptionId || "");
     if (!subId) continue;
     const current = nextRetryBySub.get(subId);
     if (!current || (job.runAt && current.runAt > job.runAt)) {
@@ -124,12 +125,12 @@ export async function listSubscriptions(args: {
   const autoDebitCfg = await getAutoDebitConfig();
   const billingAsOf = getCivilDateAnchorUtc(new Date());
   const billingStateBySubscription = await buildSubscriptionBillingStateIndex({
-    subscriptions: items.map((s: any) => ({
+    subscriptions: items.map((s) => ({
       id: s.id,
       startAt: s.startAt,
       cycleStartDay: s.cycleStartDay,
       paymentDay: s.paymentDay,
-      paymentTiming: s.paymentTiming as any,
+      paymentTiming: s.paymentTiming === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",
       graceDays: s.graceDays,
       plan: {
         intervalUnit: s.plan.intervalUnit,
@@ -139,7 +140,14 @@ export async function listSubscriptions(args: {
     asOf: billingAsOf,
     ensureCycles: false
   });
-  const mapped = items.map((s: any) => {
+  const mapped = items.map((s) => {
+    const planRecord = s.plan as Record<string, unknown>;
+    const planMetadata =
+      s.plan?.metadata && typeof s.plan.metadata === "object" ? (s.plan.metadata as Record<string, unknown>) : {};
+    const planCatalog =
+      planMetadata.catalog && typeof planMetadata.catalog === "object"
+        ? (planMetadata.catalog as Record<string, unknown>)
+        : {};
     const lastPayment = lastPaymentBySub.get(String(s.id)) || null;
     const lastLink = lastLinkBySub.get(String(s.id)) || null;
     const nextRetry = nextRetryBySub.get(String(s.id)) || null;
@@ -168,9 +176,12 @@ export async function listSubscriptions(args: {
 
     return {
       ...s,
-      productId: s.productId || String((s.plan as any)?.catalogProductId || (s.plan?.metadata as any)?.catalog?.itemId || "").trim() || null,
+      productId:
+        s.productId ||
+        String(planRecord.catalogProductId || planCatalog.itemId || "").trim() ||
+        null,
       productName: s.product?.name || s.plan?.name || null,
-      tenantIds: Array.from(new Set([s.tenantId, ...(s.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))) as string[],
+      tenantIds: Array.from(new Set([s.tenantId, ...(s.tenantLinks || []).map((t) => t.tenantId)].filter(Boolean))) as string[],
       lastPayment,
       lastPaymentLink: lastLink || null,
       nextRetryJob: nextRetry || null,

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { prisma } from "@suscripciones/database";
-import { BillingCycleStatus, LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { BillingCycleStatus, LogLevel, PaymentAssociationReason, PaymentOrigin, PaymentStatus, Prisma, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
@@ -28,6 +28,18 @@ import { logger } from "@suscripciones/core/lib/logger";
 import { extractCustomerPaymentSourceId, readCustomerMetadata } from "@suscripciones/core/lib/customerMetadata";
 import { recordManualChargeFailure, subscriptionIdJsonFilter } from "./subscriptionShared";
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function normalizePaymentTiming(value: unknown): "EN_CURSO" | "ANTICIPADO" {
+  return String(value || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "unknown error";
+}
+
 export async function setSubscriptionRetryDate(args: {
   subscriptionId: string;
   nextRetryAt: string | null;
@@ -40,7 +52,7 @@ export async function setSubscriptionRetryDate(args: {
   if (!subscription) return { ok: false, status: 404, error: "subscription_not_found" as const };
   if (args.tenantId) {
     const allowed =
-      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t) => t.tenantId === args.tenantId);
     if (!allowed) return { ok: false, status: 404, error: "subscription_not_found" as const };
   }
 
@@ -49,7 +61,7 @@ export async function setSubscriptionRetryDate(args: {
     ? { nextRetryAt: nextRetryAt.toISOString(), setAt: new Date().toISOString() }
     : null;
 
-  const metadata = subscription.metadata && typeof subscription.metadata === "object" ? (subscription.metadata as any) : {};
+  const metadata = asRecord(subscription.metadata) || {};
   const updated = await prisma.subscription.update({
     where: { id: subscriptionId },
     data: {
@@ -61,7 +73,7 @@ export async function setSubscriptionRetryDate(args: {
   });
 
   if (nextRetryAt) {
-    await ensurePaymentRetryJob({ subscriptionId, runAt: nextRetryAt, maxAttempts: 1 }).catch((err: any) => {
+    await ensurePaymentRetryJob({ subscriptionId, runAt: nextRetryAt, maxAttempts: 1 }).catch((err) => {
       logger.warn({ err, subscriptionId, nextRetryAt }, "Fallo programando retry manual de suscripcion");
     });
   } else {
@@ -71,7 +83,7 @@ export async function setSubscriptionRetryDate(args: {
         status: RetryJobStatus.PENDING,
         payload: subscriptionIdJsonFilter(subscriptionId)
       }
-    }).catch((err: any) => {
+    }).catch((err) => {
       logger.warn({ err, subscriptionId }, "Fallo limpiando retries manuales pendientes de suscripcion");
     });
   }
@@ -86,7 +98,7 @@ export async function createSubscriptionPaymentLink(args: { subscriptionId: stri
     const existing = await prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { tenantLinks: true } });
     if (!existing) return { ok: false, status: 404, error: "subscription_not_found" as const };
     const allowed =
-      existing.tenantId === args.tenantId || (existing.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+      existing.tenantId === args.tenantId || (existing.tenantLinks || []).some((t) => t.tenantId === args.tenantId);
     if (!allowed) return { ok: false, status: 404, error: "subscription_not_found" as const };
   }
   try {
@@ -97,11 +109,11 @@ export async function createSubscriptionPaymentLink(args: { subscriptionId: stri
     });
 
     return { ok: true, ...link };
-  } catch (err: any) {
+  } catch (err) {
     await systemLog(LogLevel.ERROR, "subscriptions.payment_link", "Payment link create failed", {
       subscriptionId,
-      err: err?.message ? String(err.message) : "unknown error"
-    }).catch((logErr: any) => {
+      err: errorMessage(err)
+    }).catch((logErr) => {
       logger.warn({ err: logErr, subscriptionId }, "Fallo escribiendo systemLog al crear payment link de suscripcion");
     });
     return { ok: false, status: 502, error: "wompi_payment_link_failed" as const };
@@ -119,7 +131,7 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
   if (!subscription) return { ok: false, status: 404, error: "subscription_not_found" as const };
   if (args.tenantId) {
     const allowed =
-      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t) => t.tenantId === args.tenantId);
     if (!allowed) return { ok: false, status: 404, error: "subscription_not_found" as const };
   }
 
@@ -130,7 +142,7 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
       amountInCentsOverride: args.amountInCents,
       errorCode: "manual_charge_not_allowed",
       details: { collectionMode }
-    }).catch((err: any) => {
+    }).catch((err) => {
       logger.warn({ err, subscriptionId, collectionMode }, "Fallo registrando intento manual invalido de cobro");
       return null;
     });
@@ -143,7 +155,7 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
       subscription,
       amountInCentsOverride: args.amountInCents,
       errorCode: "manual_charge_disabled_by_settings"
-    }).catch((err: any) => {
+    }).catch((err) => {
       logger.warn({ err, subscriptionId }, "Fallo registrando intento manual bloqueado por configuracion");
       return null;
     });
@@ -157,14 +169,14 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
       startAt: subscription.startAt,
       cycleStartDay: subscription.cycleStartDay,
       paymentDay: subscription.paymentDay,
-      paymentTiming: (subscription.paymentTiming as any) || "EN_CURSO",
+      paymentTiming: normalizePaymentTiming(subscription.paymentTiming),
       graceDays: subscription.graceDays,
       plan: {
         intervalUnit: subscription.plan.intervalUnit,
         intervalCount: subscription.plan.intervalCount
       }
     }
-  ]).catch((err: any) => {
+  ]).catch((err) => {
     logger.warn({ err, subscriptionId }, "Fallo asegurando ciclos de facturacion antes del cobro manual");
   });
 
@@ -180,7 +192,7 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
     resolveConfiguredCollectionCycle({
       cycles: openCycles,
       asOf: now,
-      paymentTiming: ((subscription.paymentTiming as any) || "EN_CURSO") === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
+      paymentTiming: normalizePaymentTiming(subscription.paymentTiming)
     }) || null;
   const overdueCycle = openCycles.find((cycle) => new Date(cycle.dueAt).getTime() <= now.getTime()) || null;
   const activeCycle = targetCollectionCycle || overdueCycle || openCycles.find((cycle) => {
@@ -204,7 +216,7 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
         currentPeriodStartAt: periodStartAt?.toISOString() || null,
         currentPeriodEndAt: periodEndAt?.toISOString() || null
       }
-    }).catch((err: any) => {
+    }).catch((err) => {
       logger.warn({ err, subscriptionId }, "Fallo registrando intento manual duplicado sobre pago ya aprobado");
       return null;
     });
@@ -227,7 +239,7 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
         wompiTransactionId: recentPending.wompiTransactionId,
         tenantId: args.tenantId,
         checksumPrefix: "manual-charge-precheck"
-      }).catch((err: any) => {
+      }).catch((err) => {
         logger.warn(
           { err, subscriptionId, paymentId: recentPending.id, wompiTransactionId: recentPending.wompiTransactionId },
           "Fallo conciliando transaccion Wompi pendiente antes de cobro manual"
@@ -297,7 +309,7 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
       cycleNumberOverride
     });
     return { ok: true, ...result };
-  } catch (err: any) {
+  } catch (err) {
     const paymentId =
       (
         await prisma.payment
@@ -307,7 +319,7 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
           })
           .catch(() => null)
       )?.id || null;
-    return { ok: false, status: 502, error: err?.message || "charge_now_failed", ...(paymentId ? { paymentId } : {}) };
+    return { ok: false, status: 502, error: errorMessage(err) || "charge_now_failed", ...(paymentId ? { paymentId } : {}) };
   }
 }
 
@@ -331,7 +343,7 @@ export async function markSubscriptionPaidManual(args: {
   if (!subscription) return { ok: false, status: 404, error: "subscription_not_found" as const };
   if (args.tenantId) {
     const allowed =
-      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t) => t.tenantId === args.tenantId);
     if (!allowed) return { ok: false, status: 404, error: "subscription_not_found" as const };
   }
   if (!subscription.plan) return { ok: false, status: 409, error: "plan_not_found" as const };
@@ -344,14 +356,14 @@ export async function markSubscriptionPaidManual(args: {
       startAt: subscription.startAt,
       cycleStartDay: subscription.cycleStartDay,
       paymentDay: subscription.paymentDay,
-      paymentTiming: (subscription.paymentTiming as any) || "EN_CURSO",
+      paymentTiming: normalizePaymentTiming(subscription.paymentTiming),
       graceDays: subscription.graceDays,
       plan: {
         intervalUnit: subscription.plan.intervalUnit,
         intervalCount: subscription.plan.intervalCount
       }
     }
-  ]).catch((err: any) => {
+  ]).catch((err) => {
     logger.warn({ err, subscriptionId }, "Fallo asegurando ciclos de facturacion antes de marcar pago manual");
   });
 
@@ -368,7 +380,7 @@ export async function markSubscriptionPaidManual(args: {
     resolveConfiguredCollectionCycle({
       cycles: openCycles,
       asOf: now,
-      paymentTiming: ((subscription.paymentTiming as any) || "EN_CURSO") === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
+      paymentTiming: normalizePaymentTiming(subscription.paymentTiming)
     }) ||
     openCycles.find((cycle) => {
       const startTs = new Date(cycle.periodStartAt).getTime();
@@ -400,8 +412,8 @@ export async function markSubscriptionPaidManual(args: {
           status: PaymentStatus.APPROVED,
           paidAt: now,
           failedAt: null,
-          origin: "MANUAL_USER" as any,
-          associationReason: "MANUAL_RECONCILE" as any,
+          origin: PaymentOrigin.MANUAL_USER,
+          associationReason: PaymentAssociationReason.MANUAL_RECONCILE,
           associatedBy: args.actor || "system",
           providerResponse: {
             manual: {
@@ -409,7 +421,7 @@ export async function markSubscriptionPaidManual(args: {
               actor: args.actor || null,
               at: now.toISOString()
             }
-          } as any
+          } as Prisma.InputJsonValue
         },
         select: { id: true }
       });
@@ -428,8 +440,8 @@ export async function markSubscriptionPaidManual(args: {
           status: PaymentStatus.APPROVED,
           paidAt: now,
           subscriptionCycleKey,
-          origin: "MANUAL_USER" as any,
-          associationReason: "MANUAL_RECONCILE" as any,
+          origin: PaymentOrigin.MANUAL_USER,
+          associationReason: PaymentAssociationReason.MANUAL_RECONCILE,
           associatedBy: args.actor || "system",
           providerResponse: {
             manual: {
@@ -437,7 +449,7 @@ export async function markSubscriptionPaidManual(args: {
               actor: args.actor || null,
               at: now.toISOString()
             }
-          } as any
+          } as Prisma.InputJsonValue
         },
         select: { id: true }
       });
@@ -450,10 +462,10 @@ export async function markSubscriptionPaidManual(args: {
         subscriptionId: subscription.id,
         cycleId: targetCycle.id,
         paymentAt: now,
-        origin: "MANUAL_USER" as any,
+        origin: PaymentOrigin.MANUAL_USER,
         associationReason: "MANUAL_RECONCILE",
         associatedBy: args.actor || "system"
-      }).catch((err: any) => {
+      }).catch((err) => {
         logger.warn({ err, subscriptionId: subscription.id, paymentId, cycleId: targetCycle.id }, "Fallo asociando pago manual al ciclo");
       });
     }
@@ -471,7 +483,7 @@ export async function markSubscriptionPaidManual(args: {
     return { paymentId };
   });
 
-  await syncSubscriptionBillingSnapshot({ subscriptionId: subscription.id, asOf: now }).catch((err: any) => {
+  await syncSubscriptionBillingSnapshot({ subscriptionId: subscription.id, asOf: now }).catch((err) => {
     logger.warn({ err, subscriptionId: subscription.id }, "Fallo sincronizando snapshot tras marcar pago manual");
   });
 
@@ -487,14 +499,14 @@ export async function markSubscriptionPaidManual(args: {
     await prisma.subscription.update({
       where: { id: subscription.id },
       data: { status: SubscriptionStatus.PAST_DUE }
-    }).catch((err: any) => {
+    }).catch((err) => {
       logger.warn({ err, subscriptionId: subscription.id }, "Fallo actualizando suscripcion a PAST_DUE tras marcado manual");
     });
   } else {
     await prisma.subscription.update({
       where: { id: subscription.id },
       data: { status: SubscriptionStatus.ACTIVE }
-    }).catch((err: any) => {
+    }).catch((err) => {
       logger.warn({ err, subscriptionId: subscription.id }, "Fallo actualizando suscripcion a ACTIVE tras marcado manual");
     });
   }
@@ -507,7 +519,7 @@ export async function markSubscriptionPaidManual(args: {
     }
   });
 
-  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err: any) => {
+  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err) => {
     logger.warn({ err, subscriptionId: subscription.id }, "Fallo reprogramando notificaciones tras marcado manual de pago");
   });
   await systemLog(LogLevel.INFO, "subscriptions.manual_paid", "Subscription marked paid manually", {
@@ -516,7 +528,7 @@ export async function markSubscriptionPaidManual(args: {
     paymentId: result.paymentId,
     actor: args.actor || null,
     at: now.toISOString()
-  }, args.actor).catch((err: any) => {
+  }, args.actor).catch((err) => {
     logger.warn({ err, subscriptionId, paymentId: result.paymentId }, "Fallo escribiendo systemLog de marcado manual de pago");
   });
 
@@ -538,7 +550,7 @@ export async function unmarkSubscriptionPaidManual(args: {
   if (!subscription) return { ok: false, status: 404, error: "subscription_not_found" as const };
   if (args.tenantId) {
     const allowed =
-      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t) => t.tenantId === args.tenantId);
     if (!allowed) return { ok: false, status: 404, error: "subscription_not_found" as const };
   }
   if (!subscription.plan) return { ok: false, status: 409, error: "plan_not_found" as const };
@@ -559,7 +571,7 @@ export async function unmarkSubscriptionPaidManual(args: {
   });
   if (!payment) return { ok: false, status: 404, error: "approved_payment_not_found" as const };
 
-  const providerResponse = payment.providerResponse && typeof payment.providerResponse === "object" ? (payment.providerResponse as any) : null;
+  const providerResponse = asRecord(payment.providerResponse);
   const isManual = Boolean(providerResponse?.manual) || String(payment.reference || "").startsWith("MANUAL_");
   if (!isManual) return { ok: false, status: 409, error: "payment_not_manual" as const };
 
@@ -583,7 +595,7 @@ export async function unmarkSubscriptionPaidManual(args: {
             actor: args.actor || null,
             at: now.toISOString()
           }
-        } as any
+        } as Prisma.InputJsonValue
       }
     });
 
@@ -612,7 +624,7 @@ export async function unmarkSubscriptionPaidManual(args: {
     });
   });
 
-  const snapshot = await syncSubscriptionBillingSnapshot({ subscriptionId: subscription.id, asOf: now }).catch((err: any) => {
+  const snapshot = await syncSubscriptionBillingSnapshot({ subscriptionId: subscription.id, asOf: now }).catch((err) => {
     logger.warn({ err, subscriptionId: subscription.id }, "Fallo sincronizando snapshot tras desmarcar pago manual");
     return null;
   });
@@ -629,12 +641,12 @@ export async function unmarkSubscriptionPaidManual(args: {
   const collectionMode = resolveSubscriptionCollectionMode(subscription);
   if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
     const retryAt = collectionCycle ? new Date(collectionCycle.dueAt || collectionCycle.periodEndAt) : now;
-    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: retryAt, maxAttempts: 1 }).catch((err: any) => {
+    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: retryAt, maxAttempts: 1 }).catch((err) => {
       logger.warn({ err, subscriptionId: subscription.id, runAt: retryAt }, "Fallo reprogramando retry tras desmarcar pago manual");
     });
   }
 
-  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err: any) => {
+  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err) => {
     logger.warn({ err, subscriptionId: subscription.id }, "Fallo reprogramando notificaciones tras desmarcar pago manual");
   });
   await systemLog(LogLevel.INFO, "subscriptions.manual_unpaid", "Subscription manual payment unmarked", {
@@ -643,7 +655,7 @@ export async function unmarkSubscriptionPaidManual(args: {
     previousCycle: targetCycle,
     actor: args.actor || null,
     at: now.toISOString()
-  }, args.actor).catch((err: any) => {
+  }, args.actor).catch((err) => {
     logger.warn({ err, subscriptionId, paymentId: payment.id }, "Fallo escribiendo systemLog de desmarcado manual");
   });
 
@@ -665,7 +677,7 @@ export async function scheduleSubscriptionCutoff(args: { subscriptionId: string;
   if (!subscription) return { ok: false, status: 404, error: "subscription_not_found" as const };
   if (args.tenantId) {
     const allowed =
-      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t) => t.tenantId === args.tenantId);
     if (!allowed) return { ok: false, status: 404, error: "subscription_not_found" as const };
   }
 
@@ -695,13 +707,13 @@ export async function scheduleSubscriptionCutoff(args: { subscriptionId: string;
     currentPeriodEndAt: cutoffAt,
     cycleStartDay: updated.cycleStartDay,
     paymentDay: updated.paymentDay,
-    paymentTiming: updated.paymentTiming as any,
+    paymentTiming: normalizePaymentTiming(updated.paymentTiming),
     graceDays: updated.graceDays,
     plan: {
       intervalUnit: subscription.plan.intervalUnit,
       intervalCount: subscription.plan.intervalCount
     }
-  }).catch((err: any) => {
+  }).catch((err) => {
     logger.warn({ err, subscriptionId }, "Fallo regenerando ciclos tras cambiar cutoff");
   });
 
@@ -713,7 +725,7 @@ export async function scheduleSubscriptionCutoff(args: { subscriptionId: string;
     }
   });
 
-  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err: any) => {
+  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err) => {
     logger.warn({ err, subscriptionId: subscription.id }, "Fallo reprogramando notificaciones tras cambiar cutoff");
   });
 
@@ -721,7 +733,7 @@ export async function scheduleSubscriptionCutoff(args: { subscriptionId: string;
     subscriptionId,
     runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
     maxAttempts: 1
-  }).catch((err: any) => {
+  }).catch((err) => {
     logger.warn({ err, subscriptionId, cutoffAt }, "Fallo reprogramando retry tras cambiar cutoff");
   });
 
@@ -735,13 +747,13 @@ export async function scheduleSubscriptionCutoff(args: { subscriptionId: string;
     await createAutoDebitTransactionForSubscription({
       subscriptionId,
       forceNewTransaction: true
-    }).catch((err: any) => {
+    }).catch((err) => {
       const msg = String(err?.message || "");
       if (!msg.includes("payment_already_approved")) {
         systemLog(LogLevel.WARN, "subscriptions.cutoff", "Immediate cutoff charge failed", {
           subscriptionId,
           err: msg
-        }).catch((logErr: any) => {
+        }).catch((logErr) => {
           logger.warn({ err: logErr, subscriptionId }, "Fallo escribiendo systemLog de cobro inmediato fallido por cutoff");
         });
       }
@@ -770,7 +782,7 @@ export async function recalcSubscriptionCutoff(args: { subscriptionId: string; t
   if (!subscription) return { ok: false, status: 404, error: "subscription_not_found" as const };
   if (args.tenantId) {
     const allowed =
-      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t) => t.tenantId === args.tenantId);
     if (!allowed) return { ok: false, status: 404, error: "subscription_not_found" as const };
   }
   if (!subscription.plan) return { ok: false, status: 409, error: "plan_not_found" as const };
@@ -788,13 +800,13 @@ export async function recalcSubscriptionCutoff(args: { subscriptionId: string; t
     currentPeriodEndAt: nextEnd,
     cycleStartDay: updated.cycleStartDay,
     paymentDay: updated.paymentDay,
-    paymentTiming: updated.paymentTiming as any,
+    paymentTiming: normalizePaymentTiming(updated.paymentTiming),
     graceDays: updated.graceDays,
     plan: {
       intervalUnit: subscription.plan.intervalUnit,
       intervalCount: subscription.plan.intervalCount
     }
-  }).catch((err: any) => {
+  }).catch((err) => {
     logger.warn({ err, subscriptionId }, "Fallo regenerando ciclos al recalcular cutoff");
   });
 
@@ -812,19 +824,19 @@ export async function recalcSubscriptionCutoff(args: { subscriptionId: string; t
       subscriptionId,
       runAt: nextEnd <= new Date(Date.now() + 5_000) ? new Date() : nextEnd,
       maxAttempts: 1
-    }).catch((err: any) => {
+    }).catch((err) => {
       logger.warn({ err, subscriptionId, runAt: nextEnd }, "Fallo reprogramando retry al recalcular cutoff");
     });
   }
 
-  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err: any) => {
+  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err) => {
     logger.warn({ err, subscriptionId: subscription.id }, "Fallo reprogramando notificaciones al recalcular cutoff");
   });
   await systemLog(LogLevel.INFO, "subscriptions.recalculate_cutoff", "Subscription cutoff recalculated", {
     subscriptionId,
-    startAt: (baseStart as any)?.toISOString?.() || baseStart,
-    endAt: (nextEnd as any)?.toISOString?.() || nextEnd
-  }).catch((err: any) => {
+    startAt: baseStart.toISOString(),
+    endAt: nextEnd.toISOString()
+  }).catch((err) => {
     logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog de recalculo de cutoff");
   });
 

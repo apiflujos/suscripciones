@@ -1,7 +1,7 @@
 import "server-only";
 
 import { prisma } from "@suscripciones/database";
-import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { LogLevel, PaymentOrigin, PaymentStatus, PlanIntervalUnit, Prisma, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
@@ -27,6 +27,28 @@ import {
   subscriptionIdJsonFilter
 } from "./subscriptionShared";
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function readCatalogItemIdFromPlan(plan: { catalogProductId?: string | null; metadata?: unknown }) {
+  const metadata = asRecord(plan.metadata);
+  const catalog = asRecord(metadata.catalog);
+  return String(plan.catalogProductId || catalog.itemId || "").trim();
+}
+
+function readCollectionModeFromMetadata(metadata: unknown) {
+  return String(asRecord(metadata).collectionMode || "MANUAL_LINK");
+}
+
+function normalizePaymentTiming(value: unknown): "EN_CURSO" | "ANTICIPADO" {
+  return String(value || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "unknown error";
+}
+
 export async function createSubscription(args: {
   customerId: string;
   empresaId?: string | null;
@@ -38,7 +60,7 @@ export async function createSubscription(args: {
   firstPeriodEndAt?: string;
   createPaymentLink?: boolean;
   allowDuplicate?: boolean;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }) {
   const requestedPlanId = String(args.planId || "").trim();
   const effectiveTenantIds = Array.from(new Set((args.tenantIds || []).map((t) => String(t || "").trim()).filter(Boolean)));
@@ -59,7 +81,7 @@ export async function createSubscription(args: {
   const customer = await prisma.customer.findUnique({ where: { id: args.customerId } });
   if (!customer) return { ok: false, status: 404, error: "customer_no_encontrado" as const };
 
-  const planTenantIds = Array.from(new Set([plan.tenantId, ...(plan.tenantLinks || []).map((t: any) => t.tenantId)].filter(Boolean))) as string[];
+  const planTenantIds = Array.from(new Set([plan.tenantId, ...(plan.tenantLinks || []).map((t) => t.tenantId)].filter(Boolean))) as string[];
   if (!effectiveTenantIds.length) return { ok: false, status: 400, error: "tenant_requerido" as const };
 
   if (planTenantIds.length) {
@@ -74,9 +96,9 @@ export async function createSubscription(args: {
     if (!linked) return { ok: false, status: 409, error: "tenant_mismatch" as const };
   }
   if (!args.allowDuplicate) {
-    const catalogItemId = String((plan as any)?.catalogProductId || (plan.metadata as any)?.catalog?.itemId || "").trim();
+    const catalogItemId = readCatalogItemIdFromPlan(plan);
     const activeStatuses = [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED, SubscriptionStatus.EXPIRED];
-    const duplicateWhere: any = {
+    const duplicateWhere: Prisma.SubscriptionWhereInput = {
       customerId: args.customerId,
       status: { in: activeStatuses }
     };
@@ -94,7 +116,7 @@ export async function createSubscription(args: {
   }
   const tenantId = effectiveTenantIds[0];
 
-  const collectionMode = String((plan.metadata as any)?.collectionMode || "MANUAL_LINK");
+  const collectionMode = readCollectionModeFromMetadata(plan.metadata);
   const paymentSourceId = extractCustomerPaymentSourceId(customer.metadata);
   const hasPaymentSource = paymentSourceId !== null;
   const startAt = args.startAt ? new Date(args.startAt) : new Date();
@@ -103,7 +125,7 @@ export async function createSubscription(args: {
   if (Number.isNaN(periodEnd.getTime())) return { ok: false, status: 400, error: "first_period_end_at_invalido" as const };
   if (periodEnd < startAt) return { ok: false, status: 400, error: "first_period_end_anterior_a_start" as const };
 
-  const subscriptionMetaBase = args.metadata && typeof args.metadata === "object" ? (args.metadata as any) : {};
+  const subscriptionMetaBase = asRecord(args.metadata);
   const autoDebitCfg = await getAutoDebitConfig().catch(() => null);
   const defaultGraceDays = Number(autoDebitCfg?.graceDays || 5);
   const graceDays = Number.isFinite(defaultGraceDays) ? Math.max(1, Math.min(5, Math.trunc(defaultGraceDays))) : 5;
@@ -121,7 +143,7 @@ export async function createSubscription(args: {
   }) || periodEnd;
   const dueWithGraceAt = new Date(dueAt.getTime() + graceDays * 24 * 60 * 60 * 1000);
   const initialStatus = dueWithGraceAt.getTime() < Date.now() ? SubscriptionStatus.PAST_DUE : SubscriptionStatus.ACTIVE;
-  const resolvedProductId = String(args.productId || (plan as any)?.catalogProductId || (plan.metadata as any)?.catalog?.itemId || "").trim() || null;
+  const resolvedProductId = String(args.productId || readCatalogItemIdFromPlan(plan)).trim() || null;
 
   const subscription = await prisma.subscription.create({
     data: {
@@ -144,7 +166,7 @@ export async function createSubscription(args: {
             ? subscriptionMetaBase.pricing
             : readPlanPricing(plan.metadata),
         collectionMode
-      } as any
+      } as Prisma.InputJsonValue
     }
   });
 
@@ -156,13 +178,13 @@ export async function createSubscription(args: {
     currentPeriodEndAt: periodEnd,
     cycleStartDay: subscription.cycleStartDay,
     paymentDay: subscription.paymentDay,
-    paymentTiming: subscription.paymentTiming as any,
+    paymentTiming: normalizePaymentTiming(subscription.paymentTiming),
     graceDays: subscription.graceDays,
     plan: {
       intervalUnit: plan.intervalUnit,
       intervalCount: plan.intervalCount
     }
-  }).catch((err: any) => {
+  }).catch((err) => {
     logger.warn({ err, subscriptionId: subscription.id }, "Fallo generando ciclos iniciales de suscripción");
   });
 
@@ -212,11 +234,11 @@ export async function createSubscription(args: {
         ...link,
         paymentSourceMissing: collectionMode === "AUTO_DEBIT" && !hasPaymentSource
       };
-    } catch (err: any) {
+    } catch (err) {
       await systemLog(LogLevel.ERROR, "subscriptions.create", "Subscription created but payment link failed", {
         subscriptionId: subscription.id,
-        err: err?.message ? String(err.message) : "unknown error"
-      }).catch((logErr: any) => {
+        err: errorMessage(err)
+      }).catch((logErr) => {
         logger.warn({ err: logErr, subscriptionId: subscription.id }, "Fallo escribiendo systemLog por error creando payment link de suscripcion");
       });
       return { ok: true, subscription, scheduled: true, paymentLinkError: "fallo_creando_link_de_pago" };
@@ -228,11 +250,11 @@ export async function createSubscription(args: {
   try {
     const link = await createPaymentLinkForSubscription({ subscriptionId: subscription.id });
     return { ok: true, subscription, ...link };
-  } catch (err: any) {
+  } catch (err) {
     await systemLog(LogLevel.ERROR, "subscriptions.create", "Subscription created but payment link failed", {
       subscriptionId: subscription.id,
-      err: err?.message ? String(err.message) : "unknown error"
-    }).catch((logErr: any) => {
+      err: errorMessage(err)
+    }).catch((logErr) => {
       logger.warn({ err: logErr, subscriptionId: subscription.id }, "Fallo escribiendo systemLog por error creando payment link de suscripcion");
     });
     return { ok: true, subscription, paymentLinkError: "fallo_creando_link_de_pago" };
@@ -255,7 +277,7 @@ export async function updateSubscriptionTenants(args: {
   if (!existing) return { ok: false, status: 404, error: "subscription_not_found" as const };
   if (args.tenantId) {
     const allowed =
-      existing.tenantId === args.tenantId || (existing.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+      existing.tenantId === args.tenantId || (existing.tenantLinks || []).some((t) => t.tenantId === args.tenantId);
     if (!allowed) return { ok: false, status: 404, error: "subscription_not_found" as const };
     const invalid = (args.tenantIds || []).find((t) => t !== args.tenantId);
     if (invalid) return { ok: false, status: 403, error: "tenant_forbidden" as const };
@@ -332,12 +354,14 @@ export async function updateSubscriptionBillingSettings(args: {
       ? resolveMonthlyPeriodStart(toUtc(now), cycleDay)
       : resolvePeriodStartFromAnchor(now, anchor, normalized.unit, normalized.count);
 
+  const normalizedUnit = normalized.unit as PlanIntervalUnit; // cast necesario: normalizeInterval retorna string controlado del dominio
   const effectiveStart =
     paymentTiming === "ANTICIPADO"
-      ? addIntervalUtc(baseStart, normalized.unit as any, normalized.count)
+      ? addIntervalUtc(baseStart, normalizedUnit, normalized.count)
       : baseStart;
 
-  const effectiveEnd = addIntervalUtc(effectiveStart, normalized.unit as any, normalized.count);
+  const effectiveEnd = addIntervalUtc(effectiveStart, normalizedUnit, normalized.count);
+  const subscriptionMetadata = asRecord(subscription.metadata);
 
   const normalizedCollectionMode = args.collectionMode
     ? String(args.collectionMode).trim().toUpperCase() === "AUTO_DEBIT" ? "AUTO_DEBIT" : "MANUAL_LINK"
@@ -353,7 +377,7 @@ export async function updateSubscriptionBillingSettings(args: {
       paymentTiming,
       ...(normalizedCollectionMode ? {
         metadata: {
-          ...(subscription.metadata as any || {}),
+          ...subscriptionMetadata,
           collectionMode: normalizedCollectionMode
         }
       } : {})
@@ -367,7 +391,7 @@ export async function updateSubscriptionBillingSettings(args: {
     paymentTiming: updated.paymentTiming,
     graceDays: updated.graceDays,
     ...(normalizedCollectionMode ? { collectionMode: normalizedCollectionMode } : {})
-  }, args.actor || "Sistema").catch((err: any) => {
+  }, args.actor || "Sistema").catch((err) => {
     logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al actualizar reglas de ciclo");
   });
 
@@ -379,17 +403,17 @@ export async function updateSubscriptionBillingSettings(args: {
     currentPeriodEndAt: effectiveEnd,
     cycleStartDay: updated.cycleStartDay,
     paymentDay: updated.paymentDay,
-    paymentTiming: updated.paymentTiming as any,
+    paymentTiming: normalizePaymentTiming(updated.paymentTiming),
     graceDays: updated.graceDays,
     plan: {
       intervalUnit: subscription.plan.intervalUnit,
       intervalCount: subscription.plan.intervalCount
     }
-  }).catch((err: any) => {
+  }).catch((err) => {
     logger.warn({ err, subscriptionId }, "Fallo regenerando ciclos tras actualizar reglas de suscripción");
   });
 
-  await syncSubscriptionBillingSnapshot({ subscriptionId, asOf: new Date() }).catch((err: any) => {
+  await syncSubscriptionBillingSnapshot({ subscriptionId, asOf: new Date() }).catch((err) => {
     logger.warn({ err, subscriptionId }, "Fallo sincronizando snapshot tras actualizar reglas");
   });
 
@@ -435,16 +459,16 @@ export async function changeSubscriptionPlan(args: {
   }
   if (args.tenantId) {
     const allowed =
-      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t) => t.tenantId === args.tenantId);
     if (!allowed) return { ok: false, status: 404, error: "subscription_not_found" as const };
-    const allowedPlan = plan.tenantId === args.tenantId || (plan.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+    const allowedPlan = plan.tenantId === args.tenantId || (plan.tenantLinks || []).some((t) => t.tenantId === args.tenantId);
     if (!allowedPlan) return { ok: false, status: 404, error: "plan_not_found" as const };
   }
 
-  const planMeta = (plan.metadata as any) ?? {};
+  const planMeta = asRecord(plan.metadata);
+  const catalog = asRecord(planMeta.catalog);
+  const pricing = asRecord(readPlanPricing(planMeta));
   const sourcePlanId = String(plan.id || "");
-  const catalog = planMeta?.catalog ?? {};
-  const pricing = readPlanPricing(planMeta);
   const kind = String(catalog?.kind || "").toUpperCase();
   const requiresShipping = kind !== "SERVICE";
   const defaultShippingInCents = Number(pricing?.shippingInCents || 0);
@@ -464,12 +488,12 @@ export async function changeSubscriptionPlan(args: {
     taxPercent: Number(pricing?.taxPercent || 0)
   });
 
-  const subscriptionMetaBase = subscription.metadata && typeof subscription.metadata === "object" ? (subscription.metadata as any) : {};
+  const subscriptionMetaBase = asRecord(subscription.metadata);
   const nextSubscriptionMetadata = {
     ...subscriptionMetaBase,
-    collectionMode: String((plan.metadata as any)?.collectionMode || "MANUAL_LINK"),
+    collectionMode: readCollectionModeFromMetadata(plan.metadata),
     pricing: {
-      ...(subscriptionMetaBase?.pricing && typeof subscriptionMetaBase.pricing === "object" ? subscriptionMetaBase.pricing : {}),
+      ...(asRecord(subscriptionMetaBase.pricing)),
       sourcePlanId,
       basePriceInCents: Number(pricing?.basePriceInCents || plan.priceInCents || 0),
       variantDeltaInCents: Number(catalog?.variantDeltaInCents || 0),
@@ -488,8 +512,8 @@ export async function changeSubscriptionPlan(args: {
     where: { id: subscriptionId },
     data: {
       planId: plan.id,
-      productId: requestedProductId || String((plan as any)?.catalogProductId || (plan.metadata as any)?.catalog?.itemId || "").trim() || null,
-      metadata: nextSubscriptionMetadata as any
+      productId: requestedProductId || String(readCatalogItemIdFromPlan(plan)).trim() || null,
+      metadata: nextSubscriptionMetadata as Prisma.InputJsonValue
     }
   });
 
@@ -501,13 +525,13 @@ export async function changeSubscriptionPlan(args: {
     currentPeriodEndAt: cutoffAt,
     cycleStartDay: updated.cycleStartDay,
     paymentDay: updated.paymentDay,
-    paymentTiming: updated.paymentTiming as any,
+    paymentTiming: normalizePaymentTiming(updated.paymentTiming),
     graceDays: updated.graceDays,
     plan: {
       intervalUnit: plan.intervalUnit,
       intervalCount: plan.intervalCount
     }
-  }).catch((err: any) => {
+  }).catch((err) => {
     logger.warn({ err, subscriptionId }, "Fallo regenerando ciclos al cambiar plan");
   });
 
@@ -519,7 +543,7 @@ export async function changeSubscriptionPlan(args: {
     }
   });
 
-  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err: any) => {
+  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err) => {
     logger.warn({ err, subscriptionId: subscription.id }, "Fallo reprogramando notificaciones al cambiar plan");
   });
 
@@ -529,7 +553,7 @@ export async function changeSubscriptionPlan(args: {
       subscriptionId,
       runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
       maxAttempts: 1
-    }).catch((err: any) => {
+    }).catch((err) => {
       logger.warn({ err, subscriptionId, runAt: cutoffAt }, "Fallo reprogramando retry al cambiar plan");
     });
   }
@@ -549,7 +573,7 @@ export async function updateSubscriptionStatus(args: {
   if (!existing) return { ok: false, status: 404, error: "subscription_not_found" as const };
   if (args.tenantId) {
     const allowed =
-      existing.tenantId === args.tenantId || (existing.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+      existing.tenantId === args.tenantId || (existing.tenantLinks || []).some((t) => t.tenantId === args.tenantId);
     if (!allowed) return { ok: false, status: 404, error: "subscription_not_found" as const };
   }
 
@@ -559,7 +583,7 @@ export async function updateSubscriptionStatus(args: {
       where: { id: subscriptionId },
       data: { status: SubscriptionStatus.SUSPENDED, suspendedAt: new Date() }
     });
-    await systemLog(LogLevel.INFO, "subscriptions.suspend", "Subscription suspended", { subscriptionId }).catch((err: any) => {
+    await systemLog(LogLevel.INFO, "subscriptions.suspend", "Subscription suspended", { subscriptionId }).catch((err) => {
       logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al suspender suscripcion");
     });
     return { ok: true, subscription: updated };
@@ -570,7 +594,7 @@ export async function updateSubscriptionStatus(args: {
       where: { id: subscriptionId },
       data: { status: SubscriptionStatus.CANCELED, canceledAt: new Date(), suspendedAt: null }
     });
-    await systemLog(LogLevel.INFO, "subscriptions.cancel", "Subscription canceled", { subscriptionId }).catch((err: any) => {
+    await systemLog(LogLevel.INFO, "subscriptions.cancel", "Subscription canceled", { subscriptionId }).catch((err) => {
       logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al cancelar suscripcion");
     });
     return { ok: true, subscription: updated };
@@ -581,7 +605,7 @@ export async function updateSubscriptionStatus(args: {
       where: { id: subscriptionId },
       data: { status: SubscriptionStatus.ACTIVE, suspendedAt: null }
     });
-    await systemLog(LogLevel.INFO, "subscriptions.resume", "Subscription resumed", { subscriptionId }).catch((err: any) => {
+    await systemLog(LogLevel.INFO, "subscriptions.resume", "Subscription resumed", { subscriptionId }).catch((err) => {
       logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al reanudar suscripcion");
     });
     return { ok: true, subscription: updated };
@@ -592,7 +616,7 @@ export async function updateSubscriptionStatus(args: {
       where: { id: subscriptionId },
       data: { status: SubscriptionStatus.ACTIVE, canceledAt: null, suspendedAt: null }
     });
-    await systemLog(LogLevel.INFO, "subscriptions.activate", "Subscription activated", { subscriptionId }).catch((err: any) => {
+    await systemLog(LogLevel.INFO, "subscriptions.activate", "Subscription activated", { subscriptionId }).catch((err) => {
       logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al activar suscripcion");
     });
     return { ok: true, subscription: updated };
@@ -612,7 +636,7 @@ export async function deleteSubscription(args: { subscriptionId: string; tenantI
   if (!subscription) return { ok: false, status: 404, error: "subscription_not_found" as const };
   if (args.tenantId) {
     const allowed =
-      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t: any) => t.tenantId === args.tenantId);
+      subscription.tenantId === args.tenantId || (subscription.tenantLinks || []).some((t) => t.tenantId === args.tenantId);
     if (!allowed) return { ok: false, status: 404, error: "subscription_not_found" as const };
   }
 
@@ -631,25 +655,25 @@ export async function deleteSubscription(args: { subscriptionId: string; tenantI
 
   if (force) {
     const payments = await prisma.payment.findMany({ where: { subscriptionId }, select: { id: true } });
-    const paymentIds = payments.map((p: any) => p.id);
+    const paymentIds = payments.map((p) => p.id);
 
     if (paymentIds.length) {
-      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch((err: any) => {
+      await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch((err) => {
         logger.warn({ err, subscriptionId, paymentIds }, "Fallo limpiando payment attempts al borrar suscripcion");
       });
     }
-    await prisma.chatwootMessage.deleteMany({ where: { subscriptionId } }).catch((err: any) => {
+    await prisma.chatwootMessage.deleteMany({ where: { subscriptionId } }).catch((err) => {
       logger.warn({ err, subscriptionId }, "Fallo limpiando mensajes Chatwoot al borrar suscripcion");
     });
-    await prisma.paymentLink.deleteMany({ where: { subscriptionId } }).catch((err: any) => {
+    await prisma.paymentLink.deleteMany({ where: { subscriptionId } }).catch((err) => {
       logger.warn({ err, subscriptionId }, "Fallo limpiando payment links al borrar suscripcion");
     });
     if (args.purgePayments) {
-      await prisma.payment.deleteMany({ where: { subscriptionId } }).catch((err: any) => {
+      await prisma.payment.deleteMany({ where: { subscriptionId } }).catch((err) => {
         logger.warn({ err, subscriptionId }, "Fallo limpiando pagos al borrar suscripcion");
       });
     }
-    await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId } }).catch((err: any) => {
+    await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId } }).catch((err) => {
       logger.warn({ err, subscriptionId }, "Fallo limpiando tenants vinculados al borrar suscripcion");
     });
   }
@@ -668,7 +692,7 @@ export async function mergeDuplicateSubscriptions(args: {
   const customerId = String(args.customerId || "").trim();
   if (!customerId) return { ok: false, status: 400, error: "missing_customer_id" as const };
 
-  const where: any = { customerId };
+  const where: Prisma.SubscriptionWhereInput = { customerId };
   const tenantId = String(args.tenantId || "").trim();
   if (tenantId) where.tenantId = tenantId;
 
@@ -702,20 +726,20 @@ export async function mergeDuplicateSubscriptions(args: {
     const paymentsCount = await prisma.payment.count({ where: { subscriptionId: sub.id } });
     const linksCount = await prisma.paymentLink.count({ where: { subscriptionId: sub.id } });
     if (!paymentsCount && !linksCount) {
-      await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: sub.id } }).catch((err: any) => {
+      await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: sub.id } }).catch((err) => {
         logger.warn({ err, subscriptionId: sub.id, keepSubscriptionId: keepId }, "Fallo limpiando tenants al fusionar suscripciones duplicadas");
       });
-      await prisma.subscription.delete({ where: { id: sub.id } }).catch((err: any) => {
+      await prisma.subscription.delete({ where: { id: sub.id } }).catch((err) => {
         logger.warn({ err, subscriptionId: sub.id, keepSubscriptionId: keepId }, "Fallo borrando suscripcion duplicada vacia");
       });
     } else {
-      const meta = (sub.metadata && typeof sub.metadata === "object" ? (sub.metadata as any) : {}) as any;
+      const meta = asRecord(sub.metadata);
       await prisma.subscription.update({
         where: { id: sub.id },
         data: {
           status: SubscriptionStatus.CANCELED,
           canceledAt: sub.canceledAt || new Date(),
-          metadata: { ...meta, mergedInto: keepId } as any
+          metadata: { ...meta, mergedInto: keepId } as Prisma.InputJsonValue
         }
       });
     }
