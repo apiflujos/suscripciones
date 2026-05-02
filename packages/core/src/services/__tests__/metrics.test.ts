@@ -10,13 +10,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { getMetricsOverview } from '../metrics';
 import { prisma } from '../../db/prisma';
+import { logger } from '../../lib/logger';
 
 // Mock de Prisma
 vi.mock('../../db/prisma', () => ({
   prisma: {
-    $queryRawUnsafe: vi.fn(),
+    $queryRaw: vi.fn(),
     subscription: {
-      count: vi.fn()
+      count: vi.fn(),
+      findMany: vi.fn()
     },
     webhookEvent: {
       groupBy: vi.fn()
@@ -33,11 +35,23 @@ vi.mock('../../db/prisma', () => ({
   }
 }));
 
+function sqlText(query: unknown) {
+  if (typeof query === 'string') return query;
+  if (query && typeof query === 'object') {
+    const candidate = query as { sql?: string; text?: string; strings?: readonly string[] };
+    if (typeof candidate.sql === 'string') return candidate.sql;
+    if (typeof candidate.text === 'string') return candidate.text;
+    if (Array.isArray(candidate.strings)) return candidate.strings.join('?');
+  }
+  return String(query);
+}
+
 describe('getMetricsOverview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(prisma.$queryRawUnsafe).mockResolvedValue([] as any);
+    vi.mocked(prisma.$queryRaw).mockResolvedValue([] as any);
     vi.mocked(prisma.subscription.count).mockResolvedValue(0 as any);
+    vi.mocked(prisma.subscription.findMany).mockResolvedValue([] as any);
   });
 
   afterEach(() => {
@@ -72,7 +86,7 @@ describe('getMetricsOverview', () => {
     });
 
     it('should handle null tenantId', async () => {
-      (prisma.$queryRawUnsafe as any).mockResolvedValue([]);
+      (prisma.$queryRaw as any).mockResolvedValue([]);
       (prisma.subscription.count as any).mockResolvedValue(0);
 
       const result = await getMetricsOverview({
@@ -90,8 +104,8 @@ describe('getMetricsOverview', () => {
   describe('Cálculo de MRR', () => {
     it('should calculate MRR correctly for MONTH interval', async () => {
       // Mock de datos: 1 suscripción de $100.000 COP mensual
-      (prisma.$queryRawUnsafe as any).mockImplementation((query: string) => {
-        if (query.includes('mrr_cents')) {
+      (prisma.$queryRaw as any).mockImplementation((query: unknown) => {
+        if (sqlText(query).includes('mrr_cents')) {
           return Promise.resolve([{ mrr_cents: 100000 }]);
         }
         return Promise.resolve([]);
@@ -110,8 +124,8 @@ describe('getMetricsOverview', () => {
 
     it('should return 0 MRR for CUSTOM interval without mrrFactor', async () => {
       // Mock: plan CUSTOM sin metadata.mrrFactor
-      (prisma.$queryRawUnsafe as any).mockImplementation((query: string) => {
-        if (query.includes('mrr_cents')) {
+      (prisma.$queryRaw as any).mockImplementation((query: unknown) => {
+        if (sqlText(query).includes('mrr_cents')) {
           // CUSTOM sin mrrFactor debería retornar 0
           return Promise.resolve([{ mrr_cents: 0 }]);
         }
@@ -131,8 +145,8 @@ describe('getMetricsOverview', () => {
 
     it('should handle WEEK interval conversion', async () => {
       // $25.000 semanales → MRR ≈ $108.631 (25000 * 4.34524)
-      (prisma.$queryRawUnsafe as any).mockImplementation((query: string) => {
-        if (query.includes('mrr_cents')) {
+      (prisma.$queryRaw as any).mockImplementation((query: unknown) => {
+        if (sqlText(query).includes('mrr_cents')) {
           return Promise.resolve([{ mrr_cents: 108631 }]);
         }
         return Promise.resolve([]);
@@ -151,7 +165,7 @@ describe('getMetricsOverview', () => {
 
   describe('Series temporales', () => {
     it('should return empty series when no data exists', async () => {
-      (prisma.$queryRawUnsafe as any).mockResolvedValue([]);
+      (prisma.$queryRaw as any).mockResolvedValue([]);
       (prisma.subscription.count as any).mockResolvedValue(0);
 
       const result = await getMetricsOverview({
@@ -167,7 +181,7 @@ describe('getMetricsOverview', () => {
     });
 
     it('should sort series by date ascending', async () => {
-      (prisma.$queryRawUnsafe as any).mockResolvedValue([
+      (prisma.$queryRaw as any).mockResolvedValue([
         { bucket: new Date('2026-03-05') },
         { bucket: new Date('2026-03-01') },
         { bucket: new Date('2026-03-03') }
@@ -189,8 +203,9 @@ describe('getMetricsOverview', () => {
 
   describe('Cálculo de churn', () => {
     it('should return null churn when no active subscriptions', async () => {
-      (prisma.$queryRawUnsafe as any).mockImplementation((query: string) => {
-        if (query.includes('cancels') && query.includes('active_start')) {
+      (prisma.$queryRaw as any).mockImplementation((query: unknown) => {
+        const text = sqlText(query);
+        if (text.includes('cancels') && text.includes('active_start')) {
           return Promise.resolve([{ cancels: 0n, active_start: 0n }]);
         }
         return Promise.resolve([]);
@@ -209,8 +224,9 @@ describe('getMetricsOverview', () => {
 
     it('should calculate churn percentage correctly', async () => {
       // 10 activas al inicio, 2 canceladas → 20% churn
-      (prisma.$queryRawUnsafe as any).mockImplementation((query: string) => {
-        if (query.includes('cancels') && query.includes('active_start')) {
+      (prisma.$queryRaw as any).mockImplementation((query: unknown) => {
+        const text = sqlText(query);
+        if (text.includes('cancels') && text.includes('active_start')) {
           return Promise.resolve([{ cancels: 2n, active_start: 10n }]);
         }
         return Promise.resolve([]);
@@ -230,8 +246,8 @@ describe('getMetricsOverview', () => {
 
   describe('Conversión de links', () => {
     it('should return null conversion when no links sent', async () => {
-      (prisma.$queryRawUnsafe as any).mockImplementation((query: string) => {
-        if (query.includes('links_sent')) {
+      (prisma.$queryRaw as any).mockImplementation((query: unknown) => {
+        if (sqlText(query).includes('links_sent')) {
           return Promise.resolve([{ links_sent: 0n }]);
         }
         return Promise.resolve([]);
@@ -249,14 +265,15 @@ describe('getMetricsOverview', () => {
 
     it('should calculate conversion percentage correctly', async () => {
       // 100 links enviados, 25 pagados → 25% conversión
-      (prisma.$queryRawUnsafe as any).mockImplementation((query: string) => {
-        if (query.includes('links_paid_in_range')) {
+      (prisma.$queryRaw as any).mockImplementation((query: unknown) => {
+        const text = sqlText(query);
+        if (text.includes('links_paid_in_range')) {
           return Promise.resolve([{ links_sent: 100n, links_paid_in_range: 25n }]);
         }
-        if (query.includes('links_sent')) {
+        if (text.includes('links_sent')) {
           return Promise.resolve([{ links_sent: 100n }]);
         }
-        if (query.includes('links_paid')) {
+        if (text.includes('links_paid')) {
           return Promise.resolve([{ links_paid: 25n }]);
         }
         return Promise.resolve([]);
@@ -275,8 +292,8 @@ describe('getMetricsOverview', () => {
 
   describe('Performance y logging', () => {
     it('should log performance metrics', async () => {
-      const consoleSpy = vi.spyOn(console, 'log');
-      (prisma.$queryRawUnsafe as any).mockResolvedValue([]);
+      const loggerSpy = vi.spyOn(logger, 'info').mockImplementation(() => logger as any);
+      (prisma.$queryRaw as any).mockResolvedValue([]);
       (prisma.subscription.count as any).mockResolvedValue(0);
 
       await getMetricsOverview({
@@ -286,17 +303,16 @@ describe('getMetricsOverview', () => {
         tenantId: null
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[MetricsOverview]',
-        expect.any(String)
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          durationMs: expect.any(Number),
+          seriesPoints: expect.any(Number),
+          slow: expect.any(Boolean)
+        }),
+        "[MetricsOverview] completed"
       );
 
-      const logData = JSON.parse(consoleSpy.mock.calls[0][1]);
-      expect(logData).toHaveProperty('durationMs');
-      expect(logData).toHaveProperty('seriesPoints');
-      expect(logData).toHaveProperty('slow');
-
-      consoleSpy.mockRestore();
+      loggerSpy.mockRestore();
     });
   });
 });

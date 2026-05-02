@@ -68,7 +68,7 @@ export async function reconcileWompiTransaction(args: {
   try {
     tx = await wompi.getTransaction(txId, publicKey);
   } catch (err) {
-    logger.warn({ err }, '[WompiReconcile] Error fetching transaction');err);
+    logger.warn({ err }, '[WompiReconcile] Error fetching transaction');
     return { ok: false, reason: "wompi_api_unavailable" as const };
   }
   const status = normalizeStatus(tx.status);
