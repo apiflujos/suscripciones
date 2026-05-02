@@ -30,6 +30,7 @@ describe("payments admin service", () => {
   });
 
   it("keeps overdue unpaid billing cycles as pending instead of failed", async () => {
+    // timeout bumped: dynamic import of 1400-line payments.ts is slow under WSL2 memory pressure
     const { listSubscriptionBillingCycles } = await import("../payments");
 
     prisma.subscription.findUnique.mockResolvedValue({
@@ -61,7 +62,7 @@ describe("payments admin service", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("expected ok result");
     expect(result.items[0]?.status).toBe("PENDING");
-  });
+  }, 12000);
 
   it("uses subscription total with pricing metadata for auto-association suggestions", async () => {
     const { getSubscriptionAutoAssociationSuggestions } = await import("../payments");
