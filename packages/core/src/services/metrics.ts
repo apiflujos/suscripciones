@@ -41,6 +41,8 @@ type SeriesPoint = {
   churnMonthlyPct?: number | null;
 };
 
+const METRICS_QUERY_TIMEOUT_MS = 15_000;
+
 // ============================================================================
 // CONFIGURACIÓN Y UTILIDADES
 // ============================================================================
@@ -80,6 +82,15 @@ function bucketKey(raw: any): string | null {
 function num(v: any) {
   const n = typeof v === "bigint" ? Number(v) : Number(v ?? 0);
   return Number.isFinite(n) ? n : 0;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`Metrics query timeout: ${label}`)), ms);
+    })
+  ]);
 }
 
 const ACTIVE_SUBSCRIPTION_STATUSES: SubscriptionStatus[] = [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED];
@@ -274,66 +285,70 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   let linksPaidAgg: Array<{ bucket: Date; links_paid: bigint }> = [];
 
   try {
-    [paymentsAgg, failedAgg, linksSentAgg, linksPaidAgg] = await Promise.all([
-      prisma.$queryRaw<Array<{ bucket: Date; payments_success: bigint; revenue_cents: bigint }>>(Prisma.sql`
-        SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, p."paidAt") AS bucket,
-               COUNT(*)::bigint AS payments_success,
-               COALESCE(SUM(p."amountInCents"))::bigint AS revenue_cents
-        FROM "Payment" p
-        WHERE p."status" = 'APPROVED'
-          AND p."paidAt" IS NOT NULL
-          AND p."paidAt" >= ${from}::timestamptz
-          AND p."paidAt" < ${to}::timestamptz
-          ${paymentReconciliationSql("p")}
-          ${paymentUnlinkedSql("p", includeUnlinkedPayments)}
-          ${tenantSql("p", hasTenant, tenantId)}
-        GROUP BY 1
-        ORDER BY 1 ASC
-      `),
+    [paymentsAgg, failedAgg, linksSentAgg, linksPaidAgg] = await withTimeout(
+      Promise.all([
+        prisma.$queryRaw<Array<{ bucket: Date; payments_success: bigint; revenue_cents: bigint }>>(Prisma.sql`
+          SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, p."paidAt") AS bucket,
+                 COUNT(*)::bigint AS payments_success,
+                 COALESCE(SUM(p."amountInCents"))::bigint AS revenue_cents
+          FROM "Payment" p
+          WHERE p."status" = 'APPROVED'
+            AND p."paidAt" IS NOT NULL
+            AND p."paidAt" >= ${from}::timestamptz
+            AND p."paidAt" < ${to}::timestamptz
+            ${paymentReconciliationSql("p")}
+            ${paymentUnlinkedSql("p", includeUnlinkedPayments)}
+            ${tenantSql("p", hasTenant, tenantId)}
+          GROUP BY 1
+          ORDER BY 1 ASC
+        `),
 
-      prisma.$queryRaw<Array<{ bucket: Date; payments_failed: bigint }>>(Prisma.sql`
-        SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, COALESCE(p."failedAt", p."updatedAt")) AS bucket,
-               COUNT(*)::bigint AS payments_failed
-        FROM "Payment" p
-        WHERE p."status" IN ('DECLINED', 'ERROR', 'VOIDED')
-          AND COALESCE(p."failedAt", p."updatedAt") >= ${from}::timestamptz
-          AND COALESCE(p."failedAt", p."updatedAt") < ${to}::timestamptz
-          ${paymentReconciliationSql("p")}
-          ${paymentUnlinkedSql("p", includeUnlinkedPayments)}
-          ${tenantSql("p", hasTenant, tenantId)}
-        GROUP BY 1
-        ORDER BY 1 ASC
-      `),
+        prisma.$queryRaw<Array<{ bucket: Date; payments_failed: bigint }>>(Prisma.sql`
+          SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, COALESCE(p."failedAt", p."updatedAt")) AS bucket,
+                 COUNT(*)::bigint AS payments_failed
+          FROM "Payment" p
+          WHERE p."status" IN ('DECLINED', 'ERROR', 'VOIDED')
+            AND COALESCE(p."failedAt", p."updatedAt") >= ${from}::timestamptz
+            AND COALESCE(p."failedAt", p."updatedAt") < ${to}::timestamptz
+            ${paymentReconciliationSql("p")}
+            ${paymentUnlinkedSql("p", includeUnlinkedPayments)}
+            ${tenantSql("p", hasTenant, tenantId)}
+          GROUP BY 1
+          ORDER BY 1 ASC
+        `),
 
-      prisma.$queryRaw<Array<{ bucket: Date; links_sent: bigint }>>(Prisma.sql`
-        SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, pl."sentAt") AS bucket,
-               COUNT(*)::bigint AS links_sent
-        FROM "PaymentLink" pl
-        INNER JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
-        WHERE sp."planType" = 'manual_link'
-          AND pl."sentAt" >= ${from}::timestamptz
-          AND pl."sentAt" < ${to}::timestamptz
-          ${tenantSql("pl", hasTenant, tenantId)}
-        GROUP BY 1
-        ORDER BY 1 ASC
-      `),
+        prisma.$queryRaw<Array<{ bucket: Date; links_sent: bigint }>>(Prisma.sql`
+          SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, pl."sentAt") AS bucket,
+                 COUNT(*)::bigint AS links_sent
+          FROM "PaymentLink" pl
+          INNER JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
+          WHERE sp."planType" = 'manual_link'
+            AND pl."sentAt" >= ${from}::timestamptz
+            AND pl."sentAt" < ${to}::timestamptz
+            ${tenantSql("pl", hasTenant, tenantId)}
+          GROUP BY 1
+          ORDER BY 1 ASC
+        `),
 
-      prisma.$queryRaw<Array<{ bucket: Date; links_paid: bigint }>>(Prisma.sql`
-        SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, pl."paidAt") AS bucket,
-               COUNT(*)::bigint AS links_paid
-        FROM "PaymentLink" pl
-        INNER JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
-        WHERE sp."planType" = 'manual_link'
-          AND pl."paidAt" IS NOT NULL
-          AND pl."paidAt" >= ${from}::timestamptz
-          AND pl."paidAt" < ${to}::timestamptz
-          ${tenantSql("pl", hasTenant, tenantId)}
-        GROUP BY 1
-        ORDER BY 1 ASC
-      `)
-    ]);
+        prisma.$queryRaw<Array<{ bucket: Date; links_paid: bigint }>>(Prisma.sql`
+          SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, pl."paidAt") AS bucket,
+                 COUNT(*)::bigint AS links_paid
+          FROM "PaymentLink" pl
+          INNER JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
+          WHERE sp."planType" = 'manual_link'
+            AND pl."paidAt" IS NOT NULL
+            AND pl."paidAt" >= ${from}::timestamptz
+            AND pl."paidAt" < ${to}::timestamptz
+            ${tenantSql("pl", hasTenant, tenantId)}
+          GROUP BY 1
+          ORDER BY 1 ASC
+        `)
+      ]),
+      METRICS_QUERY_TIMEOUT_MS,
+      "parallel_queries"
+    );
   } catch (err) {
-    logger.warn({ err }, '[Metrics] Error en queries paralelas:');
+    logger.warn({ err }, '[Metrics] Timeout o error en queries paralelas');
   }
   paymentsAgg = Array.isArray(paymentsAgg) ? paymentsAgg : [];
   failedAgg = Array.isArray(failedAgg) ? failedAgg : [];
