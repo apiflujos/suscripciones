@@ -37,6 +37,16 @@ import { PageToolbar } from "../ui/PageToolbar";
 import { formatCivilDate } from "./civilDate";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { MISSING_WHATSAPP_TEMPLATE_MESSAGE } from "../lib/notificationTemplate";
+import type {
+  BadgeInfo,
+  BillingPageContentProps,
+  CardCollectionStateArgs,
+  CollectionMode,
+  CollectionStatusArgs,
+  EstadoInfo,
+  EstadoSimpleInfo,
+  TenantOption
+} from "./billingTypes";
 
 function fmtMoney(cents: any, currency = "COP") {
   const v = Number(cents);
@@ -56,13 +66,13 @@ function fmtEvery(intervalUnit: any, intervalCount: any) {
   return `cada ${c} (personalizado)`;
 }
 
-function resolveCollectionMode(plan: any, subscriptionMeta?: any) {
+function resolveCollectionMode(plan: any, subscriptionMeta?: any): CollectionMode {
   const meta = subscriptionMeta && typeof subscriptionMeta === "object" ? subscriptionMeta : {};
   const planMeta = plan?.metadata && typeof plan.metadata === "object" ? plan.metadata : {};
   const fromSubscription = (meta as any)?.collectionMode ?? (meta as any)?.billing?.collectionMode;
-  if (fromSubscription != null) return String(fromSubscription || "").trim().toUpperCase() || "MANUAL_LINK";
+  if (fromSubscription != null) return (String(fromSubscription || "").trim().toUpperCase() || "MANUAL_LINK") as CollectionMode;
   const fromPlan = (planMeta as any)?.collectionMode ?? plan?.collectionMode;
-  return String(fromPlan || "MANUAL_LINK").trim().toUpperCase();
+  return String(fromPlan || "MANUAL_LINK").trim().toUpperCase() as CollectionMode;
 }
 
 function getTipo(collectionMode: string) {
@@ -78,7 +88,7 @@ function getActivo(status: any) {
   return String(status || "") !== "CANCELED";
 }
 
-function getEstadoSimple(status: any): { label: string; class: string } {
+function getEstadoSimple(status: any): EstadoSimpleInfo {
   const s = String(status || "");
   if (s === "ACTIVE" || s === "PAST_DUE") return { label: "Activa", class: "pill-ok" };
   if (s === "SUSPENDED") return { label: "Suspendida", class: "pill-warn" };
@@ -86,7 +96,7 @@ function getEstadoSimple(status: any): { label: string; class: string } {
   return { label: s || "—", class: "pill-muted" };
 }
 
-function getEstado(status: any): { key: "si" | "no" | "mora"; label: string; class: string } {
+function getEstado(status: any): EstadoInfo {
   const s = String(status || "");
   const base = getEstadoSimple(status);
   if (s === "ACTIVE" || s === "PAST_DUE") return { key: "si", ...base };
@@ -103,13 +113,7 @@ function subscriptionRank(status: any) {
   return 5;
 }
 
-function getCollectionStatusLabel(args: {
-  status: string;
-  dueAt: any;
-  graceDays?: number;
-  collectionCyclePaid?: boolean;
-  nowDate?: Date;
-}) {
+function getCollectionStatusLabel(args: CollectionStatusArgs) {
   if (args.collectionCyclePaid) return "Al día";
   const status = String(args.status || "").toUpperCase();
   const graceDays = Number.isFinite(Number(args.graceDays)) ? Math.max(0, Math.trunc(Number(args.graceDays))) : 5;
@@ -126,13 +130,7 @@ function getCollectionStatusLabel(args: {
   return "En mora";
 }
 
-function getCardCollectionState(args: {
-  status: string;
-  dueAt: any;
-  graceDays?: number;
-  collectionCyclePaid?: boolean;
-  nowTs?: number;
-}) {
+function getCardCollectionState(args: CardCollectionStateArgs) {
   const collectionStatus = getCollectionStatusLabel(args);
   if (collectionStatus === "En mora") return { label: "En mora", class: "pill-bad" };
   if (collectionStatus === "En gracia") return { label: "En gracia", class: "pill-warn" };
@@ -160,7 +158,7 @@ function getPlanLinkStatus(link: any, lastPaidAt: any) {
 }
 
 function buildBillingStatusCards(r: any) {
-  const badges: Array<{ heading: string; value: string; className: string; title?: string }> = [];
+  const badges: BadgeInfo[] = [];
   const mainState = getCardCollectionState({
     status: r.status,
     dueAt: r.vencimientoAt,
@@ -303,9 +301,7 @@ function templateMatchesTenant(template: any, tenantId?: string | null) {
 
 export async function BillingPageContent({
   searchParams
-}: {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-}) {
+}: BillingPageContentProps) {
   const renderNowDate = getCivilDateAnchorUtc(new Date());
   const csrfToken = await getCsrfToken();
   const sp = (await searchParams) ?? {};
@@ -410,7 +406,7 @@ export async function BillingPageContent({
   const productItems = (products.items ?? []) as any[];
   const empresas = (empresasRes?.items ?? []) as any[];
   const productById = new Map(productItems.map((p: any) => [String(p.id), p]));
-  const tenants = (tenantsRes ?? []) as Array<{ id: string; name: string }>;
+  const tenants = (tenantsRes ?? []) as TenantOption[];
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
   const autoDebitSettings = settings?.autoDebit || {};
   const checkoutConfig = settings?.checkoutConfig || {};
