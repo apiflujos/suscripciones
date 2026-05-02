@@ -449,49 +449,45 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   // Totals (range + snapshots)
   let totalsPaymentsRow: Array<{ payments_success: bigint; payments_failed: bigint; revenue_cents: bigint }> = [{ payments_success: 0n, payments_failed: 0n, revenue_cents: 0n }];
   try {
-    totalsPaymentsRow = await prisma.$queryRawUnsafe<
+    totalsPaymentsRow = await prisma.$queryRaw<
       Array<{ payments_success: bigint; payments_failed: bigint; revenue_cents: bigint }>
-    >(
-      `SELECT
-          COUNT(*) FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)::bigint AS payments_success,
-          COUNT(*) FILTER (WHERE p."status" IN ('DECLINED','ERROR','VOIDED') AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz)::bigint AS payments_failed,
-          COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)) ::bigint AS revenue_cents
-        FROM "Payment" p
-        WHERE 1=1
-        ${paymentReconciliationFilter}
-        ${paymentUnlinkedFilter}
-        ${tf("p") }`,
-      from,
-      to,
-    );
+    >(Prisma.sql`
+      SELECT
+        COUNT(*) FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= ${from}::timestamptz AND p."paidAt" < ${to}::timestamptz)::bigint AS payments_success,
+        COUNT(*) FILTER (WHERE p."status" IN ('DECLINED','ERROR','VOIDED') AND COALESCE(p."failedAt", p."updatedAt") >= ${from}::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < ${to}::timestamptz)::bigint AS payments_failed,
+        COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= ${from}::timestamptz AND p."paidAt" < ${to}::timestamptz))::bigint AS revenue_cents
+      FROM "Payment" p
+      WHERE 1=1
+        ${paymentReconciliationSql("p")}
+        ${paymentUnlinkedSql("p", includeUnlinkedPayments)}
+        ${tenantSql("p", hasTenant, tenantId)}
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en totalsPaymentsRow:');
   }
 
   let paymentsByPlanType: PaymentsByPlanTypeRow[] = [];
   try {
-    paymentsByPlanType = await prisma.$queryRawUnsafe<PaymentsByPlanTypeRow[]>(
-      `SELECT
-          sp."planType" AS plan_type,
-          COUNT(*) FILTER (WHERE p."status"='APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)::bigint AS payments_success,
-          COUNT(*) FILTER (WHERE p."status" IN ('DECLINED','ERROR','VOIDED') AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz)::bigint AS payments_failed,
-          COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status"='APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)) ::bigint AS revenue_cents
-        FROM "Payment" p
-        INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
-        INNER JOIN "Customer" c ON c."id" = s."customerId"
-        INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
-        WHERE p."subscriptionId" IS NOT NULL
-          AND (
-            (p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)
-            OR (COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz)
-          )
-          ${paymentReconciliationFilter}
-          ${paymentUnlinkedFilter}
-          ${tf("p") }
-        GROUP BY 1`,
-      from,
-      to,
-    );
+    paymentsByPlanType = await prisma.$queryRaw<PaymentsByPlanTypeRow[]>(Prisma.sql`
+      SELECT
+        sp."planType" AS plan_type,
+        COUNT(*) FILTER (WHERE p."status"='APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= ${from}::timestamptz AND p."paidAt" < ${to}::timestamptz)::bigint AS payments_success,
+        COUNT(*) FILTER (WHERE p."status" IN ('DECLINED','ERROR','VOIDED') AND COALESCE(p."failedAt", p."updatedAt") >= ${from}::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < ${to}::timestamptz)::bigint AS payments_failed,
+        COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status"='APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= ${from}::timestamptz AND p."paidAt" < ${to}::timestamptz))::bigint AS revenue_cents
+      FROM "Payment" p
+      INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
+      INNER JOIN "Customer" c ON c."id" = s."customerId"
+      INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
+      WHERE p."subscriptionId" IS NOT NULL
+        AND (
+          (p."paidAt" IS NOT NULL AND p."paidAt" >= ${from}::timestamptz AND p."paidAt" < ${to}::timestamptz)
+          OR (COALESCE(p."failedAt", p."updatedAt") >= ${from}::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < ${to}::timestamptz)
+        )
+        ${paymentReconciliationSql("p")}
+        ${paymentUnlinkedSql("p", includeUnlinkedPayments)}
+        ${tenantSql("p", hasTenant, tenantId)}
+      GROUP BY 1
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en paymentsByPlanType:');
   }
@@ -511,41 +507,39 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   // DESGLOSE POR PLATAFORMA (Shopify, Alegra, Manual, Direct, etc.)
   let platformBreakdown: Array<{ source: string; payments_success: bigint; payments_failed: bigint; revenue_cents: bigint }> = [];
   try {
-    platformBreakdown = await prisma.$queryRawUnsafe<
+    platformBreakdown = await prisma.$queryRaw<
       Array<{ source: string; payments_success: bigint; payments_failed: bigint; revenue_cents: bigint }>
-    >(
-      `SELECT
+    >(Prisma.sql`
+      SELECT
           COALESCE(
             p."providerResponse"->>'source',
             p."providerResponse"->'order'->>'source',
             p."providerResponse"->'webhook'->'data'->'transaction'->>'source',
             'DIRECT'
           ) AS source,
-          COUNT(*) FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)::bigint AS payments_success,
-          COUNT(*) FILTER (WHERE p."status" IN ('DECLINED','ERROR','VOIDED') AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz)::bigint AS payments_failed,
-          COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)) ::bigint AS revenue_cents
-        FROM "Payment" p
-        WHERE (p."paidAt" IS NOT NULL OR p."status" IN ('DECLINED','ERROR','VOIDED'))
-          AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz
-          AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz
-          AND p."createdAt" >= $1::timestamptz
-          AND p."createdAt" < $2::timestamptz
-          ${paymentReconciliationFilter}
-          ${paymentUnlinkedFilter}
-          ${tf("p") }
-        GROUP BY 1
-        ORDER BY payments_success DESC`,
-      from,
-      to,
-    );
+          COUNT(*) FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= ${from}::timestamptz AND p."paidAt" < ${to}::timestamptz)::bigint AS payments_success,
+          COUNT(*) FILTER (WHERE p."status" IN ('DECLINED','ERROR','VOIDED') AND COALESCE(p."failedAt", p."updatedAt") >= ${from}::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < ${to}::timestamptz)::bigint AS payments_failed,
+          COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status" = 'APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= ${from}::timestamptz AND p."paidAt" < ${to}::timestamptz))::bigint AS revenue_cents
+      FROM "Payment" p
+      WHERE (p."paidAt" IS NOT NULL OR p."status" IN ('DECLINED','ERROR','VOIDED'))
+        AND COALESCE(p."failedAt", p."updatedAt") >= ${from}::timestamptz
+        AND COALESCE(p."failedAt", p."updatedAt") < ${to}::timestamptz
+        AND p."createdAt" >= ${from}::timestamptz
+        AND p."createdAt" < ${to}::timestamptz
+        ${paymentReconciliationSql("p")}
+        ${paymentUnlinkedSql("p", includeUnlinkedPayments)}
+        ${tenantSql("p", hasTenant, tenantId)}
+      GROUP BY 1
+      ORDER BY payments_success DESC
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en platformBreakdown:');
   }
 
   let totalsPlansSoldRow: Array<{ plans_sold: bigint }> = [{ plans_sold: 0n }];
   try {
-    totalsPlansSoldRow = await prisma.$queryRawUnsafe<Array<{ plans_sold: bigint }>>(
-      `WITH first_paid AS (
+    totalsPlansSoldRow = await prisma.$queryRaw<Array<{ plans_sold: bigint }>>(Prisma.sql`
+      WITH first_paid AS (
          SELECT p."subscriptionId", MIN(p."paidAt") AS first_paid_at
          FROM "Payment" p
          INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
@@ -553,16 +547,14 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
          WHERE p."subscriptionId" IS NOT NULL
            AND p."status" = 'APPROVED'
            AND p."paidAt" IS NOT NULL
-           ${paymentReconciliationFilter}
-           ${tf("p") }
+           ${paymentReconciliationSql("p")}
+           ${tenantSql("p", hasTenant, tenantId)}
          GROUP BY p."subscriptionId"
        )
        SELECT COUNT(*)::bigint AS plans_sold
-       FROM first_paid
-       WHERE first_paid_at >= $1::timestamptz AND first_paid_at < $2::timestamptz`,
-      from,
-      to,
-    );
+      FROM first_paid
+      WHERE first_paid_at >= ${from}::timestamptz AND first_paid_at < ${to}::timestamptz
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en totalsPlansSoldRow:');
   }
@@ -631,29 +623,27 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     logger.warn({ err }, '[Metrics] Error en contactsStatusRow:');
   }
 
-  const linksTotalsRow = await prisma.$queryRawUnsafe<
+  const linksTotalsRow = await prisma.$queryRaw<
     Array<{ links_sent: bigint; links_paid_any: bigint; links_paid_in_range: bigint; link_revenue_cents: bigint; avg_time_to_pay_sec: number | null }>
-  >(
-    `WITH sent_in_range AS (
+  >(Prisma.sql`
+    WITH sent_in_range AS (
        SELECT pl.*
        FROM "PaymentLink" pl
        JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
        WHERE sp."planType" = 'manual_link'
-         AND pl."sentAt" >= $1::timestamptz
-         AND pl."sentAt" < $2::timestamptz
-         ${tf("pl") }
+         AND pl."sentAt" >= ${from}::timestamptz
+         AND pl."sentAt" < ${to}::timestamptz
+         ${tenantSql("pl", hasTenant, tenantId)}
      )
      SELECT
        COUNT(*)::bigint AS links_sent,
        COUNT(*) FILTER (WHERE pl."paidAt" IS NOT NULL)::bigint AS links_paid_any,
-       COUNT(*) FILTER (WHERE pl."paidAt" IS NOT NULL AND pl."paidAt" >= $1::timestamptz AND pl."paidAt" < $2::timestamptz)::bigint AS links_paid_in_range,
-       COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status"='APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)) ::bigint AS link_revenue_cents,
+       COUNT(*) FILTER (WHERE pl."paidAt" IS NOT NULL AND pl."paidAt" >= ${from}::timestamptz AND pl."paidAt" < ${to}::timestamptz)::bigint AS links_paid_in_range,
+       COALESCE(SUM(p."amountInCents") FILTER (WHERE p."status"='APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= ${from}::timestamptz AND p."paidAt" < ${to}::timestamptz))::bigint AS link_revenue_cents,
        AVG(EXTRACT(EPOCH FROM (pl."paidAt" - pl."sentAt"))) FILTER (WHERE pl."paidAt" IS NOT NULL AND pl."paidAt" >= pl."sentAt") AS avg_time_to_pay_sec
      FROM sent_in_range pl
-     LEFT JOIN "Payment" p ON p."id" = pl."paymentId"`,
-    from,
-    to,
-  ).catch((err) => {
+     LEFT JOIN "Payment" p ON p."id" = pl."paymentId"
+  `).catch((err) => {
     logger.warn({ err }, "Error in linksTotalsRow:");
     return [{ links_sent: 0n, links_paid_any: 0n, links_paid_in_range: 0n, link_revenue_cents: 0n, avg_time_to_pay_sec: null }];
   });
@@ -686,58 +676,53 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
 
   let autoChargesRow: Array<{ ok: bigint; failed: bigint }> = [{ ok: 0n, failed: 0n }];
   try {
-    autoChargesRow = await prisma.$queryRawUnsafe<Array<{ ok: bigint; failed: bigint }>>(
-      `SELECT
-          COUNT(*) FILTER (WHERE p."status"='APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)::bigint AS ok,
-          COUNT(*) FILTER (WHERE p."status" IN ('DECLINED','ERROR','VOIDED') AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz)::bigint AS failed
-        FROM "Payment" p
-        INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
-        INNER JOIN "Customer" c ON c."id" = s."customerId"
-        INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
-        WHERE sp."planType" = 'auto_subscription'
-          AND p."wompiTransactionId" IS NOT NULL
-          ${paymentReconciliationFilter}
-          ${paymentUnlinkedFilter}
-          ${tf("p") }`,
-      from,
-      to,
-    );
+    autoChargesRow = await prisma.$queryRaw<Array<{ ok: bigint; failed: bigint }>>(Prisma.sql`
+      SELECT
+        COUNT(*) FILTER (WHERE p."status"='APPROVED' AND p."paidAt" IS NOT NULL AND p."paidAt" >= ${from}::timestamptz AND p."paidAt" < ${to}::timestamptz)::bigint AS ok,
+        COUNT(*) FILTER (WHERE p."status" IN ('DECLINED','ERROR','VOIDED') AND COALESCE(p."failedAt", p."updatedAt") >= ${from}::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < ${to}::timestamptz)::bigint AS failed
+      FROM "Payment" p
+      INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
+      INNER JOIN "Customer" c ON c."id" = s."customerId"
+      INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
+      WHERE sp."planType" = 'auto_subscription'
+        AND p."wompiTransactionId" IS NOT NULL
+        ${paymentReconciliationSql("p")}
+        ${paymentUnlinkedSql("p", includeUnlinkedPayments)}
+        ${tenantSql("p", hasTenant, tenantId)}
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en autoChargesRow:');
   }
 
-  const mrrRow = await prisma.$queryRawUnsafe<Array<{ mrr_cents: number | null }>>(
-    `SELECT
-        COALESCE(SUM(${buildMrrRoundFormula(true)})) ::numeric AS mrr_cents
-      FROM "Subscription" s
-      INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
-      INNER JOIN "Customer" c ON c."id" = s."customerId"
-      WHERE sp."planType" = 'auto_subscription'
-        AND s."status" IN ('ACTIVE','PAST_DUE','SUSPENDED')
-        AND s."startAt" < $1::timestamptz
-        AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
-        ${tf("s") }`,
-    to,
-  );
+  const mrrRow = await prisma.$queryRaw<Array<{ mrr_cents: number | null }>>(Prisma.sql`
+    SELECT
+      COALESCE(SUM(${Prisma.raw(buildMrrRoundFormula(true))}))::numeric AS mrr_cents
+    FROM "Subscription" s
+    INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
+    INNER JOIN "Customer" c ON c."id" = s."customerId"
+    WHERE sp."planType" = 'auto_subscription'
+      AND s."status" IN ('ACTIVE','PAST_DUE','SUSPENDED')
+      AND s."startAt" < ${to}::timestamptz
+      AND (s."canceledAt" IS NULL OR s."canceledAt" >= ${to}::timestamptz)
+      ${tenantSql("s", hasTenant, tenantId)}
+  `);
 
   const { start: churnStart, end: churnEnd } = monthBoundsUtc(new Date(to.getTime() - 1));
   let churnRow: Array<{ cancels: bigint; active_start: bigint }> = [{ cancels: 0n, active_start: 0n }];
   try {
-    churnRow = await prisma.$queryRawUnsafe<Array<{ cancels: bigint; active_start: bigint }>>(
-      `SELECT
-          COUNT(*) FILTER (WHERE s."canceledAt" IS NOT NULL AND s."canceledAt" >= $1::timestamptz AND s."canceledAt" < $2::timestamptz)::bigint AS cancels,
-          COUNT(*) FILTER (
-            WHERE s."startAt" < $1::timestamptz
-              AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
-          )::bigint AS active_start
-        FROM "Subscription" s
-        INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
-        INNER JOIN "Customer" c ON c."id" = s."customerId"
-        WHERE sp."planType" = 'auto_subscription'
-        ${tf("s") }`,
-      churnStart,
-      churnEnd,
-    );
+    churnRow = await prisma.$queryRaw<Array<{ cancels: bigint; active_start: bigint }>>(Prisma.sql`
+      SELECT
+        COUNT(*) FILTER (WHERE s."canceledAt" IS NOT NULL AND s."canceledAt" >= ${churnStart}::timestamptz AND s."canceledAt" < ${churnEnd}::timestamptz)::bigint AS cancels,
+        COUNT(*) FILTER (
+          WHERE s."startAt" < ${churnStart}::timestamptz
+            AND (s."canceledAt" IS NULL OR s."canceledAt" >= ${churnStart}::timestamptz)
+        )::bigint AS active_start
+      FROM "Subscription" s
+      INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
+      INNER JOIN "Customer" c ON c."id" = s."customerId"
+      WHERE sp."planType" = 'auto_subscription'
+      ${tenantSql("s", hasTenant, tenantId)}
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en churnRow:');
   }
@@ -748,24 +733,22 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
 
   let revenueByPlanType: Array<{ plan_type: PlanType; revenue_cents: bigint }> = [];
   try {
-    revenueByPlanType = await prisma.$queryRawUnsafe<Array<{ plan_type: PlanType; revenue_cents: bigint }>>(
-      `SELECT sp."planType" AS plan_type,
-              COALESCE(SUM(p."amountInCents")) ::bigint AS revenue_cents
-       FROM "Payment" p
-       INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
-       INNER JOIN "Customer" c ON c."id" = s."customerId"
-       INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
-       WHERE p."status"='APPROVED'
-         AND p."paidAt" IS NOT NULL
-         AND p."paidAt" >= $1::timestamptz
-         AND p."paidAt" < $2::timestamptz
-         ${paymentReconciliationFilter}
-         ${paymentUnlinkedFilter}
-         ${tf("p") }
-       GROUP BY 1`,
-      from,
-      to,
-    );
+    revenueByPlanType = await prisma.$queryRaw<Array<{ plan_type: PlanType; revenue_cents: bigint }>>(Prisma.sql`
+      SELECT sp."planType" AS plan_type,
+             COALESCE(SUM(p."amountInCents"))::bigint AS revenue_cents
+      FROM "Payment" p
+      INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
+      INNER JOIN "Customer" c ON c."id" = s."customerId"
+      INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
+      WHERE p."status"='APPROVED'
+        AND p."paidAt" IS NOT NULL
+        AND p."paidAt" >= ${from}::timestamptz
+        AND p."paidAt" < ${to}::timestamptz
+        ${paymentReconciliationSql("p")}
+        ${paymentUnlinkedSql("p", includeUnlinkedPayments)}
+        ${tenantSql("p", hasTenant, tenantId)}
+      GROUP BY 1
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en revenueByPlanType:');
   }
@@ -774,44 +757,42 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
 
   let revenueByProduct: Array<{ product_id: string | null; product_name: string | null; payments_success: bigint; revenue_cents: bigint }> = [];
   try {
-    const resolvedProductIdSql = buildResolvedProductIdSql("s", "sp");
-    revenueByProduct = await prisma.$queryRawUnsafe<
+    const resolvedProductIdSql = Prisma.raw(buildResolvedProductIdSql("s", "sp"));
+    revenueByProduct = await prisma.$queryRaw<
       Array<{ product_id: string | null; product_name: string | null; payments_success: bigint; revenue_cents: bigint }>
-    >(
-      `SELECT
-          ${resolvedProductIdSql}::text AS product_id,
-          COALESCE(prod."metadata"->>'displayName', prod."name", 'Sin producto') AS product_name,
-          COUNT(*) FILTER (
-            WHERE p."status"='APPROVED'
-              AND p."paidAt" IS NOT NULL
-              AND p."paidAt" >= $1::timestamptz
-              AND p."paidAt" < $2::timestamptz
-          )::bigint AS payments_success,
-          COALESCE(SUM(p."amountInCents") FILTER (
-            WHERE p."status"='APPROVED'
-              AND p."paidAt" IS NOT NULL
-              AND p."paidAt" >= $1::timestamptz
-              AND p."paidAt" < $2::timestamptz
-          ), 0)::bigint AS revenue_cents
-       FROM "Payment" p
-       INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
-       INNER JOIN "Customer" c ON c."id" = s."customerId"
-       INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
-       LEFT JOIN "SubscriptionPlan" prod ON prod."id" = ${resolvedProductIdSql}
-       WHERE p."subscriptionId" IS NOT NULL
-         AND p."status"='APPROVED'
-         AND p."paidAt" IS NOT NULL
-         AND p."paidAt" >= $1::timestamptz
-         AND p."paidAt" < $2::timestamptz
-         ${paymentReconciliationFilter}
-         ${paymentUnlinkedFilter}
-         ${tf("p") }
-       GROUP BY 1, 2
-       ORDER BY revenue_cents DESC, payments_success DESC
-       LIMIT 12`,
-      from,
-      to,
-    );
+    >(Prisma.sql`
+      SELECT
+        ${resolvedProductIdSql}::text AS product_id,
+        COALESCE(prod."metadata"->>'displayName', prod."name", 'Sin producto') AS product_name,
+        COUNT(*) FILTER (
+          WHERE p."status"='APPROVED'
+            AND p."paidAt" IS NOT NULL
+            AND p."paidAt" >= ${from}::timestamptz
+            AND p."paidAt" < ${to}::timestamptz
+        )::bigint AS payments_success,
+        COALESCE(SUM(p."amountInCents") FILTER (
+          WHERE p."status"='APPROVED'
+            AND p."paidAt" IS NOT NULL
+            AND p."paidAt" >= ${from}::timestamptz
+            AND p."paidAt" < ${to}::timestamptz
+        ), 0)::bigint AS revenue_cents
+      FROM "Payment" p
+      INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
+      INNER JOIN "Customer" c ON c."id" = s."customerId"
+      INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
+      LEFT JOIN "SubscriptionPlan" prod ON prod."id" = ${resolvedProductIdSql}
+      WHERE p."subscriptionId" IS NOT NULL
+        AND p."status"='APPROVED'
+        AND p."paidAt" IS NOT NULL
+        AND p."paidAt" >= ${from}::timestamptz
+        AND p."paidAt" < ${to}::timestamptz
+        ${paymentReconciliationSql("p")}
+        ${paymentUnlinkedSql("p", includeUnlinkedPayments)}
+        ${tenantSql("p", hasTenant, tenantId)}
+      GROUP BY 1, 2
+      ORDER BY revenue_cents DESC, payments_success DESC
+      LIMIT 12
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en revenueByProduct:');
   }
@@ -832,8 +813,8 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     revenue_cents: bigint;
   }> = [];
   try {
-    const resolvedProductIdSql = buildResolvedProductIdSql("s", "sp");
-    paymentActivityByProduct = await prisma.$queryRawUnsafe<
+    const resolvedProductIdSql = Prisma.raw(buildResolvedProductIdSql("s", "sp"));
+    paymentActivityByProduct = await prisma.$queryRaw<
       Array<{
         product_id: string | null;
         product_name: string | null;
@@ -841,46 +822,44 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         payments_failed: bigint;
         revenue_cents: bigint;
       }>
-    >(
-      `SELECT
-          ${resolvedProductIdSql}::text AS product_id,
-          COALESCE(prod."metadata"->>'displayName', prod."name", 'Sin producto') AS product_name,
-          COUNT(*) FILTER (
-            WHERE p."status"='APPROVED'
-              AND p."paidAt" IS NOT NULL
-              AND p."paidAt" >= $1::timestamptz
-              AND p."paidAt" < $2::timestamptz
-          )::bigint AS payments_success,
-          COUNT(*) FILTER (
-            WHERE p."status" IN ('DECLINED','ERROR','VOIDED')
-              AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz
-              AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz
-          )::bigint AS payments_failed,
-          COALESCE(SUM(p."amountInCents") FILTER (
-            WHERE p."status"='APPROVED'
-              AND p."paidAt" IS NOT NULL
-              AND p."paidAt" >= $1::timestamptz
-              AND p."paidAt" < $2::timestamptz
-          ), 0)::bigint AS revenue_cents
-       FROM "Payment" p
-       INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
-       INNER JOIN "Customer" c ON c."id" = s."customerId"
-       INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
-       LEFT JOIN "SubscriptionPlan" prod ON prod."id" = ${resolvedProductIdSql}
-       WHERE p."subscriptionId" IS NOT NULL
-         AND (
-           (p."paidAt" IS NOT NULL AND p."paidAt" >= $1::timestamptz AND p."paidAt" < $2::timestamptz)
-           OR (COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz)
-         )
-         ${paymentReconciliationFilter}
-         ${paymentUnlinkedFilter}
-         ${tf("p") }
-       GROUP BY 1, 2
-       ORDER BY revenue_cents DESC, payments_success DESC, payments_failed DESC
-       LIMIT 12`,
-      from,
-      to,
-    );
+    >(Prisma.sql`
+      SELECT
+        ${resolvedProductIdSql}::text AS product_id,
+        COALESCE(prod."metadata"->>'displayName', prod."name", 'Sin producto') AS product_name,
+        COUNT(*) FILTER (
+          WHERE p."status"='APPROVED'
+            AND p."paidAt" IS NOT NULL
+            AND p."paidAt" >= ${from}::timestamptz
+            AND p."paidAt" < ${to}::timestamptz
+        )::bigint AS payments_success,
+        COUNT(*) FILTER (
+          WHERE p."status" IN ('DECLINED','ERROR','VOIDED')
+            AND COALESCE(p."failedAt", p."updatedAt") >= ${from}::timestamptz
+            AND COALESCE(p."failedAt", p."updatedAt") < ${to}::timestamptz
+        )::bigint AS payments_failed,
+        COALESCE(SUM(p."amountInCents") FILTER (
+          WHERE p."status"='APPROVED'
+            AND p."paidAt" IS NOT NULL
+            AND p."paidAt" >= ${from}::timestamptz
+            AND p."paidAt" < ${to}::timestamptz
+        ), 0)::bigint AS revenue_cents
+      FROM "Payment" p
+      INNER JOIN "Subscription" s ON s."id" = p."subscriptionId"
+      INNER JOIN "Customer" c ON c."id" = s."customerId"
+      INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
+      LEFT JOIN "SubscriptionPlan" prod ON prod."id" = ${resolvedProductIdSql}
+      WHERE p."subscriptionId" IS NOT NULL
+        AND (
+          (p."paidAt" IS NOT NULL AND p."paidAt" >= ${from}::timestamptz AND p."paidAt" < ${to}::timestamptz)
+          OR (COALESCE(p."failedAt", p."updatedAt") >= ${from}::timestamptz AND COALESCE(p."failedAt", p."updatedAt") < ${to}::timestamptz)
+        )
+        ${paymentReconciliationSql("p")}
+        ${paymentUnlinkedSql("p", includeUnlinkedPayments)}
+        ${tenantSql("p", hasTenant, tenantId)}
+      GROUP BY 1, 2
+      ORDER BY revenue_cents DESC, payments_success DESC, payments_failed DESC
+      LIMIT 12
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en paymentActivityByProduct:');
   }
@@ -902,7 +881,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     revenue_cents: bigint;
   }> = [];
   try {
-    linkActivityByProduct = await prisma.$queryRawUnsafe<
+    linkActivityByProduct = await prisma.$queryRaw<
       Array<{
         product_id: string | null;
         product_name: string | null;
@@ -910,27 +889,27 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         links_paid: bigint;
         revenue_cents: bigint;
       }>
-    >(
-      `SELECT
+    >(Prisma.sql`
+      SELECT
           COALESCE(
             pl."productId",
             NULLIF(sp."metadata"->'catalog'->>'itemId', '')::uuid
           )::text AS product_id,
           COALESCE(prod."metadata"->>'displayName', prod."name", 'Sin producto') AS product_name,
           COUNT(*) FILTER (
-            WHERE pl."sentAt" >= $1::timestamptz
-              AND pl."sentAt" < $2::timestamptz
+            WHERE pl."sentAt" >= ${from}::timestamptz
+              AND pl."sentAt" < ${to}::timestamptz
           )::bigint AS links_sent,
           COUNT(*) FILTER (
             WHERE pl."paidAt" IS NOT NULL
-              AND pl."paidAt" >= $1::timestamptz
-              AND pl."paidAt" < $2::timestamptz
+              AND pl."paidAt" >= ${from}::timestamptz
+              AND pl."paidAt" < ${to}::timestamptz
           )::bigint AS links_paid,
           COALESCE(SUM(p."amountInCents") FILTER (
             WHERE p."status"='APPROVED'
               AND p."paidAt" IS NOT NULL
-              AND p."paidAt" >= $1::timestamptz
-              AND p."paidAt" < $2::timestamptz
+              AND p."paidAt" >= ${from}::timestamptz
+              AND p."paidAt" < ${to}::timestamptz
           ), 0)::bigint AS revenue_cents
        FROM "PaymentLink" pl
        INNER JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
@@ -941,16 +920,14 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
        LEFT JOIN "Payment" p ON p."id" = pl."paymentId"
        WHERE sp."planType" = 'manual_link'
          AND (
-           (pl."sentAt" >= $1::timestamptz AND pl."sentAt" < $2::timestamptz)
-           OR (pl."paidAt" IS NOT NULL AND pl."paidAt" >= $1::timestamptz AND pl."paidAt" < $2::timestamptz)
+           (pl."sentAt" >= ${from}::timestamptz AND pl."sentAt" < ${to}::timestamptz)
+           OR (pl."paidAt" IS NOT NULL AND pl."paidAt" >= ${from}::timestamptz AND pl."paidAt" < ${to}::timestamptz)
          )
-         ${tf("pl") }
+         ${tenantSql("pl", hasTenant, tenantId)}
        GROUP BY 1, 2
        ORDER BY revenue_cents DESC, links_paid DESC, links_sent DESC
-       LIMIT 12`,
-      from,
-      to,
-    );
+       LIMIT 12
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en linkActivityByProduct:');
   }
@@ -966,32 +943,31 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
 
   let firstDataRow: Array<{ first_at: Date | null }> = [{ first_at: null }];
   try {
-    firstDataRow = await prisma.$queryRawUnsafe<Array<{ first_at: Date | null }>>(
-      `SELECT MIN(first_at) AS first_at
+    firstDataRow = await prisma.$queryRaw<Array<{ first_at: Date | null }>>(Prisma.sql`
+      SELECT MIN(first_at) AS first_at
        FROM (
          SELECT MIN(p."paidAt") AS first_at
          FROM "Payment" p
          INNER JOIN "Customer" c ON c."id" = p."customerId"
          WHERE p."paidAt" IS NOT NULL
-         ${paymentReconciliationFilter}
-         ${paymentUnlinkedFilter}
-         ${hasTenant ? 'AND p."tenantId" = $1::uuid' : ""}
+         ${paymentReconciliationSql("p")}
+         ${paymentUnlinkedSql("p", includeUnlinkedPayments)}
+         ${tenantSql("p", hasTenant, tenantId)}
          UNION ALL
          SELECT MIN(pl."sentAt") AS first_at
          FROM "PaymentLink" pl
          INNER JOIN "Payment" p ON p."id" = pl."paymentId"
          INNER JOIN "Customer" c ON c."id" = p."customerId"
          WHERE pl."sentAt" IS NOT NULL
-         ${hasTenant ? 'AND pl."tenantId" = $1::uuid' : ""}
+         ${tenantSql("pl", hasTenant, tenantId)}
          UNION ALL
          SELECT MIN(s."startAt") AS first_at
          FROM "Subscription" s
          INNER JOIN "Customer" c ON c."id" = s."customerId"
          WHERE s."startAt" IS NOT NULL
-         ${hasTenant ? 'AND s."tenantId" = $1::uuid' : ""}
-       ) t`,
-      ...(hasTenant ? [tenantId] : [])
-    );
+         ${tenantSql("s", hasTenant, tenantId)}
+       ) t
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en firstDataRow:');
   }
@@ -1001,19 +977,18 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   if (args.granularity === "month" && buckets.length) {
     let initialMrrRow: Array<{ v: number | null }> = [{ v: null }];
     try {
-      initialMrrRow = await prisma.$queryRawUnsafe<Array<{ v: number | null }>>(
-        `SELECT
-            COALESCE(SUM(${buildMrrRoundFormula(true)})) ::numeric AS v
+      initialMrrRow = await prisma.$queryRaw<Array<{ v: number | null }>>(Prisma.sql`
+        SELECT
+            COALESCE(SUM(${Prisma.raw(buildMrrRoundFormula(true))})) ::numeric AS v
           FROM "Subscription" s
           INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
           INNER JOIN "Customer" c ON c."id" = s."customerId"
           WHERE sp."planType" = 'auto_subscription'
             AND s."status" IN ('ACTIVE','PAST_DUE','SUSPENDED')
-            AND s."startAt" < $1::timestamptz
-            AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
-            ${tf("s") }`,
-        firstBucket,
-      );
+            AND s."startAt" < ${firstBucket}::timestamptz
+            AND (s."canceledAt" IS NULL OR s."canceledAt" >= ${firstBucket}::timestamptz)
+            ${tenantSql("s", hasTenant, tenantId)}
+      `);
     } catch (err) {
       logger.warn({ err }, '[Metrics] Error en initialMrrRow:');
     }
@@ -1021,43 +996,39 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
 
     let mrrStartsAgg: Array<{ bucket: Date; adds: number | null }> = [];
     try {
-      mrrStartsAgg = await prisma.$queryRawUnsafe<Array<{ bucket: Date; adds: number | null }>>(
-        `SELECT date_trunc('${trunc}', s."startAt") AS bucket,
-                COALESCE(SUM(${buildMrrRoundFormula(true)})) ::numeric AS adds
+      mrrStartsAgg = await prisma.$queryRaw<Array<{ bucket: Date; adds: number | null }>>(Prisma.sql`
+        SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, s."startAt") AS bucket,
+                COALESCE(SUM(${Prisma.raw(buildMrrRoundFormula(true))})) ::numeric AS adds
           FROM "Subscription" s
           INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
           INNER JOIN "Customer" c ON c."id" = s."customerId"
           WHERE sp."planType" = 'auto_subscription'
-            AND s."startAt" >= $1::timestamptz
-            AND s."startAt" < $2::timestamptz
-            ${tf("s") }
+            AND s."startAt" >= ${from}::timestamptz
+            AND s."startAt" < ${to}::timestamptz
+            ${tenantSql("s", hasTenant, tenantId)}
           GROUP BY 1
-          ORDER BY 1 ASC`,
-        from,
-        to,
-      );
+          ORDER BY 1 ASC
+      `);
     } catch (err) {
       logger.warn({ err }, '[Metrics] Error en mrrStartsAgg:');
     }
 
     let mrrCancelsAgg: Array<{ bucket: Date; subs: number | null }> = [];
     try {
-      mrrCancelsAgg = await prisma.$queryRawUnsafe<Array<{ bucket: Date; subs: number | null }>>(
-        `SELECT date_trunc('${trunc}', s."canceledAt") AS bucket,
-                COALESCE(SUM(${buildMrrRoundFormula(true)})) ::numeric AS subs
+      mrrCancelsAgg = await prisma.$queryRaw<Array<{ bucket: Date; subs: number | null }>>(Prisma.sql`
+        SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, s."canceledAt") AS bucket,
+                COALESCE(SUM(${Prisma.raw(buildMrrRoundFormula(true))})) ::numeric AS subs
           FROM "Subscription" s
           INNER JOIN "SubscriptionPlan" sp ON sp."id" = s."planId"
           INNER JOIN "Customer" c ON c."id" = s."customerId"
           WHERE sp."planType" = 'auto_subscription'
             AND s."canceledAt" IS NOT NULL
-            AND s."canceledAt" >= $1::timestamptz
-            AND s."canceledAt" < $2::timestamptz
-            ${tf("s") }
+            AND s."canceledAt" >= ${from}::timestamptz
+            AND s."canceledAt" < ${to}::timestamptz
+            ${tenantSql("s", hasTenant, tenantId)}
           GROUP BY 1
-          ORDER BY 1 ASC`,
-        from,
-        to,
-      );
+          ORDER BY 1 ASC
+      `);
     } catch (err) {
       logger.warn({ err }, '[Metrics] Error en mrrCancelsAgg:');
     }
@@ -1084,10 +1055,10 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
 
     let churnAgg: Array<{ bucket: Date; cancels: bigint; active_start: bigint }> = [];
     try {
-      churnAgg = await prisma.$queryRawUnsafe<Array<{ bucket: Date; cancels: bigint; active_start: bigint }>>(
-        `WITH months AS (
+      churnAgg = await prisma.$queryRaw<Array<{ bucket: Date; cancels: bigint; active_start: bigint }>>(Prisma.sql`
+        WITH months AS (
            SELECT bucket::timestamptz AS bucket
-           FROM generate_series(date_trunc('month', $1::timestamptz), date_trunc('month', $2::timestamptz), interval '1 month') AS bucket
+           FROM generate_series(date_trunc('month', ${from}::timestamptz), date_trunc('month', ${to}::timestamptz), interval '1 month') AS bucket
          )
          SELECT
            m.bucket AS bucket,
@@ -1100,7 +1071,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
                AND s."canceledAt" IS NOT NULL
                AND s."canceledAt" >= m.bucket
                AND s."canceledAt" < (m.bucket + interval '1 month')
-               ${tf("s") }
+               ${tenantSql("s", hasTenant, tenantId)}
            ) AS cancels,
            (
              SELECT COUNT(*)::bigint
@@ -1110,13 +1081,11 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
              WHERE sp."planType"='auto_subscription'
                AND s."startAt" < m.bucket
                AND (s."canceledAt" IS NULL OR s."canceledAt" >= m.bucket)
-               ${tf("s") }
+               ${tenantSql("s", hasTenant, tenantId)}
            ) AS active_start
          FROM months m
-         ORDER BY m.bucket ASC`,
-        from,
-        to,
-      );
+         ORDER BY m.bucket ASC
+      `);
     } catch (err) {
       logger.warn({ err }, '[Metrics] Error en churnAgg:');
     }
@@ -1135,26 +1104,20 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   const series = Array.from(baseSeries.values()).sort((a, b) => a.at.localeCompare(b.at));
 
   // Calcular pagos sin suscripción (one-time, huérfanos, links manuales)
-  const unlinkedPaymentsQuery = `
-    SELECT
-      COUNT(*) FILTER (WHERE p.status = 'APPROVED') as payments_approved,
-      COUNT(*) FILTER (WHERE p.status IN ('PENDING', 'DECLINED', 'ERROR', 'VOIDED')) as payments_other,
-      COALESCE(SUM(p."amountInCents") FILTER (WHERE p.status = 'APPROVED'))  as revenue_cents
-    FROM "Payment" p
-    INNER JOIN "Customer" c ON c."id" = p."customerId"
-    WHERE p."subscriptionId" IS NULL
-      AND p."createdAt" >= $1::timestamptz
-      AND p."createdAt" < $2::timestamptz
-      ${tenantFilter('p', 3, hasTenant)}
-  `;
   let unlinkedPaymentsRow: UnlinkedPaymentsRow[] = [{ payments_approved: 0n, payments_other: 0n, revenue_cents: 0n }];
   try {
-    unlinkedPaymentsRow = await prisma.$queryRawUnsafe<UnlinkedPaymentsRow[]>(
-      unlinkedPaymentsQuery,
-      from,
-      to,
-      tenantId
-    );
+    unlinkedPaymentsRow = await prisma.$queryRaw<UnlinkedPaymentsRow[]>(Prisma.sql`
+      SELECT
+        COUNT(*) FILTER (WHERE p.status = 'APPROVED') as payments_approved,
+        COUNT(*) FILTER (WHERE p.status IN ('PENDING', 'DECLINED', 'ERROR', 'VOIDED')) as payments_other,
+        COALESCE(SUM(p."amountInCents") FILTER (WHERE p.status = 'APPROVED'), 0) as revenue_cents
+      FROM "Payment" p
+      INNER JOIN "Customer" c ON c."id" = p."customerId"
+      WHERE p."subscriptionId" IS NULL
+        AND p."createdAt" >= ${from}::timestamptz
+        AND p."createdAt" < ${to}::timestamptz
+        ${tenantSql("p", hasTenant, tenantId)}
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en unlinkedPaymentsRow:');
   }
