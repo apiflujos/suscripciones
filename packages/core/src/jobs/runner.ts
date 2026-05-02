@@ -109,6 +109,10 @@ let lastWebhookRecoveryAtMs = 0;
 let lastEnsureDueCutoffRetriesAtMs = 0;
 let lastEnsurePaymentRetryQueueHealthAtMs = 0;
 
+function getRunnerErrorMessage(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
+
 async function ensureMonthlyBillingReportJob() {
   const now = Date.now();
   if (now - lastEnsureAtMs < 60_000) return;
@@ -189,7 +193,7 @@ async function ensureGamificationRecalcJob() {
       maxAttempts: 3,
       payload: { reason: "auto" }
     }
-  }).catch((err: any) => {
+  }).catch((err) => {
     logger.warn({ err }, '[Jobs/Gamification] Fallo creando job de recálculo');
   });
 }
@@ -214,7 +218,7 @@ async function ensureDataTrainerJob() {
       maxAttempts: 3,
       payload: { reason: "auto" }
     }
-  }).catch((err: any) => {
+  }).catch((err) => {
     logger.warn({ err }, '[Jobs/DataTrainer] Fallo creando job de entrenamiento');
   });
 }
@@ -247,7 +251,7 @@ async function ensureJobsHeartbeat() {
       create: { key: workerHeartbeatKey, lastSeenAt: heartbeatAt, meta },
       update: { lastSeenAt: heartbeatAt, meta }
     })
-  ]).catch((err: any) => {
+  ]).catch((err) => {
     logger.warn({ err, workerId, workerHeartbeatKey }, '[Jobs/Heartbeat] Fallo actualizando heartbeat');
   });
 }
@@ -600,8 +604,8 @@ async function runOnce() {
           attempts: job.attempts + 1,
           updatedAt: new Date().toISOString()
         });
-      } catch (err: any) {
-        const errMsg = err?.message ? String(err.message) : "unknown error";
+      } catch (err) {
+        const errMsg = getRunnerErrorMessage(err);
         if (
           job.type === RetryJobType.PAYMENT_RETRY &&
           (
@@ -700,8 +704,11 @@ async function main() {
       await ensureExpiredSubscriptions();
       await runOnce();
       await new Promise((r) => setTimeout(r, 1000));
-    } catch (err: any) {
-      const msg = err?.meta?.message || err?.message || String(err);
+    } catch (err) {
+      const msg =
+        err && typeof err === "object" && "meta" in err && err.meta && typeof err.meta === "object" && "message" in err.meta
+          ? String((err.meta as { message?: unknown }).message || "")
+          : getRunnerErrorMessage(err);
       logger.warn({ err: msg }, "Jobs runner transient failure; retrying soon");
       const short = String(msg || "").replace(/\s+/g, " ").trim().slice(0, 240);
       const lower = String(msg || "").toLowerCase();

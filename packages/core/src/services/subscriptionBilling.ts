@@ -86,14 +86,18 @@ function resolveSubscriptionProductId(args: {
   return fromMeta || null;
 }
 
+function getErrorMessage(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
+
 async function tryAcquirePaymentLinkLock(key: string) {
   try {
     const rows = await prisma.$queryRaw<{ locked: boolean }[]>`
       SELECT pg_try_advisory_lock(hashtext(${key})) as locked
     `;
     return Boolean(rows?.[0]?.locked);
-  } catch (err: any) {
-    console.error('[PaymentLock] Failed to acquire lock', { key, error: err?.message });
+  } catch (err) {
+    console.error('[PaymentLock] Failed to acquire lock', { key, error: getErrorMessage(err) });
     throw err; // Re-lanzar para que el caller sepa que falló
   }
 }
@@ -103,8 +107,8 @@ async function releasePaymentLinkLock(key: string) {
     await prisma.$queryRaw`
       SELECT pg_advisory_unlock(hashtext(${key}))
     `;
-  } catch (err: any) {
-    console.error('[PaymentLock] Failed to release lock', { key, error: err?.message });
+  } catch (err) {
+    console.error('[PaymentLock] Failed to release lock', { key, error: getErrorMessage(err) });
   }
 }
 
@@ -568,20 +572,21 @@ export async function createPaymentLinkForSubscription(args: {
         redirect_url: redirectUrl,
         sku: payment.id
       });
-    } catch (err: any) {
+    } catch (err) {
+      const errMessage = getErrorMessage(err);
       await prisma.paymentAttempt.create({
         data: {
           paymentId: payment.id,
           attemptNo: 0,
           status: "PAYMENT_LINK_CREATE_FAILED",
           provider: "wompi",
-          errorMessage: err?.message ? String(err.message) : "unknown error"
+          errorMessage: errMessage
         }
       });
       await systemLog(LogLevel.ERROR, "subscriptions.payment_link", "Payment link create failed", {
         subscriptionId: sub.id,
         paymentId: payment.id,
-        err: err?.message ? String(err.message) : "unknown error"
+        err: errMessage
       }).catch((logErr) => {
         logIgnored(logErr, "payment link: failed to write error system log", { subscriptionId: sub.id, paymentId: payment.id });
       });
@@ -1014,8 +1019,8 @@ export async function createAutoDebitTransactionForSubscription(args: {
       recurrent: true,
       payment_method: { installments: 1 }
     });
-  } catch (err: any) {
-    const errMsg = err?.message ? String(err.message) : "unknown error";
+  } catch (err) {
+    const errMsg = getErrorMessage(err);
     const duplicateReference =
       /reference/i.test(errMsg) &&
       /(ya ha sido usada|already used|already been used)/i.test(errMsg);
@@ -1026,7 +1031,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
         paymentId: payment.id,
         previousReference: reference,
         nextReference: null
-      }).catch((err: any) => {
+      }).catch((err) => {
         logIgnored(err, "auto debit: failed to write duplicate-reference log", { subscriptionId: sub.id, paymentId: payment.id });
       });
       // Guard-rail anti-duplicado:
@@ -1051,7 +1056,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
           attemptNo: 0,
           status: "TRANSACTION_CREATE_FAILED",
           provider: "wompi",
-          errorMessage: err?.message ? String(err.message) : "unknown error"
+          errorMessage: getErrorMessage(err)
         }
       });
       await systemLog(LogLevel.ERROR, "subscriptions.auto_debit", "Transaction create failed", {
