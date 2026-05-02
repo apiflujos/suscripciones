@@ -275,70 +275,62 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
 
   try {
     [paymentsAgg, failedAgg, linksSentAgg, linksPaidAgg] = await Promise.all([
-      prisma.$queryRawUnsafe<Array<{ bucket: Date; payments_success: bigint; revenue_cents: bigint }>>(
-        `SELECT date_trunc('${trunc}', p."paidAt") AS bucket,
-                COUNT(*)::bigint AS payments_success,
-                COALESCE(SUM(p."amountInCents")) ::bigint AS revenue_cents
-         FROM "Payment" p
-         WHERE p."status" = 'APPROVED'
-           AND p."paidAt" IS NOT NULL
-           AND p."paidAt" >= $1::timestamptz
-           AND p."paidAt" < $2::timestamptz
-           ${paymentReconciliationFilter}
-           ${paymentUnlinkedFilter}
-           ${tf("p") }
-         GROUP BY 1
-         ORDER BY 1 ASC`,
-        from,
-        to,
-      ),
+      prisma.$queryRaw<Array<{ bucket: Date; payments_success: bigint; revenue_cents: bigint }>>(Prisma.sql`
+        SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, p."paidAt") AS bucket,
+               COUNT(*)::bigint AS payments_success,
+               COALESCE(SUM(p."amountInCents"))::bigint AS revenue_cents
+        FROM "Payment" p
+        WHERE p."status" = 'APPROVED'
+          AND p."paidAt" IS NOT NULL
+          AND p."paidAt" >= ${from}::timestamptz
+          AND p."paidAt" < ${to}::timestamptz
+          ${paymentReconciliationSql("p")}
+          ${paymentUnlinkedSql("p", includeUnlinkedPayments)}
+          ${tenantSql("p", hasTenant, tenantId)}
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `),
 
-      prisma.$queryRawUnsafe<Array<{ bucket: Date; payments_failed: bigint }>>(
-        `SELECT date_trunc('${trunc}', COALESCE(p."failedAt", p."updatedAt")) AS bucket,
-                COUNT(*)::bigint AS payments_failed
-         FROM "Payment" p
-         WHERE p."status" IN ('DECLINED', 'ERROR', 'VOIDED')
-           AND COALESCE(p."failedAt", p."updatedAt") >= $1::timestamptz
-           AND COALESCE(p."failedAt", p."updatedAt") < $2::timestamptz
-           ${paymentReconciliationFilter}
-           ${paymentUnlinkedFilter}
-           ${tf("p") }
-         GROUP BY 1
-         ORDER BY 1 ASC`,
-        from,
-        to,
-      ),
+      prisma.$queryRaw<Array<{ bucket: Date; payments_failed: bigint }>>(Prisma.sql`
+        SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, COALESCE(p."failedAt", p."updatedAt")) AS bucket,
+               COUNT(*)::bigint AS payments_failed
+        FROM "Payment" p
+        WHERE p."status" IN ('DECLINED', 'ERROR', 'VOIDED')
+          AND COALESCE(p."failedAt", p."updatedAt") >= ${from}::timestamptz
+          AND COALESCE(p."failedAt", p."updatedAt") < ${to}::timestamptz
+          ${paymentReconciliationSql("p")}
+          ${paymentUnlinkedSql("p", includeUnlinkedPayments)}
+          ${tenantSql("p", hasTenant, tenantId)}
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `),
 
-      prisma.$queryRawUnsafe<Array<{ bucket: Date; links_sent: bigint }>>(
-        `SELECT date_trunc('${trunc}', pl."sentAt") AS bucket,
-                COUNT(*)::bigint AS links_sent
-         FROM "PaymentLink" pl
-         INNER JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
-         WHERE sp."planType" = 'manual_link'
-           AND pl."sentAt" >= $1::timestamptz
-           AND pl."sentAt" < $2::timestamptz
-           ${tf("pl") }
-         GROUP BY 1
-         ORDER BY 1 ASC`,
-        from,
-        to,
-      ),
+      prisma.$queryRaw<Array<{ bucket: Date; links_sent: bigint }>>(Prisma.sql`
+        SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, pl."sentAt") AS bucket,
+               COUNT(*)::bigint AS links_sent
+        FROM "PaymentLink" pl
+        INNER JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
+        WHERE sp."planType" = 'manual_link'
+          AND pl."sentAt" >= ${from}::timestamptz
+          AND pl."sentAt" < ${to}::timestamptz
+          ${tenantSql("pl", hasTenant, tenantId)}
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `),
 
-      prisma.$queryRawUnsafe<Array<{ bucket: Date; links_paid: bigint }>>(
-        `SELECT date_trunc('${trunc}', pl."paidAt") AS bucket,
-                COUNT(*)::bigint AS links_paid
-         FROM "PaymentLink" pl
-         INNER JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
-         WHERE sp."planType" = 'manual_link'
-           AND pl."paidAt" IS NOT NULL
-           AND pl."paidAt" >= $1::timestamptz
-           AND pl."paidAt" < $2::timestamptz
-           ${tf("pl") }
-         GROUP BY 1
-         ORDER BY 1 ASC`,
-        from,
-        to,
-      )
+      prisma.$queryRaw<Array<{ bucket: Date; links_paid: bigint }>>(Prisma.sql`
+        SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, pl."paidAt") AS bucket,
+               COUNT(*)::bigint AS links_paid
+        FROM "PaymentLink" pl
+        INNER JOIN "SubscriptionPlan" sp ON sp."id" = pl."planId"
+        WHERE sp."planType" = 'manual_link'
+          AND pl."paidAt" IS NOT NULL
+          AND pl."paidAt" >= ${from}::timestamptz
+          AND pl."paidAt" < ${to}::timestamptz
+          ${tenantSql("pl", hasTenant, tenantId)}
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `)
     ]);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en queries paralelas:');
@@ -385,16 +377,15 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   const firstBucket = buckets[0]?.bucket ?? from;
   let initialActiveRow: Array<{ c: bigint }> = [{ c: 0n }];
   try {
-    initialActiveRow = await prisma.$queryRawUnsafe<Array<{ c: bigint }>>(
-      `SELECT COUNT(*)::bigint AS c
-       FROM "Subscription" s
-       INNER JOIN "Customer" c ON c."id" = s."customerId"
-       WHERE s."status" IN ('ACTIVE', 'PAST_DUE', 'SUSPENDED')
-         AND s."startAt" < $1::timestamptz
-         AND (s."canceledAt" IS NULL OR s."canceledAt" >= $1::timestamptz)
-         ${tf("s") }`,
-      firstBucket,
-    );
+    initialActiveRow = await prisma.$queryRaw<Array<{ c: bigint }>>(Prisma.sql`
+      SELECT COUNT(*)::bigint AS c
+      FROM "Subscription" s
+      INNER JOIN "Customer" c ON c."id" = s."customerId"
+      WHERE s."status" IN ('ACTIVE', 'PAST_DUE', 'SUSPENDED')
+        AND s."startAt" < ${firstBucket}::timestamptz
+        AND (s."canceledAt" IS NULL OR s."canceledAt" >= ${firstBucket}::timestamptz)
+        ${tenantSql("s", hasTenant, tenantId)}
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en initialActiveRow:');
   }
@@ -402,39 +393,35 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
 
   let startsAgg: Array<{ bucket: Date; starts: bigint }> = [];
   try {
-    startsAgg = await prisma.$queryRawUnsafe<Array<{ bucket: Date; starts: bigint }>>(
-      `SELECT date_trunc('${trunc}', s."startAt") AS bucket,
-              COUNT(*)::bigint AS starts
-       FROM "Subscription" s
-       INNER JOIN "Customer" c ON c."id" = s."customerId"
-       WHERE s."startAt" >= $1::timestamptz
-         AND s."startAt" < $2::timestamptz
-         ${tf("s") }
-       GROUP BY 1
-       ORDER BY 1 ASC`,
-      from,
-      to,
-    );
+    startsAgg = await prisma.$queryRaw<Array<{ bucket: Date; starts: bigint }>>(Prisma.sql`
+      SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, s."startAt") AS bucket,
+             COUNT(*)::bigint AS starts
+      FROM "Subscription" s
+      INNER JOIN "Customer" c ON c."id" = s."customerId"
+      WHERE s."startAt" >= ${from}::timestamptz
+        AND s."startAt" < ${to}::timestamptz
+        ${tenantSql("s", hasTenant, tenantId)}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en startsAgg:');
   }
 
   let cancelsAgg: Array<{ bucket: Date; cancels: bigint }> = [];
   try {
-    cancelsAgg = await prisma.$queryRawUnsafe<Array<{ bucket: Date; cancels: bigint }>>(
-      `SELECT date_trunc('${trunc}', s."canceledAt") AS bucket,
-              COUNT(*)::bigint AS cancels
-       FROM "Subscription" s
-       INNER JOIN "Customer" c ON c."id" = s."customerId"
-       WHERE s."canceledAt" IS NOT NULL
-         AND s."canceledAt" >= $1::timestamptz
-         AND s."canceledAt" < $2::timestamptz
-         ${tf("s") }
-       GROUP BY 1
-       ORDER BY 1 ASC`,
-      from,
-      to,
-    );
+    cancelsAgg = await prisma.$queryRaw<Array<{ bucket: Date; cancels: bigint }>>(Prisma.sql`
+      SELECT date_trunc(${Prisma.raw(`'${trunc}'`)}, s."canceledAt") AS bucket,
+             COUNT(*)::bigint AS cancels
+      FROM "Subscription" s
+      INNER JOIN "Customer" c ON c."id" = s."customerId"
+      WHERE s."canceledAt" IS NOT NULL
+        AND s."canceledAt" >= ${from}::timestamptz
+        AND s."canceledAt" < ${to}::timestamptz
+        ${tenantSql("s", hasTenant, tenantId)}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `);
   } catch (err) {
     logger.warn({ err }, '[Metrics] Error en cancelsAgg:');
   }
