@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma";
-import { PaymentStatus, PlanType, SubscriptionStatus, PlanIntervalUnit } from "@prisma/client";
+import { logger } from "../lib/logger";
+import { PaymentStatus, PlanType, SubscriptionStatus, PlanIntervalUnit, Prisma } from "@prisma/client";
 import { buildSubscriptionBillingStateIndex, resolveCollectionDelinquency } from "./billingCycles";
 import { getPaymentsConfig } from "./runtimeConfig";
 
@@ -162,6 +163,25 @@ function createTenantFilter(hasTenant: boolean) {
   return (alias: string, idx: number) => tenantFilter(alias, idx, hasTenant);
 }
 
+function tenantSql(alias: string, hasTenant: boolean, tenantId: string): Prisma.Sql {
+  validateAlias(alias);
+  return hasTenant
+    ? Prisma.sql`AND ${Prisma.raw(`"${alias}"."tenantId"`)} = ${tenantId}::uuid`
+    : Prisma.raw(`AND "${alias}"."tenantId" IS NOT NULL`);
+}
+
+function paymentReconciliationSql(alias: string): Prisma.Sql {
+  validateAlias(alias);
+  return Prisma.raw(
+    `AND COALESCE(("${alias}"."providerResponse"->'reconciliation'->>'status')::text, '') <> 'IGNORED_EXTERNAL'`
+  );
+}
+
+function paymentUnlinkedSql(alias: string, includeUnlinkedPayments: boolean): Prisma.Sql {
+  validateAlias(alias);
+  return includeUnlinkedPayments ? Prisma.empty : Prisma.raw(`AND "${alias}"."subscriptionId" IS NOT NULL`);
+}
+
 // ============================================================================
 // DRY: Fórmula MRR reutilizable
 // ============================================================================
@@ -208,31 +228,25 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   const { trunc, step } = granularityConfig(args.granularity);
   const tenantId = String(args.tenantId || "").trim();
   const hasTenant = Boolean(tenantId);
-  
-  // Crear función tenantFilter pre-bindada - SIEMPRE usa índice 3 y pasa null cuando no hay tenant
-  const tf = (alias: string) => {
-    validateAlias(alias);
-    return hasTenant ? ` AND "${alias}"."tenantId" = '${tenantId}'::uuid` : ` AND "${alias}"."tenantId" IS NOT NULL`;
-  };
 
   const paymentsCfg = await getPaymentsConfig().catch(() => ({
     includeUnlinkedPaymentsInMetrics: true
   }));
   const includeUnlinkedPayments = paymentsCfg.includeUnlinkedPaymentsInMetrics !== false;
-  const paymentReconciliationFilter = ` AND COALESCE((p."providerResponse"->'reconciliation'->>'status')::text, '') <> 'IGNORED_EXTERNAL'`;
-  const paymentUnlinkedFilter = includeUnlinkedPayments ? "" : ` AND p."subscriptionId" IS NOT NULL`;
 
   let buckets: BucketRow[] = [];
   try {
-    buckets = (await prisma.$queryRawUnsafe<BucketRow[]>(
-      `SELECT bucket::timestamptz AS bucket
-       FROM generate_series(date_trunc('${trunc}', $1::timestamptz), date_trunc('${trunc}', $2::timestamptz), interval '${step}') AS bucket
-       ORDER BY bucket ASC`,
-      from,
-      to
-    )) as BucketRow[];
+    buckets = (await prisma.$queryRaw<BucketRow[]>(Prisma.sql`
+      SELECT bucket::timestamptz AS bucket
+      FROM generate_series(
+        date_trunc(${Prisma.raw(`'${trunc}'`)}, ${from}::timestamptz),
+        date_trunc(${Prisma.raw(`'${trunc}'`)}, ${to}::timestamptz),
+        ${Prisma.raw(`interval '${step}'`)}
+      ) AS bucket
+      ORDER BY bucket ASC
+    `)) as BucketRow[];
   } catch (err) {
-    console.error('[Metrics] Error en buckets:', err);
+    logger.warn({ err }, '[Metrics] Error en buckets:');
   }
   if (!Array.isArray(buckets) || buckets.length === 0) {
     buckets = buildBucketsFallback(from, to, args.granularity);
@@ -327,7 +341,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       )
     ]);
   } catch (err) {
-    console.error('[Metrics] Error en queries paralelas:', err);
+    logger.warn({ err }, '[Metrics] Error en queries paralelas:');
   }
   paymentsAgg = Array.isArray(paymentsAgg) ? paymentsAgg : [];
   failedAgg = Array.isArray(failedAgg) ? failedAgg : [];
@@ -382,7 +396,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       firstBucket,
     );
   } catch (err) {
-    console.error('[Metrics] Error en initialActiveRow:', err);
+    logger.warn({ err }, '[Metrics] Error en initialActiveRow:');
   }
   let activeSoFar = num(initialActiveRow[0]?.c ?? 0);
 
@@ -402,7 +416,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       to,
     );
   } catch (err) {
-    console.error('[Metrics] Error en startsAgg:', err);
+    logger.warn({ err }, '[Metrics] Error en startsAgg:');
   }
 
   let cancelsAgg: Array<{ bucket: Date; cancels: bigint }> = [];
@@ -422,7 +436,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       to,
     );
   } catch (err) {
-    console.error('[Metrics] Error en cancelsAgg:', err);
+    logger.warn({ err }, '[Metrics] Error en cancelsAgg:');
   }
 
   const startsByBucket = new Map<string, number>();
@@ -464,7 +478,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       to,
     );
   } catch (err) {
-    console.error('[Metrics] Error en totalsPaymentsRow:', err);
+    logger.warn({ err }, '[Metrics] Error en totalsPaymentsRow:');
   }
 
   let paymentsByPlanType: PaymentsByPlanTypeRow[] = [];
@@ -492,7 +506,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       to,
     );
   } catch (err) {
-    console.error('[Metrics] Error en paymentsByPlanType:', err);
+    logger.warn({ err }, '[Metrics] Error en paymentsByPlanType:');
   }
   const paymentsByPlanTypeTotals: Record<string, { paymentsSuccess: number; paymentsFailed: number; revenueInCents: number }> = {
     manual_link: { paymentsSuccess: 0, paymentsFailed: 0, revenueInCents: 0 },
@@ -538,7 +552,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       to,
     );
   } catch (err) {
-    console.error('[Metrics] Error en platformBreakdown:', err);
+    logger.warn({ err }, '[Metrics] Error en platformBreakdown:');
   }
 
   let totalsPlansSoldRow: Array<{ plans_sold: bigint }> = [{ plans_sold: 0n }];
@@ -563,7 +577,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       to,
     );
   } catch (err) {
-    console.error('[Metrics] Error en totalsPlansSoldRow:', err);
+    logger.warn({ err }, '[Metrics] Error en totalsPlansSoldRow:');
   }
 
   const activeSubsRow = await prisma.subscription.count({
@@ -627,7 +641,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     for (const customerId of pastDue) onTime.delete(customerId);
     contactsStatusRow = [{ contacts_on_time: BigInt(onTime.size), contacts_past_due: BigInt(pastDue.size) }];
   } catch (err) {
-    console.error('[Metrics] Error en contactsStatusRow:', err);
+    logger.warn({ err }, '[Metrics] Error en contactsStatusRow:');
   }
 
   const linksTotalsRow = await prisma.$queryRawUnsafe<
@@ -653,7 +667,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     from,
     to,
   ).catch((err) => {
-    console.error("Error in linksTotalsRow:", err);
+    logger.warn({ err }, "Error in linksTotalsRow:");
     return [{ links_sent: 0n, links_paid_any: 0n, links_paid_in_range: 0n, link_revenue_cents: 0n, avg_time_to_pay_sec: null }];
   });
 
@@ -702,7 +716,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       to,
     );
   } catch (err) {
-    console.error('[Metrics] Error en autoChargesRow:', err);
+    logger.warn({ err }, '[Metrics] Error en autoChargesRow:');
   }
 
   const mrrRow = await prisma.$queryRawUnsafe<Array<{ mrr_cents: number | null }>>(
@@ -738,7 +752,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       churnEnd,
     );
   } catch (err) {
-    console.error('[Metrics] Error en churnRow:', err);
+    logger.warn({ err }, '[Metrics] Error en churnRow:');
   }
 
   const cancels = num(churnRow[0]?.cancels ?? 0);
@@ -766,7 +780,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       to,
     );
   } catch (err) {
-    console.error('[Metrics] Error en revenueByPlanType:', err);
+    logger.warn({ err }, '[Metrics] Error en revenueByPlanType:');
   }
   const revenueByPlanTypeInCents: Record<string, number> = { manual_link: 0, auto_subscription: 0 };
   for (const r of revenueByPlanType) revenueByPlanTypeInCents[String(r.plan_type)] = num(r.revenue_cents);
@@ -812,7 +826,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       to,
     );
   } catch (err) {
-    console.error('[Metrics] Error en revenueByProduct:', err);
+    logger.warn({ err }, '[Metrics] Error en revenueByProduct:');
   }
   const revenueByProductRows = revenueByProduct
     .filter((r) => String(r.product_id || "").trim())
@@ -881,7 +895,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       to,
     );
   } catch (err) {
-    console.error('[Metrics] Error en paymentActivityByProduct:', err);
+    logger.warn({ err }, '[Metrics] Error en paymentActivityByProduct:');
   }
   const paymentActivityByProductRows = paymentActivityByProduct
     .filter((r) => String(r.product_id || "").trim())
@@ -951,7 +965,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       to,
     );
   } catch (err) {
-    console.error('[Metrics] Error en linkActivityByProduct:', err);
+    logger.warn({ err }, '[Metrics] Error en linkActivityByProduct:');
   }
   const linkActivityByProductRows = linkActivityByProduct
     .filter((r) => String(r.product_id || "").trim())
@@ -992,7 +1006,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       ...(hasTenant ? [tenantId] : [])
     );
   } catch (err) {
-    console.error('[Metrics] Error en firstDataRow:', err);
+    logger.warn({ err }, '[Metrics] Error en firstDataRow:');
   }
   const firstDataAt = firstDataRow[0]?.first_at ? iso(firstDataRow[0].first_at) : null;
 
@@ -1014,7 +1028,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         firstBucket,
       );
     } catch (err) {
-      console.error('[Metrics] Error en initialMrrRow:', err);
+      logger.warn({ err }, '[Metrics] Error en initialMrrRow:');
     }
     let mrrSoFar = Math.round(num(initialMrrRow[0]?.v ?? 0));
 
@@ -1036,7 +1050,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         to,
       );
     } catch (err) {
-      console.error('[Metrics] Error en mrrStartsAgg:', err);
+      logger.warn({ err }, '[Metrics] Error en mrrStartsAgg:');
     }
 
     let mrrCancelsAgg: Array<{ bucket: Date; subs: number | null }> = [];
@@ -1058,7 +1072,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         to,
       );
     } catch (err) {
-      console.error('[Metrics] Error en mrrCancelsAgg:', err);
+      logger.warn({ err }, '[Metrics] Error en mrrCancelsAgg:');
     }
 
     const mrrAddsByBucket = new Map<string, number>();
@@ -1117,7 +1131,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
         to,
       );
     } catch (err) {
-      console.error('[Metrics] Error en churnAgg:', err);
+      logger.warn({ err }, '[Metrics] Error en churnAgg:');
     }
 
     for (const r of churnAgg) {
@@ -1155,7 +1169,7 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
       tenantId
     );
   } catch (err) {
-    console.error('[Metrics] Error en unlinkedPaymentsRow:', err);
+    logger.warn({ err }, '[Metrics] Error en unlinkedPaymentsRow:');
   }
 
   const result = {
@@ -1214,14 +1228,14 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
   
   // Logging estructurado para observabilidad
   const duration = Date.now() - startTime;
-  console.log('[MetricsOverview]', JSON.stringify({
+  logger.info({
     tenantId: hasTenant ? tenantId : null,
     granularity: args.granularity,
     rangeDays: Math.round((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)),
     seriesPoints: series.length,
     durationMs: duration,
-    slow: duration > 2000 // Alerta si toma más de 2 segundos
-  }));
+    slow: duration > 2000
+  }, "[MetricsOverview] completed");
   
   return result;
 }
