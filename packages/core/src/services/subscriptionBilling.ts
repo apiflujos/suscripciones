@@ -97,7 +97,7 @@ async function tryAcquirePaymentLinkLock(key: string) {
     `;
     return Boolean(rows?.[0]?.locked);
   } catch (err) {
-    console.error('[PaymentLock] Failed to acquire lock', { key, error: getErrorMessage(err) });
+    logger.warn({ err }, '[PaymentLock] Failed to acquire lock');{ key, error: getErrorMessage(err) });
     throw err; // Re-lanzar para que el caller sepa que falló
   }
 }
@@ -108,7 +108,7 @@ async function releasePaymentLinkLock(key: string) {
       SELECT pg_advisory_unlock(hashtext(${key}))
     `;
   } catch (err) {
-    console.error('[PaymentLock] Failed to release lock', { key, error: getErrorMessage(err) });
+    logger.warn({ err }, '[PaymentLock] Failed to release lock');{ key, error: getErrorMessage(err) });
   }
 }
 

@@ -68,7 +68,7 @@ export async function reconcileWompiTransaction(args: {
   try {
     tx = await wompi.getTransaction(txId, publicKey);
   } catch (err) {
-    console.error('[WompiReconcile] Error fetching transaction', err);
+    logger.warn({ err }, '[WompiReconcile] Error fetching transaction');err);
     return { ok: false, reason: "wompi_api_unavailable" as const };
   }
   const status = normalizeStatus(tx.status);
@@ -179,7 +179,7 @@ export async function reconcileWompiByReference(args: {
   // FIX: Validar amountInCents si se proporciona (no puede ser 0 o negativo)
   const expectedAmount = args.amountInCents != null ? Math.trunc(Number(args.amountInCents)) : null;
   if (expectedAmount != null && expectedAmount <= 0) {
-    console.warn('[WompiReconcile] Invalid amountInCents provided', { amountInCents: args.amountInCents });
+    logger.warn({ amountInCents: args.amountInCents }, '[WompiReconcile] Invalid amountInCents provided');
   }
   
   const expectedCurrency = String(args.currency || "").trim().toUpperCase();
