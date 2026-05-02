@@ -33,21 +33,13 @@ import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
+import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { PageToolbar } from "../ui/PageToolbar";
 import { formatCivilDate } from "./civilDate";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { MISSING_WHATSAPP_TEMPLATE_MESSAGE } from "../lib/notificationTemplate";
 import { buildBillingStatusCards, extractTemplateProductId, fmtEvery, fmtMoney, formatPlanTitle, getActivo, getEstado, getTipo, getTipoPago, hasUsablePaymentSource, normalizeImageUrl, readPlanPricing, splitPlanDisplay, splitProductDisplay, subscriptionRank, templateMatchesProduct, templateMatchesTenant } from "./billingDisplayHelpers";
-import type { BillingPageContentProps, CollectionMode, TenantOption } from "./billingTypes";
-
-function resolveCollectionMode(plan: any, subscriptionMeta?: any): CollectionMode {
-  const meta = subscriptionMeta && typeof subscriptionMeta === "object" ? subscriptionMeta : {};
-  const planMeta = plan?.metadata && typeof plan.metadata === "object" ? plan.metadata : {};
-  const fromSubscription = (meta as any)?.collectionMode ?? (meta as any)?.billing?.collectionMode;
-  if (fromSubscription != null) return (String(fromSubscription || "").trim().toUpperCase() || "MANUAL_LINK") as CollectionMode;
-  const fromPlan = (planMeta as any)?.collectionMode ?? plan?.collectionMode;
-  return String(fromPlan || "MANUAL_LINK").trim().toUpperCase() as CollectionMode;
-}
+import type { BillingPageContentProps, TenantOption } from "./billingTypes";
 
 export async function BillingPageContent({
   searchParams
@@ -190,7 +182,7 @@ export async function BillingPageContent({
       const plan = s.plan;
       const customer = (s.customer as any) || {};
       const customerMeta = (customer?.metadata ?? {}) as any;
-      const collectionMode = String(s?.collectionModeResolved || "").trim().toUpperCase() || resolveCollectionMode(plan, s?.metadata);
+      const collectionMode = String(s?.collectionModeResolved || "").trim().toUpperCase() || resolveSubscriptionCollectionMode({ metadata: s?.metadata, plan });
       const tipoTx = getTipo(collectionMode);
       const activo = getActivo(s.status);
       const estadoInfo = getEstado(s.status);
