@@ -384,6 +384,8 @@ model Payment {
   @@unique([wompiTransactionId])
   @@index([reference])
   @@index([subscriptionId, status])
+  @@index([paidAt])
+  @@index([createdAt, status])
   @@index([status, createdAt])
   @@index([tenantId])
 }
@@ -411,6 +413,9 @@ model SubscriptionBillingCycle {
   payment      Payment?     @relation(fields: [paymentId], references: [id])
 
   @@unique([subscriptionId, cycleNumber])
+  @@index([subscriptionId, status])
+  @@index([dueAt, status])
+  @@index([status, periodStartAt])
   @@index([subscriptionId, periodStartAt])
   @@index([subscriptionId, paymentId])
 }
