@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 
 type AutoSubmitToggleProps = {
   name: string;
@@ -12,11 +12,6 @@ type AutoSubmitToggleProps = {
   form?: string;
 };
 
-/**
- * Toggle con loading state y confirmación opcional para cambios críticos
- * 
- * Usa useTransition para mostrar estado pendiente mientras se envía al servidor
- */
 export function AutoSubmitToggle({
   name,
   checked,
@@ -28,27 +23,44 @@ export function AutoSubmitToggle({
 }: AutoSubmitToggleProps) {
   const [isPending, startTransition] = useTransition();
   const [localChecked, setLocalChecked] = useState(checked);
+  const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     setLocalChecked(checked);
   }, [checked]);
 
+  // Safety valve: if isPending stays true for more than 8s, the transition
+  // got stuck (action returned without revalidatePath/redirect). Reset the
+  // visual state to the last known server value so the toggle isn't locked.
+  useEffect(() => {
+    if (isPending) {
+      pendingTimerRef.current = setTimeout(() => {
+        setLocalChecked(checked);
+      }, 8000);
+    } else {
+      if (pendingTimerRef.current) {
+        clearTimeout(pendingTimerRef.current);
+        pendingTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+    };
+  }, [isPending, checked]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newChecked = e.target.checked;
-    
-    // Confirmar si es requerido
+
     if (requireConfirm) {
       const message = confirmMessage || `¿Estás seguro de cambiar esta configuración? Esto afectará los cobros automáticos.`;
       if (!window.confirm(message)) {
-        // Revertir al estado anterior
         e.target.checked = !newChecked;
         return;
       }
     }
-    
-    // Actualizar estado local inmediatamente para UX responsivo
+
     setLocalChecked(newChecked);
-    
-    // Enviar formulario con transition para mostrar loading
+
     startTransition(() => {
       const formElement = form ? document.getElementById(form) : e.target.closest("form");
       if (formElement && formElement instanceof HTMLFormElement) {
