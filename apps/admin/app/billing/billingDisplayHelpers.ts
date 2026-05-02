@@ -68,7 +68,7 @@ export function getCollectionStatusLabel(args: CollectionStatusArgs) {
   if (args.collectionCyclePaid) return "Al día";
   const status = String(args.status || "").toUpperCase();
   const graceDays = Number.isFinite(Number(args.graceDays)) ? Math.max(0, Math.trunc(Number(args.graceDays))) : 5;
-  const dueAt = args.dueAt ? new Date(args.dueAt) : null;
+  const dueAt = args.dueAt ? new Date(args.dueAt as any) : null;
   const nowDate = args.nowDate instanceof Date ? args.nowDate : getCivilDateAnchorUtc(new Date());
   if (!dueAt || Number.isNaN(dueAt.getTime())) return status === "PAST_DUE" || status === "EXPIRED" ? "En mora" : "Al día";
   const dueKey = getCivilDateKey(dueAt);

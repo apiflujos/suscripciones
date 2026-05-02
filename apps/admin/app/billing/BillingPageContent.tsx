@@ -38,7 +38,7 @@ import { PageToolbar } from "../ui/PageToolbar";
 import { formatCivilDate } from "./civilDate";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { MISSING_WHATSAPP_TEMPLATE_MESSAGE } from "../lib/notificationTemplate";
-import { buildBillingStatusCards, extractTemplateProductId, fmtEvery, fmtMoney, formatPlanTitle, getActivo, getEstado, getTipo, getTipoPago, hasUsablePaymentSource, normalizeImageUrl, readPlanPricing, splitPlanDisplay, splitProductDisplay, subscriptionRank, templateMatchesProduct, templateMatchesTenant } from "./billingDisplayHelpers";
+import { buildBillingStatusCards, extractTemplateProductId, fmtEvery, fmtMoney, formatLongCivilDate, formatPlanTitle, getActivo, getCollectionStatusLabel, getEstado, getEstadoSimple, getTipo, getTipoPago, hasUsablePaymentSource, normalizeImageUrl, readPlanPricing, splitPlanDisplay, splitProductDisplay, subscriptionRank, templateMatchesProduct, templateMatchesTenant } from "./billingDisplayHelpers";
 import type { BillingPageContentProps, TenantOption } from "./billingTypes";
 
 export async function BillingPageContent({
