@@ -21,6 +21,11 @@ import { handleSubscriptionPaymentFailure, ensureExpiredSubscriptions } from "..
 import { runWithActor } from "../services/actorStore";
 import { publishRealtime } from "../services/realtimePublisher";
 import { resolveSubscriptionBillingState } from "../services/billingCycles";
+import {
+  forwardToShopifySchema,
+  paymentRetrySchema,
+  processWompiEventSchema
+} from "../lib/job-payload-schemas";
 import type {
   AiAssistPayload,
   BillingReportPayload,
@@ -538,16 +543,58 @@ async function runOnce() {
           | null = null;
 
         if (job.type === RetryJobType.PROCESS_WOMPI_EVENT) {
-          const p = job.payload as ProcessWompiEventPayload;
+          const parsed = processWompiEventSchema.safeParse(job.payload);
+          if (!parsed.success) {
+            logger.warn({ jobId: job.id, errors: parsed.error.flatten() }, "job payload inválido");
+            await prisma.retryJob.update({
+              where: { id: job.id },
+              data: {
+                status: RetryJobStatus.FAILED,
+                lastError: "invalid_payload",
+                lockedAt: null,
+                lockedBy: null
+              }
+            });
+            return;
+          }
+          const p: ProcessWompiEventPayload = parsed.data;
           await processWompiEvent(p.webhookEventId);
         } else if (job.type === RetryJobType.FORWARD_WOMPI_TO_SHOPIFY) {
-          const p = job.payload as ForwardToShopifyPayload;
+          const parsed = forwardToShopifySchema.safeParse(job.payload);
+          if (!parsed.success) {
+            logger.warn({ jobId: job.id, errors: parsed.error.flatten() }, "job payload inválido");
+            await prisma.retryJob.update({
+              where: { id: job.id },
+              data: {
+                status: RetryJobStatus.FAILED,
+                lastError: "invalid_payload",
+                lockedAt: null,
+                lockedBy: null
+              }
+            });
+            return;
+          }
+          const p: ForwardToShopifyPayload = parsed.data;
           await forwardWompiToShopify(p.webhookEventId);
         } else if (job.type === RetryJobType.SEND_CHATWOOT_MESSAGE) {
           const p = job.payload as SendChatwootMessagePayload;
           await sendChatwootMessage(p.chatwootMessageId);
         } else if (job.type === RetryJobType.PAYMENT_RETRY) {
-          const p = job.payload as PaymentRetryPayload;
+          const parsed = paymentRetrySchema.safeParse(job.payload);
+          if (!parsed.success) {
+            logger.warn({ jobId: job.id, errors: parsed.error.flatten() }, "job payload inválido");
+            await prisma.retryJob.update({
+              where: { id: job.id },
+              data: {
+                status: RetryJobStatus.FAILED,
+                lastError: "invalid_payload",
+                lockedAt: null,
+                lockedBy: null
+              }
+            });
+            return;
+          }
+          const p: PaymentRetryPayload = parsed.data;
           paymentRetryOutcome = await paymentRetry(p);
         } else if (job.type === RetryJobType.SUBSCRIPTION_REMINDER) {
           const p = job.payload as SubscriptionReminderPayload;
