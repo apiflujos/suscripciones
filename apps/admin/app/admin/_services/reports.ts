@@ -4,6 +4,7 @@ import { getOperationsReport, getChatwootReport } from "@suscripciones/core/serv
 import { coerceTenantId } from "@suscripciones/core/services/tenantContext";
 import { defaultRange, normalizeCacheRange, parseQueryDate } from "../reports/_lib";
 import { getReportCache, setReportCache } from "@suscripciones/core/services/reportCache";
+import { logger } from "@suscripciones/core/lib/logger";
 
 type ReportResult =
   | { ok: true; data: any; cache: "HIT" | "STALE" | "MISS" | "BYPASS" }
@@ -37,7 +38,7 @@ async function withCache(args: {
         const payload = await args.compute();
         await setReportCache(key, payload, ttlSeconds, staleSeconds);
       } catch (err) {
-        console.error("[ReportsCache] Failed to refresh cache", { reportKey: args.reportKey, err });
+        logger.error({ reportKey: args.reportKey, err }, "[ReportsCache] Failed to refresh cache");
       }
     });
     return { ok: true, data: cached.payload, cache: "STALE" };

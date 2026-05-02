@@ -7,6 +7,7 @@ import { systemLog } from "@suscripciones/core/services/systemLog";
 import { getEffectiveTenantId, readTenantIdsFromReq } from "@suscripciones/core/services/tenantContext";
 import { DEFAULT_CURRENCY, isSupportedCurrency, normalizeCurrencyCode } from "@suscripciones/core/lib/currencies";
 import { getPublicBaseUrlFromEnv } from "@suscripciones/core/services/publicBase";
+import { logger } from "@suscripciones/core/lib/logger";
 import { listPlanIdsForCatalogProducts } from "../../_services/productPlanMapping";
 
 export const runtime = "nodejs";
@@ -302,13 +303,13 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
 
   const id = String(params?.id || "").trim();
   if (!id) {
-    console.error("[Products/Delete] ID no proporcionado");
+    logger.error({}, "[Products/Delete] ID no proporcionado");
     return Response.json({ error: "id_invalido", mensaje: "El ID del producto es requerido" }, { status: 400 });
   }
 
   const plan = await prisma.subscriptionPlan.findUnique({ where: { id }, include: { tenantLinks: true } });
   if (!plan) {
-    console.warn("[Products/Delete] Producto no encontrado", { id });
+    logger.warn({ id }, "[Products/Delete] Producto no encontrado");
     return Response.json({ error: "producto_no_encontrado", mensaje: `El producto ${id} no existe` }, { status: 404 });
   }
 
@@ -317,13 +318,13 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
   if (tenantId) {
     const allowed = plan.tenantId === tenantId || (plan.tenantLinks || []).some((t: any) => t.tenantId === tenantId);
     if (!allowed) {
-      console.warn("[Products/Delete] Acceso denegado", { id, tenantId });
+      logger.warn({ id, tenantId }, "[Products/Delete] Acceso denegado");
       return Response.json({ error: "producto_no_encontrado", mensaje: "No tienes acceso a este producto" }, { status: 404 });
     }
   }
 
   if ((plan.metadata as any)?.kind !== "CATALOG_ITEM") {
-    console.warn("[Products/Delete] No es un item de catálogo", { id, kind: (plan.metadata as any)?.kind });
+    logger.warn({ id, kind: (plan.metadata as any)?.kind }, "[Products/Delete] No es un item de catálogo");
     return Response.json({ error: "producto_no_encontrado", mensaje: "El producto no es un item de catálogo" }, { status: 404 });
   }
 
@@ -341,11 +342,11 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
     take: 20
   });
   if (activeBlocking.length) {
-    console.warn("[Products/Delete] Producto tiene suscripciones activas", {
+    logger.warn({
       id,
       activeCount: activeBlocking.length,
       statuses: blockingStatuses
-    });
+    }, "[Products/Delete] Producto tiene suscripciones activas");
     return Response.json(
       {
         error: "producto_tiene_suscripciones_activas",
@@ -368,13 +369,13 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
   const url = new URL(req.url);
   const force = String(url.searchParams.get("force") || "").trim() === "1";
   if (!force && (subscriptionsCount || paymentLinksCount || dependentPlans.length)) {
-    console.warn("[Products/Delete] Producto tiene dependencias", {
+    logger.warn({
       id,
       subscriptionsCount,
       paymentLinksCount,
       dependentPlansCount: dependentPlans.length,
       force
-    });
+    }, "[Products/Delete] Producto tiene dependencias");
     return Response.json(
       {
         error: "producto_tiene_dependencias",
@@ -387,7 +388,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
 
   try {
     if (force) {
-      console.log("[Products/Delete] Iniciando eliminación en cascada", { id });
+      logger.info({ id }, "[Products/Delete] Iniciando eliminación en cascada");
       const subs = await prisma.subscription.findMany({ where: { planId: { in: relatedPlanIds } }, select: { id: true } });
       const subIds = subs.map((s: any) => s.id);
       const payments = await prisma.payment.findMany({ where: { subscriptionId: { in: subIds } }, select: { id: true } });
@@ -395,37 +396,37 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
 
       if (paymentIds.length) {
         await prisma.paymentAttempt.deleteMany({ where: { paymentId: { in: paymentIds } } }).catch((err) => {
-          console.error("[Products/Delete] Fallo eliminando paymentAttempt", { id, paymentIdsCount: paymentIds.length, error: err?.message });
+          logger.error({ id, paymentIdsCount: paymentIds.length, err }, "[Products/Delete] Fallo eliminando paymentAttempt");
         });
       }
       await prisma.chatwootMessage.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err) => {
-        console.error("[Products/Delete] Fallo eliminando chatwootMessage", { id, subscriptionIdsCount: subIds.length, error: err?.message });
+        logger.error({ id, subscriptionIdsCount: subIds.length, err }, "[Products/Delete] Fallo eliminando chatwootMessage");
       });
       await prisma.paymentLink
         .deleteMany({ where: { OR: [{ subscriptionId: { in: subIds } }, { planId: { in: relatedPlanIds } }] } })
         .catch((err) => {
-          console.error("[Products/Delete] Fallo eliminando paymentLink", { id, subscriptionIdsCount: subIds.length, relatedPlanIdsCount: relatedPlanIds.length, error: err?.message });
+          logger.error({ id, subscriptionIdsCount: subIds.length, relatedPlanIdsCount: relatedPlanIds.length, err }, "[Products/Delete] Fallo eliminando paymentLink");
         });
       await prisma.payment.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err) => {
-        console.error("[Products/Delete] Fallo eliminando payment", { id, subscriptionIdsCount: subIds.length, error: err?.message });
+        logger.error({ id, subscriptionIdsCount: subIds.length, err }, "[Products/Delete] Fallo eliminando payment");
       });
       await prisma.subscriptionTenant.deleteMany({ where: { subscriptionId: { in: subIds } } }).catch((err) => {
-        console.error("[Products/Delete] Fallo eliminando subscriptionTenant", { id, subscriptionIdsCount: subIds.length, error: err?.message });
+        logger.error({ id, subscriptionIdsCount: subIds.length, err }, "[Products/Delete] Fallo eliminando subscriptionTenant");
       });
       await prisma.subscription.deleteMany({ where: { id: { in: subIds } } }).catch((err) => {
-        console.error("[Products/Delete] Fallo eliminando subscription", { id, subscriptionIdsCount: subIds.length, error: err?.message });
+        logger.error({ id, subscriptionIdsCount: subIds.length, err }, "[Products/Delete] Fallo eliminando subscription");
       });
       await prisma.subscriptionPlanTenant.deleteMany({ where: { planId: { in: relatedPlanIds } } }).catch((err) => {
-        console.error("[Products/Delete] Fallo eliminando subscriptionPlanTenant", { id, relatedPlanIdsCount: relatedPlanIds.length, error: err?.message });
+        logger.error({ id, relatedPlanIdsCount: relatedPlanIds.length, err }, "[Products/Delete] Fallo eliminando subscriptionPlanTenant");
       });
       await prisma.subscriptionPlan.deleteMany({ where: { id: { in: relatedPlanIds } } }).catch((err) => {
-        console.error("[Products/Delete] Fallo eliminando subscriptionPlan", { id, relatedPlanIdsCount: relatedPlanIds.length, error: err?.message });
+        logger.error({ id, relatedPlanIdsCount: relatedPlanIds.length, err }, "[Products/Delete] Fallo eliminando subscriptionPlan");
       });
-      console.log("[Products/Delete] Eliminación en cascada completada", {
+      logger.info({
         id,
         subscriptionsDeleted: subIds.length,
         plansDeleted: relatedPlanIds.length
-      });
+      }, "[Products/Delete] Eliminación en cascada completada");
     } else {
       await prisma.subscriptionPlan.delete({ where: { id } });
     }
@@ -434,20 +435,20 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
       relatedPlanIds,
       dependentPlansCount: dependentPlans.length
     }).catch((err) => {
-      console.error("[Products/Delete] Fallo creando systemLog", { id, error: err?.message });
+      logger.error({ id, err }, "[Products/Delete] Fallo creando systemLog");
     });
-    console.log("[Products/Delete] Producto eliminado exitosamente", { id, force });
+    logger.info({ id, force }, "[Products/Delete] Producto eliminado exitosamente");
     return Response.json({ ok: true });
   } catch (err: any) {
     if (String(err?.code) === "P2025") {
-      console.warn("[Products/Delete] Producto ya no existe", { id });
+      logger.warn({ id }, "[Products/Delete] Producto ya no existe");
       return Response.json({ error: "producto_no_encontrado", mensaje: "El producto ya fue eliminado" }, { status: 404 });
     }
     if (String(err?.code) === "P2003") {
-      console.error("[Products/Delete] Violación de clave foránea", {
+      logger.error({
         id,
         constraint: err?.meta?.constraint_name || "desconocida"
-      });
+      }, "[Products/Delete] Violación de clave foránea");
       return Response.json(
         {
           error: "producto_tiene_dependencias",
@@ -456,11 +457,10 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
         { status: 409 }
       );
     }
-    console.error("[Products/Delete] Error eliminando producto", {
+    logger.error({
       id,
-      error: err?.message || String(err),
-      stack: err?.stack
-    });
+      err
+    }, "[Products/Delete] Error eliminando producto");
     return Response.json({ error: "fallo_eliminacion", mensaje: "No se pudo eliminar el producto" }, { status: 500 });
   }
 }

@@ -92,11 +92,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const result = await getCustomerWithGamification({ customerId, tenantId });
   if (!result.ok) {
     if (result.error === "id_invalido") {
-      console.warn("[Customers/GetById] ID no proporcionado");
+      logger.warn({}, "[Customers/GetById] ID no proporcionado");
       return Response.json({ error: "id_invalido", mensaje: "El ID del customer es requerido" }, { status: 400 });
     }
     if (result.error === "customer_no_encontrado") {
-      console.warn("[Customers/GetById] Customer no encontrado", { customerId });
+      logger.warn({ customerId }, "[Customers/GetById] Customer no encontrado");
       return Response.json({ error: "customer_no_encontrado", mensaje: `El customer ${customerId} no existe` }, { status: 404 });
     }
     return Response.json({ error: result.error }, { status: result.status });
@@ -259,7 +259,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
 
   const customerId = String(params?.id || "").trim();
   if (!customerId) {
-    console.error("[Customers/Delete] ID de customer no proporcionado");
+    logger.error({}, "[Customers/Delete] ID de customer no proporcionado");
     return Response.json({ error: "id_invalido", mensaje: "El ID del customer es requerido" }, { status: 400 });
   }
 
@@ -269,13 +269,13 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
     if (tenantId) {
       const existing = await prisma.customer.findUnique({ where: { id: customerId } });
       if (!existing) {
-        console.warn("[Customers/Delete] Customer no encontrado", { customerId, tenantId });
+        logger.warn({ customerId, tenantId }, "[Customers/Delete] Customer no encontrado");
         return Response.json({ error: "customer_no_encontrado", mensaje: `El customer ${customerId} no existe` }, { status: 404 });
       }
       const allowed =
         existing.tenantId === tenantId || (await prisma.customerTenant.count({ where: { customerId, tenantId } })) > 0;
       if (!allowed) {
-        console.warn("[Customers/Delete] Acceso denegado para tenant", { customerId, tenantId });
+        logger.warn({ customerId, tenantId }, "[Customers/Delete] Acceso denegado para tenant");
         return Response.json({ error: "customer_no_encontrado", mensaje: "No tienes acceso a este customer" }, { status: 404 });
       }
     }
@@ -297,7 +297,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
       !force &&
       (subscriptionsCount || paymentsCount || chatwootCount || smartListCount || campaignCount || gamificationScoreCount || gamificationEventCount)
     ) {
-      console.warn("[Customers/Delete] Customer tiene dependencias", {
+      logger.warn({
         customerId,
         subscriptionsCount,
         paymentsCount,
@@ -307,7 +307,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
         gamificationScoreCount,
         gamificationEventCount,
         force
-      });
+      }, "[Customers/Delete] Customer tiene dependencias");
       return Response.json(
         {
           error: "customer_tiene_dependencias",
@@ -327,7 +327,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
     }
 
     if (force) {
-      console.log("[Customers/Delete] Iniciando eliminación en cascada", { customerId });
+      logger.info({ customerId }, "[Customers/Delete] Iniciando eliminación en cascada");
 
       const subscriptions = await prisma.subscription.findMany({
         where: { customerId },
@@ -351,10 +351,10 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
             }
           })
           .catch((err) => {
-            console.error("[Customers/Delete] Fallo eliminando gamification events", {
+            logger.error({
               customerId,
-              error: err?.message
-            });
+              err
+            }, "[Customers/Delete] Fallo eliminando gamification events");
           });
       }
 
@@ -367,10 +367,10 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
             }
           })
           .catch((err) => {
-            console.error("[Customers/Delete] Fallo eliminando gamification scores", {
+            logger.error({
               customerId,
-              error: err?.message
-            });
+              err
+            }, "[Customers/Delete] Fallo eliminando gamification scores");
           });
       }
 
@@ -424,36 +424,35 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
         logIgnored(err, "customers[id]: fallo eliminando customerTenant en delete forzado", { customerId });
       });
 
-      console.log("[Customers/Delete] Eliminación en cascada completada", {
+      logger.info({
         customerId,
         subscriptionsDeleted: subscriptionIds.length,
         paymentsDeleted: paymentIds.length
-      });
+      }, "[Customers/Delete] Eliminación en cascada completada");
     }
 
     await prisma.customer.delete({ where: { id: customerId } });
-    console.log("[Customers/Delete] Customer eliminado exitosamente", { customerId, force });
+    logger.info({ customerId, force }, "[Customers/Delete] Customer eliminado exitosamente");
     return Response.json({ ok: true, forced: force, customerId });
   } catch (err: any) {
     if (String(err?.code) === "P2025") {
-      console.warn("[Customers/Delete] Customer ya no existe", { customerId });
+      logger.warn({ customerId }, "[Customers/Delete] Customer ya no existe");
       return Response.json({ error: "customer_no_encontrado", mensaje: "El customer ya fue eliminado" }, { status: 404 });
     }
     if (String(err?.code) === "P2003") {
-      console.error("[Customers/Delete] Violación de clave foránea", {
+      logger.error({
         customerId,
         constraint: err?.meta?.constraint_name || "desconocida"
-      });
+      }, "[Customers/Delete] Violación de clave foránea");
       return Response.json(
         { error: "customer_tiene_dependencias", mensaje: "El customer tiene registros relacionados que impiden su eliminación" },
         { status: 409 }
       );
     }
-    console.error("[Customers/Delete] Error eliminando customer", {
+    logger.error({
       customerId,
-      error: err?.message || String(err),
-      stack: err?.stack
-    });
+      err
+    }, "[Customers/Delete] Error eliminando customer");
     return Response.json({ error: "fallo_eliminacion", mensaje: "No se pudo eliminar el customer" }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getMetricsOverview } from "@suscripciones/core/services/metrics";
 import { getReportCache, setReportCache } from "@suscripciones/core/services/reportCache";
 import { coerceTenantId } from "@suscripciones/core/services/tenantContext";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export const metricsQuerySchema = z
   .object({
@@ -44,13 +45,13 @@ function defaultRange() {
 async function refreshCache(cacheKey: any, data: any, cacheTtlSeconds: number, staleSeconds: number) {
   try {
     await setReportCache(cacheKey, data, cacheTtlSeconds, staleSeconds);
-    console.log("[MetricsCache] Updated cache", { key: cacheKey.reportKey, tenantId: cacheKey.tenantId });
-  } catch (err: any) {
-    console.error("[MetricsCache] Failed to update cache", {
+    logger.info({ key: cacheKey.reportKey, tenantId: cacheKey.tenantId }, "[MetricsCache] Updated cache");
+  } catch (err) {
+    logger.error({
       key: cacheKey.reportKey,
       tenantId: cacheKey.tenantId,
-      error: err?.message || String(err)
-    });
+      err
+    }, "[MetricsCache] Failed to update cache");
   }
 }
 
@@ -96,12 +97,12 @@ export async function getMetricsOverviewCached(args: {
     try {
       const data = await getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity, tenantId: null });
       return { ok: true, data, cache: "BYPASS" };
-    } catch (err: any) {
+    } catch (err) {
       return {
         ok: false,
         status: 400,
         error: "error_consultando_metricas",
-        message: err?.message ? String(err.message) : "Error al consultar las métricas. Verifica el rango de fechas.",
+        message: err instanceof Error ? String(err.message) : "Error al consultar las métricas. Verifica el rango de fechas.",
         details: {
           from: cacheFrom.toISOString(),
           to: cacheTo.toISOString(),
@@ -127,11 +128,11 @@ export async function getMetricsOverviewCached(args: {
   if (cached.hit && cached.stale) {
     setImmediate(async () => {
       try {
-        console.log("[Metrics] Refreshing stale cache", { tenantId });
+        logger.info({ tenantId }, "[Metrics] Refreshing stale cache");
         const data = await getMetricsOverview({ from: cacheFrom, to: cacheTo, granularity, tenantId });
         await refreshCache(cacheKey, data, cacheTtlSeconds, staleSeconds);
-      } catch (err: any) {
-        console.error("[Metrics] Failed to refresh stale cache", { tenantId, error: err?.message || String(err) });
+      } catch (err) {
+        logger.error({ tenantId, err }, "[Metrics] Failed to refresh stale cache");
       }
     });
     return { ok: true, data: cached.payload, cache: "STALE" };

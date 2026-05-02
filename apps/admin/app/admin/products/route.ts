@@ -7,6 +7,7 @@ import { systemLog } from "@suscripciones/core/services/systemLog";
 import { getEffectiveTenantId, getEffectiveTenantIds } from "@suscripciones/core/services/tenantContext";
 import { DEFAULT_CURRENCY, isSupportedCurrency, normalizeCurrencyCode } from "@suscripciones/core/lib/currencies";
 import { getPublicBaseUrlFromEnv } from "@suscripciones/core/services/publicBase";
+import { logger } from "@suscripciones/core/lib/logger";
 import { listCatalogProducts } from "../_services/products";
 
 export const runtime = "nodejs";
@@ -128,10 +129,10 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const parsed = createProductSchema.safeParse(body);
   if (!parsed.success) {
-    console.error("[Products/Create] Validación fallida", {
+    logger.error({
       error: parsed.error.flatten(),
       body
-    });
+    }, "[Products/Create] Validación fallida");
     return Response.json({ error: "cuerpo_invalido", detalles: parsed.error.flatten() }, { status: 400 });
   }
 
@@ -139,7 +140,7 @@ export async function POST(req: Request) {
   const compatReq = reqToCompat(req, body);
   const tenantIds = await getEffectiveTenantIds(compatReq);
   if (!tenantIds.length) {
-    console.error("[Products/Create] Tenant requerido pero no proporcionado");
+    logger.error({}, "[Products/Create] Tenant requerido pero no proporcionado");
     return Response.json({ error: "tenant_requerido", mensaje: "Debe pertenecer al menos a un tenant" }, { status: 400 });
   }
   const primaryTenantId = tenantIds[0];
@@ -152,11 +153,11 @@ export async function POST(req: Request) {
     } as any
   });
   if (existing) {
-    console.warn("[Products/Create] SKU duplicado", {
+    logger.warn({
       sku: skuNormalizado,
       existingProductId: existing.id,
       newProductName: data.name
-    });
+    }, "[Products/Create] SKU duplicado");
     return Response.json(
       {
         error: "sku_ya_existe",
@@ -168,10 +169,10 @@ export async function POST(req: Request) {
   }
 
   if (data.intervalUnit === PlanIntervalUnit.CUSTOM && data.intervalCount <= 0) {
-    console.error("[Products/Create] Intervalo CUSTOM inválido", {
+    logger.error({
       intervalUnit: data.intervalUnit,
       intervalCount: data.intervalCount
-    });
+    }, "[Products/Create] Intervalo CUSTOM inválido");
     return Response.json(
       {
         error: "intervalo_invalido",
@@ -184,10 +185,10 @@ export async function POST(req: Request) {
   if (data.variants && data.variants.length > 0) {
     const variantNegativo = data.variants.find((v) => v.priceDeltaInCents < 0);
     if (variantNegativo) {
-      console.error("[Products/Create] Variante con precio negativo", {
+      logger.error({
         sku: skuNormalizado,
         variant: variantNegativo
-      });
+      }, "[Products/Create] Variante con precio negativo");
       return Response.json(
         {
           error: "variante_invalida",
@@ -236,18 +237,18 @@ export async function POST(req: Request) {
       data: tenantIds.map((t) => ({ planId: product.id, tenantId: t })),
       skipDuplicates: true
     });
-    console.log("[Products/Create] Producto creado exitosamente", {
+    logger.info({
       productId: product.id,
       sku: skuNormalizado,
       tenantIds
-    });
+    }, "[Products/Create] Producto creado exitosamente");
     return Response.json({ product: { id: product.id } }, { status: 201 });
   } catch (err: any) {
     if (err?.code === "P2002") {
-      console.error("[Products/Create] Violación de unicidad en BD", {
+      logger.error({
         sku: skuNormalizado,
         constraint: err?.meta?.target || "desconocida"
-      });
+      }, "[Products/Create] Violación de unicidad en BD");
       return Response.json(
         {
           error: "registro_duplicado",
@@ -257,11 +258,10 @@ export async function POST(req: Request) {
         { status: 409 }
       );
     }
-    console.error("[Products/Create] Error creando producto", {
+    logger.error({
       sku: skuNormalizado,
-      error: err?.message || String(err),
-      stack: err?.stack
-    });
+      err
+    }, "[Products/Create] Error creando producto");
     throw err;
   }
 }

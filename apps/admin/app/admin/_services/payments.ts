@@ -214,13 +214,13 @@ async function reconcilePendingPaymentFromWompi(args: { paymentId: string; wompi
       tenantId: args.tenantId || null,
       checksumPrefix: "poll-reconcile"
     });
-    console.log("[PaymentReconcile] Success", { paymentId: args.paymentId, wompiTransactionId: txId });
+    logger.info({ paymentId: args.paymentId, wompiTransactionId: txId }, "[PaymentReconcile] Success");
   } catch (err: any) {
-    console.error("[PaymentReconcile] Failed", {
+    logger.error({
       paymentId: args.paymentId,
       wompiTransactionId: txId,
-      error: err?.message || String(err)
-    });
+      err
+    }, "[PaymentReconcile] Failed");
     await systemLog(LogLevel.ERROR, "payments.reconcile", "Reconcile failed", {
       paymentId: args.paymentId,
       wompiTransactionId: txId,

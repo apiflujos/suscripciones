@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getReportCache, setReportCache } from "@suscripciones/core/services/reportCache";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export function parseQueryDate(value: unknown): Date | null {
   const raw = String(value || "").trim();
@@ -55,13 +56,13 @@ export async function refreshCache(
   try {
     const payload = await compute();
     await setReportCache(cacheKey, payload, ttlSeconds, staleSeconds);
-    console.log("[ReportsCache] Updated cache", { key: cacheKey.reportKey, tenantId: cacheKey.tenantId });
-  } catch (err: any) {
-    console.error("[ReportsCache] Failed to update cache", {
+    logger.info({ key: cacheKey.reportKey, tenantId: cacheKey.tenantId }, "[ReportsCache] Updated cache");
+  } catch (err) {
+    logger.error({
       key: cacheKey.reportKey,
       tenantId: cacheKey.tenantId,
-      error: err?.message || String(err)
-    });
+      err
+    }, "[ReportsCache] Failed to update cache");
   }
 }
 

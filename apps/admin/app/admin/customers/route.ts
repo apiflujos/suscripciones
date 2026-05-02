@@ -3,6 +3,7 @@ import { requireAdminToken } from "../_lib/requireAdminToken";
 import { reqToCompat } from "../_lib/reqCompat";
 import { getEffectiveTenantId, getEffectiveTenantIds } from "@suscripciones/core/services/tenantContext";
 import { createCustomer, createCustomerSchema, listCustomers } from "../_services/customers";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,10 +40,10 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const parsed = createCustomerSchema.safeParse(body);
   if (!parsed.success) {
-    console.error("[Customers/Create] Validación fallida", {
+    logger.error({
       error: parsed.error.flatten(),
       body
-    });
+    }, "[Customers/Create] Validación fallida");
     return Response.json({ error: "cuerpo_invalido", detalles: parsed.error.flatten() }, { status: 400 });
   }
 

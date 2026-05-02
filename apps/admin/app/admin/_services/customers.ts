@@ -220,11 +220,11 @@ export async function createCustomer(args: {
       where: { phone: { contains: phoneNormalizado.slice(-10) } }
     });
     if (existingPhone) {
-      console.warn("[Customers/Create] Phone potencialmente duplicado", {
+      logger.warn({
         phone: phoneNormalizado,
         existingCustomerId: existingPhone.id,
         existingCustomerName: existingPhone.name
-      });
+      }, "[Customers/Create] Phone potencialmente duplicado");
     }
   }
 
@@ -253,16 +253,16 @@ export async function createCustomer(args: {
       });
     await consumeApp("customers_created", { amount: 1, source: "api:customers.create", meta: { customerId: customer.id } });
     await syncChatwootAttributesForCustomer(customer.id).catch((err) => {
-      console.error("[Customers/Create] Fallo sincronización Chatwoot", {
+      logger.error({
         customerId: customer.id,
-        error: err?.message || String(err)
-      });
+        err
+      }, "[Customers/Create] Fallo sincronización Chatwoot");
     });
-    console.log("[Customers/Create] Customer creado exitosamente", {
+    logger.info({
       customerId: customer.id,
       email: customer.email,
       tenantIds: args.tenantIds
-    });
+    }, "[Customers/Create] Customer creado exitosamente");
     return { ok: true, customer };
   } catch (err: any) {
     if (err?.code === "P2002") {
@@ -274,11 +274,10 @@ export async function createCustomer(args: {
         details: err?.meta?.target || "desconocida"
       };
     }
-    console.error("[Customers/Create] Error creando customer", {
+    logger.error({
       email: emailNormalizado,
-      error: err?.message || String(err),
-      stack: err?.stack
-    });
+      err
+    }, "[Customers/Create] Error creando customer");
     throw err;
   }
 }

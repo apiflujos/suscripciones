@@ -1,5 +1,6 @@
 import { requireAdminToken } from "../../_lib/requireAdminToken";
 import { metricsQuerySchema, getMetricsOverviewCached } from "../../_services/metrics";
+import { logger } from "@suscripciones/core/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export async function GET(req: Request) {
     tenantId: url.searchParams.get("tenantId") || undefined
   });
   if (!parsed.success) {
-    console.log("[Metrics] Invalid query params", { errors: parsed.error.flatten() });
+    logger.info({ errors: parsed.error.flatten() }, "[Metrics] Invalid query params");
     return Response.json({ error: "invalid_query", details: parsed.error.flatten() }, { status: 400 });
   }
   const result = await getMetricsOverviewCached({
