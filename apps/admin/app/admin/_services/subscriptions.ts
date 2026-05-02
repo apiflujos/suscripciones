@@ -2,7 +2,7 @@ import "server-only";
 
 import { prisma } from "@suscripciones/database";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
-import { BillingCycleStatus, LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { BillingCycleStatus, LogLevel, PaymentStatus, Prisma, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
 import { addIntervalUtc, getCivilDateAnchorUtc, toUtc } from "@suscripciones/core/lib/dates";
@@ -24,6 +24,15 @@ import { listPlanIdsForCatalogProducts, resolveOperationalPlanForProduct } from 
 const DEFAULT_SUBSCRIPTION_CYCLE_START_DAY = 1;
 const DEFAULT_SUBSCRIPTION_PAYMENT_DAY = 1;
 const DEFAULT_SUBSCRIPTION_PAYMENT_TIMING: "EN_CURSO" | "ANTICIPADO" = "EN_CURSO";
+
+const subscriptionIdJsonFilter = (subscriptionId: string) =>
+  ({ path: ["subscriptionId"], equals: subscriptionId } as unknown as Prisma.JsonFilter);
+
+const stringContainsJsonFilter = (path: string[], value: string) =>
+  ({ path, string_contains: value } as unknown as Prisma.JsonFilter);
+
+const collectionModePlanWhere = (collectionMode: string) =>
+  ({ metadata: { path: ["collectionMode"], equals: collectionMode } as unknown as Prisma.JsonFilter }) satisfies Prisma.SubscriptionPlanWhereInput;
 
 function daysInMonthUtc(year: number, month0: number) {
   return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
@@ -285,8 +294,8 @@ export async function setSubscriptionRetryDate(args: {
       where: {
         type: RetryJobType.PAYMENT_RETRY,
         status: RetryJobStatus.PENDING,
-        payload: { path: ["subscriptionId"], equals: subscriptionId } as any
-      } as any
+        payload: subscriptionIdJsonFilter(subscriptionId)
+      }
     }).catch((err: any) => {
       logger.warn({ err, subscriptionId }, "Fallo limpiando retries manuales pendientes de suscripcion");
     });
@@ -332,7 +341,7 @@ export async function listSubscriptions(args: {
   }
 
   if (collectionMode) {
-    where.plan = { metadata: { path: ["collectionMode"], equals: collectionMode } } as any;
+    where.plan = collectionModePlanWhere(collectionMode);
   }
 
   if (q) {
@@ -341,10 +350,10 @@ export async function listSubscriptions(args: {
         { name: { contains: q, mode: "insensitive" } },
         { email: { contains: q, mode: "insensitive" } },
         { phone: { contains: q, mode: "insensitive" } },
-        { metadata: { path: ["identificacion"], string_contains: q } } as any,
-        { metadata: { path: ["identificacionNumero"], string_contains: q } } as any,
-        { metadata: { path: ["documentNumber"], string_contains: q } } as any,
-        { metadata: { path: ["document"], string_contains: q } } as any
+        { metadata: stringContainsJsonFilter(["identificacion"], q) },
+        { metadata: stringContainsJsonFilter(["identificacionNumero"], q) },
+        { metadata: stringContainsJsonFilter(["documentNumber"], q) },
+        { metadata: stringContainsJsonFilter(["document"], q) }
       ]
     };
   }
@@ -393,7 +402,7 @@ export async function listSubscriptions(args: {
         where: {
           type: RetryJobType.PAYMENT_RETRY,
           status: RetryJobStatus.PENDING,
-          OR: subscriptionIds.map((id) => ({ payload: { path: ["subscriptionId"], equals: id } as any }))
+          OR: subscriptionIds.map((id) => ({ payload: subscriptionIdJsonFilter(id) }))
         }
       })
     : [];
@@ -1117,8 +1126,8 @@ export async function markSubscriptionPaidManual(args: {
     where: {
       type: RetryJobType.PAYMENT_RETRY,
       status: RetryJobStatus.PENDING,
-      payload: { path: ["subscriptionId"], equals: subscriptionId } as any
-    } as any
+      payload: subscriptionIdJsonFilter(subscriptionId)
+    }
   });
 
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err: any) => {
@@ -1325,8 +1334,8 @@ export async function scheduleSubscriptionCutoff(args: { subscriptionId: string;
     where: {
       type: RetryJobType.PAYMENT_RETRY,
       status: RetryJobStatus.PENDING,
-      payload: { path: ["subscriptionId"], equals: subscriptionId } as any
-    } as any
+      payload: subscriptionIdJsonFilter(subscriptionId)
+    }
   });
 
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err: any) => {
@@ -1419,8 +1428,8 @@ export async function recalcSubscriptionCutoff(args: { subscriptionId: string; t
     where: {
       type: RetryJobType.PAYMENT_RETRY,
       status: RetryJobStatus.PENDING,
-      payload: { path: ["subscriptionId"], equals: subscriptionId } as any
-    } as any
+      payload: subscriptionIdJsonFilter(subscriptionId)
+    }
   });
 
   const collectionMode = resolveSubscriptionCollectionMode(subscription);
@@ -1730,8 +1739,8 @@ export async function changeSubscriptionPlan(args: {
     where: {
       type: RetryJobType.PAYMENT_RETRY,
       status: RetryJobStatus.PENDING,
-      payload: { path: ["subscriptionId"], equals: subscriptionId } as any
-    } as any
+      payload: subscriptionIdJsonFilter(subscriptionId)
+    }
   });
 
   await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err: any) => {
