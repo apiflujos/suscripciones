@@ -1,9 +1,5 @@
 import { activateSubscription, cancelSubscription, deleteSubscription, mergeDuplicateSubscriptions, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
-import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
 import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, sendWhatsAppPaymentLink, sendWhatsAppTokenizationLink, updateSubscriptionTenants, updateSubscriptionBillingSettings, markSubscriptionPaidManual, unmarkSubscriptionPaidManual, setBillingChargeDate } from "./actions";
-import { ManualChargeButton } from "./ManualChargeButton";
-import { ManualMarkPaidButton } from "./ManualMarkPaidButton";
-import { ManualUnmarkPaidButton } from "./ManualUnmarkPaidButton";
 import { ChargeStatusModal } from "./ChargeStatusModal";
 import { BillingModals } from "./BillingModals";
 import { listSubscriptions } from "../admin/_services/subscriptions";
@@ -18,15 +14,10 @@ import { LocalDateTime } from "../ui/LocalDateTime";
 import { getCsrfToken } from "../lib/csrf";
 import { type PlanOption } from "./ChangePlanButton";
 import { getCivilDateAnchorUtc, getCivilDateKey } from "@suscripciones/core/lib/dates";
-import { SubscriptionEditModal } from "./SubscriptionEditModal";
-import { PaymentHistoryButton } from "./PaymentHistoryButton";
-import { PaymentCyclesModal } from "./PaymentCyclesModal";
-import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { SubscriptionDetailModal } from "./SubscriptionDetailModal";
 import { SubscriptionDetailModalWrapper } from "./SubscriptionDetailModalWrapper";
 import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { FilterButton } from "../ui/FilterButton";
-import { BillingTenantModalButton } from "./BillingTenantModalButton";
 import { PaymentLinkModalButton } from "./PaymentLinkModalButton";
 import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
 import { ListCsvActions } from "../ui/ListCsvActions";
@@ -38,8 +29,9 @@ import { PageToolbar } from "../ui/PageToolbar";
 import { formatCivilDate } from "./civilDate";
 import { normalizeErrorParam } from "../lib/errorParam";
 import { MISSING_WHATSAPP_TEMPLATE_MESSAGE } from "../lib/notificationTemplate";
-import { buildBillingStatusCards, extractTemplateProductId, fmtEvery, fmtMoney, formatLongCivilDate, formatPlanTitle, getActivo, getCollectionStatusLabel, getEstado, getEstadoSimple, getTipo, getTipoPago, hasUsablePaymentSource, normalizeImageUrl, readPlanPricing, splitPlanDisplay, splitProductDisplay, subscriptionRank, templateMatchesProduct, templateMatchesTenant } from "./billingDisplayHelpers";
-import type { BillingPageContentProps, TenantOption } from "./billingTypes";
+import { BillingCard } from "./BillingCard";
+import { extractTemplateProductId, fmtEvery, fmtMoney, formatLongCivilDate, formatPlanTitle, getActivo, getCollectionStatusLabel, getEstado, getEstadoSimple, getTipo, getTipoPago, hasUsablePaymentSource, normalizeImageUrl, readPlanPricing, splitPlanDisplay, splitProductDisplay, subscriptionRank, templateMatchesProduct, templateMatchesTenant } from "./billingDisplayHelpers";
+import type { BillingCardContext, BillingPageContentProps, BillingRow, TenantOption } from "./billingTypes";
 
 export async function BillingPageContent({
   searchParams
@@ -177,7 +169,7 @@ export async function BillingPageContent({
     };
   });
 
-  const rows = subItems
+  const rows: BillingRow[] = subItems
     .map((s) => {
       const plan = s.plan;
       const customer = (s.customer as any) || {};
@@ -379,7 +371,7 @@ export async function BillingPageContent({
       if (currCutoff >= prevCutoff) acc.set(key, row);
     }
     return acc;
-  }, new Map<string, any>());
+  }, new Map<string, BillingRow>());
 
   const paginationBase = {
     ...(tenantId ? { tenantId } : {}),
@@ -415,372 +407,57 @@ export async function BillingPageContent({
     return matchesTransientSubscription(r) ? checkoutUrl : "";
   };
 
-  const renderBillingCard = (r: any) => {
-    const isAutoDebit = r.mode === "AUTO_DEBIT";
-    const rowCheckoutUrl = resolveRowCheckoutUrl(r);
-    const scopedTokenUrl = checkoutCustomerId && checkoutCustomerId === r.customerId ? tokenUrl : "";
-    // Leer URL de tokenización del metadata del customer
-    const rowTokenUrl = resolveRowTokenUrl(r, scopedTokenUrl);
-    const sentForRow = central === "sent" && matchesTransientSubscription(r);
-    const createdPaymentForRow = central === "created" && Boolean(rowCheckoutUrl);
-    const sentTokenForRow = Boolean(sentForRow && rowTokenUrl && !rowCheckoutUrl);
-    const sentPaymentForRow = Boolean(sentForRow && rowCheckoutUrl);
-    const chargedForRow = chargeStatus === "ok" && actionSubscriptionId === r.id;
-    const chargeDateScheduledForRow = chargeDateScheduled && actionSubscriptionId === r.id;
-    const tenantsUpdatedForRow = tenantsUpdated && actionSubscriptionId === r.id;
-    // La fecha de pago (vencimientoAt) define si se debe cobrar
-    const chargeDueAt = r.vencimientoAt ? new Date(r.vencimientoAt) : null;
-    const isChargeDue = Boolean(chargeDueAt && !Number.isNaN(chargeDueAt.getTime()) && chargeDueAt.getTime() <= renderNowDate.getTime());
-    const chargeDue = typeof r.chargeDue === "boolean" ? r.chargeDue : !r.collectionCyclePaid && isChargeDue;
-    const isCanceled = r.status === "CANCELED";
-    const isSuspended = r.status === "SUSPENDED";
-    const isInactive = isCanceled || isSuspended;
-    const alreadyPaidCurrentPeriod = Boolean(r.lastPaidInCurrentPeriod);
-    const customerTokenized = Boolean(r.customerTokenized);
-    const paymentLinkBlockedReason = getPaymentLinkBlockedReason(r);
-    const tokenizationBlockedReason = getTokenizationBlockedReason(r);
-    const paymentMethodHref = `/customers/${encodeURIComponent(String(r.customerId || ""))}/payment-method?returnTo=${encodeURIComponent(returnTo)}`;
-
-    // Botón de cobrar: SIEMPRE visible para débito automático (activo)
-    // Es el botón más importante - poder cobrar!
-    const showChargeButton = isAutoDebit && !isInactive;
-    
-    // Botón de marcar pagada: solo si no está cancelada
-    const showMarkPaidButton = r.status !== "CANCELED" && !alreadyPaidCurrentPeriod;
-    
-    // Botón de enviar link de pago: visible siempre que la suscripción esté activa
-    const showPaymentLinkButton = !isInactive && !isAutoDebit;
-    
-    // Botón de tokenización: visible para débito automático mientras esté activa
-    const showTokenizationLink = isAutoDebit && !isInactive;
-    const duplicateKey = resolveDuplicateKey(r);
-    const duplicateCount = duplicateCountByKey.get(duplicateKey) || 1;
-    const keepRowId = duplicateKeepByKey.get(duplicateKey)?.id || r.id;
-    const productLabel = String(r.productName || r.planName || "Producto");
-    const productInitials = String(productLabel || "Producto")
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part: string) => part[0]?.toUpperCase())
-      .join("") || "PR";
-    const stateBadges = buildBillingStatusCards(r);
-    const nextChargeLabel = formatLongCivilDate(r.vencimientoAt);
-    const currentCycleLabel =
-      r.periodoInicioAt && r.periodoFinAt ? `${formatLongCivilDate(r.periodoInicioAt)} – ${formatLongCivilDate(r.periodoFinAt)}` : "—";
-    const lastPaymentLabel =
-      r.pagoAt && r.pagoMonto
-        ? `${formatLongCivilDate(r.pagoAt)} · ${fmtMoney(r.pagoMonto, r.moneda)}`
-        : r.pagoAt
-          ? formatLongCivilDate(r.pagoAt)
-          : "No registrado";
-    const productDisplay = splitProductDisplay(productLabel);
-    const totalLabel = fmtMoney(r.totalInCents ?? r.montoInCents, r.moneda);
-    const baseLabel = fmtMoney(r.valorBaseInCents ?? r.montoInCents, r.moneda);
-    const shippingLabel = r.currentShippingInCents > 0 ? fmtMoney(r.currentShippingInCents, r.moneda) : "Gratis";
-
-    return (
-        <div className="billing-card">
-          <div className="billing-header">
-            <div className="billing-header-main">
-              <div className="billing-status-line billing-status-line-footer" role="group" aria-label="Estado y contexto de cobro">
-                {stateBadges.map((badge, index) => (
-                  <div
-                    key={`${r.id}-header-badge-${index}-${badge.heading}-${badge.value}`}
-                    className={`billing-status-card ${badge.className}`}
-                    title={badge.title || `${badge.heading}: ${badge.value}`}
-                  >
-                    <span className="billing-status-card-label">{badge.heading}</span>
-                    <span className="billing-status-card-value">{badge.value}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="billing-sub billing-sub-strong billing-sub-header">
-                {r.tenantName || "—"}
-              </div>
-            </div>
-          <div className="billing-header-right">
-            <div className="billing-header-actions">
-              <BillingTenantModalButton
-                triggerId={`tenant-modal-open-${r.id}`}
-                triggerLabel={r.tenantName || "Sin canal"}
-                triggerClassName="pill pill-sm pill-muted"
-                subscriptionId={r.id}
-                scopeTenantId={r.tenantId || ""}
-                tenantIds={Array.isArray(r.tenantIds) ? r.tenantIds.map(String) : []}
-                tenants={tenants}
-                csrfToken={csrfToken}
-                returnTo={returnTo}
-                action={updateSubscriptionTenants}
-              />
-              <SubscriptionEditModal
-                subscriptionId={r.id}
-                tenantId={r.tenantId}
-                csrfToken={csrfToken}
-                returnTo={returnTo}
-                currentChargeAt={r.vencimientoAt}
-                periodStartAt={r.periodoInicioAt}
-                currentPlanId={r.productId || r.planId}
-                currentPlanName={productLabel}
-                currentPlanCurrency={r.moneda}
-                currentShippingInCents={r.currentShippingInCents}
-                currentRequiresShipping={r.currentRequiresShipping}
-                planIntervalUnit={r.planIntervalUnit}
-                planIntervalCount={r.planIntervalCount}
-                plans={planOptions}
-                changeSubscriptionPlan={changeSubscriptionPlan}
-                cycleStartDay={r.cycleStartDay}
-                paymentDay={r.paymentDay}
-                paymentTiming={r.paymentTiming}
-                graceDays={r.graceDays}
-                suspendDays={r.suspendDays || 15}
-                cancelDays={r.cancelDays || 30}
-                collectionMode={r.mode}
-                updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
-                deleteSubscription={deleteSubscription}
-                globalConfig={{ graceDays: 5, suspendDays: 15, cancelDays: 30 }}
-                CyclesModal={PaymentCyclesModal}
-              />
-              <PaymentHistoryButton subscriptionId={r.id} tenantId={r.tenantId} />
-              <PaymentCyclesModal
-                subscriptionId={r.id}
-                csrfToken={csrfToken}
-                returnTo={returnTo}
-                tenantId={r.tenantId}
-              />
-              <DeleteSubscriptionButton
-                action={deleteSubscription}
-                csrfToken={csrfToken}
-                subscriptionId={r.id}
-                tenantId={r.tenantId}
-                returnTo={returnTo}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="billing-card-body">
-          <div className="billing-card-col billing-card-col-personal">
-            <div className="billing-body-row">
-              <span className="billing-body-label">Cliente</span>
-              <div className="billing-personal-list">
-                <div className="billing-body-value">{r.customerName}</div>
-                {r.customerEmail ? <div className="billing-personal-meta">{r.customerEmail}</div> : null}
-                {r.identificacion && r.identificacion !== "—" ? <div className="billing-personal-meta">ID {r.identificacion}</div> : null}
-                {r.customerPhone ? <div className="billing-personal-meta">{r.customerPhone}</div> : null}
-              </div>
-            </div>
-          </div>
-          <div className="billing-card-col billing-card-col-product">
-            <div className="billing-body-row">
-              <span className="billing-body-label">Producto</span>
-              <div className="billing-product-row billing-product-row-compact">
-                <div className="product-thumb billing-product-thumb">
-                  {r.planImageUrl ? (
-                    <img
-                      src={r.planImageUrl}
-                      alt={productLabel}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  ) : (
-                    <span className="billing-product-fallback">{productInitials}</span>
-                  )}
-                </div>
-                <div className="billing-product-meta">
-                  <strong className="billing-value billing-value-compact">{productDisplay.name}</strong>
-                  {productDisplay.sku ? (
-                    <div className="billing-product-sku">SKU {productDisplay.sku}</div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="billing-card-col billing-card-col-right billing-card-col-payments">
-            <div className="billing-body-row billing-body-row-keyval">
-              <span className="billing-body-label">Próx. cobro</span>
-              <div className="billing-body-value">{nextChargeLabel}</div>
-            </div>
-            <div className="billing-body-row billing-body-row-keyval">
-              <span className="billing-body-label">Ciclo</span>
-              <div className="billing-body-value">{currentCycleLabel}</div>
-            </div>
-            <div className="billing-body-row billing-body-row-keyval">
-              <span className="billing-body-label">Último pago</span>
-              <div className="billing-body-value">{lastPaymentLabel}</div>
-            </div>
-            <div className="billing-totals-panel billing-totals-panel-compact">
-              <span className="billing-body-label billing-body-label-accent">Total</span>
-              <div className="billing-totals-main">{totalLabel}</div>
-              <div className="billing-totals-breakdown">
-                <span className="billing-cost-chip">Base {baseLabel}</span>
-                <span className="billing-cost-chip">Flete {shippingLabel}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="billing-actions">
-          <div className="billing-actions-left">
-            {duplicateCount > 1 && keepRowId === r.id ? (
-              <MergeDuplicateSubscriptionsButton
-                action={mergeDuplicateSubscriptions}
-                csrfToken={csrfToken}
-                customerId={r.customerId}
-                productId={r.productId || undefined}
-                planId={r.planId}
-                keepSubscriptionId={keepRowId}
-                tenantId={r.tenantId}
-                returnTo={returnTo}
-                duplicatesCount={duplicateCount}
-              />
-            ) : null}
-          </div>
-          <div className="billing-actions-right">
-            {showChargeButton ? (
-              <ManualChargeButton
-                action={chargeSubscriptionNow}
-                csrfToken={csrfToken}
-                subscriptionId={r.id}
-                tenantId={r.tenantId}
-                returnTo={returnTo}
-                warnNotDue={!chargeDue}
-                warnAlreadyPaid={alreadyPaidCurrentPeriod}
-                manualChargeEnabled={r.manualChargeEnabled}
-              />
-            ) : null}
-            {showMarkPaidButton ? (
-              <ManualMarkPaidButton
-                action={markSubscriptionPaidManual}
-                csrfToken={csrfToken}
-                subscriptionId={r.id}
-                tenantId={r.tenantId}
-                returnTo={returnTo}
-                warnAlreadyPaid={alreadyPaidCurrentPeriod}
-                manualMarkPaidEnabled={r.manualMarkPaidEnabled}
-              />
-            ) : null}
-            {showPaymentLinkButton ? (
-              <PaymentLinkModalButton
-                subscriptionId={r.id}
-                customerId={r.customerId}
-                tenantId={r.tenantId}
-                csrfToken={csrfToken}
-                returnTo={returnTo}
-                defaultAmountPesos={Math.trunc(Number(r.totalInCents || r.montoInCents || 0) / 100)}
-                notificationTemplates={notificationsTemplates}
-                notificationRules={notificationsRules}
-                paymentType="SUBSCRIPTION"
-                blockedReason={paymentLinkBlockedReason}
-                action={sendWhatsAppPaymentLink}
-              />
-            ) : null}
-            {showTokenizationLink ? (
-              rowTokenUrl ? (
-                <a
-                  className="ghost btn-compact btn-token contact-action-btn action-token"
-                  href={rowTokenUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="Abrir link de tokenización"
-                >
-                  Abrir link
-                </a>
-              ) : (
-                <TokenizationLinkModalButton
-                  customerId={r.customerId}
-                  productId={r.productId || undefined}
-                  planId={r.planId}
-                  tenantId={r.tenantId}
-                  csrfToken={csrfToken}
-                  returnTo={returnTo}
-                  notificationTemplates={notificationsTemplates}
-                  notificationRules={notificationsRules}
-                  blockedReason={tokenizationBlockedReason}
-                  action={sendWhatsAppTokenizationLink}
-                />
-              )
-            ) : null}
-            {isAutoDebit && !isInactive ? (
-              <a
-                className="ghost btn-compact btn-blue contact-action-btn action-card"
-                href={paymentMethodHref}
-                title={customerTokenized ? "Actualizar tarjeta guardada" : "Guardar tarjeta para débito automático"}
-              >
-                {customerTokenized ? "Actualizar tarjeta" : "Guardar tarjeta"}
-              </a>
-            ) : null}
-            {alreadyPaidCurrentPeriod ? (
-              <ManualUnmarkPaidButton
-                action={unmarkSubscriptionPaidManual}
-                csrfToken={csrfToken}
-                subscriptionId={r.id}
-                tenantId={r.tenantId}
-                returnTo={returnTo}
-              />
-            ) : null}
-            {r.status === "SUSPENDED" ? (
-              <form action={resumeSubscription}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="subscriptionId" value={r.id} />
-                {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                <button className="ghost btn-compact btn-green btn-noicon contact-action-btn action-token" type="submit" title="Reanudar suscripción">
-                  Reanudar
-                </button>
-              </form>
-            ) : r.status === "CANCELED" ? (
-              <form action={activateSubscription}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="subscriptionId" value={r.id} />
-                {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                <button className="ghost btn-compact btn-green btn-noicon contact-action-btn action-token" type="submit" title="Activar suscripción">
-                  Activar
-                </button>
-              </form>
-            ) : (
-              <>
-                <form action={cancelSubscription}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="subscriptionId" value={r.id} />
-                  {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                  <button className="ghost btn-compact btn-red btn-noicon contact-action-btn action-danger" type="submit" title="Cancelar suscripción">
-                    Cancelar
-                  </button>
-                </form>
-                <form action={suspendSubscription}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="subscriptionId" value={r.id} />
-                  {r.tenantId ? <input type="hidden" name="tenantId" value={r.tenantId} /> : null}
-                  <button className="ghost btn-compact btn-amber btn-noicon contact-action-btn" type="submit" title="Suspender suscripción">
-                    Suspender
-                  </button>
-                </form>
-              </>
-            )}
-          </div>
-          {(sentTokenForRow || sentPaymentForRow || createdPaymentForRow || chargedForRow || chargeDateScheduledForRow) ? (
-            <div className="field-hint billing-action-feedback">
-              {sentTokenForRow ? <span>Link de tarjeta enviado.</span> : null}
-              {sentPaymentForRow ? <span>Link de pago enviado.</span> : null}
-              {createdPaymentForRow ? <span>Link de pago creado.</span> : null}
-              {chargedForRow ? <span>Cobro manual en proceso.</span> : null}
-              {chargeDateScheduledForRow ? <span>Fecha de pago actualizada.</span> : null}
-              {rowCheckoutUrl ? (
-                <a
-                  className="ghost btn-compact btn-send btn-highlight"
-                  href={rowCheckoutUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="Abrir link de pago"
-                >
-                  Abrir link
-                </a>
-              ) : null}
-            </div>
-          ) : null}
-          {tenantsUpdatedForRow ? <div className="field-hint">Canales actualizados.</div> : null}
-        </div>
-      </div>
-    );
+  const cardContext: BillingCardContext = {
+    state: {
+      chargeStatus,
+      chargeError,
+      chargeErrorDetails,
+      actionSubscriptionId,
+      checkoutCustomerId,
+      checkoutUrl,
+      tokenUrl,
+      central,
+      chargeDateScheduled,
+      tenantsUpdated
+    },
+    data: {
+      tenants,
+      planOptions,
+      notificationsTemplates,
+      notificationsRules,
+      returnTo,
+      csrfToken
+    },
+    actions: {
+      chargeSubscriptionNow,
+      markSubscriptionPaidManual,
+      unmarkSubscriptionPaidManual,
+      sendWhatsAppPaymentLink,
+      sendWhatsAppTokenizationLink,
+      mergeDuplicateSubscriptions,
+      updateSubscriptionTenants,
+      changeSubscriptionPlan,
+      updateSubscriptionBillingSettings,
+      deleteSubscription,
+      suspendSubscription,
+      cancelSubscription,
+      resumeSubscription,
+      activateSubscription
+    },
+    helpers: {
+      findCheckoutTemplateForRow,
+      getPaymentLinkBlockedReason,
+      getTokenizationBlockedReason,
+      resolveDuplicateKey,
+      resolveRowTokenUrl,
+      resolveRowCheckoutUrl,
+      matchesTransientSubscription,
+      duplicateCountByKey,
+      duplicateKeepByKey
+    }
   };
+
+  const renderCard = (row: BillingRow) => <BillingCard row={row} context={cardContext} />;
 
   const errorMessage = (() => {
     const code = String(error || "").trim();
@@ -919,7 +596,7 @@ export async function BillingPageContent({
           {vista === "cards" ? (
             <div className="billing-grid">
               {rows.map((r) => (
-                <div key={r.id}>{renderBillingCard(r)}</div>
+                <div key={r.id}>{renderCard(r)}</div>
               ))}
               {rows.length === 0 ? <div className="contact-empty">Sin resultados.</div> : null}
             </div>
