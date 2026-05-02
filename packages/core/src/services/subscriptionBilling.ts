@@ -24,7 +24,7 @@ import { publishRealtime } from "./realtimePublisher";
 import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
 import { reconcileWompiTransaction } from "./wompiReconcile";
 import { getExpectedSubscriptionTotalInCents, getPlanCollectionMode } from "../lib/metadataSchemas";
-import { resolveSubscriptionBillingState } from "./billingCycles";
+import { isBillingCyclePaid, resolveSubscriptionBillingState } from "./billingCycles";
 import { createPublicCheckoutLink } from "./publicCheckoutLinks";
 import { extractCustomerPaymentSourceId } from "../lib/customerMetadata";
 
@@ -193,12 +193,6 @@ async function hasUsableSubscriptionPaymentLinkNotification(): Promise<boolean> 
   }
 }
 
-function isCyclePaid(cycle: { paymentId?: string | null; status?: string | null } | null | undefined) {
-  if (!cycle) return false;
-  if (cycle.paymentId) return true;
-  return String(cycle.status || "").toUpperCase() === "PAID";
-}
-
 export function readSubscriptionTotalInCents(subscriptionMeta: unknown, fallback: number, planMeta?: unknown): number {
   return getExpectedSubscriptionTotalInCents({
     subscriptionMetadata: subscriptionMeta,
@@ -258,7 +252,7 @@ export async function ensureExpiredSubscriptions() {
     });
 
     // CRITICAL: If most recent cycle is paid but subscription is PAST_DUE, recover to ACTIVE
-    if (sub.status === SubscriptionStatus.PAST_DUE && isCyclePaid(collectionCycle)) {
+    if (sub.status === SubscriptionStatus.PAST_DUE && isBillingCyclePaid(collectionCycle)) {
       await prisma.subscription.update({
         where: { id: sub.id },
         data: { status: SubscriptionStatus.ACTIVE }
@@ -277,7 +271,7 @@ export async function ensureExpiredSubscriptions() {
     }
 
     const expiredCutoff = new Date(new Date(collectionCycle?.dueAt || now).getTime() + (Math.max(0, Math.trunc(sub.graceDays || 0)) + 15) * 24 * 60 * 60 * 1000);
-    if (sub.status === SubscriptionStatus.PAST_DUE && expiredCutoff.getTime() < now.getTime() && !isCyclePaid(collectionCycle)) {
+    if (sub.status === SubscriptionStatus.PAST_DUE && expiredCutoff.getTime() < now.getTime() && !isBillingCyclePaid(collectionCycle)) {
       await prisma.subscription.update({
         where: { id: sub.id },
         data: { status: SubscriptionStatus.EXPIRED }
@@ -312,7 +306,7 @@ export async function handleSubscriptionPaymentFailure(subscriptionId: string, e
   const mostRecentCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
 
   // KEY RULE: If most recent cycle is paid, don't mark subscription as PAST_DUE
-  if (isCyclePaid(mostRecentCycle)) {
+  if (isBillingCyclePaid(mostRecentCycle)) {
     await systemLog(LogLevel.WARN, "subscriptions.lifecycle", "Cobro falló pero el ciclo más reciente está pagado", {
       subscriptionId,
       error,

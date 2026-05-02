@@ -7,7 +7,7 @@ import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
 import { addIntervalUtc, getCivilDateAnchorUtc, toUtc } from "@suscripciones/core/lib/dates";
 import { systemLog } from "@suscripciones/core/services/systemLog";
-import { attachPaymentToCycle, buildSubscriptionBillingStateIndex, computeBillingCycleDueAt, ensureBillingCyclesForSubscription, ensureBillingCyclesForSubscriptions, resolveConfiguredCollectionCycle, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "@suscripciones/core/services/billingCycles";
+import { attachPaymentToCycle, buildSubscriptionBillingStateIndex, computeBillingCycleDueAt, ensureBillingCyclesForSubscription, ensureBillingCyclesForSubscriptions, isBillingCyclePaid, resolveConfiguredCollectionCycle, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "@suscripciones/core/services/billingCycles";
 import {
   createAutoDebitTransactionForSubscription,
   createPaymentLinkForSubscription,
@@ -24,11 +24,6 @@ import { listPlanIdsForCatalogProducts, resolveOperationalPlanForProduct } from 
 const DEFAULT_SUBSCRIPTION_CYCLE_START_DAY = 1;
 const DEFAULT_SUBSCRIPTION_PAYMENT_DAY = 1;
 const DEFAULT_SUBSCRIPTION_PAYMENT_TIMING: "EN_CURSO" | "ANTICIPADO" = "EN_CURSO";
-
-function isBillingCyclePaid(cycle: { status?: unknown; paymentId?: unknown } | null | undefined) {
-  if (!cycle) return false;
-  return String(cycle.status || "").toUpperCase() === "PAID";
-}
 
 function daysInMonthUtc(year: number, month0: number) {
   return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
