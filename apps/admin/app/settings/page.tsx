@@ -621,7 +621,7 @@ export default async function SettingsPage({
               </div>
             </div>
             <div className="settings-group-body">
-              <form action={updatePaymentsConfig} className="panel module" style={{ display: "grid", gap: 12 }} data-auto-submit-form="true" id="payments-config-form">
+              <form action={updatePaymentsConfig} className="panel module" style={{ display: "grid", gap: 12 }} data-auto-submit-form="true" data-loader="off" id="payments-config-form">
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="returnTo" value={returnTo} />
                 <div className="settings-submodule-header">
@@ -711,7 +711,7 @@ export default async function SettingsPage({
               </div>
             </div>
             <div className="settings-group-body">
-              <form action={updateAutoDebitConfig} className="panel module" style={{ display: "grid", gap: 12 }} data-auto-submit-form="true" id="auto-debit-form">
+              <form action={updateAutoDebitConfig} className="panel module" style={{ display: "grid", gap: 12 }} data-auto-submit-form="true" data-loader="off" id="auto-debit-form">
                 <input type="hidden" name="csrf" value={csrfToken} />
                 <input type="hidden" name="returnTo" value={returnTo} />
                 <div className="toggleRow">
@@ -838,7 +838,7 @@ export default async function SettingsPage({
             </div>
           </div>
           <div className="settings-group-body">
-            <form action={updateSubscriptionConfig} className="panel module" style={{ display: "grid", gap: 16 }} data-auto-submit-form="true">
+            <form action={updateSubscriptionConfig} className="panel module" style={{ display: "grid", gap: 16 }} data-auto-submit-form="true" data-loader="off">
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="returnTo" value={`/settings?${new URLSearchParams({ tab: "suscripciones" }).toString()}`} />
               

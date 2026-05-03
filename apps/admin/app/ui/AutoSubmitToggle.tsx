@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type AutoSubmitToggleProps = {
   name: string;
@@ -21,32 +21,20 @@ export function AutoSubmitToggle({
   loadingText = "Guardando...",
   form
 }: AutoSubmitToggleProps) {
-  const [isPending, startTransition] = useTransition();
   const [localChecked, setLocalChecked] = useState(checked);
-  const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setLocalChecked(checked);
+    setIsSubmitting(false);
   }, [checked]);
 
-  // Safety valve: if isPending stays true for more than 8s, the transition
-  // got stuck (action returned without revalidatePath/redirect). Reset the
-  // visual state to the last known server value so the toggle isn't locked.
   useEffect(() => {
-    if (isPending) {
-      pendingTimerRef.current = setTimeout(() => {
-        setLocalChecked(checked);
-      }, 8000);
-    } else {
-      if (pendingTimerRef.current) {
-        clearTimeout(pendingTimerRef.current);
-        pendingTimerRef.current = null;
-      }
-    }
     return () => {
-      if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+      if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
     };
-  }, [isPending, checked]);
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newChecked = e.target.checked;
@@ -60,21 +48,27 @@ export function AutoSubmitToggle({
     }
 
     setLocalChecked(newChecked);
+    setIsSubmitting(true);
 
-    startTransition(() => {
-      const formElement = form ? document.getElementById(form) : e.target.closest("form");
-      if (formElement && formElement instanceof HTMLFormElement) {
-        formElement.requestSubmit();
-      }
-    });
+    if (submitTimerRef.current) {
+      clearTimeout(submitTimerRef.current);
+    }
+    submitTimerRef.current = setTimeout(() => {
+      setIsSubmitting(false);
+      submitTimerRef.current = null;
+    }, 1200);
+
+    const formElement = form ? document.getElementById(form) : e.target.closest("form");
+    if (formElement && formElement instanceof HTMLFormElement) {
+      formElement.requestSubmit();
+    }
   };
 
   return (
     <label
       className="toggleControl"
       aria-label={name}
-      aria-busy={isPending}
-      style={{ opacity: isPending ? 0.72 : 1, pointerEvents: disabled || isPending ? "none" : "auto" }}
+      style={{ pointerEvents: disabled || isSubmitting ? "none" : "auto" }}
     >
       {!disabled ? <input type="hidden" name={name} value="0" /> : null}
       <input
