@@ -79,7 +79,21 @@ export async function clearCustomerPaymentSource(args: {
 export async function getCustomerById(customerId: string) {
   const id = String(customerId || "").trim();
   if (!id) return null;
-  return prisma.customer.findUnique({ where: { id } });
+  const customer = await prisma.customer.findUnique({
+    where: { id },
+    include: { tenantLinks: { select: { tenantId: true } } }
+  });
+  if (!customer) return null;
+  return {
+    ...customer,
+    tenantIds: Array.from(
+      new Set(
+        [...(Array.isArray(customer.tenantLinks) ? customer.tenantLinks.map((tenant) => String(tenant.tenantId || "")) : []), String(customer.tenantId || "")]
+          .map((value) => String(value || "").trim())
+          .filter(Boolean)
+      )
+    )
+  };
 }
 
 export async function listCustomers(args: {

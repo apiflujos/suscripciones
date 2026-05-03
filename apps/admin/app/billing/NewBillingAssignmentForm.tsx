@@ -11,6 +11,8 @@ type Customer = {
   name?: string | null;
   email?: string | null;
   phone?: string | null;
+  tenantId?: string | null;
+  tenantIds?: string[];
   metadata?: any;
 };
 
@@ -27,6 +29,7 @@ type Empresa = {
   nombre: string;
   email?: string | null;
   telefono?: string | null;
+  tenantId?: string | null;
   direccion?: string | null;
   sitioWeb?: string | null;
   contactoPrincipal?: EmpresaContact | null;
@@ -48,6 +51,8 @@ type CatalogItem = {
   discountPercent?: number;
   option1Name?: string | null;
   option2Name?: string | null;
+  tenantId?: string | null;
+  tenantIds?: string[];
   variants?: Array<{ option1?: string | null; option2?: string | null; priceDeltaInCents: number }> | null;
 };
 
@@ -66,6 +71,43 @@ function formatCurrencyInput(input: string, currency: string): string {
   const value = Number(digits);
   if (!Number.isFinite(value)) return "";
   return new Intl.NumberFormat("es-CO", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
+}
+
+function normalizeDateInputValue(value: string) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().slice(0, 10);
+}
+
+function addIntervalToDateInput(value: string, unit: "DAY" | "WEEK" | "MONTH" | "CUSTOM", count: number) {
+  const normalized = normalizeDateInputValue(value);
+  if (!normalized) return "";
+  const parsed = new Date(`${normalized}T12:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return "";
+
+  const safeCount = Math.max(1, Math.trunc(Number(count) || 1));
+  const result = new Date(parsed.getTime());
+  if (unit === "DAY") {
+    result.setUTCDate(result.getUTCDate() + safeCount);
+  } else if (unit === "WEEK") {
+    result.setUTCDate(result.getUTCDate() + safeCount * 7);
+  } else {
+    const targetDay = result.getUTCDate();
+    result.setUTCDate(1);
+    result.setUTCMonth(result.getUTCMonth() + safeCount);
+    const lastDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
+    result.setUTCDate(Math.min(targetDay, lastDay));
+  }
+  return result.toISOString().slice(0, 10);
+}
+
+function readDayOfMonth(value: string) {
+  const normalized = normalizeDateInputValue(value);
+  if (!normalized) return 1;
+  const parsed = new Date(`${normalized}T12:00:00Z`);
+  return Number.isNaN(parsed.getTime()) ? 1 : parsed.getUTCDate();
 }
 
 export function NewBillingAssignmentForm({
@@ -130,6 +172,9 @@ export function NewBillingAssignmentForm({
 
   const [startAtIso, setStartAtIso] = useState("");
   const [cutoffAtIso, setCutoffAtIso] = useState("");
+  const [paymentTiming, setPaymentTiming] = useState<"EN_CURSO" | "ANTICIPADO">("EN_CURSO");
+  const [paymentDay, setPaymentDay] = useState<number>(1);
+  const [paymentDayTouched, setPaymentDayTouched] = useState(false);
 
   const selectedProduct = useMemo(() => {
     if (!productId) return null;
@@ -175,6 +220,34 @@ export function NewBillingAssignmentForm({
   }, [empresas, selectedEmpresaId]);
 
   const selectedContactFromEmpresa = selectedEmpresa?.contactoPrincipal || null;
+  const selectedCustomerTenantIds = useMemo(() => {
+    if (!selectedCustomer) return [];
+    return Array.from(
+      new Set(
+        [...(Array.isArray(selectedCustomer.tenantIds) ? selectedCustomer.tenantIds : []), String(selectedCustomer.tenantId || "")]
+          .map((value) => String(value || "").trim())
+          .filter(Boolean)
+      )
+    );
+  }, [selectedCustomer]);
+
+  const selectedEmpresaTenantIds = useMemo(() => {
+    if (!selectedEmpresa) return [];
+    return Array.from(new Set([String(selectedEmpresa.tenantId || "")].filter(Boolean)));
+  }, [selectedEmpresa]);
+  const preferredTenantId = useMemo(() => {
+    const fromCustomer = String(selectedCustomer?.tenantId || "").trim();
+    if (fromCustomer) return fromCustomer;
+    const fromEmpresa = String(selectedEmpresa?.tenantId || "").trim();
+    if (fromEmpresa) return fromEmpresa;
+    return String(tenantId || "").trim();
+  }, [selectedCustomer?.tenantId, selectedEmpresa?.tenantId, tenantId]);
+
+  const effectiveTenantIds = useMemo(() => {
+    if (selectedCustomerTenantIds.length) return selectedCustomerTenantIds;
+    if (selectedEmpresaTenantIds.length) return selectedEmpresaTenantIds;
+    return tenantId ? [tenantId] : [];
+  }, [selectedCustomerTenantIds, selectedEmpresaTenantIds, tenantId]);
 
   const hasToken = useMemo(() => {
     return hasActiveCustomerPaymentSource(selectedCustomer?.metadata);
@@ -186,18 +259,76 @@ export function NewBillingAssignmentForm({
 
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>(tenantId ? [tenantId] : []);
 
+  useEffect(() => {
+    if (!effectiveTenantIds.length) return;
+    setSelectedTenantIds((current) => {
+      const currentPrimary = String(current[0] || "").trim();
+      if (currentPrimary && effectiveTenantIds.includes(currentPrimary)) return current;
+      if (preferredTenantId && effectiveTenantIds.includes(preferredTenantId)) return [preferredTenantId];
+      return [effectiveTenantIds[0]];
+    });
+  }, [effectiveTenantIds, preferredTenantId]);
+
+  useEffect(() => {
+    if (!selectedProduct) return;
+    const defaultUnit = selectedProduct.intervalUnit && selectedProduct.intervalUnit !== "CUSTOM" ? selectedProduct.intervalUnit : "MONTH";
+    const defaultCount = Number(selectedProduct.intervalCount || 1);
+    setIntervalUnit(defaultUnit);
+    setIntervalCount(Number.isFinite(defaultCount) && defaultCount > 0 ? Math.trunc(defaultCount) : 1);
+  }, [selectedProduct?.id]);
+
+  useEffect(() => {
+    if (!startAtIso) return;
+    const startDay = readDayOfMonth(startAtIso);
+    if (!paymentDayTouched) setPaymentDay(startDay);
+  }, [startAtIso, paymentDayTouched]);
+
+  useEffect(() => {
+    if (!startAtIso) {
+      setCutoffAtIso("");
+      return;
+    }
+    setCutoffAtIso(addIntervalToDateInput(startAtIso, intervalUnit, intervalCount));
+  }, [startAtIso, intervalUnit, intervalCount]);
+
   const filteredProducts = useMemo(() => {
+    const tenantScope = selectedTenantIds.length ? selectedTenantIds : effectiveTenantIds;
     const q = productQ.trim().toLowerCase();
+    const sourceList = q.length >= 2 ? productHits : catalogItems;
+    const tenantFiltered = sourceList.filter((p) => {
+      if (!tenantScope.length) return true;
+      const productTenantIds = Array.from(
+        new Set([...(Array.isArray(p.tenantIds) ? p.tenantIds : []), String(p.tenantId || "")].map((value) => String(value || "").trim()).filter(Boolean))
+      );
+      if (!productTenantIds.length) return true;
+      return tenantScope.some((id) => productTenantIds.includes(id));
+    });
     if (q.length >= 2) {
-      const list = productHits.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
+      const list = tenantFiltered.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
       return list.slice(0, 200);
     }
-    const list = catalogItems.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
+    const list = tenantFiltered.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
     if (!q) return list.slice(0, 200);
     return list
       .filter((p) => `${p.sku || ""} ${p.name || ""} ${p.id}`.toLowerCase().includes(q))
       .slice(0, 200);
-  }, [catalogItems, productHits, productQ]);
+  }, [catalogItems, productHits, productQ, selectedTenantIds, effectiveTenantIds]);
+
+  useEffect(() => {
+    if (!selectedProduct) return;
+    const productTenantIds = Array.from(
+      new Set([...(Array.isArray(selectedProduct.tenantIds) ? selectedProduct.tenantIds : []), String(selectedProduct.tenantId || "")]
+        .map((value) => String(value || "").trim())
+        .filter(Boolean))
+    );
+    const tenantScope = selectedTenantIds.length ? selectedTenantIds : effectiveTenantIds;
+    if (!tenantScope.length || !productTenantIds.length) return;
+    const compatible = tenantScope.some((id) => productTenantIds.includes(id));
+    if (compatible) return;
+    setProductId("");
+    setProductQ("");
+    setProductHits([]);
+  }, [selectedProduct, selectedTenantIds, effectiveTenantIds]);
 
   const filteredCustomers = useMemo(() => {
     const q = customerQ.trim().toLowerCase();
@@ -235,7 +366,8 @@ export function NewBillingAssignmentForm({
     setProductSearching(true);
     setProductSearchError("");
     const t = setTimeout(() => {
-      fetch(`/api/search/products?${new URLSearchParams({ q, take: "80", ...(tenantId ? { tenantId } : {}) }).toString()}`, { cache: "no-store", signal: ac.signal })
+      const searchTenantId = String(selectedTenantIds[0] || effectiveTenantIds[0] || tenantId || "").trim();
+      fetch(`/api/search/products?${new URLSearchParams({ q, take: "80", ...(searchTenantId ? { tenantId: searchTenantId } : {}) }).toString()}`, { cache: "no-store", signal: ac.signal })
         .then(async (r) => ({ ok: r.ok, status: r.status, json: await r.json().catch(() => null) }))
         .then(({ ok, status, json }) => {
           if (!ok) {
@@ -259,7 +391,7 @@ export function NewBillingAssignmentForm({
       clearTimeout(t);
       ac.abort();
     };
-  }, [productQ]);
+  }, [productQ, selectedTenantIds, effectiveTenantIds, tenantId]);
 
   useEffect(() => {
     const q = customerQ.trim();
@@ -339,6 +471,8 @@ export function NewBillingAssignmentForm({
   const mustPickTenant = tenants.length > 0;
   const canSubmit = Boolean(
     productId &&
+      startAtIso &&
+      cutoffAtIso &&
       (customerId || selectedEmpresaId) &&
       (!selectedEmpresaId || Boolean(selectedContactFromEmpresa)) &&
       (!mustPickTenant || selectedTenantIds.length > 0)
@@ -647,6 +781,9 @@ export function NewBillingAssignmentForm({
               <input type="hidden" name="option2Value" value={option2Value} />
               <input type="hidden" name="startAt" value={startAtIso} />
               <input type="hidden" name="firstPeriodEndAt" value={cutoffAtIso} />
+              <input type="hidden" name="cycleStartDay" value={String(readDayOfMonth(startAtIso))} />
+              <input type="hidden" name="paymentDay" value={String(paymentDay)} />
+              <input type="hidden" name="paymentTiming" value={paymentTiming} />
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div className="field">
@@ -705,9 +842,48 @@ export function NewBillingAssignmentForm({
                     className="input"
                     type="date"
                     value={cutoffAtIso}
-                    onChange={(e) => setCutoffAtIso(e.target.value)}
+                    readOnly
                     disabled={!productId || !(customerId || selectedEmpresaId)}
                   />
+                  <div className="field-hint">Se calcula automáticamente según la fecha de inicio y la periodicidad.</div>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: intervalUnit === "MONTH" ? "1fr 1fr" : "1fr", gap: 12 }}>
+                {intervalUnit === "MONTH" ? (
+                  <div className="field">
+                    <label>Día de pago</label>
+                    <select
+                      className="select"
+                      value={paymentDay}
+                      onChange={(e) => {
+                        setPaymentDay(Number(e.target.value));
+                        setPaymentDayTouched(true);
+                      }}
+                      disabled={!productId || !(customerId || selectedEmpresaId)}
+                    >
+                      {Array.from({ length: 31 }, (_, index) => index + 1).map((day) => (
+                        <option key={day} value={day}>
+                          Día {day}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+                <div className="field">
+                  <label>Tipo de cobro</label>
+                  <select
+                    className="select"
+                    value={paymentTiming}
+                    onChange={(e) => setPaymentTiming(e.target.value === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO")}
+                    disabled={!productId || !(customerId || selectedEmpresaId)}
+                  >
+                    <option value="EN_CURSO">En curso</option>
+                    <option value="ANTICIPADO">Adelantado</option>
+                  </select>
+                  <div className="field-hint">
+                    En curso cobra dentro del ciclo actual. Adelantado cobra el siguiente ciclo por anticipado.
+                  </div>
                 </div>
               </div>
 
@@ -729,13 +905,17 @@ export function NewBillingAssignmentForm({
                     disabled={!productId || !(customerId || selectedEmpresaId)}
                   >
                     <option value="">Selecciona un canal…</option>
-                    {tenants.map((t) => (
+                    {tenants.filter((t) => !effectiveTenantIds.length || effectiveTenantIds.includes(String(t.id))).map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
                       </option>
                     ))}
                   </select>
-                <div className="field-hint">Selecciona un solo canal para esta creación.</div>
+                <div className="field-hint">
+                  {effectiveTenantIds.length
+                    ? "Solo se muestran canales compatibles con el contacto seleccionado."
+                    : "Selecciona un solo canal para esta creación."}
+                </div>
               </div>
               ) : null}
 

@@ -838,6 +838,9 @@ export async function createPlanAndSubscription(formData: FormData) {
   const option2Value = String(formData.get("option2Value") || "").trim();
   const startAt = String(formData.get("startAt") || "").trim();
   const firstPeriodEndAt = String(formData.get("firstPeriodEndAt") || "").trim();
+  const cycleStartDay = String(formData.get("cycleStartDay") || "").trim();
+  const paymentDay = String(formData.get("paymentDay") || "").trim();
+  const paymentTiming = String(formData.get("paymentTiming") || "").trim();
   const submitActionRaw = String(formData.get("submitAction") || "").trim().toUpperCase();
   const submitAction = submitActionRaw === "LINK_NOW" ? "LINK_NOW" : "CREATE";
   const allowDuplicate = String(formData.get("allowDuplicate") || "").trim() === "1";
@@ -946,8 +949,18 @@ export async function createPlanAndSubscription(formData: FormData) {
 
     const customer = await getCustomerById(resolvedCustomerId);
     if (tenantIds.length) {
-      const customerTenantId = String(customer?.tenantId || "").trim();
-      if (customerTenantId && !tenantIds.includes(customerTenantId)) {
+      const allowedCustomerTenants = Array.from(
+        new Set(
+          [
+            String(customer?.tenantId || "").trim(),
+            ...(Array.isArray(customer?.tenantIds) ? customer.tenantIds : [])
+          ]
+            .map((value) => String(value || "").trim())
+            .filter(Boolean)
+        )
+      );
+      const invalidCustomerTenant = tenantIds.find((requestedTenantId) => !allowedCustomerTenants.includes(requestedTenantId));
+      if (invalidCustomerTenant) {
         return redirect(
           mergeQuery(returnTo, {
             error: "El contacto no pertenece al canal seleccionado.",
@@ -1097,6 +1110,9 @@ export async function createPlanAndSubscription(formData: FormData) {
       metadata: template?.id ? { templateId: String(template.id) } : undefined,
       startAt: startAtValue || undefined,
       firstPeriodEndAt: endAtValue || undefined,
+      cycleStartDay: cycleStartDay || undefined,
+      paymentDay: paymentDay || undefined,
+      paymentTiming: paymentTiming || undefined,
       allowDuplicate,
       createPaymentLink: shouldCreateLink
     });

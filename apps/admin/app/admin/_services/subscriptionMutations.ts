@@ -58,6 +58,9 @@ export async function createSubscription(args: {
   tenantIds: string[];
   startAt?: string;
   firstPeriodEndAt?: string;
+  cycleStartDay?: number | string;
+  paymentDay?: number | string;
+  paymentTiming?: string;
   createPaymentLink?: boolean;
   allowDuplicate?: boolean;
   metadata?: Record<string, unknown>;
@@ -88,13 +91,23 @@ export async function createSubscription(args: {
     const invalid = effectiveTenantIds.find((t) => !planTenantIds.includes(t));
     if (invalid) return { ok: false, status: 409, error: "tenant_no_permitido_para_plan" as const };
   }
-  if (customer.tenantId && !effectiveTenantIds.includes(customer.tenantId)) return { ok: false, status: 409, error: "tenant_mismatch" as const };
-  if (!customer.tenantId) {
-    const linked = await prisma.customerTenant.findFirst({
-      where: { customerId: customer.id, tenantId: { in: effectiveTenantIds } }
-    });
-    if (!linked) return { ok: false, status: 409, error: "tenant_mismatch" as const };
-  }
+  const customerTenantIds = Array.from(
+    new Set(
+      [
+        String(customer.tenantId || ""),
+        ...(
+          await prisma.customerTenant.findMany({
+            where: { customerId: customer.id, tenantId: { in: effectiveTenantIds } },
+            select: { tenantId: true }
+          })
+        ).map((row) => String(row.tenantId || ""))
+      ]
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    )
+  );
+  const invalidCustomerTenant = effectiveTenantIds.find((tenantId) => !customerTenantIds.includes(tenantId));
+  if (invalidCustomerTenant) return { ok: false, status: 409, error: "tenant_mismatch" as const };
   if (!args.allowDuplicate) {
     const catalogItemId = readCatalogItemIdFromPlan(plan);
     const activeStatuses = [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED, SubscriptionStatus.EXPIRED];
@@ -129,9 +142,27 @@ export async function createSubscription(args: {
   const autoDebitCfg = await getAutoDebitConfig().catch(() => null);
   const defaultGraceDays = Number(autoDebitCfg?.graceDays || 5);
   const graceDays = Number.isFinite(defaultGraceDays) ? Math.max(1, Math.min(5, Math.trunc(defaultGraceDays))) : 5;
-  const cycleStartDay = DEFAULT_SUBSCRIPTION_CYCLE_START_DAY;
-  const paymentDay = DEFAULT_SUBSCRIPTION_PAYMENT_DAY;
-  const paymentTiming = DEFAULT_SUBSCRIPTION_PAYMENT_TIMING;
+  const cycleStartDay = Math.max(
+    1,
+    Math.min(
+      31,
+      Math.trunc(
+        Number(
+          args.cycleStartDay ??
+            startAt.getUTCDate() ??
+            DEFAULT_SUBSCRIPTION_CYCLE_START_DAY
+        ) || DEFAULT_SUBSCRIPTION_CYCLE_START_DAY
+      )
+    )
+  );
+  const paymentDay = Math.max(
+    1,
+    Math.min(31, Math.trunc(Number(args.paymentDay ?? cycleStartDay) || DEFAULT_SUBSCRIPTION_PAYMENT_DAY))
+  );
+  const paymentTiming =
+    String(args.paymentTiming || DEFAULT_SUBSCRIPTION_PAYMENT_TIMING).toUpperCase() === "ANTICIPADO"
+      ? "ANTICIPADO"
+      : "EN_CURSO";
 
   const dueAt = computeDueAtForPeriod({
     periodStartAt: startAt,
