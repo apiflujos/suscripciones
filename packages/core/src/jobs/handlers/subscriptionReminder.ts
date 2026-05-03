@@ -156,6 +156,12 @@ function getPaymentType(args: { subscription?: any | null; payment?: any | null 
     // AUTO_LINK y MANUAL_LINK → link de pago (plantilla tipo PLAN)
     return "LINK";
   }
+  const paymentSubscription = args.payment?.subscription;
+  if (paymentSubscription?.plan) {
+    const mode = resolveSubscriptionCollectionMode(paymentSubscription);
+    if (mode === "AUTO_DEBIT") return "SUBSCRIPTION";
+    return "LINK";
+  }
   if (args.payment?.subscriptionId) return "SUBSCRIPTION";
   return "LINK";
 }

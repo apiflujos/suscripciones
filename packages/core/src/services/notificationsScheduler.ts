@@ -247,7 +247,8 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
         customerId: payment.customerId,
         subscriptionId: payment.subscriptionId,
         paymentStatus: payment.status,
-        anchorAt: anchorIso
+        anchorAt: anchorIso,
+        paymentType
       };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
         await enqueueNotificationJob(runAt, jobPayload);
@@ -289,7 +290,14 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
   if (!payment) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
 
   const cfg = await getNotificationsConfig();
-  const paymentType = payment.subscriptionId ? "SUBSCRIPTION" : "LINK";
+  const billingState = payment.subscriptionId ? await resolveSubscriptionBillingState({ subscriptionId: payment.subscriptionId }).catch(() => null) : null;
+  const resolvedMode = billingState?.subscription ? resolveSubscriptionCollectionMode(billingState.subscription as any) : null;
+  const paymentType =
+    resolvedMode === "AUTO_LINK" || resolvedMode === "MANUAL_LINK"
+      ? "LINK"
+      : payment.subscriptionId
+        ? "SUBSCRIPTION"
+        : "LINK";
   const rules = filterNotificationRules({ rules: cfg.rules, trigger: "PAYMENT_LINK_CREATED", paymentType });
   if (!rules.length) {
     return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };

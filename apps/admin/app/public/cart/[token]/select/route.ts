@@ -1,24 +1,17 @@
 import { prisma } from "@suscripciones/database";
-import { CredentialProvider, PlanIntervalUnit, SubscriptionStatus } from "@prisma/client";
+import { CredentialProvider, PlanIntervalUnit } from "@prisma/client";
 import { addIntervalUtc } from "@suscripciones/core/lib/dates";
 import { createPaymentLinkForSubscription } from "@suscripciones/core/services/subscriptionBilling";
-import { scheduleSubscriptionDueNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
 import { getCredential } from "@suscripciones/core/services/credentials";
-import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
-import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
-import { computeBillingCycleDueAt, ensureBillingCyclesForSubscription } from "@suscripciones/core/services/billingCycles";
 import { verifyPublicToken } from "../../../../../lib/publicTokens";
 import { logger } from "@suscripciones/core/lib/logger";
 import { findCheckoutTemplateForProductOrDefault, listCheckoutSelectableProducts } from "../../../../admin/_services/checkoutTemplates";
 import { resolveOperationalPlanForProduct } from "../../../../admin/_services/productPlanMapping";
+import { createSubscription } from "../../../../admin/_services/subscriptions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const DEFAULT_SUBSCRIPTION_CYCLE_START_DAY = 1;
-const DEFAULT_SUBSCRIPTION_PAYMENT_DAY = 1;
-const DEFAULT_SUBSCRIPTION_PAYMENT_TIMING: "EN_CURSO" | "ANTICIPADO" = "EN_CURSO";
 
 type CartLinkMeta = {
   token?: string;
@@ -52,6 +45,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   if (!customer) return Response.json({ error: "token_not_found" }, { status: 404 });
 
   const contentType = String(req.headers.get("content-type") || "").toLowerCase();
+  const expectsJson = contentType.includes("application/json");
   let productIdParam = "";
   if (contentType.includes("application/json")) {
     const body = await req.json().catch((err: any) => {
@@ -140,6 +134,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       productId: productId || null
     });
     if (!created?.url) return Response.json({ error: "public_checkout_create_failed" }, { status: 500 });
+    if (!expectsJson) {
+      return Response.redirect(created.url, 303);
+    }
     return Response.json({ ok: true, nextUrl: created.url, kind: "SUBSCRIPTION" });
   }
 
@@ -150,63 +147,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     productId,
     defaultTemplateId: String(cfg?.defaultPlanTemplateId || "").trim()
   });
+  if (!manualCheckoutTemplate) return Response.json({ error: "missing_checkout_for_product" }, { status: 400 });
+  if (!String(cfg?.planBaseUrl || "").trim()) return Response.json({ error: "missing_plan_base_url" }, { status: 400 });
   const periodEnd = addIntervalUtc(startAt, operationalPlan.intervalUnit, operationalPlan.intervalCount);
-  const autoDebitConfig = await getAutoDebitConfig().catch(() => null);
-  const cycleStartDay = DEFAULT_SUBSCRIPTION_CYCLE_START_DAY;
-  const paymentDay = DEFAULT_SUBSCRIPTION_PAYMENT_DAY;
-  const paymentTiming = DEFAULT_SUBSCRIPTION_PAYMENT_TIMING;
-  const graceDays = Math.max(0, Math.trunc(autoDebitConfig?.graceDays || 5));
-  const dueAt =
-    operationalPlan.intervalUnit === PlanIntervalUnit.MONTH
-      ? computeBillingCycleDueAt({
-          periodStartAt: startAt,
-          periodEndAt: periodEnd,
-          cycleStartDay,
-          paymentDay,
-          paymentTiming
-        })
-      : periodEnd;
-  const dueWithGraceAt = new Date(dueAt.getTime() + graceDays * 24 * 60 * 60 * 1000);
-  const subscription = await prisma.subscription.create({
-    data: {
-      tenantId: template.tenantId,
-      customerId: customer.id,
-      planId: operationalPlan.id,
-      productId: productId || null,
-      status: dueWithGraceAt.getTime() < Date.now() ? SubscriptionStatus.PAST_DUE : SubscriptionStatus.ACTIVE,
-      startAt,
-      cycleStartDay,
-      paymentDay,
-      paymentTiming,
-      graceDays,
-      metadata: { templateId: String((manualCheckoutTemplate as any)?.id || "") || null }
-    }
-  });
-
-  await ensureBillingCyclesForSubscription({
-    id: subscription.id,
-    startAt: subscription.startAt,
-    currentCycle: 1,
-    currentPeriodStartAt: startAt,
-    currentPeriodEndAt: periodEnd,
-    cycleStartDay: subscription.cycleStartDay,
-    paymentDay: subscription.paymentDay,
-    paymentTiming: subscription.paymentTiming as any,
-    graceDays: subscription.graceDays,
-    plan: {
-      intervalUnit: operationalPlan.intervalUnit,
-      intervalCount: operationalPlan.intervalCount
-    }
-  }).catch((err: any) => {
-    logger.warn({ err, subscriptionId: subscription.id }, "Fallo generando ciclos desde cart select");
-  });
-
-  if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
-    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: dueAt, maxAttempts: 1 }).catch((err: any) => {
-      logger.warn({ err, subscriptionId: subscription.id, dueAt }, "Fallo programando payment retry desde cart select");
-    });
-  }
-
   const tenantIds = Array.from(
     new Set(
       [
@@ -215,36 +158,32 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       ].filter(Boolean) as string[]
     )
   );
-  if (tenantIds.length) {
-    await prisma.subscriptionTenant
-      .createMany({
-        data: tenantIds.map((t) => ({ subscriptionId: subscription.id, tenantId: t })),
-        skipDuplicates: true
-      })
-      .catch((err: any) => {
-        logger.warn({ err, subscriptionId: subscription.id, tenantIds }, "Fallo creando subscription tenants desde cart select");
-      });
-    await prisma.customerTenant
-      .createMany({ data: tenantIds.map((t) => ({ customerId: customer.id, tenantId: t })), skipDuplicates: true })
-      .catch((err: any) => {
-        logger.warn({ err, customerId: customer.id, tenantIds }, "Fallo creando customer tenants desde cart select");
-      });
-  }
-
-  await scheduleSubscriptionDueNotifications({ subscriptionId: subscription.id }).catch((err: any) => {
-    logger.warn({ err, subscriptionId: subscription.id }, "Fallo programando notificaciones de vencimiento desde cart select");
+  const createdSubscription = await createSubscription({
+    customerId: customer.id,
+    planId: operationalPlan.id,
+    productId: productId || undefined,
+    tenantIds,
+    startAt: startAt.toISOString(),
+    firstPeriodEndAt: periodEnd.toISOString(),
+    createPaymentLink: false,
+    metadata: { templateId: String((manualCheckoutTemplate as any)?.id || "") || null }
   });
-  const linkCreated = await createPaymentLinkForSubscription({ subscriptionId: subscription.id, sendNotifications: false });
-  const checkoutTemplate = manualCheckoutTemplate;
-  if (!checkoutTemplate) return Response.json({ error: "missing_checkout_for_product" }, { status: 400 });
-  if (!String(cfg?.planBaseUrl || "").trim()) return Response.json({ error: "missing_plan_base_url" }, { status: 400 });
+  if (!createdSubscription.ok) {
+    return Response.json({ error: String(createdSubscription.error || "subscription_create_failed") }, { status: createdSubscription.status || 409 });
+  }
+  const subscriptionId = String(createdSubscription.subscription?.id || "").trim();
+  if (!subscriptionId) return Response.json({ error: "subscription_create_failed" }, { status: 500 });
+  const linkCreated = await createPaymentLinkForSubscription({ subscriptionId, sendNotifications: false });
   const created = await createPublicCheckoutLink({
     customerId: customer.id,
-    templateId: String((checkoutTemplate as any).id || ""),
+    templateId: String((manualCheckoutTemplate as any).id || ""),
     checkoutUrl: linkCreated.checkoutUrl,
     planId: operationalPlan.id,
     productId: productId || null
   });
   if (!created?.url) return Response.json({ error: "public_checkout_create_failed" }, { status: 500 });
+  if (!expectsJson) {
+    return Response.redirect(created.url, 303);
+  }
   return Response.json({ ok: true, nextUrl: created.url, kind: "PLAN" });
 }

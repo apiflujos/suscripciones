@@ -110,4 +110,46 @@ describe("publicCheckoutLinks", () => {
       })
     );
   });
+
+  it("does not inherit stale planId or productId when generating a new tokenization link", async () => {
+    getCredentialMock.mockResolvedValue(
+      JSON.stringify({ subscriptionBaseUrl: "https://checkout.example.com/public/suscripcion" })
+    );
+    findTemplateMock.mockResolvedValue({
+      id: "tpl-sub",
+      tenantId: "tenant-1",
+      name: "Suscripcion publica",
+      kind: PublicCheckoutKind.SUBSCRIPTION,
+      active: true,
+      expiryHours: 24,
+      utmParams: null
+    });
+    findCustomerMock.mockResolvedValue({
+      metadata: {
+        tokenizationLink: {
+          planId: "old-plan",
+          productId: "old-product"
+        }
+      }
+    });
+
+    await createPublicCheckoutLink({
+      customerId: "cus-1",
+      templateId: "tpl-sub",
+      productId: "new-product"
+    });
+
+    expect(updateCustomerMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({
+            tokenizationLink: expect.objectContaining({
+              planId: null,
+              productId: "new-product"
+            })
+          })
+        })
+      })
+    );
+  });
 });

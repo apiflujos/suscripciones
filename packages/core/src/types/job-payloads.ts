@@ -21,6 +21,7 @@ export type SubscriptionReminderPayload =
       paymentId: string;
       paymentStatus: "PENDING" | "APPROVED" | "DECLINED" | "ERROR" | "VOIDED";
       anchorAt: string;
+      paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK";
       subscriptionId?: string;
       offsetSeconds?: number;
       immediateSend?: boolean;

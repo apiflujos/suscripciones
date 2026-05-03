@@ -31,7 +31,8 @@ export const paymentStatusJobPayloadSchema = baseNotificationJobPayloadSchema.ex
   customerId: z.string().uuid(),
   paymentId: z.string().uuid(),
   paymentStatus: z.enum(["PENDING", "APPROVED", "DECLINED", "ERROR", "VOIDED"]),
-  anchorAt: z.string().datetime()
+  anchorAt: z.string().datetime(),
+  paymentType: z.enum(["PLAN", "SUBSCRIPTION", "LINK"]).optional()
 });
 
 export const paymentLinkCreatedJobPayloadSchema = baseNotificationJobPayloadSchema.extend({

@@ -155,6 +155,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
           tenantIds,
           createPaymentLink: false
         });
+        if (!subRes?.ok) {
+          const errorCode = "error" in subRes && subRes.error ? String(subRes.error) : "subscription_create_failed";
+          logger.warn({ customerId, productId: linkProductId || null, planId: linkPlanId || null, errorCode }, "No se pudo crear suscripción automática tras tokenización pública");
+          return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=${encodeURIComponent(errorCode)}`, redirectBase));
+        }
         const createdSubscriptionId = subRes.ok && "subscription" in subRes ? String(subRes.subscription?.id || "").trim() : "";
         if (createdSubscriptionId) {
           const finalMeta = {
@@ -164,9 +169,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
           await updateCustomerProfile({ customerId, metadata: finalMeta }).catch((err: any) => {
             logger.warn({ err, customerId, subscriptionId: createdSubscriptionId }, "Fallo guardando subscriptionId en metadata tras tokenización pública");
           });
+        } else {
+          logger.warn({ customerId, productId: linkProductId || null, planId: linkPlanId || null }, "Tokenización pública sin subscriptionId tras crear suscripción");
+          return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=subscription_create_failed`, redirectBase));
         }
       } catch (err: any) {
         logger.warn({ err, customerId, productId: linkProductId || null, planId: linkPlanId || null }, "Fallo creando suscripción automática tras tokenización pública");
+        return NextResponse.redirect(new URL(`/public/tokenize/${linkToken}?error=subscription_create_failed`, redirectBase));
       }
     }
 

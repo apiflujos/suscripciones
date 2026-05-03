@@ -72,6 +72,7 @@ vi.mock("../billingCycles", () => ({
 
 import { prisma } from "../../db/prisma";
 import { subscriptionReminder } from "../../jobs/handlers/subscriptionReminder";
+import { resolveSubscriptionBillingState } from "../billingCycles";
 
 describe("notificationsScheduler", () => {
   beforeEach(() => {
@@ -91,6 +92,9 @@ describe("notificationsScheduler", () => {
   });
 
   it("filtra reglas PAYMENT_LINK_CREATED por tipo SUBSCRIPTION cuando el pago pertenece a una suscripción", async () => {
+    vi.mocked(resolveSubscriptionBillingState).mockResolvedValue({
+      subscription: { plan: { metadata: { collectionMode: "AUTO_DEBIT" } } }
+    } as any);
     vi.mocked(getNotificationsConfig).mockResolvedValue({
       rules: [
         { id: "rule-link", enabled: true, trigger: "PAYMENT_LINK_CREATED", offsetsSeconds: [60], conditions: { requirePaymentTypeIn: ["LINK"] } },
@@ -146,6 +150,38 @@ describe("notificationsScheduler", () => {
     );
   });
 
+  it("filtra reglas PAYMENT_LINK_CREATED por tipo LINK cuando la suscripción usa AUTO_LINK", async () => {
+    vi.mocked(resolveSubscriptionBillingState).mockResolvedValue({
+      subscription: { plan: { metadata: { collectionMode: "AUTO_LINK" } } }
+    } as any);
+    vi.mocked(getNotificationsConfig).mockResolvedValue({
+      rules: [
+        { id: "rule-link", enabled: true, trigger: "PAYMENT_LINK_CREATED", offsetsSeconds: [60], conditions: { requirePaymentTypeIn: ["LINK"] } },
+        { id: "rule-sub", enabled: true, trigger: "PAYMENT_LINK_CREATED", offsetsSeconds: [60], conditions: { requirePaymentTypeIn: ["SUBSCRIPTION"] } }
+      ],
+      templates: []
+    } as any);
+    vi.mocked(prisma.payment.findUnique).mockResolvedValue({
+      id: "pay-1",
+      customerId: "cus-1",
+      subscriptionId: "sub-1"
+    } as any);
+
+    await schedulePaymentLinkNotifications({ paymentId: "pay-1" });
+
+    expect(prisma.retryJob.create).toHaveBeenCalledTimes(1);
+    expect(prisma.retryJob.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          payload: expect.objectContaining({
+            ruleId: "rule-link",
+            paymentType: "LINK"
+          })
+        })
+      })
+    );
+  });
+
   it("programa SUBSCRIPTION_DUE como SUBSCRIPTION_REMINDER usando dueAt", async () => {
     vi.mocked(prisma.subscription.findUnique).mockResolvedValue({
       id: "sub-1",
@@ -171,6 +207,9 @@ describe("notificationsScheduler", () => {
   });
 
   it("programa PAYMENT_APPROVED como SUBSCRIPTION_REMINDER", async () => {
+    vi.mocked(resolveSubscriptionBillingState).mockResolvedValue({
+      subscription: { plan: { metadata: { collectionMode: "AUTO_LINK" } } }
+    } as any);
     vi.mocked(prisma.payment.findUnique).mockResolvedValue({
       id: "pay-1",
       customerId: "cus-1",
@@ -185,7 +224,10 @@ describe("notificationsScheduler", () => {
     expect(prisma.retryJob.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          type: RetryJobType.SUBSCRIPTION_REMINDER
+          type: RetryJobType.SUBSCRIPTION_REMINDER,
+          payload: expect.objectContaining({
+            paymentType: "LINK"
+          })
         })
       })
     );

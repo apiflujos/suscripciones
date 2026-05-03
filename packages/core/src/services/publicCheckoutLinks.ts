@@ -105,15 +105,15 @@ export async function createPublicCheckoutLink(args: {
   };
   const nextMeta =
     template.kind === "SUBSCRIPTION"
-        ? {
+      ? {
             ...prevMeta,
             tokenizationLink: {
               ...(prevMeta?.tokenizationLink || {}),
               ...commonLink,
               returnUrl: String(cfg.tokenizationReturnUrl || "").trim() || prevMeta?.tokenizationLink?.returnUrl || null,
               tenantId: template.tenantId || null,
-              planId: args.planId ?? prevMeta?.tokenizationLink?.planId ?? null,
-              productId: args.productId ?? prevMeta?.tokenizationLink?.productId ?? null
+              planId: args.planId ?? null,
+              productId: args.productId ?? null
             }
           }
       : template.kind === "CART"

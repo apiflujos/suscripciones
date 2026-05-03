@@ -3,6 +3,7 @@ import { requireApiSession } from "../../_lib/requireApiSession";
 import { getCheckoutConfig } from "../../../admin/_services/settings";
 import { findCheckoutTemplateForProductOrDefault } from "../../../admin/_services/checkoutTemplates";
 import { getCustomerById } from "../../../admin/_services/customers";
+import { resolveOperationalPlanForProduct } from "../../../admin/_services/productPlanMapping";
 import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { firstNotificationDeliveryError } from "@suscripciones/core/services/notificationDelivery";
 import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
@@ -61,10 +62,19 @@ export async function POST(req: Request) {
 
     const existing = await getCustomerById(customerId);
     if (!existing) return NextResponse.json({ ok: false, error: "customer_not_found" }, { status: 404 });
+    const operationalPlan = await resolveOperationalPlanForProduct({
+      productId,
+      tenantId: String(body?.tenantId || "").trim() || null
+    }).catch((err: any) => {
+      logger.warn({ err, customerId, productId }, "Fallo resolviendo plan operativo para tokenization link");
+      return null;
+    });
 
     const created = await createPublicCheckoutLink({
       customerId,
-      templateId: resolvedTemplateId
+      templateId: resolvedTemplateId,
+      productId,
+      planId: operationalPlan?.id || null
     });
     if (!created?.url) {
       logger.error({ customerId, productId, templateId: resolvedTemplateId }, "No se pudo crear checkout publico de tokenizacion");
