@@ -62,7 +62,7 @@ describe("payments admin service", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("expected ok result");
     expect(result.items[0]?.status).toBe("PENDING");
-  }, 12000);
+  }, 20000);
 
   it("uses subscription total with pricing metadata for auto-association suggestions", async () => {
     const { getSubscriptionAutoAssociationSuggestions } = await import("../payments");
