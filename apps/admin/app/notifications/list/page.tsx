@@ -26,6 +26,34 @@ function renderContactBlock(item: any) {
   );
 }
 
+function humanType(item: any) {
+  const trigger = String(item?.providerResp?.meta?.trigger || "").trim().toUpperCase();
+  const paymentType = String(item?.providerResp?.meta?.paymentType || "").trim().toUpperCase();
+  if (trigger === "PAYMENT_LINK_CREATED" && paymentType === "LINK") return "Link de pago (cobro puntual)";
+  if (trigger === "PAYMENT_LINK_CREATED" && paymentType === "SUBSCRIPTION") return "Link de pago (suscripción por link)";
+  if (trigger === "TOKENIZATION_LINK_CREATED") return "Tokenización";
+  if (trigger === "CATALOG_LINK_CREATED" && paymentType === "PLAN") return "Catálogo (cobro puntual)";
+  if (trigger === "CATALOG_LINK_CREATED" && paymentType === "SUBSCRIPTION") return "Catálogo (suscripción)";
+  if (trigger === "PAYMENT_APPROVED") return "Pago exitoso";
+  if (trigger === "PAYMENT_DECLINED" && paymentType === "LINK") return "Pago fallido (link)";
+  if (trigger === "PAYMENT_DECLINED" && paymentType === "SUBSCRIPTION") return "Pago fallido (débito)";
+  return item?.type || "—";
+}
+
+function renderTrace(item: any) {
+  const meta = item?.providerResp?.meta && typeof item.providerResp.meta === "object" ? item.providerResp.meta : {};
+  const template = item?.providerResp?.template_params && typeof item.providerResp.template_params === "object" ? item.providerResp.template_params : {};
+  const missingParams = Array.isArray(meta?.missingParams) ? meta.missingParams.filter(Boolean) : [];
+  const parts = [
+    meta?.trigger ? `trigger: ${String(meta.trigger)}` : "",
+    meta?.paymentType ? `tipo: ${String(meta.paymentType)}` : "",
+    template?.name ? `plantilla: ${String(template.name)}` : "",
+    meta?.ruleId ? `regla: ${String(meta.ruleId)}` : "",
+    missingParams.length ? `faltantes: ${missingParams.join(", ")}` : ""
+  ].filter(Boolean);
+  return parts.join(" · ");
+}
+
 export const dynamic = "force-dynamic";
 
 export default async function WhatsappNotificationsListPage({
@@ -139,14 +167,15 @@ export default async function WhatsappNotificationsListPage({
                     ? { cls: "is-success", label: "Enviado" }
                     : status === "FAILED"
                       ? { cls: "is-error", label: "Fallido" }
-                      : { cls: "is-warning", label: "Pendiente" };
-                const detailRaw = String(m.errorMessage || m.content || "—");
+                      : { cls: "is-warning", label: "En cola" };
+                const trace = renderTrace(m);
+                const detailRaw = String(m.errorMessage || trace || m.content || "—");
                 const detailText = detailRaw.length > 200 ? `${detailRaw.slice(0, 200)}…` : detailRaw;
                 return (
                   <tr key={m.id}>
                     <td className="log-date-cell"><LocalDateTime value={m.createdAt} variant="stacked" /></td>
                     <td className="log-contact-cell">{renderContactBlock(m)}</td>
-                    <td className="log-type-cell" title={m.type || "—"}>{m.type || "—"}</td>
+                    <td className="log-type-cell" title={humanType(m)}>{humanType(m)}</td>
                     <td className="log-status-cell">
                       <span className={`status-chip ${chip.cls}`}>
                         <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />

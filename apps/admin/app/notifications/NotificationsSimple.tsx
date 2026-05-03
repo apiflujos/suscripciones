@@ -68,9 +68,9 @@ const REMINDER_TPL_MORA_LINK = "tpl_reminder_mora_link";
 const REMINDER_TPL_MORA_SUBSCRIPTION = "tpl_reminder_mora_subscription";
 
 const REMINDER_TYPES = [
-  { key: "reminder_due_link", kind: "DUE", paymentType: "LINK", label: "Recordatorio de fecha de pago (link de pago)", templateId: REMINDER_TPL_DUE_LINK },
-  { key: "reminder_due_subscription", kind: "DUE", paymentType: "SUBSCRIPTION", label: "Recordatorio de fecha de pago (débito automático)", templateId: REMINDER_TPL_DUE_SUBSCRIPTION },
-  { key: "reminder_mora_link", kind: "MORA", paymentType: "LINK", label: "Recordatorio en mora (link de pago)", templateId: REMINDER_TPL_MORA_LINK },
+  { key: "reminder_due_link", kind: "DUE", paymentType: "LINK", label: "Recordatorio antes del vencimiento (pago puntual)", templateId: REMINDER_TPL_DUE_LINK },
+  { key: "reminder_due_subscription", kind: "DUE", paymentType: "SUBSCRIPTION", label: "Recordatorio antes del vencimiento (débito automático)", templateId: REMINDER_TPL_DUE_SUBSCRIPTION },
+  { key: "reminder_mora_link", kind: "MORA", paymentType: "LINK", label: "Recordatorio en mora (pago puntual)", templateId: REMINDER_TPL_MORA_LINK },
   { key: "reminder_mora_subscription", kind: "MORA", paymentType: "SUBSCRIPTION", label: "Recordatorio en mora (débito automático)", templateId: REMINDER_TPL_MORA_SUBSCRIPTION }
 ] as const;
 
@@ -98,6 +98,24 @@ const MESSAGE_VARIABLES = [
   { label: "Recurrencia · cada (cantidad)", value: "{{plan.intervalCount}}" },
   { label: "Recurrencia · unidad", value: "{{plan.intervalUnit}}" },
   { label: "Tipo de pago", value: "{{paymentType}}" }
+].sort((a, b) => a.label.localeCompare(b.label, "es"));
+
+const CHECKOUT_URL_VARIABLES = [
+  { label: "Link de pago actual", value: "{{paymentLink.url}}" },
+  { label: "Link de tokenización actual", value: "{{tokenizationLink.url}}" },
+  { label: "Link de catálogo actual", value: "{{cartLink.url}}" },
+  { label: "URL de tokenización", value: "{{tokenization.url}}" },
+  { label: "URL de catálogo", value: "{{catalog.url}}" },
+  { label: "Checkout público automático · Cobro puntual", value: "{{checkoutPublicUrl.AUTO_PLAN}}" },
+  { label: "Checkout público automático · Suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" },
+  { label: "Checkout público automático · Catálogo", value: "{{checkoutPublicUrl.AUTO_CART}}" }
+].sort((a, b) => a.label.localeCompare(b.label, "es"));
+
+const CHECKOUT_TOKEN_VARIABLES = [
+  { label: "Token checkout automático", value: "{{checkoutPublicToken.AUTO}}" },
+  { label: "Token checkout automático · Cobro puntual", value: "{{checkoutPublicToken.AUTO_PLAN}}" },
+  { label: "Token checkout automático · Suscripción", value: "{{checkoutPublicToken.AUTO_SUBSCRIPTION}}" },
+  { label: "Token checkout automático · Catálogo", value: "{{checkoutPublicToken.AUTO_CART}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 function insertAtCursor(el: HTMLInputElement | HTMLTextAreaElement, text: string) {
@@ -515,23 +533,8 @@ export function NotificationsSimple({
   }
 
   const pendingRealtime = REALTIME_TYPES;
-  const autoCheckoutVars = useMemo(
-    () => [{ label: "Checkout público (Automático)", value: "{{checkoutPublicToken.AUTO}}" }],
-    []
-  );
-  const autoUrlVars = useMemo(
-    () => [
-      { label: "Link público (Automático · Plan)", value: "{{checkoutPublicUrl.AUTO_PLAN}}" },
-      { label: "Link público (Automático · Suscripción)", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" },
-      { label: "Link público (Automático · Catálogo)", value: "{{checkoutPublicUrl.AUTO_CART}}" }
-    ],
-    []
-  );
-  const bodyVars = useMemo(() => [...MESSAGE_VARIABLES, ...autoUrlVars], [autoUrlVars]);
-  const buttonVars = useMemo(
-    () => [...autoCheckoutVars],
-    [autoCheckoutVars]
-  );
+  const bodyVars = useMemo(() => [...MESSAGE_VARIABLES, ...CHECKOUT_URL_VARIABLES], []);
+  const buttonVars = useMemo(() => [...CHECKOUT_TOKEN_VARIABLES, ...CHECKOUT_URL_VARIABLES], []);
 
   useEffect(() => {
     if (!activeModal) return;

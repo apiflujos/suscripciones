@@ -510,9 +510,21 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
         checkoutPublicUrl[id] = created.url;
         if (id === "AUTO") {
           const kind = created.kind;
-          if (kind === PublicCheckoutKind.PLAN) checkoutPublicUrl.AUTO_PLAN = created.url;
-          if (kind === PublicCheckoutKind.SUBSCRIPTION) checkoutPublicUrl.AUTO_SUBSCRIPTION = created.url;
-          if (kind === PublicCheckoutKind.CART) checkoutPublicUrl.AUTO_CART = created.url;
+          if (kind === PublicCheckoutKind.PLAN) {
+            checkoutPublicToken.AUTO_PLAN = created.token;
+            checkoutPublicName.AUTO_PLAN = created.templateName;
+            checkoutPublicUrl.AUTO_PLAN = created.url;
+          }
+          if (kind === PublicCheckoutKind.SUBSCRIPTION) {
+            checkoutPublicToken.AUTO_SUBSCRIPTION = created.token;
+            checkoutPublicName.AUTO_SUBSCRIPTION = created.templateName;
+            checkoutPublicUrl.AUTO_SUBSCRIPTION = created.url;
+          }
+          if (kind === PublicCheckoutKind.CART) {
+            checkoutPublicToken.AUTO_CART = created.token;
+            checkoutPublicName.AUTO_CART = created.templateName;
+            checkoutPublicUrl.AUTO_CART = created.url;
+          }
         }
       } else {
         await systemLog(LogLevel.WARN, "notifications.dispatch", "Checkout público no disponible para plantilla", {
@@ -669,7 +681,11 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
             meta: {
               trigger: parsed.data.trigger,
               offsetSeconds: parsed.data.offsetSeconds ?? null,
-              ruleId: rule.id
+              ruleId: rule.id,
+              paymentType,
+              templateId: template.id,
+              templateName: template.name,
+              missingParams: missing
             }
           } as any)
         : null
