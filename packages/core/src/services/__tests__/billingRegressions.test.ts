@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  findBestBillingCycleForPayment,
   isBillingCyclePaid,
   resolveConfiguredCollectionCycle
 } from "../billingCycles";
@@ -52,5 +53,64 @@ describe("Regression: bugs de producción corregidos", () => {
     };
 
     expect(isBillingCyclePaid(cycleStatusPaidNoId)).toBe(true);
+  });
+
+  it("REG-004: un ciclo con paymentId pero status PENDING sigue siendo cobrable", () => {
+    const cycles = [
+      {
+        id: "apr",
+        cycleNumber: 1,
+        periodStartAt: new Date("2026-04-01T00:00:00.000Z"),
+        periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
+        dueAt: new Date("2026-04-20T00:00:00.000Z"),
+        paymentId: "pay-pending",
+        status: "PENDING"
+      },
+      {
+        id: "may",
+        cycleNumber: 2,
+        periodStartAt: new Date("2026-05-01T00:00:00.000Z"),
+        periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
+        dueAt: new Date("2026-05-20T00:00:00.000Z"),
+        paymentId: null,
+        status: "PENDING"
+      }
+    ];
+
+    const result = resolveConfiguredCollectionCycle({
+      cycles,
+      asOf: new Date("2026-05-01T12:00:00.000Z"),
+      paymentTiming: "EN_CURSO"
+    });
+
+    expect(result?.id).toBe("apr");
+  });
+
+  it("REG-005: la conciliación aún puede sugerir un ciclo con paymentId pendiente", () => {
+    const result = findBestBillingCycleForPayment({
+      paymentAt: new Date("2026-05-20T12:00:00.000Z"),
+      cycles: [
+        {
+          id: "apr",
+          cycleNumber: 1,
+          periodStartAt: new Date("2026-04-01T00:00:00.000Z"),
+          periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
+          dueAt: new Date("2026-04-20T00:00:00.000Z"),
+          paymentId: "pay-pending",
+          status: "PENDING"
+        },
+        {
+          id: "may",
+          cycleNumber: 2,
+          periodStartAt: new Date("2026-05-01T00:00:00.000Z"),
+          periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
+          dueAt: new Date("2026-05-20T00:00:00.000Z"),
+          paymentId: null,
+          status: "PENDING"
+        }
+      ]
+    });
+
+    expect(result?.id).toBe("apr");
   });
 });

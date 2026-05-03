@@ -74,6 +74,7 @@ vi.mock("../../services/subscriptionMode", () => ({
 }));
 
 vi.mock("../../services/billingCycles", async () => ({
+  isBillingCyclePaid: vi.fn((cycle: { status?: string | null } | null | undefined) => String(cycle?.status || "").toUpperCase() === "PAID"),
   resolveSubscriptionBillingState: vi.fn(async ({ subscriptionId }: { subscriptionId: string }) => {
     const { store } = await import("../../db/prisma");
     const subscription = store.subscription[subscriptionId];
@@ -132,7 +133,7 @@ vi.mock("../../services/billingCycles", async () => ({
       cycles,
       activeCycle,
       collectionCycle,
-      oldestUnpaidCycle: cycles.find((cycle: any) => !cycle.paymentId) || null
+      oldestUnpaidCycle: cycles.find((cycle: any) => String(cycle?.status || "").toUpperCase() !== "PAID") || null
     };
   }),
   syncSubscriptionBillingSnapshot: vi.fn(async () => null)
@@ -476,6 +477,69 @@ describe("Subscription Billing: Payment link creation", () => {
     expect(store.payment[result.paymentId]?.cycleNumber).toBe(3);
     expect(store.payment[result.paymentId]?.subscriptionCycleKey).toBe("sub-link-advance:3");
   });
+
+  it("should not reopen an approved payment when creating a payment link for the same cycle", async () => {
+    const { store } = await import("../../db/prisma");
+
+    store.customer["cust-approved"] = { id: "cust-approved", email: "approved@test.com", name: "Approved User", metadata: {} };
+    store.plan = {
+      ...(store.plan || {}),
+      "plan-approved": { id: "plan-approved", tenantId: "tenant-1", name: "Plan", priceInCents: 15000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 }
+    };
+    store.subscription["sub-approved"] = {
+      id: "sub-approved",
+      tenantId: "tenant-1",
+      customerId: "cust-approved",
+      planId: "plan-approved",
+      status: "ACTIVE",
+      currentCycle: 2,
+      currentPeriodStartAt: new Date("2026-05-01T00:00:00.000Z"),
+      currentPeriodEndAt: new Date("2026-06-01T00:00:00.000Z"),
+      cycleStartDay: 1,
+      paymentDay: 5,
+      paymentTiming: "EN_CURSO",
+      graceDays: 3
+    };
+    store.subscriptionBillingCycle["cycle-approved"] = {
+      id: "cycle-approved",
+      subscriptionId: "sub-approved",
+      cycleNumber: 2,
+      periodStartAt: new Date("2026-05-01T00:00:00.000Z"),
+      periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
+      dueAt: new Date("2026-05-05T00:00:00.000Z"),
+      status: "PAID",
+      paymentId: "pay-approved"
+    };
+    store.payment["pay-approved"] = {
+      id: "pay-approved",
+      tenantId: "tenant-1",
+      customerId: "cust-approved",
+      subscriptionId: "sub-approved",
+      amountInCents: 15000,
+      currency: "COP",
+      cycleNumber: 2,
+      reference: "SUB_sub-approved_2",
+      status: "APPROVED",
+      subscriptionCycleKey: "sub-approved:2",
+      origin: "AUTO_LINK",
+      associationReason: "SUB_REF",
+      associatedBy: "system",
+      paidAt: new Date("2026-05-05T12:00:00.000Z"),
+      checkoutUrl: "https://checkout.wompi.co/l/existing",
+      wompiPaymentLinkId: "plink-existing"
+    };
+
+    const { createPaymentLinkForSubscription } = await import("../../services/subscriptionBilling");
+
+    await expect(
+      createPaymentLinkForSubscription({ subscriptionId: "sub-approved" })
+    ).rejects.toThrow("payment_already_approved");
+
+    expect(store.payment["pay-approved"].status).toBe("APPROVED");
+    expect(store.payment["pay-approved"].paidAt?.toISOString?.() || String(store.payment["pay-approved"].paidAt)).toContain("2026-05-05");
+    expect(store.payment["pay-approved"].checkoutUrl).toBe("https://checkout.wompi.co/l/existing");
+    expect(store.payment["pay-approved"].wompiPaymentLinkId).toBe("plink-existing");
+  });
 });
 
 describe("ensureExpiredSubscriptions", () => {
@@ -566,5 +630,85 @@ describe("ensureExpiredSubscriptions", () => {
 
     // Should still be ACTIVE (within grace period)
     expect(store.subscription["sub-grace"].status).toBe("ACTIVE");
+  });
+
+  it("should mark ACTIVE as PAST_DUE when most recent cycle has paymentId but status is PENDING", async () => {
+    const { store } = await import("../../db/prisma");
+    const now = Date.now();
+    const periodStartAt = new Date(now - 40 * 24 * 60 * 60 * 1000);
+    const periodEndAt = new Date(now - 10 * 24 * 60 * 60 * 1000);
+    const dueAt = new Date(now - 20 * 24 * 60 * 60 * 1000);
+
+    store.plan = { "plan-pending": { id: "plan-pending", tenantId: "tenant-1", name: "Plan", priceInCents: 10000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 } };
+    store.subscription["sub-pending-payid"] = {
+      id: "sub-pending-payid",
+      tenantId: "tenant-1",
+      customerId: "cust-1",
+      planId: "plan-pending",
+      startAt: periodStartAt,
+      status: "ACTIVE",
+      currentCycle: 2,
+      currentPeriodStartAt: periodStartAt,
+      currentPeriodEndAt: periodEndAt,
+      cycleStartDay: 1,
+      paymentDay: 5,
+      paymentTiming: "EN_CURSO",
+      graceDays: 3
+    };
+    store.subscriptionBillingCycle["cycle-pending-payid"] = {
+      id: "cycle-pending-payid",
+      subscriptionId: "sub-pending-payid",
+      cycleNumber: 2,
+      periodStartAt,
+      periodEndAt,
+      dueAt,
+      status: "PENDING",
+      paymentId: "pay-pending"
+    };
+
+    const { ensureExpiredSubscriptions } = await import("../../services/subscriptionBilling");
+    await ensureExpiredSubscriptions();
+
+    expect(store.subscription["sub-pending-payid"].status).toBe("PAST_DUE");
+  });
+
+  it("should keep ACTIVE when most recent cycle status is PAID even if paymentId is null", async () => {
+    const { store } = await import("../../db/prisma");
+    const now = Date.now();
+    const periodStartAt = new Date(now - 40 * 24 * 60 * 60 * 1000);
+    const periodEndAt = new Date(now - 10 * 24 * 60 * 60 * 1000);
+    const dueAt = new Date(now - 20 * 24 * 60 * 60 * 1000);
+
+    store.plan = { "plan-paid-no-id": { id: "plan-paid-no-id", tenantId: "tenant-1", name: "Plan", priceInCents: 10000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 } };
+    store.subscription["sub-paid-no-id"] = {
+      id: "sub-paid-no-id",
+      tenantId: "tenant-1",
+      customerId: "cust-1",
+      planId: "plan-paid-no-id",
+      startAt: periodStartAt,
+      status: "ACTIVE",
+      currentCycle: 2,
+      currentPeriodStartAt: periodStartAt,
+      currentPeriodEndAt: periodEndAt,
+      cycleStartDay: 1,
+      paymentDay: 5,
+      paymentTiming: "EN_CURSO",
+      graceDays: 3
+    };
+    store.subscriptionBillingCycle["cycle-paid-no-id"] = {
+      id: "cycle-paid-no-id",
+      subscriptionId: "sub-paid-no-id",
+      cycleNumber: 2,
+      periodStartAt,
+      periodEndAt,
+      dueAt,
+      status: "PAID",
+      paymentId: null
+    };
+
+    const { ensureExpiredSubscriptions } = await import("../../services/subscriptionBilling");
+    await ensureExpiredSubscriptions();
+
+    expect(store.subscription["sub-paid-no-id"].status).toBe("ACTIVE");
   });
 });
