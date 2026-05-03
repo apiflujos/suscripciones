@@ -93,6 +93,7 @@ export type BillingRow = {
   mode: string;
   canManualCharge?: boolean;
   canManualMarkPaid?: boolean;
+  canManualUnmarkPaid?: boolean;
   manualChargeEnabled?: boolean;
   manualMarkPaidEnabled?: boolean;
   chargeDue?: boolean;

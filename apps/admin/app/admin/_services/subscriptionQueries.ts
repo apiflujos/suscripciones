@@ -83,13 +83,34 @@ export async function listSubscriptions(args: {
   const approvedPayments = await prisma.payment.findMany({
     where: { subscriptionId: { in: subscriptionIds }, status: PaymentStatus.APPROVED, paidAt: { not: null } },
     orderBy: { paidAt: "desc" },
-    select: { subscriptionId: true, paidAt: true, amountInCents: true, currency: true, wompiTransactionId: true }
+    select: {
+      subscriptionId: true,
+      cycleNumber: true,
+      createdAt: true,
+      paidAt: true,
+      amountInCents: true,
+      currency: true,
+      wompiTransactionId: true,
+      reference: true,
+      providerResponse: true
+    }
   });
 
   const lastPaymentBySub = new Map<string, { paidAt: Date; amountInCents: number; currency: string; wompiTransactionId: string | null }>();
+  const approvedPaymentByCycle = new Map<string, { createdAt: Date; isManual: boolean }>();
   for (const p of approvedPayments) {
     if (!p.subscriptionId || !p.paidAt) continue;
     if (!lastPaymentBySub.has(p.subscriptionId)) lastPaymentBySub.set(p.subscriptionId, { paidAt: p.paidAt, amountInCents: p.amountInCents, currency: p.currency, wompiTransactionId: p.wompiTransactionId });
+    if (typeof p.cycleNumber === "number" && Number.isFinite(p.cycleNumber)) {
+      const providerResponse =
+        p.providerResponse && typeof p.providerResponse === "object" ? (p.providerResponse as Record<string, unknown>) : null;
+      const isManual = Boolean(providerResponse?.manual) || String(p.reference || "").startsWith("MANUAL_");
+      const key = `${p.subscriptionId}:${p.cycleNumber}`;
+      const current = approvedPaymentByCycle.get(key);
+      if (!current || current.createdAt < p.createdAt) {
+        approvedPaymentByCycle.set(key, { createdAt: p.createdAt, isManual });
+      }
+    }
   }
 
   const latestLinks = await prisma.paymentLink.findMany({
@@ -160,6 +181,11 @@ export async function listSubscriptions(args: {
     const periodEndAt = activeCycle?.periodEndAt ? new Date(activeCycle.periodEndAt) : null;
     const collectionCyclePaid = isBillingCyclePaid(collectionCycle);
     const lastPaidInCurrentPeriod = collectionCyclePaid;
+    const currentCycleApprovedPayment =
+      collectionCycle && typeof collectionCycle.cycleNumber === "number"
+        ? approvedPaymentByCycle.get(`${s.id}:${collectionCycle.cycleNumber}`) || null
+        : null;
+    const canManualUnmarkPaid = Boolean(lastPaidInCurrentPeriod && currentCycleApprovedPayment?.isManual);
     const dueAt = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : periodEndAt;
     const chargeDue = collectionCyclePaid ? false : dueAt ? dueAt.getTime() <= Date.now() + 5_000 : false;
     const isInactive =
@@ -196,6 +222,7 @@ export async function listSubscriptions(args: {
       chargeDue,
       canManualCharge,
       canManualMarkPaid,
+      canManualUnmarkPaid,
       manualChargeEnabled: allowManualCharge,
       manualMarkPaidEnabled: allowManualCharge,
       lastPaidInCurrentPeriod

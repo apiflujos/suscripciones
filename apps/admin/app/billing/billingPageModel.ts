@@ -125,6 +125,7 @@ export function buildBillingRows(args: BuildBillingRowsArgs): BillingRow[] {
         mode: collectionMode,
         canManualCharge: typeof s?.canManualCharge === "boolean" ? s.canManualCharge : undefined,
         canManualMarkPaid: typeof s?.canManualMarkPaid === "boolean" ? s.canManualMarkPaid : undefined,
+        canManualUnmarkPaid: typeof s?.canManualUnmarkPaid === "boolean" ? s.canManualUnmarkPaid : undefined,
         manualChargeEnabled: typeof s?.manualChargeEnabled === "boolean" ? s.manualChargeEnabled : undefined,
         manualMarkPaidEnabled: typeof s?.manualMarkPaidEnabled === "boolean" ? s.manualMarkPaidEnabled : undefined,
         chargeDue: typeof s?.chargeDue === "boolean" ? s.chargeDue : undefined,

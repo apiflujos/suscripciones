@@ -45,6 +45,7 @@ type SubscriptionDetail = {
   duplicateCount?: number;
   canManualCharge?: boolean;
   canManualMarkPaid?: boolean;
+  canManualUnmarkPaid?: boolean;
   manualChargeEnabled?: boolean;
   manualMarkPaidEnabled?: boolean;
   chargeDue?: boolean;

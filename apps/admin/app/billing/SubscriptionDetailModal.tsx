@@ -58,6 +58,7 @@ type SubscriptionDetail = {
   duplicateCount?: number;
   canManualCharge?: boolean;
   canManualMarkPaid?: boolean;
+  canManualUnmarkPaid?: boolean;
   manualChargeEnabled?: boolean;
   manualMarkPaidEnabled?: boolean;
   chargeDue?: boolean;
@@ -138,6 +139,7 @@ export function SubscriptionDetailModal({
   const modeValue = String(subscription.mode || "").trim().toUpperCase();
   const tipoLabel = String(subscription.tipoTx || "").toLowerCase();
   const alreadyPaidCurrentPeriod = Boolean(subscription.lastPaidInCurrentPeriod);
+  const canManualUnmarkPaid = Boolean(subscription.canManualUnmarkPaid);
   const isAutoDebit = modeValue === "AUTO_DEBIT" || tipoLabel.includes("débito") || tipoLabel.includes("debito");
   const isCanceled = subscription.status === "CANCELED";
   const isSuspended = subscription.status === "SUSPENDED";
@@ -391,7 +393,7 @@ export function SubscriptionDetailModal({
                     manualMarkPaidEnabled={subscription.manualMarkPaidEnabled}
                   />
                 ) : null}
-                {alreadyPaidCurrentPeriod ? (
+                {alreadyPaidCurrentPeriod && canManualUnmarkPaid ? (
                   <ManualUnmarkPaidButton
                     action={unmarkSubscriptionPaidManual}
                     csrfToken={csrfToken}

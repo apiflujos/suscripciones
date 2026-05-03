@@ -595,7 +595,7 @@ export async function markSubscriptionPaidManual(formData: FormData) {
 }
 
 export async function unmarkSubscriptionPaidManual(formData: FormData) {
-  assertCsrfToken(formData);
+  await assertCsrfToken(formData);
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
   const tenantId = String(formData.get("tenantId") || "").trim() || undefined;
   const returnTo = safeReturnTo(formData);

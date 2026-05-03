@@ -52,6 +52,7 @@ export function BillingCard({ row, context }: BillingCardProps) {
   const isSuspended = row.status === "SUSPENDED";
   const isInactive = isCanceled || isSuspended;
   const alreadyPaidCurrentPeriod = Boolean(row.lastPaidInCurrentPeriod);
+  const canManualUnmarkPaid = Boolean(row.canManualUnmarkPaid);
   const customerTokenized = Boolean(row.customerTokenized);
   const paymentLinkBlockedReason = context.helpers.getPaymentLinkBlockedReason(row);
   const tokenizationBlockedReason = context.helpers.getTokenizationBlockedReason(row);
@@ -312,7 +313,7 @@ export function BillingCard({ row, context }: BillingCardProps) {
               {customerTokenized ? "Actualizar tarjeta" : "Guardar tarjeta"}
             </a>
           ) : null}
-          {alreadyPaidCurrentPeriod ? (
+          {alreadyPaidCurrentPeriod && canManualUnmarkPaid ? (
             <ManualUnmarkPaidButton
               action={context.actions.unmarkSubscriptionPaidManual}
               csrfToken={context.data.csrfToken}
