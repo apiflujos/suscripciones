@@ -15,6 +15,7 @@ import {
   REALTIME_NOTIFICATION_MAP,
   type RealtimeNotificationKey
 } from "./realtimeDefinitions";
+import { getAllowedTemplateValues } from "./templateVariableMatrix";
 import { ChatwootClient } from "@suscripciones/core/providers/chatwoot/client";
 import { getChatwootConfig } from "@suscripciones/core/services/runtimeConfig";
 
@@ -173,6 +174,24 @@ function validateMappedParams(args: {
   }
 }
 
+function validateAllowedTemplateVariables(args: {
+  bodyParams: string[];
+  headerParams: string[];
+  buttonParams: string[];
+  allowedBodyValues: Set<string>;
+  allowedHeaderValues: Set<string>;
+  allowedButtonValues: Set<string>;
+}) {
+  const invalidBody = args.bodyParams.filter((value) => !args.allowedBodyValues.has(value));
+  const invalidHeader = args.headerParams.filter((value) => !args.allowedHeaderValues.has(value));
+  const invalidButtons = args.buttonParams.filter((value) => !args.allowedButtonValues.has(value));
+  const issues: string[] = [];
+  if (invalidBody.length) issues.push(`body:${invalidBody.join(",")}`);
+  if (invalidHeader.length) issues.push(`header:${invalidHeader.join(",")}`);
+  if (invalidButtons.length) issues.push(`buttons:${invalidButtons.join(",")}`);
+  if (issues.length) throw new Error(`invalid_template_variables:${issues.join(";")}`);
+}
+
 function normalizeTemplatePayload(formData: FormData) {
   const templateKind = String(formData.get("templateKind") || "WHATSAPP_TEMPLATE").trim().toUpperCase();
   const waTemplateName = String(formData.get("waTemplateName") || "").trim();
@@ -252,6 +271,15 @@ export async function saveRealtime(formData: FormData) {
       buttonParams: tplPayload.buttonParams,
       templates: await listAvailableWhatsappTemplates()
     });
+    const allowed = getAllowedTemplateValues({ type: "realtime", key });
+    validateAllowedTemplateVariables({
+      bodyParams: tplPayload.bodyParams,
+      headerParams: tplPayload.headerParams,
+      buttonParams: tplPayload.buttonParams,
+      allowedBodyValues: allowed.bodyValues,
+      allowedHeaderValues: allowed.headerValues,
+      allowedButtonValues: allowed.buttonValues
+    });
 
     const nextTemplates = templates.filter((t) => String(t.id) !== templateId);
     nextTemplates.push({
@@ -316,6 +344,15 @@ export async function saveReminder(formData: FormData) {
       headerParams: tplPayload.headerParams,
       buttonParams: tplPayload.buttonParams,
       templates: await listAvailableWhatsappTemplates()
+    });
+    const allowed = getAllowedTemplateValues({ type: "reminder", kind: kind === "MORA" ? "MORA" : "DUE", paymentType });
+    validateAllowedTemplateVariables({
+      bodyParams: tplPayload.bodyParams,
+      headerParams: tplPayload.headerParams,
+      buttonParams: tplPayload.buttonParams,
+      allowedBodyValues: allowed.bodyValues,
+      allowedHeaderValues: allowed.headerValues,
+      allowedButtonValues: allowed.buttonValues
     });
     const tplNameBase = kind === "MORA" ? "Recordatorio en mora" : "Recordatorio de fecha de pago";
     const tplName = `${tplNameBase} (${paymentType === "SUBSCRIPTION" ? "débito automático" : "link de pago"})`;

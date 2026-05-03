@@ -618,6 +618,19 @@ export async function listChatwootMessages(args: {
   const typeRaw = String(args.type ?? "").trim().toUpperCase();
   const status = ["PENDING", "SENT", "FAILED"].includes(statusRaw) ? statusRaw : "";
   const type = ["PAYMENT_LINK", "PAYMENT_CONFIRMED", "EXPIRY_WARNING", "PAYMENT_FAILED"].includes(typeRaw) ? typeRaw : "";
+  const exactType =
+    [
+      "PAYMENT_LINK_LINK",
+      "PAYMENT_LINK_SUBSCRIPTION",
+      "TOKENIZATION_LINK",
+      "CATALOG_LINK_PLAN",
+      "CATALOG_LINK_SUBSCRIPTION",
+      "PAYMENT_APPROVED",
+      "PAYMENT_DECLINED_LINK",
+      "PAYMENT_DECLINED_SUBSCRIPTION"
+    ].includes(typeRaw)
+      ? typeRaw
+      : "";
   const fromRaw = String(args.from ?? "").trim();
   const toRaw = String(args.to ?? "").trim();
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();
@@ -630,8 +643,55 @@ export async function listChatwootMessages(args: {
   };
   if (status) where.status = status as any;
   if (type) where.type = type as any;
+  if (exactType === "PAYMENT_LINK_LINK") {
+    where.type = "PAYMENT_LINK" as any;
+    where.AND = [
+      { providerResp: { path: ["meta", "trigger"], equals: "PAYMENT_LINK_CREATED" } as any },
+      { providerResp: { path: ["meta", "paymentType"], equals: "LINK" } as any }
+    ];
+  } else if (exactType === "PAYMENT_LINK_SUBSCRIPTION") {
+    where.type = "PAYMENT_LINK" as any;
+    where.AND = [
+      { providerResp: { path: ["meta", "trigger"], equals: "PAYMENT_LINK_CREATED" } as any },
+      { providerResp: { path: ["meta", "paymentType"], equals: "SUBSCRIPTION" } as any }
+    ];
+  } else if (exactType === "TOKENIZATION_LINK") {
+    where.type = "PAYMENT_LINK" as any;
+    where.AND = [
+      { providerResp: { path: ["meta", "trigger"], equals: "TOKENIZATION_LINK_CREATED" } as any }
+    ];
+  } else if (exactType === "CATALOG_LINK_PLAN") {
+    where.type = "PAYMENT_LINK" as any;
+    where.AND = [
+      { providerResp: { path: ["meta", "trigger"], equals: "CATALOG_LINK_CREATED" } as any },
+      { providerResp: { path: ["meta", "paymentType"], equals: "PLAN" } as any }
+    ];
+  } else if (exactType === "CATALOG_LINK_SUBSCRIPTION") {
+    where.type = "PAYMENT_LINK" as any;
+    where.AND = [
+      { providerResp: { path: ["meta", "trigger"], equals: "CATALOG_LINK_CREATED" } as any },
+      { providerResp: { path: ["meta", "paymentType"], equals: "SUBSCRIPTION" } as any }
+    ];
+  } else if (exactType === "PAYMENT_APPROVED") {
+    where.type = "PAYMENT_CONFIRMED" as any;
+    where.AND = [
+      { providerResp: { path: ["meta", "trigger"], equals: "PAYMENT_APPROVED" } as any }
+    ];
+  } else if (exactType === "PAYMENT_DECLINED_LINK") {
+    where.type = "PAYMENT_FAILED" as any;
+    where.AND = [
+      { providerResp: { path: ["meta", "trigger"], equals: "PAYMENT_DECLINED" } as any },
+      { providerResp: { path: ["meta", "paymentType"], equals: "LINK" } as any }
+    ];
+  } else if (exactType === "PAYMENT_DECLINED_SUBSCRIPTION") {
+    where.type = "PAYMENT_FAILED" as any;
+    where.AND = [
+      { providerResp: { path: ["meta", "trigger"], equals: "PAYMENT_DECLINED" } as any },
+      { providerResp: { path: ["meta", "paymentType"], equals: "SUBSCRIPTION" } as any }
+    ];
+  }
   if (q) {
-    where.OR = [
+    const qOr = [
       { content: { contains: q, mode: "insensitive" } },
       { errorMessage: { contains: q, mode: "insensitive" } },
       { to: { contains: q, mode: "insensitive" } },
@@ -648,6 +708,11 @@ export async function listChatwootMessages(args: {
         }
       }
     ];
+    if (Array.isArray(where.AND) && where.AND.length) {
+      where.AND = [...where.AND, { OR: qOr }];
+    } else {
+      where.OR = qOr;
+    }
   }
   const [items, total] = await Promise.all([
     prisma.chatwootMessage.findMany({

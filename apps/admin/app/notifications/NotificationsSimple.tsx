@@ -9,6 +9,11 @@ import {
   REALTIME_NOTIFICATION_DEFINITIONS,
   type RealtimeNotificationKey
 } from "./realtimeDefinitions";
+import {
+  ALL_NOTIFICATION_VARIABLE_OPTIONS,
+  getRealtimeVariableMatrix,
+  getReminderVariableMatrix
+} from "./templateVariableMatrix";
 
 type Env = "PRODUCTION" | "SANDBOX";
 
@@ -75,49 +80,6 @@ const REMINDER_TYPES = [
 ] as const;
 
 type OffsetItem = { amount: string; unit: "minutes" | "hours" | "days" };
-const MESSAGE_VARIABLES = [
-  { label: "Nombre completo", value: "{{customer.name}}" },
-  { label: "Correo electrónico", value: "{{customer.email}}" },
-  { label: "Teléfono", value: "{{customer.phone}}" },
-  { label: "Nombre del producto", value: "{{plan.name}}" },
-  { label: "Precio del producto (pesos)", value: "{{plan.priceInPesos}}" },
-  { label: "Moneda del producto", value: "{{plan.currency}}" },
-  { label: "Monto del pago (pesos)", value: "{{payment.amountInPesos}}" },
-  { label: "Moneda del pago", value: "{{payment.currency}}" },
-  { label: "Estado del pago", value: "{{payment.status}}" },
-  { label: "Referencia", value: "{{payment.reference}}" },
-  { label: "Estado de la suscripción", value: "{{subscription.status}}" },
-  { label: "Ciclo activo", value: "{{subscription.activeCycleNumber}}" },
-  { label: "Inicio del ciclo activo", value: "{{subscription.activeCycleStartAt}}" },
-  { label: "Fin del ciclo activo", value: "{{subscription.activeCycleEndAt}}" },
-  { label: "Ciclo de cobro", value: "{{subscription.collectionCycleNumber}}" },
-  { label: "Próximo cobro", value: "{{subscription.nextBillingDate}}" },
-  { label: "Fecha de pago", value: "{{payment.paidAt}}" },
-  { label: "Fecha de creación del pago", value: "{{payment.createdAt}}" },
-  { label: "Fecha de fallo del pago", value: "{{payment.failedAt}}" },
-  { label: "Recurrencia · cada (cantidad)", value: "{{plan.intervalCount}}" },
-  { label: "Recurrencia · unidad", value: "{{plan.intervalUnit}}" },
-  { label: "Tipo de pago", value: "{{paymentType}}" }
-].sort((a, b) => a.label.localeCompare(b.label, "es"));
-
-const CHECKOUT_URL_VARIABLES = [
-  { label: "Link de pago actual", value: "{{paymentLink.url}}" },
-  { label: "Link de tokenización actual", value: "{{tokenizationLink.url}}" },
-  { label: "Link de catálogo actual", value: "{{cartLink.url}}" },
-  { label: "URL de tokenización", value: "{{tokenization.url}}" },
-  { label: "URL de catálogo", value: "{{catalog.url}}" },
-  { label: "Checkout público automático · Cobro puntual", value: "{{checkoutPublicUrl.AUTO_PLAN}}" },
-  { label: "Checkout público automático · Suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" },
-  { label: "Checkout público automático · Catálogo", value: "{{checkoutPublicUrl.AUTO_CART}}" }
-].sort((a, b) => a.label.localeCompare(b.label, "es"));
-
-const CHECKOUT_TOKEN_VARIABLES = [
-  { label: "Token checkout automático", value: "{{checkoutPublicToken.AUTO}}" },
-  { label: "Token checkout automático · Cobro puntual", value: "{{checkoutPublicToken.AUTO_PLAN}}" },
-  { label: "Token checkout automático · Suscripción", value: "{{checkoutPublicToken.AUTO_SUBSCRIPTION}}" },
-  { label: "Token checkout automático · Catálogo", value: "{{checkoutPublicToken.AUTO_CART}}" }
-].sort((a, b) => a.label.localeCompare(b.label, "es"));
-
 function insertAtCursor(el: HTMLInputElement | HTMLTextAreaElement, text: string) {
   const start = el.selectionStart ?? el.value.length;
   const end = el.selectionEnd ?? el.value.length;
@@ -432,9 +394,7 @@ export function NotificationsSimple({
         if (r.trigger !== rt.trigger) return false;
         const types = r.conditions?.requirePaymentTypeIn;
         if (!rt.paymentType) return !types || !types.length;
-        if (Array.isArray(types) && types.includes(rt.paymentType)) return true;
-        if (rt.trigger === "PAYMENT_DECLINED" && rt.paymentType === "LINK" && (!types || !types.length)) return true;
-        return false;
+        return Array.isArray(types) && types.includes(rt.paymentType);
       });
       const fallback = !match && !rt.paymentType ? rules.find((r) => r.trigger === rt.trigger) : null;
       if (match) map.set(rt.key, match);
@@ -533,8 +493,6 @@ export function NotificationsSimple({
   }
 
   const pendingRealtime = REALTIME_TYPES;
-  const bodyVars = useMemo(() => [...MESSAGE_VARIABLES, ...CHECKOUT_URL_VARIABLES], []);
-  const buttonVars = useMemo(() => [...CHECKOUT_TOKEN_VARIABLES, ...CHECKOUT_URL_VARIABLES], []);
 
   useEffect(() => {
     if (!activeModal) return;
@@ -645,9 +603,9 @@ export function NotificationsSimple({
       >
         <div className="panel module" style={{ display: "grid", gap: 6 }}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {[...MESSAGE_VARIABLES, ...autoCheckoutVars].map((item) => {
-              const label = typeof item === "string" ? item : item.label;
-              const value = typeof item === "string" ? item : item.value;
+            {ALL_NOTIFICATION_VARIABLE_OPTIONS.map((item) => {
+              const label = item.label;
+              const value = item.value;
               return (
                 <button key={value} type="button" className="ghost" onClick={() => onPickValue(value)} style={{ minHeight: 32 }} data-loader="off">
                   {label}
@@ -774,6 +732,7 @@ export function NotificationsSimple({
             const waBodyParams = tpl?.chatwootTemplate?.processed_params?.body || [];
             const waHeaderParams = tpl?.chatwootTemplate?.processed_params?.header || [];
             const waButtonParams = tpl?.chatwootTemplate?.processed_params?.buttons || [];
+            const variableMatrix = getRealtimeVariableMatrix(rt.key);
             return (
               <form action={actions.saveRealtime} className="notification-form" style={{ display: "grid", gap: 10 }}>
                 <input type="hidden" name="csrf" value={csrfToken} />
@@ -786,7 +745,11 @@ export function NotificationsSimple({
                 <div className="field row" style={{ justifyContent: "space-between" }}>
                   <div className="muted">Tipo: Plantilla (WhatsApp)</div>
                 </div>
-                <div className="field-hint">Solo se aceptan plantillas WhatsApp activas. No se usan mensajes libres en estos envíos.</div>
+                <div className="field-hint">
+                  Solo se aceptan plantillas WhatsApp activas. No se usan mensajes libres en estos envíos.
+                  {" "}
+                  {variableMatrix.helpText}
+                </div>
                 <WaTemplateFields
                   templates={waTemplates}
                   defaultName={waName}
@@ -794,8 +757,8 @@ export function NotificationsSimple({
                   defaultParams={waBodyParams.map((p) => p.value).join("|")}
                   defaultHeaderParams={waHeaderParams.map((p) => p.value).join("|")}
                   defaultButtonParams={waButtonParams.map((p) => p.value).join("|")}
-                  variables={bodyVars}
-                  buttonVariables={buttonVars}
+                  variables={variableMatrix.bodyVariables}
+                  buttonVariables={variableMatrix.buttonVariables}
                 />
                 <div className="module-footer">
                   <button
@@ -824,6 +787,12 @@ export function NotificationsSimple({
           })()
         ) : null}
         {activeModal?.type === "reminder" ? (
+          (() => {
+            const variableMatrix = getReminderVariableMatrix({
+              kind: activeModal.kind,
+              paymentType: activeModal.paymentType
+            });
+            return (
           <form action={actions.saveReminder} className="notification-form" style={{ display: "grid", gap: 10 }}>
             <input type="hidden" name="csrf" value={csrfToken} />
             <input type="hidden" name="environment" value={env} />
@@ -839,7 +808,11 @@ export function NotificationsSimple({
             <div className="field row" style={{ justifyContent: "space-between" }}>
               <div className="muted">Tipo: Plantilla (WhatsApp)</div>
             </div>
-            <div className="field-hint">Solo se aceptan plantillas WhatsApp activas. No se usan mensajes libres en estos envíos.</div>
+            <div className="field-hint">
+              Solo se aceptan plantillas WhatsApp activas. No se usan mensajes libres en estos envíos.
+              {" "}
+              {variableMatrix.helpText}
+            </div>
             <WaTemplateFields
               templates={waTemplates}
               defaultName={activeReminder?.template?.chatwootTemplate?.name || ""}
@@ -853,8 +826,8 @@ export function NotificationsSimple({
               defaultButtonParams={
                 (activeReminder?.template?.chatwootTemplate?.processed_params?.buttons || []).map((p) => p.value).join("|")
               }
-              variables={bodyVars}
-              buttonVariables={buttonVars}
+              variables={variableMatrix.bodyVariables}
+              buttonVariables={variableMatrix.buttonVariables}
             />
             <input
               type="hidden"
@@ -886,6 +859,8 @@ export function NotificationsSimple({
               </PendingButton>
             </div>
           </form>
+            );
+          })()
         ) : null}
       </AppModal>
     </div>

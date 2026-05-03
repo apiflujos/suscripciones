@@ -29,14 +29,19 @@ function renderContactBlock(item: any) {
 function humanType(item: any) {
   const trigger = String(item?.providerResp?.meta?.trigger || "").trim().toUpperCase();
   const paymentType = String(item?.providerResp?.meta?.paymentType || "").trim().toUpperCase();
-  if (trigger === "PAYMENT_LINK_CREATED" && paymentType === "LINK") return "Link de pago (cobro puntual)";
-  if (trigger === "PAYMENT_LINK_CREATED" && paymentType === "SUBSCRIPTION") return "Link de pago (suscripción por link)";
+  const offsetSeconds = Number(item?.providerResp?.meta?.offsetSeconds ?? 0);
+  if (trigger === "PAYMENT_LINK_CREATED" && paymentType === "LINK") return "Link de cobro (pago puntual)";
+  if (trigger === "PAYMENT_LINK_CREATED" && paymentType === "SUBSCRIPTION") return "Link de cobro (suscripción por link)";
   if (trigger === "TOKENIZATION_LINK_CREATED") return "Tokenización";
   if (trigger === "CATALOG_LINK_CREATED" && paymentType === "PLAN") return "Catálogo (cobro puntual)";
   if (trigger === "CATALOG_LINK_CREATED" && paymentType === "SUBSCRIPTION") return "Catálogo (suscripción)";
-  if (trigger === "PAYMENT_APPROVED") return "Pago exitoso";
-  if (trigger === "PAYMENT_DECLINED" && paymentType === "LINK") return "Pago fallido (link)";
-  if (trigger === "PAYMENT_DECLINED" && paymentType === "SUBSCRIPTION") return "Pago fallido (débito)";
+  if (trigger === "PAYMENT_APPROVED") return "Pago aprobado";
+  if (trigger === "PAYMENT_DECLINED" && paymentType === "LINK") return "Pago rechazado (pago puntual)";
+  if (trigger === "PAYMENT_DECLINED" && paymentType === "SUBSCRIPTION") return "Pago rechazado (débito automático)";
+  if (trigger === "SUBSCRIPTION_DUE" && paymentType === "LINK" && offsetSeconds <= 0) return "Recordatorio antes del vencimiento (pago puntual)";
+  if (trigger === "SUBSCRIPTION_DUE" && paymentType === "SUBSCRIPTION" && offsetSeconds <= 0) return "Recordatorio antes del vencimiento (débito automático)";
+  if (trigger === "SUBSCRIPTION_DUE" && paymentType === "LINK" && offsetSeconds > 0) return "Recordatorio en mora (pago puntual)";
+  if (trigger === "SUBSCRIPTION_DUE" && paymentType === "SUBSCRIPTION" && offsetSeconds > 0) return "Recordatorio en mora (débito automático)";
   return item?.type || "—";
 }
 
@@ -116,15 +121,20 @@ export default async function WhatsappNotificationsListPage({
               <select className="select" name="status" defaultValue={status} style={{ minWidth: 140 }} data-auto-submit="true">
                 <option value="">Estado: Todos</option>
                 <option value="SENT">Enviado</option>
-                <option value="PENDING">Pendiente</option>
+                <option value="PENDING">En cola</option>
                 <option value="FAILED">Fallido</option>
               </select>
-              <select className="select" name="type" defaultValue={type} style={{ minWidth: 140 }} data-auto-submit="true">
+              <select className="select" name="type" defaultValue={type} style={{ minWidth: 220 }} data-auto-submit="true">
                 <option value="">Tipo: Todos</option>
-                <option value="PAYMENT_LINK">Link de pago</option>
-                <option value="PAYMENT_CONFIRMED">Pago confirmado</option>
-                <option value="EXPIRY_WARNING">Vencimiento</option>
-                <option value="PAYMENT_FAILED">Pago fallido</option>
+                <option value="PAYMENT_LINK_LINK">Link de cobro (pago puntual)</option>
+                <option value="PAYMENT_LINK_SUBSCRIPTION">Link de cobro (suscripción)</option>
+                <option value="TOKENIZATION_LINK">Link de tokenización</option>
+                <option value="CATALOG_LINK_PLAN">Checkout de catálogo (compra puntual)</option>
+                <option value="CATALOG_LINK_SUBSCRIPTION">Checkout de catálogo (suscripción)</option>
+                <option value="PAYMENT_APPROVED">Pago aprobado</option>
+                <option value="PAYMENT_DECLINED_LINK">Pago rechazado (pago puntual)</option>
+                <option value="PAYMENT_DECLINED_SUBSCRIPTION">Pago rechazado (débito automático)</option>
+                <option value="EXPIRY_WARNING">Recordatorios</option>
               </select>
               <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 130 }} data-auto-submit="true" />
               <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 130 }} data-auto-submit="true" />
