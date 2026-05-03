@@ -31,7 +31,7 @@ type BillingHeaderProps = {
     selectCustomerId: string;
   };
   actions: {
-    createCustomerFromBilling: BillingAction;
+    createCustomerFromBilling: (formData: FormData) => Promise<void>;
     createPlanAndSubscription: BillingAction;
   };
 };

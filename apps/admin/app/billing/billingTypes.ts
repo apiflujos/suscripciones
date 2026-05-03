@@ -1,3 +1,5 @@
+import type { PlanOption } from "./ChangePlanButton";
+
 export type CollectionMode = "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK";
 
 export type EstadoSimpleInfo = {
@@ -149,7 +151,7 @@ export type BillingCardState = {
 
 export type BillingCardData = {
   tenants: TenantOption[];
-  planOptions: unknown[];
+  planOptions: PlanOption[];
   notificationsTemplates: unknown[];
   notificationsRules: unknown[];
   returnTo: string;
