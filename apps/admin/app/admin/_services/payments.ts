@@ -5,7 +5,13 @@ import { prisma } from "@suscripciones/database";
 import { reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { logger } from "@suscripciones/core/lib/logger";
-import { ensureBillingCyclesForSubscription, findBestBillingCycleForPayment, resolveConfiguredCollectionCycle, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
+import {
+  ensureBillingCyclesForSubscription,
+  findBestBillingCycleForPayment,
+  isBillingCyclePaid,
+  resolveConfiguredCollectionCycle,
+  resolveSubscriptionBillingState
+} from "@suscripciones/core/services/billingCycles";
 import { getExpectedSubscriptionTotalInCents } from "@suscripciones/core/lib/metadataSchemas";
 import { getCivilDateAnchorUtc } from "@suscripciones/core/lib/dates";
 
@@ -107,7 +113,7 @@ export function buildUniquePaymentCycleSuggestions(args: {
   subscriptionId: string;
 }) {
   const openCycles = args.cycles
-    .filter((cycle) => !cycle.paymentId && String(cycle.status || "").toUpperCase() !== "PAID")
+    .filter((cycle) => !isBillingCyclePaid(cycle))
     .sort((a, b) => a.cycleNumber - b.cycleNumber);
   const availableCycleIds = new Set(openCycles.map((cycle) => cycle.id));
 

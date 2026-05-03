@@ -214,7 +214,7 @@ export function resolveConfiguredCollectionCycle(args: {
 }) {
   const asOfTs = new Date(args.asOf).getTime();
   const unpaid = args.cycles
-    .filter((cycle) => !cycle.paymentId && String(cycle.status || "").toUpperCase() !== "PAID")
+    .filter((cycle) => !isBillingCyclePaid(cycle))
     .sort((a, b) => a.cycleNumber - b.cycleNumber);
   if (!unpaid.length) return null;
 
@@ -471,7 +471,7 @@ export function resolveBillingStateFromCycles(args: {
     asOf: args.asOf,
     paymentTiming: args.paymentTiming
   });
-  const oldestUnpaidCycle = args.cycles.find((cycle) => !cycle.paymentId && String(cycle.status || "").toUpperCase() !== "PAID") || null;
+  const oldestUnpaidCycle = args.cycles.find((cycle) => !isBillingCyclePaid(cycle)) || null;
   return {
     activeCycle,
     collectionCycle,
@@ -647,7 +647,7 @@ export function findBestBillingCycleForPayment(args: {
   const toleranceMs = toleranceDays * 24 * 60 * 60 * 1000;
   const paymentTs = args.paymentAt.getTime();
   const unpaidCycles = args.cycles
-    .filter((cycle) => !cycle.paymentId && String(cycle.status || "").toUpperCase() !== "PAID")
+    .filter((cycle) => !isBillingCyclePaid(cycle))
     .map((cycle) => ({
       ...cycle,
       periodStartMs: new Date(cycle.periodStartAt).getTime(),

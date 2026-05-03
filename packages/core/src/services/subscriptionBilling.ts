@@ -217,8 +217,8 @@ function shouldMarkSubscriptionPastDue(args: {
   const cycle = args.mostRecentCycle;
   if (!cycle) return { shouldMark: false, reason: "no_cycle" };
 
-  // KEY RULE: If most recent cycle has a valid payment, subscription is ACTIVE
-  if (cycle.paymentId) return { shouldMark: false, reason: "most_recent_cycle_is_paid" };
+  // KEY RULE: subscription is ACTIVE only when the most recent cycle is actually PAID.
+  if (isBillingCyclePaid(cycle)) return { shouldMark: false, reason: "most_recent_cycle_is_paid" };
 
   const dueWithGraceAt = new Date(cycle.dueAt.getTime() + Math.max(0, Math.trunc(args.graceDays || 0)) * 24 * 60 * 60 * 1000);
   if (dueWithGraceAt.getTime() >= args.asOf.getTime()) {
@@ -391,11 +391,27 @@ export async function createPaymentLinkForSubscription(args: {
     logIgnored(err, "payment link: failed to resolve billing state", { subscriptionId: sub.id });
     return null;
   });
-  const cycle = billingState?.collectionCycle?.cycleNumber ?? 1;
+  const collectionCycle = billingState?.collectionCycle || null;
+  if (isBillingCyclePaid(collectionCycle)) {
+    throw new Error("payment_already_approved");
+  }
+  const cycle = collectionCycle?.cycleNumber ?? 1;
   let reference = `SUB_${sub.id}_${cycle}`;
   const amountInCents = args.amountInCentsOverride ?? readSubscriptionTotalInCents(sub.metadata, sub.plan.priceInCents, sub.plan.metadata);
 
   const subscriptionCycleKey = `${sub.id}:${cycle}`;
+  const existingPayment = await prisma.payment.findUnique({
+    where: { subscriptionCycleKey },
+    select: {
+      id: true,
+      status: true,
+      checkoutUrl: true,
+      wompiPaymentLinkId: true
+    }
+  });
+  if (existingPayment && existingPayment.status === PaymentStatus.APPROVED) {
+    throw new Error("payment_already_approved");
+  }
   const payment = await prisma.payment.upsert({
     where: { subscriptionCycleKey },
     create: {

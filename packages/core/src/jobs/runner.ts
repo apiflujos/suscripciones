@@ -20,7 +20,7 @@ import { ensurePaymentRetryJob } from "../services/retryJobScheduler";
 import { handleSubscriptionPaymentFailure, ensureExpiredSubscriptions } from "../services/subscriptionBilling";
 import { runWithActor } from "../services/actorStore";
 import { publishRealtime } from "../services/realtimePublisher";
-import { resolveSubscriptionBillingState } from "../services/billingCycles";
+import { isBillingCyclePaid, resolveSubscriptionBillingState } from "../services/billingCycles";
 import {
   forwardToShopifySchema,
   paymentRetrySchema,
@@ -427,7 +427,7 @@ async function ensureDueCutoffRetries() {
 
       const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id });
       const collectionCycle = billingState?.collectionCycle || null;
-      const collectionCyclePaid = Boolean(collectionCycle?.paymentId) || String(collectionCycle?.status || "").toUpperCase() === "PAID";
+      const collectionCyclePaid = isBillingCyclePaid(collectionCycle);
       if (!collectionCycle || collectionCyclePaid) continue;
       const dueAt = collectionCycle ? new Date(collectionCycle.dueAt || collectionCycle.periodEndAt) : null;
       const runAtMs = dueAt?.getTime?.() ?? 0;
