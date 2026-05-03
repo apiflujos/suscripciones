@@ -15,6 +15,8 @@ import {
   REALTIME_NOTIFICATION_MAP,
   type RealtimeNotificationKey
 } from "./realtimeDefinitions";
+import { ChatwootClient } from "@suscripciones/core/providers/chatwoot/client";
+import { getChatwootConfig } from "@suscripciones/core/services/runtimeConfig";
 
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
@@ -95,6 +97,82 @@ function buildProcessedParams(args: { bodyParams?: string[]; headerParams?: stri
   return Object.keys(out).length ? out : undefined;
 }
 
+async function listAvailableWhatsappTemplates() {
+  const cfg = await getChatwootConfig();
+  if (!cfg.configured) throw new Error("chatwoot_not_configured");
+  const client = new ChatwootClient({
+    baseUrl: cfg.baseUrl,
+    accountId: cfg.accountId,
+    apiAccessToken: cfg.apiAccessToken,
+    inboxId: cfg.inboxId
+  });
+  await client.syncWhatsappTemplates().catch(() => null);
+  return client.listWhatsappTemplates();
+}
+
+function countBodyParams(components: any[], currentCount: number) {
+  const body = components.find((component: any) => String(component?.type || "").toUpperCase() === "BODY") as any;
+  if (!body) return 0;
+  const text = String(body?.text || "");
+  const matches = text.match(/\{\{\d+\}\}/g) || [];
+  const countByText = matches.length;
+  const countByExample = Array.isArray(body?.example?.body_text) ? (body.example.body_text[0]?.length || 0) : 0;
+  return Math.max(countByText, countByExample, currentCount);
+}
+
+function countHeaderParams(components: any[], currentCount: number) {
+  const header = components.find((component: any) => String(component?.type || "").toUpperCase() === "HEADER") as any;
+  if (!header) return 0;
+  const format = String(header?.format || header?.format_type || "").toUpperCase();
+  if (format && format !== "TEXT") return 0;
+  const text = String(header?.text || "");
+  const matches = text.match(/\{\{\d+\}\}/g) || [];
+  const countByText = matches.length;
+  const countByExample = Array.isArray(header?.example?.header_text) ? header.example.header_text.length : 0;
+  return Math.max(countByText, countByExample, currentCount);
+}
+
+function countButtonParams(components: any[], currentCount: number) {
+  const buttons = components.find((component: any) => String(component?.type || "").toUpperCase() === "BUTTONS") as any;
+  if (!buttons || !Array.isArray(buttons?.buttons)) return 0;
+  const urlButtons = buttons.buttons.filter((button: any) => String(button?.type || "").toUpperCase() === "URL");
+  return Math.max(urlButtons.length, currentCount);
+}
+
+function validateMappedParams(args: {
+  name: string;
+  language: string;
+  bodyParams: string[];
+  headerParams: string[];
+  buttonParams: string[];
+  templates: any[];
+}) {
+  const selectedTemplate =
+    args.templates.find(
+      (template: any) =>
+        String(template?.name || "").trim() === args.name &&
+        String(template?.language || "es").trim() === args.language
+    ) || null;
+  if (!selectedTemplate) throw new Error("whatsapp_template_not_found");
+
+  const components = Array.isArray(selectedTemplate.components) ? selectedTemplate.components : [];
+  const requiredBody = countBodyParams(components, args.bodyParams.length);
+  const requiredHeader = countHeaderParams(components, args.headerParams.length);
+  const requiredButtons = countButtonParams(components, args.buttonParams.length);
+
+  const completeBody = args.bodyParams.length === requiredBody && args.bodyParams.every(Boolean);
+  const completeHeader = args.headerParams.length === requiredHeader && args.headerParams.every(Boolean);
+  const completeButtons = args.buttonParams.length === requiredButtons && args.buttonParams.every(Boolean);
+
+  const missingSections: string[] = [];
+  if (!completeBody) missingSections.push(`body:${requiredBody}`);
+  if (!completeHeader) missingSections.push(`header:${requiredHeader}`);
+  if (!completeButtons) missingSections.push(`buttons:${requiredButtons}`);
+  if (missingSections.length) {
+    throw new Error(`missing_template_params:${missingSections.join(",")}`);
+  }
+}
+
 function normalizeTemplatePayload(formData: FormData) {
   const templateKind = String(formData.get("templateKind") || "WHATSAPP_TEMPLATE").trim().toUpperCase();
   const waTemplateName = String(formData.get("waTemplateName") || "").trim();
@@ -117,7 +195,10 @@ function normalizeTemplatePayload(formData: FormData) {
       name: waTemplateName,
       language: waLanguage,
       processed_params: buildProcessedParams({ bodyParams, headerParams, buttonParams })
-    }
+    },
+    bodyParams,
+    headerParams,
+    buttonParams
   };
 }
 
@@ -163,6 +244,14 @@ export async function saveRealtime(formData: FormData) {
 
     const templateId = `tpl_rt_${key}`;
     const tplPayload = normalizeTemplatePayload(formData);
+    validateMappedParams({
+      name: tplPayload.chatwootTemplate.name,
+      language: tplPayload.chatwootTemplate.language,
+      bodyParams: tplPayload.bodyParams,
+      headerParams: tplPayload.headerParams,
+      buttonParams: tplPayload.buttonParams,
+      templates: await listAvailableWhatsappTemplates()
+    });
 
     const nextTemplates = templates.filter((t) => String(t.id) !== templateId);
     nextTemplates.push({
@@ -220,6 +309,14 @@ export async function saveReminder(formData: FormData) {
     const rules: NotificationRule[] = baseConfig.rules.slice();
 
     const tplPayload = normalizeTemplatePayload(formData);
+    validateMappedParams({
+      name: tplPayload.chatwootTemplate.name,
+      language: tplPayload.chatwootTemplate.language,
+      bodyParams: tplPayload.bodyParams,
+      headerParams: tplPayload.headerParams,
+      buttonParams: tplPayload.buttonParams,
+      templates: await listAvailableWhatsappTemplates()
+    });
     const tplNameBase = kind === "MORA" ? "Recordatorio en mora" : "Recordatorio de fecha de pago";
     const tplName = `${tplNameBase} (${paymentType === "SUBSCRIPTION" ? "débito automático" : "link de pago"})`;
 
