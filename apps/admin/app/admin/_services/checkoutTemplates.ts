@@ -39,10 +39,8 @@ export async function findCheckoutTemplateForProduct(args: {
 }) {
   const productId = String(args.productId || "").trim();
   if (!productId) return null;
-  const where: any = { active: true, kind: args.kind };
-  if (args.tenantId) where.tenantId = args.tenantId;
-  const items = await prisma.publicCheckoutTemplate.findMany({ where, orderBy: { updatedAt: "desc" } });
-  return items.find((t: any) => templateMatchesProduct(t, productId)) || null;
+  const items = await prisma.publicCheckoutTemplate.findMany({ where: { active: true, kind: args.kind }, orderBy: { updatedAt: "desc" } });
+  return items.find((t: any) => templateMatchesTenant(t, args.tenantId) && templateMatchesProduct(t, productId)) || null;
 }
 
 export async function findCheckoutTemplateForProductOrDefault(args: {
@@ -52,12 +50,10 @@ export async function findCheckoutTemplateForProductOrDefault(args: {
   defaultTemplateId?: string | null;
 }) {
   const resolvedProductId = String(args.productId || "").trim();
-  const where: any = { active: true, kind: args.kind };
-  if (args.tenantId) where.tenantId = args.tenantId;
-  const items = await prisma.publicCheckoutTemplate.findMany({ where, orderBy: { updatedAt: "desc" } });
+  const items = await prisma.publicCheckoutTemplate.findMany({ where: { active: true, kind: args.kind }, orderBy: { updatedAt: "desc" } });
 
   if (resolvedProductId) {
-    const matched = items.find((t: any) => templateMatchesProduct(t, resolvedProductId)) || null;
+    const matched = items.find((t: any) => templateMatchesTenant(t, args.tenantId) && templateMatchesProduct(t, resolvedProductId)) || null;
     if (matched) return matched;
   }
 

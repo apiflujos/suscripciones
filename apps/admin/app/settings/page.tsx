@@ -125,7 +125,7 @@ export default async function SettingsPage({
   const deepseekStatus = aiDeepseek?.configured ? "Activa" : "Inactiva";
   const deepseekPill = aiDeepseek?.configured ? "pill-green" : "pill-muted";
   const retryValueOptions = [1, 2, 3, 4, 5, 10, 15, 20, 30, 45, 60];
-  const maxRetriesOptions = [0, 1, 2, 3, 4, 5, 8, 10, 12, 15, 20];
+  const maxRetriesOptions = [1, 2, 3, 4, 5, 8, 10, 12, 15, 20];
   const retryEveryValue = Number(autoDebit?.retryEveryValue || 1);
   const retryEveryUnit = String(autoDebit?.retryEveryUnit || "MINUTES");
   const retryEveryMinutes = Number(autoDebit?.retryEveryMinutes || 60);
@@ -797,7 +797,6 @@ export default async function SettingsPage({
                   <div className="field">
                     <label>Unidad de reintento</label>
                     <select className="select" name="retryEveryUnit" defaultValue={String(retryEveryUnit)} data-auto-submit="true" disabled={!Boolean(autoDebit?.enabled) || !Boolean(autoDebit?.retryEnabled)}>
-                      <option value="SECONDS">Segundos</option>
                       <option value="MINUTES">Minutos</option>
                       <option value="HOURS">Horas</option>
                       <option value="DAYS">Días</option>

@@ -92,7 +92,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
   if (!hasProducts) {
     return Response.json({ error: "product_required" }, { status: 400 });
   }
-  if (Array.isArray(data.productIds) && data.productIds.length > 1) {
+  if (data.kind !== PublicCheckoutKind.CART && Array.isArray(data.productIds) && data.productIds.length > 1) {
     return Response.json({ error: "max_one_product" }, { status: 400 });
   }
 

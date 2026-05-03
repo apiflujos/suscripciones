@@ -188,8 +188,6 @@ export async function updateAutoDebitConfig(formData: FormData) {
   const computedRetryMinutes = Number.isFinite(retryEveryValueNumber) && retryEveryValueNumber > 0
     ? (() => {
         switch (retryEveryUnitNormalized) {
-          case "SECONDS":
-            return Math.max(1, Math.ceil(retryEveryValueNumber / 60));
           case "HOURS":
             return retryEveryValueNumber * 60;
           case "DAYS":

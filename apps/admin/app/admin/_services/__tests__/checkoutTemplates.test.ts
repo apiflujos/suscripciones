@@ -81,4 +81,18 @@ describe("checkout templates service", () => {
 
     expect(result?.id).toBe("tpl-default");
   });
+
+  it("matches global templates for a tenant-scoped request", async () => {
+    findManyMock.mockResolvedValue([
+      { id: "tpl-global", active: true, kind: PublicCheckoutKind.SUBSCRIPTION, tenantId: null, productIds: [{ id: "prod-1" }] }
+    ]);
+
+    const result = await findCheckoutTemplateForProductOrDefault({
+      tenantId: "tenant-1",
+      kind: PublicCheckoutKind.SUBSCRIPTION,
+      productId: "prod-1"
+    });
+
+    expect(result?.id).toBe("tpl-global");
+  });
 });

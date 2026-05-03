@@ -206,6 +206,19 @@ describe("notificationsScheduler", () => {
     );
   });
 
+  it("envia SUBSCRIPTION_DUE inline cuando forceNow=true", async () => {
+    vi.mocked(prisma.subscription.findUnique).mockResolvedValue({
+      id: "sub-1",
+      customerId: "cus-1"
+    } as any);
+
+    const result = await scheduleSubscriptionDueNotifications({ subscriptionId: "sub-1", forceNow: true });
+
+    expect(vi.mocked(subscriptionReminder)).toHaveBeenCalledTimes(1);
+    expect(result.sentNow).toBe(1);
+    expect(result.scheduled).toBe(0);
+  });
+
   it("programa PAYMENT_APPROVED como SUBSCRIPTION_REMINDER", async () => {
     vi.mocked(resolveSubscriptionBillingState).mockResolvedValue({
       subscription: { plan: { metadata: { collectionMode: "AUTO_LINK" } } }
@@ -231,6 +244,26 @@ describe("notificationsScheduler", () => {
         })
       })
     );
+  });
+
+  it("envia PAYMENT_APPROVED inline cuando forceNow=true y reporta sentNow", async () => {
+    vi.mocked(resolveSubscriptionBillingState).mockResolvedValue({
+      subscription: { plan: { metadata: { collectionMode: "AUTO_DEBIT" } } }
+    } as any);
+    vi.mocked(prisma.payment.findUnique).mockResolvedValue({
+      id: "pay-1",
+      customerId: "cus-1",
+      subscriptionId: "sub-1",
+      status: "APPROVED",
+      providerResponse: {},
+      reference: "SUB_sub-1_1"
+    } as any);
+
+    const result = await schedulePaymentStatusNotifications({ paymentId: "pay-1", forceNow: true });
+
+    expect(vi.mocked(subscriptionReminder)).toHaveBeenCalledTimes(1);
+    expect(result.sentNow).toBe(1);
+    expect(result.scheduled).toBe(0);
   });
 
   it("programa PAYMENT_LINK_CREATED y TOKENIZATION_LINK_CREATED como SUBSCRIPTION_REMINDER", async () => {

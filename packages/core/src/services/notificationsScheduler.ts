@@ -130,6 +130,8 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
   const anchorIso = anchorAt.toISOString();
 
   let scheduled = 0;
+  let sentNow = 0;
+  const errors: string[] = [];
   for (const rule of rules) {
     const offsetsSecondsBase = resolveOffsetsSeconds(rule as NotificationRule);
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
@@ -137,19 +139,6 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
-      const existing = await prisma.retryJob.findFirst({
-        where: {
-          type: RetryJobType.SUBSCRIPTION_REMINDER,
-          payload: { path: ["subscriptionId"], equals: sub.id } as any,
-          AND: [
-            { payload: { path: ["ruleId"], equals: rule.id } as any },
-            { payload: { path: ["offsetSeconds"], equals: offsetSeconds } as any },
-            { payload: { path: ["cycleNumber"], equals: collectionCycle.cycleNumber } as any },
-            { payload: { path: ["anchorAt"], equals: anchorIso } as any }
-          ]
-        } as any
-      });
-      if (existing) continue;
       const payload: SubscriptionDueJobPayload = {
         trigger: "SUBSCRIPTION_DUE",
         ruleId: rule.id,
@@ -159,8 +148,30 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
         cycleNumber: collectionCycle.cycleNumber,
         anchorAt: anchorIso
       };
-      await enqueueNotificationJob(runAt, payload);
-      scheduled++;
+      if (!args.forceNow) {
+        const existing = await prisma.retryJob.findFirst({
+          where: {
+            type: RetryJobType.SUBSCRIPTION_REMINDER,
+            payload: { path: ["subscriptionId"], equals: sub.id } as any,
+            AND: [
+              { payload: { path: ["ruleId"], equals: rule.id } as any },
+              { payload: { path: ["offsetSeconds"], equals: offsetSeconds } as any },
+              { payload: { path: ["cycleNumber"], equals: collectionCycle.cycleNumber } as any },
+              { payload: { path: ["anchorAt"], equals: anchorIso } as any }
+            ]
+          } as any
+        });
+        if (existing) continue;
+        await enqueueNotificationJob(runAt, payload);
+        scheduled++;
+      } else {
+        const result = await subscriptionReminder({ ...payload, immediateSend: true }).catch((err) => {
+          logger.warn({ err, subscriptionId: sub.id }, '[Notifications/Schedule] Fallo en envío inline de subscription due');
+          return { ok: false, error: err?.message ? String(err.message) : "unknown_error" } as const;
+        });
+        if (result && "ok" in result && result.ok) sentNow++;
+        else if (result && "ok" in result && !result.ok) errors.push((result as any).error || "chatwoot_send_failed");
+      }
     }
   }
 
@@ -175,14 +186,15 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
       customerId: sub.customerId,
       currentPeriodEndAt: new Date(collectionCycle.periodEndAt).toISOString(),
       rulesCount: rules.length,
-      scheduled
+      scheduled,
+      sentNow
     },
     args.actor || SystemActor.JOB_SUBSCRIPTION_REMINDER
   ).catch((err) => {
     logger.warn({ err, subscriptionId: sub.id }, '[Notifications/Schedule] Fallo creando systemLog');
   });
 
-  return { scheduled, sentNow: 0, rulesActive: rules.length > 0, errors: [] };
+  return { scheduled, sentNow, rulesActive: rules.length > 0, errors };
 }
 
 export async function schedulePaymentStatusNotifications(args: { paymentId: string; forceNow?: boolean; actor?: string }): Promise<NotificationScheduleResult> {
@@ -232,6 +244,8 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
   const anchorIso = anchorAt.toISOString();
 
   let scheduled = 0;
+  let sentNow = 0;
+  const errors: string[] = [];
   for (const rule of rules) {
     const offsetsSecondsBase = resolveOffsetsSeconds(rule as NotificationRule);
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
@@ -254,9 +268,12 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
         await enqueueNotificationJob(runAt, jobPayload);
         scheduled++;
       } else {
-        await subscriptionReminder(jobPayload).catch((err) => {
+        const result = await subscriptionReminder({ ...jobPayload, immediateSend: true }).catch((err) => {
           logger.warn({ err, paymentId, trigger }, '[Notifications/Schedule] Fallo en envío inline de payment status');
+          return { ok: false, error: err?.message ? String(err.message) : "unknown_error" } as const;
         });
+        if (result && "ok" in result && result.ok) sentNow++;
+        else if (result && "ok" in result && !result.ok) errors.push((result as any).error || "chatwoot_send_failed");
       }
     }
   }
@@ -269,14 +286,15 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
       trigger,
       environment: await getNotificationsActiveEnv(),
       paymentId: payment.id,
-      scheduled
+      scheduled,
+      sentNow
     },
     args.actor || SystemActor.SYSTEM
   ).catch((err) => {
     logger.warn({ err, paymentId }, '[Notifications/Schedule] Fallo creando systemLog');
   });
 
-  return { scheduled, sentNow: 0, rulesActive: rules.length > 0, errors: [] };
+  return { scheduled, sentNow, rulesActive: rules.length > 0, errors };
 }
 
 export async function schedulePaymentLinkNotifications(args: { paymentId: string; forceNow?: boolean; actor?: string }) {
