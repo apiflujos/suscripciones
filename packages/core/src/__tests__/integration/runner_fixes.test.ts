@@ -78,6 +78,16 @@ describe("Runner: Cursor pagination (Fix #2)", () => {
     expect(content).toContain("} while (true)");
     expect(content).toContain("if (subs.length < PAGE_SIZE) break");
   });
+
+  it("should rely on isBillingCyclePaid instead of paymentId presence when deciding cutoff retries", async () => {
+    const fs = await import("fs");
+    const path = await import("path");
+    const runnerPath = path.resolve(__dirname, "../../jobs/runner.ts");
+    const content = fs.readFileSync(runnerPath, "utf-8");
+
+    expect(content).toContain("const collectionCyclePaid = isBillingCyclePaid(collectionCycle);");
+    expect(content).not.toContain('Boolean(collectionCycle?.paymentId) || String(collectionCycle?.status || "").toUpperCase() === "PAID"');
+  });
 });
 
 describe("Webhook Route: Job deduplication (Fix #3)", () => {
