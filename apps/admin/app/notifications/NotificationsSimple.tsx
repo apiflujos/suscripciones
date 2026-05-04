@@ -116,8 +116,8 @@ function WaTemplateFields({
   defaultParams?: string;
   defaultHeaderParams?: string;
   defaultButtonParams?: string;
-  variables: Array<{ label: string; value: string }>;
-  buttonVariables: Array<{ label: string; value: string }>;
+  variables: Array<{ label: string; value: string; recommended?: boolean }>;
+  buttonVariables: Array<{ label: string; value: string; recommended?: boolean }>;
   onSync?: () => void;
   syncing?: boolean;
   syncError?: string;
