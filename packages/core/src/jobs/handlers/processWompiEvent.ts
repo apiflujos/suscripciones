@@ -18,7 +18,7 @@ import { GAMIFICATION_WEIGHTS, moneyToPoints } from "../../services/gamification
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 import { publishRealtime } from "../../services/realtimePublisher";
 import { ensurePaymentRetryJob } from "../../services/retryJobScheduler";
-import { attachPaymentToCycle, attachPaymentToMatchingCycle, buildSubscriptionSeed, computeBillingCycleDueAt, ensureBillingCyclesForSubscriptions, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "../../services/billingCycles";
+import { attachPaymentToCycle, attachPaymentToMatchingCycle, buildSubscriptionSeed, computeBillingCycleDueAt, ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "../../services/billingCycles";
 import { getExpectedSubscriptionTotalInCents, getPlanCollectionMode } from "../../lib/metadataSchemas";
 
 type WompiCustomerData = {
