@@ -37,6 +37,18 @@ function renderTemplate(content: string, ctx: any) {
   });
 }
 
+function formatCycleLabel(value: Date | null | undefined, timeZone: string) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const formatted = new Intl.DateTimeFormat("es-CO", {
+    month: "long",
+    year: "numeric",
+    timeZone
+  }).format(date);
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
+
 function extractTemplatePaths(input: any): string[] {
   const out: string[] = [];
   const walk = (value: any) => {
@@ -566,13 +578,23 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   const catalogUrlFromPayload = parsed.data.trigger === "CATALOG_LINK_CREATED" ? parsed.data.catalogUrl : "";
   const tokenizationUrl = tokenUrlFromPayload || String(effectiveTokenizationLink?.url || "").trim() || "";
   const catalogUrl = catalogUrlFromPayload || String(effectiveCartLink?.url || "").trim() || "";
+  const timeZone = await getAppTimeZone().catch((err: any) => {
+    logger.warn({ err }, "subscriptionReminder: fallo resolviendo zona horaria, usando America/Bogota");
+    return "America/Bogota";
+  });
+  const activeCycleLabel = activeCycle?.periodStartAt ? formatCycleLabel(activeCycle.periodStartAt, timeZone) : null;
+  const collectionCycleLabel = collectionCycle?.periodStartAt
+    ? formatCycleLabel(collectionCycle.periodStartAt, timeZone)
+    : activeCycleLabel;
   const subscriptionTemplate = subscription
       ? {
         ...subscription,
         activeCycleNumber: activeCycle?.cycleNumber ?? null,
+        activeCycleLabel,
         activeCycleStartAt: activeCycle?.periodStartAt ?? null,
         activeCycleEndAt: activeCycle?.periodEndAt ?? null,
         collectionCycleNumber: collectionCycle?.cycleNumber ?? null,
+        collectionCycleLabel,
         nextBillingDate: collectionCycle?.dueAt ?? activeCycle?.periodEndAt ?? null,
         currentCycle: activeCycle?.cycleNumber ?? null,
         currentPeriodStartAt: activeCycle?.periodStartAt ?? null,
@@ -585,10 +607,6 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   const paymentWithPesos = effectivePayment
     ? { ...effectivePayment, amountInPesos: centsToPesos(effectivePayment.amountInCents) }
     : null;
-  const timeZone = await getAppTimeZone().catch((err: any) => {
-    logger.warn({ err }, "subscriptionReminder: fallo resolviendo zona horaria, usando America/Bogota");
-    return "America/Bogota";
-  });
   const ctx = {
     __tz: timeZone,
     customer,
