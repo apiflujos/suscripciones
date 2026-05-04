@@ -43,6 +43,44 @@ type ChatwootTemplate = {
   components?: any[];
 };
 
+function extractPlaceholderIndexes(value: unknown): number[] {
+  if (typeof value !== "string") return [];
+  const matches = value.match(/\{\{\s*(\d+)\s*\}\}/g) || [];
+  return matches
+    .map((match) => {
+      const num = Number(match.replace(/[^\d]/g, ""));
+      return Number.isFinite(num) ? Math.max(0, Math.trunc(num)) : 0;
+    })
+    .filter((num) => num > 0);
+}
+
+function countPlaceholderSlotsFromText(value: unknown) {
+  const indexes = extractPlaceholderIndexes(value);
+  return indexes.length ? Math.max(...indexes) : 0;
+}
+
+function countPlaceholderSlotsFromExample(value: unknown): number {
+  if (Array.isArray(value)) {
+    return value.reduce((max, item) => Math.max(max, countPlaceholderSlotsFromExample(item)), 0);
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).reduce(
+      (max, item) => Math.max(max, countPlaceholderSlotsFromExample(item)),
+      0
+    );
+  }
+  return 0;
+}
+
+function countExampleValueSlots(value: unknown): number {
+  if (!Array.isArray(value)) return 0;
+  return value.reduce((max, item) => {
+    if (Array.isArray(item)) return Math.max(max, item.filter((entry) => entry != null && String(entry).trim() !== "").length);
+    if (item && typeof item === "object") return Math.max(max, countExampleValueSlots(Object.values(item)));
+    return max;
+  }, 0);
+}
+
 type Rule = {
   id: string;
   name: string;
@@ -142,10 +180,11 @@ function WaTemplateFields({
     const comps = selectedTemplate?.components || [];
     const body = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BODY") as any;
     if (!body) return 0;
-    const text = String(body?.text || "");
-    const matches = text.match(/\{\{\d+\}\}/g) || [];
-    const countByText = matches.length;
-    const countByExample = Array.isArray(body?.example?.body_text) ? (body.example.body_text[0]?.length || 0) : 0;
+    const countByText = countPlaceholderSlotsFromText(body?.text);
+    const countByExample = Math.max(
+      countPlaceholderSlotsFromExample(body?.example),
+      countExampleValueSlots(body?.example?.body_text)
+    );
     return Math.max(countByText, countByExample, bodyParams.length);
   }, [selectedTemplate, bodyParams.length]);
 
@@ -155,10 +194,13 @@ function WaTemplateFields({
     if (!header) return 0;
     const fmt = String(header?.format || header?.format_type || "").toUpperCase();
     if (fmt && fmt !== "TEXT") return 0;
-    const text = String(header?.text || "");
-    const matches = text.match(/\{\{\d+\}\}/g) || [];
-    const countByText = matches.length;
-    const countByExample = Array.isArray(header?.example?.header_text) ? header.example.header_text.length : 0;
+    const countByText = countPlaceholderSlotsFromText(header?.text);
+    const countByExample = Math.max(
+      countPlaceholderSlotsFromExample(header?.example),
+      Array.isArray(header?.example?.header_text)
+        ? header.example.header_text.filter((entry: unknown) => entry != null && String(entry).trim() !== "").length
+        : 0
+    );
     return Math.max(countByText, countByExample, headerParams.length);
   }, [selectedTemplate, headerParams.length]);
 
@@ -167,7 +209,12 @@ function WaTemplateFields({
     const buttons = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BUTTONS") as any;
     if (!buttons || !Array.isArray(buttons?.buttons)) return 0;
     const urlButtons = buttons.buttons.filter((b: any) => String(b?.type || "").toUpperCase() === "URL");
-    return Math.max(urlButtons.length, buttonParams.length);
+    const byUrlPlaceholders = urlButtons.reduce(
+      (max: number, button: any) => Math.max(max, countPlaceholderSlotsFromText(button?.url), countPlaceholderSlotsFromExample(button?.example)),
+      0
+    );
+    const inferred = byUrlPlaceholders > 0 ? byUrlPlaceholders : urlButtons.length;
+    return Math.max(inferred, buttonParams.length);
   }, [selectedTemplate, buttonParams.length]);
 
   const templateBody = useMemo(() => {
@@ -190,6 +237,17 @@ function WaTemplateFields({
       return val ? String(val) : `{{${n}}}`;
     });
   }, [templateBody, bodyParams]);
+
+  const templateButtons = useMemo(() => {
+    const comps = selectedTemplate?.components || [];
+    const buttons = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BUTTONS") as any;
+    if (!buttons || !Array.isArray(buttons?.buttons)) return [] as Array<{ type: string; text: string; url?: string | null }>;
+    return buttons.buttons.map((button: any) => ({
+      type: String(button?.type || "").toUpperCase(),
+      text: String(button?.text || button?.label || "Botón").trim() || "Botón",
+      url: button?.url ? String(button.url) : null
+    }));
+  }, [selectedTemplate]);
 
   const ensureLength = (values: string[], count: number) => {
     if (!count) return [];
@@ -244,6 +302,47 @@ function WaTemplateFields({
         <label>Mensaje</label>
         <textarea className="input input-compact" rows={6} readOnly value={templatePreview || templateBody} />
       </div>
+      {templateButtons.length ? (
+        <div className="field">
+          <label>Botones detectados</label>
+          <div
+            style={{
+              display: "grid",
+              gap: 8,
+              padding: 12,
+              border: "1px solid var(--stroke)",
+              borderRadius: 12,
+              background: "var(--panel)"
+            }}
+          >
+            {templateButtons.map((button, idx) => {
+              const mappedValue = button.type === "URL" ? buttonParams[idx] || "" : "";
+              return (
+                <div
+                  key={`preview-button-${idx}`}
+                  style={{
+                    display: "grid",
+                    gap: 4,
+                    padding: "10px 12px",
+                    border: "1px solid var(--stroke)",
+                    borderRadius: 10,
+                    background: "var(--card)"
+                  }}
+                >
+                  <div style={{ fontWeight: 600 }}>{button.text}</div>
+                  <div className="muted" style={{ fontSize: 12 }}>
+                    {button.type === "URL"
+                      ? mappedValue
+                        ? `Variable del botón: ${mappedValue}`
+                        : "Botón URL: requiere seleccionar una variable"
+                      : `Botón ${button.type || "estático"}: no requiere variable`}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
       <div className="field">
         <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span>Parámetros</span>
