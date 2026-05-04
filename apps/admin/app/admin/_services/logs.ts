@@ -691,25 +691,27 @@ export async function listChatwootMessages(args: {
     ];
   }
   if (q) {
-    const qOr = [
-      { content: { contains: q, mode: "insensitive" } },
-      { errorMessage: { contains: q, mode: "insensitive" } },
-      { to: { contains: q, mode: "insensitive" } },
-      { actor: { contains: q, mode: "insensitive" } },
+    const insensitive = Prisma.QueryMode.insensitive;
+    const qOr: Prisma.ChatwootMessageWhereInput[] = [
+      { content: { contains: q, mode: insensitive } },
+      { errorMessage: { contains: q, mode: insensitive } },
+      { to: { contains: q, mode: insensitive } },
+      { actor: { contains: q, mode: insensitive } },
       {
         customer: {
           is: {
             OR: [
-              { name: { contains: q, mode: "insensitive" } },
-              { email: { contains: q, mode: "insensitive" } },
-              { phone: { contains: q, mode: "insensitive" } }
+              { name: { contains: q, mode: insensitive } },
+              { email: { contains: q, mode: insensitive } },
+              { phone: { contains: q, mode: insensitive } }
             ]
           }
         }
       }
     ];
+    const qWhere: Prisma.ChatwootMessageWhereInput = { OR: qOr };
     if (Array.isArray(where.AND) && where.AND.length) {
-      where.AND = [...where.AND, { OR: qOr }];
+      where.AND = [...where.AND, qWhere];
     } else {
       where.OR = qOr;
     }
