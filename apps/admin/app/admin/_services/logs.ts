@@ -121,6 +121,16 @@ export async function listPaymentLogs(args: {
   const include = {
     subscription: { include: { plan: true, product: true, customer: true } },
     customer: true,
+    billingCycle: {
+      select: {
+        id: true,
+        cycleNumber: true,
+        status: true,
+        dueAt: true,
+        periodStartAt: true,
+        periodEndAt: true
+      }
+    },
     attempts: { orderBy: { createdAt: "desc" }, take: 1 }
   } as const;
 
@@ -241,12 +251,24 @@ export async function listPaymentLogs(args: {
       (item.subscriptionId && notificationBySubscriptionId.get(String(item.subscriptionId))) ||
       null;
     const candidateSubscriptions = subsByCustomerTenant.get(`${item.customerId}:${item.tenantId}`) || [];
-    const candidateCycles = candidateSubscriptions.flatMap((s) =>
-      (cyclesBySubscription.get(s.id) || []).map((c) => ({
-        ...c,
-        planName: planBySubscription.get(s.id) || "Plan"
-      }))
-    );
+    const candidateCyclesSource = item.subscriptionId
+      ? (cyclesBySubscription.get(String(item.subscriptionId)) || []).map((c) => ({
+          ...c,
+          planName: planBySubscription.get(String(item.subscriptionId)) || "Plan"
+        }))
+      : candidateSubscriptions.flatMap((s) =>
+          (cyclesBySubscription.get(s.id) || []).map((c) => ({
+            ...c,
+            planName: planBySubscription.get(s.id) || "Plan"
+          }))
+        );
+    const candidateCycles = candidateCyclesSource
+      .filter((cycle) => String(cycle.status || "").toUpperCase() !== "PAID" || String(cycle.paymentId || "") === String(item.id || ""))
+      .sort((a, b) => {
+        const dueDiff = new Date(a.dueAt || a.periodEndAt).getTime() - new Date(b.dueAt || b.periodEndAt).getTime();
+        if (dueDiff !== 0) return dueDiff;
+        return Number(a.cycleNumber || 0) - Number(b.cycleNumber || 0);
+      });
     const resolvedProductId =
       String(item.subscription?.productId || "").trim() ||
       String((item.subscription?.plan as any)?.catalogProductId || item.subscription?.plan?.metadata?.catalog?.itemId || "").trim() ||

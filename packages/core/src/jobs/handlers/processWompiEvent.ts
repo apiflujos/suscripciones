@@ -800,9 +800,6 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   const prevStatus = prevByTx?.status ?? paymentMatched?.status ?? null;
   const nextStatus = resolvePersistedPaymentStatus(prevStatus, paymentStatus);
 
-  const cycleFromRef = referenceClassification.kind === "subscription" ? referenceClassification.cycle ?? null : null;
-  const cycle = paymentMatched?.cycleNumber ?? cycleFromRef ?? associationCycleNumber ?? 1;
-  const subscriptionCycleKey = subscription ? `${subscription.id}:${cycle}` : null;
   const wasApproved = prevStatus === PaymentStatus.APPROVED;
   const wasFailed = prevStatus === PaymentStatus.DECLINED || prevStatus === PaymentStatus.ERROR || prevStatus === PaymentStatus.VOIDED;
 
@@ -814,6 +811,56 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       ? (paidAtFromPayload ?? providerEventAt ?? event.receivedAt ?? now)
       : null;
   const computedFailedAt = nextStatus && nextStatus !== PaymentStatus.APPROVED && nextStatus !== PaymentStatus.PENDING ? now : null;
+  const associationAt = paidAt ?? paidAtFromPayload ?? providerEventAt ?? event.receivedAt ?? now;
+
+  const cycleFromRef = referenceClassification.kind === "subscription" ? referenceClassification.cycle ?? null : null;
+  let cycle = cycleFromRef ?? associationCycleNumber ?? null;
+
+  if (subscription && cycle == null) {
+    if (db === prisma) {
+      await ensureBillingCyclesForSubscriptions([
+        buildSubscriptionSeed({
+          id: subscription.id,
+          startAt: subscription.startAt,
+          cycleStartDay: subscription.cycleStartDay,
+          paymentDay: subscription.paymentDay,
+          paymentTiming: subscription.paymentTiming as any,
+          graceDays: subscription.graceDays,
+          plan: {
+            intervalUnit: subscription.plan.intervalUnit as any,
+            intervalCount: subscription.plan.intervalCount
+          }
+        })
+      ]).catch((err) => {
+        logger.warn({ err, subscriptionId: subscription.id }, "processWompiEvent: fallo asegurando ciclos para inferir ciclo del pago");
+      });
+    }
+
+    const candidateCycles = await db.subscriptionBillingCycle.findMany({
+      where: {
+        subscriptionId: subscription.id,
+        paymentId: null,
+        status: { not: BillingCycleStatus.PAID }
+      },
+      orderBy: [{ dueAt: "asc" }, { cycleNumber: "asc" }]
+    }).catch((err) => {
+      logger.warn({ err, subscriptionId: subscription.id }, "processWompiEvent: fallo leyendo ciclos candidatos para inferir ciclo del pago");
+      return [];
+    });
+
+    const inferredMatch = findBestBillingCycleForPayment({
+      cycles: candidateCycles,
+      paymentAt: associationAt,
+      toleranceDays: 7
+    });
+    if (inferredMatch) {
+      cycle = inferredMatch.cycleNumber;
+      associationCycleId = associationCycleId || inferredMatch.id;
+      associationCycleNumber = associationCycleNumber ?? inferredMatch.cycleNumber;
+    }
+  }
+
+  const subscriptionCycleKey = subscription && cycle != null ? `${subscription.id}:${cycle}` : null;
 
   const shouldIgnoreUnlinked = !subscription && !paymentsCfg.acceptUnlinkedPayments;
   const reconciliationForUnlinked = shouldIgnoreUnlinked
@@ -1093,7 +1140,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     checkoutUrlResolved;
   const wompiTransactionUpdate = transactionId ? { wompiTransactionId: transactionId } : {};
   const inferredSubscriptionCycleKey =
-    subscription && Number.isFinite(Number(cycle)) ? `${subscription.id}:${cycle}` : null;
+    subscription && cycle != null && Number.isFinite(Number(cycle)) ? `${subscription.id}:${cycle}` : null;
   let canAssignSubscriptionCycleKey = false;
   if (paymentResolved?.id && inferredSubscriptionCycleKey) {
     const sameCycle = await db.payment.findUnique({
@@ -1136,7 +1183,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
             ? {
                 subscriptionId: subscription.id,
                 customerId: subscription.customerId,
-                cycleNumber: paymentResolved.cycleNumber ?? cycle
+                cycleNumber: cycle ?? paymentResolved.cycleNumber ?? undefined
               }
             : {}),
           ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
@@ -1146,50 +1193,74 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
               : paymentResolved.subscriptionCycleKey
         }
       })
-    : await db.payment.upsert({
-        where: { subscriptionCycleKey: subscriptionCycleKey as string },
-        create: {
-          tenant: { connect: { id: tenantIdForPayment! } },
-          customer: { connect: { id: subscription!.customerId } },
-          subscription: { connect: { id: subscription!.id } },
-          amountInCents: amountInCents ?? 0,
-          currency: currency ?? "COP",
-          cycleNumber: cycle,
-          reference: reference ?? `SUB_${subscription!.id}_${cycle}`,
-          ...wompiTransactionUpdate,
-          wompiPaymentLinkId: paymentLinkId,
-          ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
-          ...(nextStatus ? { status: nextStatus } : {}),
-          paidAt,
-          failedAt: computedFailedAt,
-          origin,
-          associationReason: associationReason as any,
-          associatedBy: "system",
-          ...matchMetaData,
-          providerResponse: { webhook: payload } as Prisma.InputJsonValue,
-          subscriptionCycleKey: subscriptionCycleKey as string
-        },
-        update: {
-          ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
-          ...wompiTransactionUpdate,
-          ...(nextStatus ? { status: nextStatus } : {}),
-          paidAt,
-          failedAt:
-            nextStatus === PaymentStatus.APPROVED
-              ? null
-              : nextStatus === PaymentStatus.PENDING
-                ? prevByTx?.failedAt ?? null
-                : prevByTx?.failedAt ?? computedFailedAt,
-          origin: (prevByTx as any)?.origin ?? origin,
-          associationReason: (prevByTx as any)?.associationReason ?? (associationReason as any),
-          associatedBy: (prevByTx as any)?.associatedBy ?? "system",
-          ...matchMetaData,
-          providerResponse: { webhook: payload } as Prisma.InputJsonValue,
-          reference: reference ?? undefined,
-          ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
-          wompiPaymentLinkId: paymentLinkId ?? undefined
-        }
-      });
+    : subscriptionCycleKey
+      ? await db.payment.upsert({
+          where: { subscriptionCycleKey },
+          create: {
+            tenant: { connect: { id: tenantIdForPayment! } },
+            customer: { connect: { id: subscription!.customerId } },
+            subscription: { connect: { id: subscription!.id } },
+            amountInCents: amountInCents ?? 0,
+            currency: currency ?? "COP",
+            cycleNumber: cycle ?? undefined,
+            reference: reference ?? `SUB_${subscription!.id}_${cycle}`,
+            ...wompiTransactionUpdate,
+            wompiPaymentLinkId: paymentLinkId,
+            ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
+            ...(nextStatus ? { status: nextStatus } : {}),
+            paidAt,
+            failedAt: computedFailedAt,
+            origin,
+            associationReason: associationReason as any,
+            associatedBy: "system",
+            ...matchMetaData,
+            providerResponse: { webhook: payload } as Prisma.InputJsonValue,
+            subscriptionCycleKey
+          },
+          update: {
+            ...(tenantIdForPayment ? { tenantId: tenantIdForPayment } : {}),
+            ...wompiTransactionUpdate,
+            ...(nextStatus ? { status: nextStatus } : {}),
+            paidAt,
+            failedAt:
+              nextStatus === PaymentStatus.APPROVED
+                ? null
+                : nextStatus === PaymentStatus.PENDING
+                  ? prevByTx?.failedAt ?? null
+                  : prevByTx?.failedAt ?? computedFailedAt,
+            origin: (prevByTx as any)?.origin ?? origin,
+            associationReason: (prevByTx as any)?.associationReason ?? (associationReason as any),
+            associatedBy: (prevByTx as any)?.associatedBy ?? "system",
+            ...matchMetaData,
+            providerResponse: { webhook: payload } as Prisma.InputJsonValue,
+            reference: reference ?? undefined,
+            cycleNumber: cycle ?? undefined,
+            ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
+            wompiPaymentLinkId: paymentLinkId ?? undefined
+          }
+        })
+      : await db.payment.create({
+          data: {
+            tenant: { connect: { id: tenantIdForPayment! } },
+            customer: { connect: { id: subscription!.customerId } },
+            subscription: { connect: { id: subscription!.id } },
+            amountInCents: amountInCents ?? 0,
+            currency: currency ?? "COP",
+            cycleNumber: cycle ?? undefined,
+            reference: reference ?? `SUB_${subscription!.id}`,
+            ...wompiTransactionUpdate,
+            wompiPaymentLinkId: paymentLinkId,
+            ...(resolvedCheckoutUrl ? { checkoutUrl: resolvedCheckoutUrl } : {}),
+            ...(nextStatus ? { status: nextStatus } : {}),
+            paidAt,
+            failedAt: computedFailedAt,
+            origin,
+            associationReason: associationReason as any,
+            associatedBy: "system",
+            ...matchMetaData,
+            providerResponse: { webhook: payload } as Prisma.InputJsonValue
+          }
+        });
 
   if (paymentRecord.subscriptionId && paymentRecord.paidAt) {
     if (associationCycleId) {

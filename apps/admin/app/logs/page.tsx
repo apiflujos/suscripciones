@@ -1325,6 +1325,8 @@ export default async function LogsPage({
                             ? "pill-ok"
                             : "pill-muted";
                     const notif = p.notification;
+                    const needsCycleAssociation = Boolean(p.subscriptionId) && !p.billingCycle;
+                    const canShowAssociationBlock = !p.subscriptionId || needsCycleAssociation;
                     const notifStatus = String(notif?.status || "").toUpperCase();
                     const notifType = String(notif?.type || "").toUpperCase();
                     const notifOffset = Number((notif as any)?.providerResp?.meta?.offsetSeconds ?? 0);
@@ -1431,8 +1433,8 @@ export default async function LogsPage({
                               ) : null}
                             </div>
 
-                            {/* Secondary actions — only shown when no subscription linked */}
-                            {!p.subscriptionId ? (
+                            {/* Secondary actions — shown for unlinked payments and linked payments still missing cycle association */}
+                            {canShowAssociationBlock ? (
                               <div className="log-actions-row log-actions-secondary">
                                 {!p.subscriptionId && contactId ? (
                                   <PaymentCreateSubscriptionModal
@@ -1467,21 +1469,27 @@ export default async function LogsPage({
                                   <input type="hidden" name="paymentId" value={String(p.id || "")} />
                                   <input type="hidden" name="tenantId" value={String(tenantId || p.tenantId || "")} />
                                   <input type="hidden" name="returnTo" value={returnTo} />
+                                  {String(p.subscriptionId || "").trim()
+                                    ? <input type="hidden" name="subscriptionId" value={String(p.subscriptionId || "")} />
+                                    : null}
                                   {Array.isArray(p.candidateCycles) && p.candidateCycles.length ? (
                                     <select className="select select-sm" name="cycleId" defaultValue="">
                                       <option value="">Ciclo…</option>
                                       {p.candidateCycles.map((c: any) => {
                                         const start = c.periodStartAt ? new Date(c.periodStartAt) : null;
                                         const end = c.periodEndAt ? new Date(c.periodEndAt) : null;
+                                        const due = c.dueAt ? new Date(c.dueAt) : null;
                                         const fmt = (d: Date | null) =>
                                           d ? new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" }).format(d) : "—";
                                         return (
                                           <option key={c.id} value={c.id}>
-                                            ciclo {c.cycleNumber}
+                                            ciclo {c.cycleNumber} · vence {fmt(due)} · {fmt(start)} → {fmt(end)}
                                           </option>
                                         );
                                       })}
                                     </select>
+                                  ) : String(p.subscriptionId || "").trim() ? (
+                                    <span className="muted" style={{ fontSize: 12 }}>Sin ciclos abiertos</span>
                                   ) : (
                                     <input
                                       className="input input-sm"
@@ -1491,7 +1499,7 @@ export default async function LogsPage({
                                     />
                                   )}
                                   <PendingButton className="ghost btn-compact btn-noicon" type="submit" pendingText="Asociando...">
-                                    Asociar
+                                    {needsCycleAssociation ? "Asociar ciclo" : "Asociar"}
                                   </PendingButton>
                                 </form>
                               </div>

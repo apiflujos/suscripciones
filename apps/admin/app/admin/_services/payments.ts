@@ -9,7 +9,6 @@ import {
   ensureBillingCyclesForSubscription,
   findBestBillingCycleForPayment,
   isBillingCyclePaid,
-  resolveConfiguredCollectionCycle,
   resolveSubscriptionBillingState
 } from "@suscripciones/core/services/billingCycles";
 import { getExpectedSubscriptionTotalInCents } from "@suscripciones/core/lib/metadataSchemas";
@@ -142,25 +141,6 @@ export function buildUniquePaymentCycleSuggestions(args: {
     let requiresManualReview = false;
 
     if (!suggested && remainingCycles.length) {
-      const configured = resolveConfiguredCollectionCycle({
-          cycles: remainingCycles,
-          asOf: paymentAt,
-          paymentTiming: args.paymentTiming
-        }) || null;
-      suggested = configured
-        ? {
-            id: String(configured.id),
-            cycleNumber: configured.cycleNumber,
-            periodStartAt: new Date(configured.periodStartAt),
-            periodEndAt: new Date(configured.periodEndAt),
-            dueAt: new Date(configured.dueAt),
-            status: String(configured.status || "PENDING"),
-            paymentId: configured.paymentId ?? null
-          }
-        : null;
-    }
-
-    if (!suggested && remainingCycles.length) {
       const fallback = findBestBillingCycleForPayment({
           cycles: remainingCycles,
           paymentAt,
@@ -179,7 +159,7 @@ export function buildUniquePaymentCycleSuggestions(args: {
           }
         : null;
       reasonCode = "FALLBACK";
-      requiresManualReview = true;
+      requiresManualReview = !hintedByCycleNumber && !hintedByReference;
     }
 
     if (suggested) {
@@ -191,11 +171,7 @@ export function buildUniquePaymentCycleSuggestions(args: {
     const explanation =
       reasonCode === "REFERENCE_MATCH"
         ? `Se sugiere por referencia o ciclo ya inferido del pago.`
-        : reasonCode === "ANTICIPADO"
-          ? `Pago anticipado: se propone el siguiente ciclo disponible según la fecha del pago.`
-          : reasonCode === "EN_CURSO"
-            ? `Pago en curso: se propone el ciclo activo para la fecha del pago.`
-            : `No hubo coincidencia clara por regla principal; se propone el ciclo libre más cercano y requiere revisión manual.`;
+        : `Se propone el mejor ciclo abierto según la fecha del pago, priorizando el ciclo vencido más antiguo.`;
 
     suggestions.push({
       payment: serializePayment(payment),

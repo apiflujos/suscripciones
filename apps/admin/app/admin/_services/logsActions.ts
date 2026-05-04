@@ -5,7 +5,7 @@ import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, WebhookProcessSt
 import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyReference";
 import { reconcileWompiByReference, reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
-import { attachPaymentToCycle, buildSubscriptionSeed, ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment, resolveConfiguredCollectionCycle, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
+import { attachPaymentToCycle, buildSubscriptionSeed, ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
 import { getSubscriptionPricingTotal } from "@suscripciones/core/lib/metadataSchemas";
 import { logger } from "@suscripciones/core/lib/logger";
 
@@ -333,14 +333,18 @@ export async function associatePaymentToSubscription(args: {
   const activeCycle = billingState?.activeCycle || null;
   let cycleToAttach = cycle;
   if (!cycleToAttach) {
-    cycleToAttach = await prisma.subscriptionBillingCycle.findFirst({
+    const openCycles = await prisma.subscriptionBillingCycle.findMany({
       where: {
         subscriptionId: subscription.id,
         paymentId: null,
-        status: { not: "PAID" },
-        dueAt: { lte: now }
+        status: { not: "PAID" }
       },
-      orderBy: { dueAt: "asc" }
+      orderBy: [{ dueAt: "asc" }, { cycleNumber: "asc" }]
+    });
+    cycleToAttach = findBestBillingCycleForPayment({
+      cycles: openCycles,
+      paymentAt,
+      toleranceDays: 7
     });
   }
   if (!cycleToAttach) {
@@ -532,7 +536,6 @@ export async function autoAssociateUnlinkedPayments(args: {
       const resolveMatchCycle = async (
         subscriptionId: string,
         cycleNumber?: number | null,
-        paymentTiming?: string | null
       ) => {
         const cycles = await prisma.subscriptionBillingCycle.findMany({
           where: {
@@ -545,14 +548,7 @@ export async function autoAssociateUnlinkedPayments(args: {
         return findBestBillingCycleForPayment({
           cycles,
           paymentAt,
-          cycleNumberHint:
-            cycleNumber ??
-            resolveConfiguredCollectionCycle({
-              cycles,
-              asOf: paymentAt,
-              paymentTiming: String(paymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
-            })?.cycleNumber ??
-            null,
+          cycleNumberHint: cycleNumber ?? null,
           toleranceDays: 7
         });
       };
@@ -601,7 +597,7 @@ export async function autoAssociateUnlinkedPayments(args: {
           logger.warn({ err, paymentId: payment.id, subscriptionId: subscription.id }, "Fallo asegurando ciclos para autoasociacion por referencia");
         });
 
-        const cycle = await resolveMatchCycle(subscription.id, refClass.cycle ?? null, subscription.paymentTiming as any);
+        const cycle = await resolveMatchCycle(subscription.id, refClass.cycle ?? null);
         if (!cycle) {
           skipped += 1;
           continue;

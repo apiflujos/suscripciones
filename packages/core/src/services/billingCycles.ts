@@ -730,14 +730,7 @@ export async function attachPaymentToMatchingCycle(args: {
   const match = findBestBillingCycleForPayment({
     cycles,
     paymentAt: args.paymentAt,
-    cycleNumberHint:
-      args.cycleNumberHint ??
-      resolveConfiguredCollectionCycle({
-        cycles,
-        asOf: args.paymentAt,
-        paymentTiming: ((subscription.paymentTiming as any) || "EN_CURSO") === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO"
-      })?.cycleNumber ??
-      null,
+    cycleNumberHint: args.cycleNumberHint ?? null,
     toleranceDays
   });
   if (!match) return { ok: false as const, error: "cycle_not_found" as const };
