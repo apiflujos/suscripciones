@@ -30,11 +30,11 @@ function humanType(item: any) {
   const trigger = String(item?.providerResp?.meta?.trigger || "").trim().toUpperCase();
   const paymentType = String(item?.providerResp?.meta?.paymentType || "").trim().toUpperCase();
   const offsetSeconds = Number(item?.providerResp?.meta?.offsetSeconds ?? 0);
-  if (trigger === "PAYMENT_LINK_CREATED" && paymentType === "LINK") return "Link de cobro (pago puntual)";
-  if (trigger === "PAYMENT_LINK_CREATED" && paymentType === "SUBSCRIPTION") return "Link de cobro (suscripción por link)";
-  if (trigger === "TOKENIZATION_LINK_CREATED") return "Tokenización";
-  if (trigger === "CATALOG_LINK_CREATED" && paymentType === "PLAN") return "Catálogo (cobro puntual)";
-  if (trigger === "CATALOG_LINK_CREATED" && paymentType === "SUBSCRIPTION") return "Catálogo (suscripción)";
+  if (trigger === "PAYMENT_LINK_CREATED" && paymentType === "LINK") return "Link de cobro enviado (pago puntual)";
+  if (trigger === "PAYMENT_LINK_CREATED" && paymentType === "SUBSCRIPTION") return "Link de cobro enviado (suscripción por link)";
+  if (trigger === "TOKENIZATION_LINK_CREATED") return "Link de tokenización enviado (débito automático)";
+  if (trigger === "CATALOG_LINK_CREATED" && paymentType === "PLAN") return "Checkout de catálogo enviado (compra puntual)";
+  if (trigger === "CATALOG_LINK_CREATED" && paymentType === "SUBSCRIPTION") return "Checkout de catálogo enviado (suscripción)";
   if (trigger === "PAYMENT_APPROVED") return "Pago aprobado";
   if (trigger === "PAYMENT_DECLINED" && paymentType === "LINK") return "Pago rechazado (pago puntual)";
   if (trigger === "PAYMENT_DECLINED" && paymentType === "SUBSCRIPTION") return "Pago rechazado (débito automático)";
@@ -42,7 +42,7 @@ function humanType(item: any) {
   if (trigger === "SUBSCRIPTION_DUE" && paymentType === "SUBSCRIPTION" && offsetSeconds <= 0) return "Recordatorio antes del vencimiento (débito automático)";
   if (trigger === "SUBSCRIPTION_DUE" && paymentType === "LINK" && offsetSeconds > 0) return "Recordatorio en mora (pago puntual)";
   if (trigger === "SUBSCRIPTION_DUE" && paymentType === "SUBSCRIPTION" && offsetSeconds > 0) return "Recordatorio en mora (débito automático)";
-  return item?.type || "—";
+  return "No clasificado";
 }
 
 function renderTrace(item: any) {
@@ -50,11 +50,11 @@ function renderTrace(item: any) {
   const template = item?.providerResp?.template_params && typeof item.providerResp.template_params === "object" ? item.providerResp.template_params : {};
   const missingParams = Array.isArray(meta?.missingParams) ? meta.missingParams.filter(Boolean) : [];
   const parts = [
-    meta?.trigger ? `trigger: ${String(meta.trigger)}` : "",
-    meta?.paymentType ? `tipo: ${String(meta.paymentType)}` : "",
+    meta?.trigger ? `evento: ${String(meta.trigger)}` : "",
+    meta?.paymentType ? `flujo: ${String(meta.paymentType)}` : "",
     template?.name ? `plantilla: ${String(template.name)}` : "",
-    meta?.ruleId ? `regla: ${String(meta.ruleId)}` : "",
-    missingParams.length ? `faltantes: ${missingParams.join(", ")}` : ""
+    meta?.ruleId ? `configuración: ${String(meta.ruleId)}` : "",
+    missingParams.length ? `variables faltantes: ${missingParams.join(", ")}` : ""
   ].filter(Boolean);
   return parts.join(" · ");
 }
@@ -104,9 +104,9 @@ export default async function WhatsappNotificationsListPage({
                 type="search"
                 name="q"
                 defaultValue={q}
-                placeholder="Buscar contacto, teléfono o contenido..."
+                placeholder="Buscar cliente, email, teléfono o mensaje..."
                 aria-label="Buscar notificaciones"
-                title="Buscar por contacto, teléfono o contenido"
+                title="Buscar por cliente, email, teléfono o mensaje"
               />
               <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
             </form>
@@ -126,15 +126,15 @@ export default async function WhatsappNotificationsListPage({
               </select>
               <select className="select" name="type" defaultValue={type} style={{ minWidth: 220 }} data-auto-submit="true">
                 <option value="">Tipo: Todos</option>
-                <option value="PAYMENT_LINK_LINK">Link de cobro (pago puntual)</option>
-                <option value="PAYMENT_LINK_SUBSCRIPTION">Link de cobro (suscripción)</option>
-                <option value="TOKENIZATION_LINK">Link de tokenización</option>
-                <option value="CATALOG_LINK_PLAN">Checkout de catálogo (compra puntual)</option>
-                <option value="CATALOG_LINK_SUBSCRIPTION">Checkout de catálogo (suscripción)</option>
+                <option value="PAYMENT_LINK_LINK">Link de cobro enviado (pago puntual)</option>
+                <option value="PAYMENT_LINK_SUBSCRIPTION">Link de cobro enviado (suscripción por link)</option>
+                <option value="TOKENIZATION_LINK">Link de tokenización enviado (débito automático)</option>
+                <option value="CATALOG_LINK_PLAN">Checkout de catálogo enviado (compra puntual)</option>
+                <option value="CATALOG_LINK_SUBSCRIPTION">Checkout de catálogo enviado (suscripción)</option>
                 <option value="PAYMENT_APPROVED">Pago aprobado</option>
                 <option value="PAYMENT_DECLINED_LINK">Pago rechazado (pago puntual)</option>
                 <option value="PAYMENT_DECLINED_SUBSCRIPTION">Pago rechazado (débito automático)</option>
-                <option value="EXPIRY_WARNING">Recordatorios</option>
+                <option value="EXPIRY_WARNING">Vencimiento y mora</option>
               </select>
               <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 130 }} data-auto-submit="true" />
               <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 130 }} data-auto-submit="true" />

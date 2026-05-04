@@ -10,90 +10,92 @@ export type ReminderNotificationKey =
 export type NotificationVariableOption = {
   label: string;
   value: string;
+  recommended?: boolean;
 };
 
 const CORE_MESSAGE_VARIABLES: NotificationVariableOption[] = [
-  { label: "Nombre completo", value: "{{customer.name}}" },
-  { label: "Correo electrónico", value: "{{customer.email}}" },
-  { label: "Teléfono", value: "{{customer.phone}}" },
-  { label: "Nombre del producto", value: "{{plan.name}}" },
-  { label: "Precio del producto (pesos)", value: "{{plan.priceInPesos}}" },
-  { label: "Moneda del producto", value: "{{plan.currency}}" },
-  { label: "Monto del pago (pesos)", value: "{{payment.amountInPesos}}" },
-  { label: "Moneda del pago", value: "{{payment.currency}}" },
+  { label: "Nombre del cliente", value: "{{customer.name}}" },
+  { label: "Correo del cliente", value: "{{customer.email}}" },
+  { label: "Teléfono del cliente", value: "{{customer.phone}}" },
+  { label: "Nombre de la suscripción o servicio", value: "{{plan.name}}" },
+  { label: "Valor de la suscripción o servicio", value: "{{plan.priceInPesos}}" },
+  { label: "Moneda de la suscripción o servicio", value: "{{plan.currency}}" },
+  { label: "Monto a cobrar", value: "{{payment.amountInPesos}}" },
+  { label: "Moneda del cobro", value: "{{payment.currency}}" },
   { label: "Estado del pago", value: "{{payment.status}}" },
-  { label: "Referencia", value: "{{payment.reference}}" },
+  { label: "Referencia del pago", value: "{{payment.reference}}" },
   { label: "Estado de la suscripción", value: "{{subscription.status}}" },
   { label: "Ciclo activo", value: "{{subscription.activeCycleNumber}}" },
   { label: "Inicio del ciclo activo", value: "{{subscription.activeCycleStartAt}}" },
   { label: "Fin del ciclo activo", value: "{{subscription.activeCycleEndAt}}" },
   { label: "Ciclo de cobro", value: "{{subscription.collectionCycleNumber}}" },
-  { label: "Próximo cobro", value: "{{subscription.nextBillingDate}}" },
-  { label: "Fecha de pago", value: "{{payment.paidAt}}" },
-  { label: "Fecha de creación del pago", value: "{{payment.createdAt}}" },
-  { label: "Fecha de fallo del pago", value: "{{payment.failedAt}}" },
-  { label: "Recurrencia · cada (cantidad)", value: "{{plan.intervalCount}}" },
-  { label: "Recurrencia · unidad", value: "{{plan.intervalUnit}}" },
-  { label: "Tipo de pago", value: "{{paymentType}}" }
+  { label: "Próximo vencimiento", value: "{{subscription.nextBillingDate}}" },
+  { label: "Fecha en que se pagó", value: "{{payment.paidAt}}" },
+  { label: "Fecha en que se creó el cobro", value: "{{payment.createdAt}}" },
+  { label: "Fecha en que falló el cobro", value: "{{payment.failedAt}}" },
+  { label: "Frecuencia · cada cuántos periodos", value: "{{plan.intervalCount}}" },
+  { label: "Frecuencia · unidad de tiempo", value: "{{plan.intervalUnit}}" },
+  { label: "Modo de cobro", value: "{{paymentType}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const LINK_PAYMENT_VARIABLES: NotificationVariableOption[] = [
-  { label: "Link de cobro actual", value: "{{paymentLink.url}}" },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Cobro puntual", value: "{{checkoutPublicUrl.AUTO_PLAN}}" }
+  { label: "Link para pagar", value: "{{paymentLink.url}}", recommended: true },
+  { label: "Link alterno para pagar (automático del evento)", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Link alterno para pagar · compra puntual", value: "{{checkoutPublicUrl.AUTO_PLAN}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const SUBSCRIPTION_LINK_VARIABLES: NotificationVariableOption[] = [
-  { label: "Link de cobro actual", value: "{{paymentLink.url}}" },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
+  { label: "Link para pagar", value: "{{paymentLink.url}}", recommended: true },
+  { label: "Link alterno para pagar (automático del evento)", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Link alterno para pagar · suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const TOKENIZATION_VARIABLES: NotificationVariableOption[] = [
-  { label: "Link de tokenización actual", value: "{{tokenizationLink.url}}" },
-  { label: "URL de tokenización", value: "{{tokenization.url}}" },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
+  { label: "Link de autorización actual", value: "{{tokenizationLink.url}}" },
+  { label: "Link para autorizar débito", value: "{{tokenization.url}}", recommended: true },
+  { label: "Link alterno para autorizar (automático del evento)", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Link alterno para autorizar · suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const CATALOG_VARIABLES: NotificationVariableOption[] = [
   { label: "Link de catálogo actual", value: "{{cartLink.url}}" },
-  { label: "URL de catálogo", value: "{{catalog.url}}" },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Catálogo", value: "{{checkoutPublicUrl.AUTO_CART}}" }
+  { label: "Link de catálogo", value: "{{catalog.url}}", recommended: true },
+  { label: "Link alterno de catálogo (automático del evento)", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Link alterno de catálogo · checkout público", value: "{{checkoutPublicUrl.AUTO_CART}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const PLAN_TOKEN_VARIABLES: NotificationVariableOption[] = [
-  { label: "Token checkout automático (según este evento)", value: "{{checkoutPublicToken.AUTO}}" },
-  { label: "Token checkout automático · Cobro puntual", value: "{{checkoutPublicToken.AUTO_PLAN}}" },
-  { label: "Link de cobro actual", value: "{{paymentLink.url}}" },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Cobro puntual", value: "{{checkoutPublicUrl.AUTO_PLAN}}" }
+  { label: "Botón recomendado · Pagar ahora", value: "{{checkoutPublicToken.AUTO}}", recommended: true },
+  { label: "Botón alterno · Pagar compra puntual", value: "{{checkoutPublicToken.AUTO_PLAN}}" },
+  { label: "Link para pagar", value: "{{paymentLink.url}}" },
+  { label: "Link alterno para pagar (automático del evento)", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Link alterno para pagar · compra puntual", value: "{{checkoutPublicUrl.AUTO_PLAN}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const SUBSCRIPTION_TOKEN_VARIABLES: NotificationVariableOption[] = [
-  { label: "Token checkout automático (según este evento)", value: "{{checkoutPublicToken.AUTO}}" },
-  { label: "Token checkout automático · Suscripción", value: "{{checkoutPublicToken.AUTO_SUBSCRIPTION}}" },
-  { label: "Link de cobro actual", value: "{{paymentLink.url}}" },
-  { label: "Link de tokenización actual", value: "{{tokenizationLink.url}}" },
-  { label: "URL de tokenización", value: "{{tokenization.url}}" },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
+  { label: "Botón recomendado · Continuar con este flujo", value: "{{checkoutPublicToken.AUTO}}", recommended: true },
+  { label: "Botón alterno · Flujo de suscripción", value: "{{checkoutPublicToken.AUTO_SUBSCRIPTION}}" },
+  { label: "Link para pagar", value: "{{paymentLink.url}}" },
+  { label: "Link de autorización actual", value: "{{tokenizationLink.url}}" },
+  { label: "Link para autorizar débito", value: "{{tokenization.url}}" },
+  { label: "Link alterno del evento", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Link alterno · suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const CATALOG_TOKEN_VARIABLES: NotificationVariableOption[] = [
-  { label: "Token checkout automático (según este evento)", value: "{{checkoutPublicToken.AUTO}}" },
-  { label: "Token checkout automático · Catálogo", value: "{{checkoutPublicToken.AUTO_CART}}" },
+  { label: "Botón recomendado · Abrir catálogo", value: "{{checkoutPublicToken.AUTO}}", recommended: true },
+  { label: "Botón alterno · Checkout de catálogo", value: "{{checkoutPublicToken.AUTO_CART}}" },
   { label: "Link de catálogo actual", value: "{{cartLink.url}}" },
-  { label: "URL de catálogo", value: "{{catalog.url}}" },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Catálogo", value: "{{checkoutPublicUrl.AUTO_CART}}" }
+  { label: "Link de catálogo", value: "{{catalog.url}}" },
+  { label: "Link alterno de catálogo (automático del evento)", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Link alterno de catálogo · checkout público", value: "{{checkoutPublicUrl.AUTO_CART}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 type TemplateVariableMatrix = {
   bodyVariables: NotificationVariableOption[];
   buttonVariables: NotificationVariableOption[];
   helpText: string;
+  recommendedButtonLabel?: string | null;
 };
 
 function dedupeOptions(options: NotificationVariableOption[]) {
@@ -109,11 +111,13 @@ function buildMatrix(args: {
   body: NotificationVariableOption[];
   button: NotificationVariableOption[];
   helpText: string;
+  recommendedButtonLabel?: string | null;
 }): TemplateVariableMatrix {
   return {
     bodyVariables: dedupeOptions([...CORE_MESSAGE_VARIABLES, ...args.body]),
     buttonVariables: dedupeOptions(args.button),
-    helpText: args.helpText
+    helpText: args.helpText,
+    recommendedButtonLabel: args.recommendedButtonLabel ?? null
   };
 }
 
@@ -121,42 +125,50 @@ const REALTIME_VARIABLE_MATRIX: Record<RealtimeNotificationKey, TemplateVariable
   catalog_link_created_plan: buildMatrix({
     body: CATALOG_VARIABLES,
     button: CATALOG_TOKEN_VARIABLES,
-    helpText: "Usa variables de catálogo. Este evento no debería usar links de tokenización ni de cobro de suscripción."
+    helpText: "Usa variables de catálogo. Este evento no debería usar links de tokenización ni de cobro de suscripción.",
+    recommendedButtonLabel: "Link de catálogo"
   }),
   catalog_link_created_subscription: buildMatrix({
     body: CATALOG_VARIABLES,
     button: CATALOG_TOKEN_VARIABLES,
-    helpText: "Usa variables del checkout de catálogo para alta de suscripción. Evita links de cobro puntual o tokenización."
+    helpText: "Usa variables del checkout de catálogo para alta de suscripción. Evita links de cobro puntual o tokenización.",
+    recommendedButtonLabel: "Link de catálogo"
   }),
   tokenization_link_created: buildMatrix({
     body: TOKENIZATION_VARIABLES,
     button: SUBSCRIPTION_TOKEN_VARIABLES,
-    helpText: "Usa variables de tokenización o checkout automático de suscripción. Este evento no envía links de catálogo."
+    helpText: "Usa variables de tokenización o checkout automático de suscripción. Este evento no envía links de catálogo.",
+    recommendedButtonLabel: "Link para autorizar débito"
   }),
   payment_link_created: buildMatrix({
     body: LINK_PAYMENT_VARIABLES,
     button: PLAN_TOKEN_VARIABLES,
-    helpText: "Usa variables del link de cobro puntual. Este evento no corresponde a débito automático ni catálogo."
+    helpText: "Usa variables del link de cobro puntual. Este evento no corresponde a débito automático ni catálogo.",
+    recommendedButtonLabel: "Link para pagar"
   }),
   payment_link_created_subscription: buildMatrix({
     body: SUBSCRIPTION_LINK_VARIABLES,
     button: SUBSCRIPTION_TOKEN_VARIABLES,
-    helpText: "Usa variables del link de cobro de una suscripción por link. No mezcles catálogo ni tokenización aislada."
+    helpText: "Usa variables del link de cobro de una suscripción por link. No mezcles catálogo ni tokenización aislada.",
+    recommendedButtonLabel: "Link para pagar"
   }),
   payment_success: buildMatrix({
     body: [],
     button: [],
-    helpText: "Usa variables de cliente, suscripción y pago aprobado. Este evento normalmente no requiere botones."
+    helpText: "Usa variables de cliente, suscripción y pago aprobado. Este evento normalmente no requiere botones.",
+    recommendedButtonLabel: null
   }),
   payment_failed_link: buildMatrix({
     body: LINK_PAYMENT_VARIABLES,
     button: PLAN_TOKEN_VARIABLES,
-    helpText: "Usa variables de reintento para cobro puntual. No mezcles catálogo ni links de tokenización."
+    helpText: "Usa variables de reintento para cobro puntual. No mezcles catálogo ni links de tokenización.",
+    recommendedButtonLabel: "Link para pagar"
   }),
   payment_failed_subscription: buildMatrix({
     body: [...SUBSCRIPTION_LINK_VARIABLES, ...TOKENIZATION_VARIABLES],
     button: SUBSCRIPTION_TOKEN_VARIABLES,
-    helpText: "Usa variables de recuperación de suscripción: link de cobro o tokenización, según tu plantilla."
+    helpText: "Usa variables de recuperación de suscripción: link de cobro o tokenización, según tu plantilla.",
+    recommendedButtonLabel: "Depende del mensaje: pagar o autorizar débito"
   })
 };
 
@@ -164,22 +176,26 @@ const REMINDER_VARIABLE_MATRIX: Record<ReminderNotificationKey, TemplateVariable
   reminder_due_link: buildMatrix({
     body: LINK_PAYMENT_VARIABLES,
     button: PLAN_TOKEN_VARIABLES,
-    helpText: "Recordatorio previo para pago puntual. Usa variables del cobro puntual."
+    helpText: "Recordatorio previo para pago puntual. Usa variables del cobro puntual.",
+    recommendedButtonLabel: "Link para pagar"
   }),
   reminder_due_subscription: buildMatrix({
     body: TOKENIZATION_VARIABLES,
     button: SUBSCRIPTION_TOKEN_VARIABLES,
-    helpText: "Recordatorio previo para débito automático. Usa variables de tokenización o checkout automático de suscripción."
+    helpText: "Recordatorio previo para débito automático. Usa variables de tokenización o checkout automático de suscripción.",
+    recommendedButtonLabel: "Link para autorizar débito"
   }),
   reminder_mora_link: buildMatrix({
     body: LINK_PAYMENT_VARIABLES,
     button: PLAN_TOKEN_VARIABLES,
-    helpText: "Recordatorio en mora para pago puntual. Usa variables del cobro puntual."
+    helpText: "Recordatorio en mora para pago puntual. Usa variables del cobro puntual.",
+    recommendedButtonLabel: "Link para pagar"
   }),
   reminder_mora_subscription: buildMatrix({
     body: [...SUBSCRIPTION_LINK_VARIABLES, ...TOKENIZATION_VARIABLES],
     button: SUBSCRIPTION_TOKEN_VARIABLES,
-    helpText: "Recordatorio en mora para débito automático. Usa recuperación por tokenización o link de cobro de suscripción."
+    helpText: "Recordatorio en mora para débito automático. Usa recuperación por tokenización o link de cobro de suscripción.",
+    recommendedButtonLabel: "Depende del mensaje: pagar o autorizar débito"
   })
 };
 

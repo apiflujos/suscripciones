@@ -253,7 +253,7 @@ function WaTemplateFields({
           <div style={{ display: "grid", gap: 10 }}>
             {bodyParamCount ? (
               <div style={{ display: "grid", gap: 6 }}>
-                <div className="muted">Body</div>
+                <div className="muted">Mensaje</div>
                 {Array.from({ length: bodyParamCount }).map((_, idx) => (
                   <select
                     key={`param-body-${idx}`}
@@ -268,7 +268,7 @@ function WaTemplateFields({
                     <option value="">{`{{${idx + 1}}} · Selecciona variable`}</option>
                     {variables.map((v) => (
                       <option key={`${idx}-${v.value}`} value={v.value}>
-                        {v.label}
+                        {v.recommended ? `Recomendada · ${v.label}` : v.label}
                       </option>
                     ))}
                   </select>
@@ -277,7 +277,7 @@ function WaTemplateFields({
             ) : null}
             {headerParamCount ? (
               <div style={{ display: "grid", gap: 6 }}>
-                <div className="muted">Header</div>
+                <div className="muted">Encabezado</div>
                 {Array.from({ length: headerParamCount }).map((_, idx) => (
                   <select
                     key={`param-header-${idx}`}
@@ -292,7 +292,7 @@ function WaTemplateFields({
                     <option value="">{`{{${idx + 1}}} · Selecciona variable`}</option>
                     {variables.map((v) => (
                       <option key={`h-${idx}-${v.value}`} value={v.value}>
-                        {v.label}
+                        {v.recommended ? `Recomendada · ${v.label}` : v.label}
                       </option>
                     ))}
                   </select>
@@ -301,7 +301,7 @@ function WaTemplateFields({
             ) : null}
             {buttonParamCount ? (
               <div style={{ display: "grid", gap: 6 }}>
-                <div className="muted">Botones (URL)</div>
+                <div className="muted">Botones</div>
                 {Array.from({ length: buttonParamCount }).map((_, idx) => (
                   <select
                     key={`param-button-${idx}`}
@@ -316,7 +316,7 @@ function WaTemplateFields({
                     <option value="">{`Botón ${idx + 1} · Selecciona variable`}</option>
                     {buttonVariables.map((v) => (
                       <option key={`b-${idx}-${v.value}`} value={v.value}>
-                        {v.label}
+                        {v.recommended ? `Recomendada · ${v.label}` : v.label}
                       </option>
                     ))}
                   </select>
@@ -582,7 +582,8 @@ export function NotificationsSimple({
       const rt = REALTIME_TYPES.find((r) => r.key === activeModal.key);
       return rt ? `Notificación: ${rt.label}` : "Configurar notificación";
     }
-    return activeModal.kind === "DUE" ? "Recordatorio: Fecha de pago" : "Recordatorio: Mora";
+    const reminder = REMINDER_TYPES.find((item) => item.kind === activeModal.kind && item.paymentType === activeModal.paymentType);
+    return reminder ? `Notificación: ${reminder.label}` : "Configurar recordatorio";
   })();
 
   return (
@@ -743,13 +744,20 @@ export function NotificationsSimple({
                 <input type="hidden" name="templateKind" value="WHATSAPP_TEMPLATE" />
                 <input type="hidden" name="enabled" value={(rule?.enabled ?? true) ? "on" : ""} />
                 <div className="field row" style={{ justifyContent: "space-between" }}>
-                  <div className="muted">Tipo: Plantilla (WhatsApp)</div>
+                  <div className="muted">Canal: WhatsApp</div>
                 </div>
                 <div className="field-hint">
                   Solo se aceptan plantillas WhatsApp activas. No se usan mensajes libres en estos envíos.
                   {" "}
                   {variableMatrix.helpText}
                 </div>
+                {variableMatrix.recommendedButtonLabel ? (
+                  <div className="field-hint">
+                    Botón recomendado para este evento: <strong>{variableMatrix.recommendedButtonLabel}</strong>
+                  </div>
+                ) : (
+                  <div className="field-hint">Este evento normalmente no necesita botón.</div>
+                )}
                 <WaTemplateFields
                   templates={waTemplates}
                   defaultName={waName}
@@ -806,13 +814,20 @@ export function NotificationsSimple({
               value={(activeReminder?.rule?.enabled ?? true) ? "on" : ""}
             />
             <div className="field row" style={{ justifyContent: "space-between" }}>
-              <div className="muted">Tipo: Plantilla (WhatsApp)</div>
+              <div className="muted">Canal: WhatsApp</div>
             </div>
             <div className="field-hint">
               Solo se aceptan plantillas WhatsApp activas. No se usan mensajes libres en estos envíos.
               {" "}
               {variableMatrix.helpText}
             </div>
+            {variableMatrix.recommendedButtonLabel ? (
+              <div className="field-hint">
+                Botón recomendado para este evento: <strong>{variableMatrix.recommendedButtonLabel}</strong>
+              </div>
+            ) : (
+              <div className="field-hint">Este evento normalmente no necesita botón.</div>
+            )}
             <WaTemplateFields
               templates={waTemplates}
               defaultName={activeReminder?.template?.chatwootTemplate?.name || ""}
