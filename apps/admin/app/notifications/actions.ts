@@ -167,10 +167,10 @@ function countPlaceholderSlotsFromText(value: unknown) {
 
 function countPlaceholderSlotsFromExample(value: unknown): number {
   if (Array.isArray(value)) {
-    return value.reduce((max, item) => Math.max(max, countPlaceholderSlotsFromExample(item)), 0);
+    return value.reduce<number>((max, item) => Math.max(max, countPlaceholderSlotsFromExample(item)), 0);
   }
   if (value && typeof value === "object") {
-    return Object.values(value as Record<string, unknown>).reduce(
+    return Object.values(value as Record<string, unknown>).reduce<number>(
       (max, item) => Math.max(max, countPlaceholderSlotsFromExample(item)),
       0
     );
