@@ -751,13 +751,6 @@ export function NotificationsSimple({
                   {" "}
                   {variableMatrix.helpText}
                 </div>
-                {variableMatrix.recommendedButtonLabel ? (
-                  <div className="field-hint">
-                    Botón recomendado para este evento: <strong>{variableMatrix.recommendedButtonLabel}</strong>
-                  </div>
-                ) : (
-                  <div className="field-hint">Este evento normalmente no necesita botón.</div>
-                )}
                 <WaTemplateFields
                   templates={waTemplates}
                   defaultName={waName}
@@ -821,13 +814,6 @@ export function NotificationsSimple({
               {" "}
               {variableMatrix.helpText}
             </div>
-            {variableMatrix.recommendedButtonLabel ? (
-              <div className="field-hint">
-                Botón recomendado para este evento: <strong>{variableMatrix.recommendedButtonLabel}</strong>
-              </div>
-            ) : (
-              <div className="field-hint">Este evento normalmente no necesita botón.</div>
-            )}
             <WaTemplateFields
               templates={waTemplates}
               defaultName={activeReminder?.template?.chatwootTemplate?.name || ""}

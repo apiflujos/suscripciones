@@ -15,80 +15,80 @@ export type NotificationVariableOption = {
 
 const CORE_MESSAGE_VARIABLES: NotificationVariableOption[] = [
   { label: "Nombre del cliente", value: "{{customer.name}}" },
-  { label: "Correo del cliente", value: "{{customer.email}}" },
-  { label: "Teléfono del cliente", value: "{{customer.phone}}" },
-  { label: "Nombre de la suscripción o servicio", value: "{{plan.name}}" },
-  { label: "Valor de la suscripción o servicio", value: "{{plan.priceInPesos}}" },
-  { label: "Moneda de la suscripción o servicio", value: "{{plan.currency}}" },
-  { label: "Monto a cobrar", value: "{{payment.amountInPesos}}" },
-  { label: "Moneda del cobro", value: "{{payment.currency}}" },
+  { label: "Correo electrónico", value: "{{customer.email}}" },
+  { label: "Teléfono", value: "{{customer.phone}}" },
+  { label: "Nombre del producto", value: "{{plan.name}}" },
+  { label: "Precio del producto (pesos)", value: "{{plan.priceInPesos}}" },
+  { label: "Moneda del producto", value: "{{plan.currency}}" },
+  { label: "Monto del pago (pesos)", value: "{{payment.amountInPesos}}" },
+  { label: "Moneda del pago", value: "{{payment.currency}}" },
   { label: "Estado del pago", value: "{{payment.status}}" },
-  { label: "Referencia del pago", value: "{{payment.reference}}" },
+  { label: "Referencia", value: "{{payment.reference}}" },
   { label: "Estado de la suscripción", value: "{{subscription.status}}" },
   { label: "Ciclo activo", value: "{{subscription.activeCycleNumber}}" },
   { label: "Inicio del ciclo activo", value: "{{subscription.activeCycleStartAt}}" },
   { label: "Fin del ciclo activo", value: "{{subscription.activeCycleEndAt}}" },
   { label: "Ciclo de cobro", value: "{{subscription.collectionCycleNumber}}" },
-  { label: "Próximo vencimiento", value: "{{subscription.nextBillingDate}}" },
-  { label: "Fecha en que se pagó", value: "{{payment.paidAt}}" },
-  { label: "Fecha en que se creó el cobro", value: "{{payment.createdAt}}" },
-  { label: "Fecha en que falló el cobro", value: "{{payment.failedAt}}" },
-  { label: "Frecuencia · cada cuántos periodos", value: "{{plan.intervalCount}}" },
-  { label: "Frecuencia · unidad de tiempo", value: "{{plan.intervalUnit}}" },
-  { label: "Modo de cobro", value: "{{paymentType}}" }
+  { label: "Próximo cobro", value: "{{subscription.nextBillingDate}}" },
+  { label: "Fecha de pago", value: "{{payment.paidAt}}" },
+  { label: "Fecha de creación del pago", value: "{{payment.createdAt}}" },
+  { label: "Fecha de fallo del pago", value: "{{payment.failedAt}}" },
+  { label: "Recurrencia · cada (cantidad)", value: "{{plan.intervalCount}}" },
+  { label: "Recurrencia · unidad", value: "{{plan.intervalUnit}}" },
+  { label: "Tipo de pago", value: "{{paymentType}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const LINK_PAYMENT_VARIABLES: NotificationVariableOption[] = [
-  { label: "Link para pagar", value: "{{paymentLink.url}}", recommended: true },
-  { label: "Link alterno para pagar (automático del evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Link alterno para pagar · compra puntual", value: "{{checkoutPublicUrl.AUTO_PLAN}}" }
+  { label: "Link de cobro actual", value: "{{paymentLink.url}}", recommended: true },
+  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout público automático · Cobro puntual", value: "{{checkoutPublicUrl.AUTO_PLAN}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const SUBSCRIPTION_LINK_VARIABLES: NotificationVariableOption[] = [
-  { label: "Link para pagar", value: "{{paymentLink.url}}", recommended: true },
-  { label: "Link alterno para pagar (automático del evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Link alterno para pagar · suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
+  { label: "Link de cobro actual", value: "{{paymentLink.url}}", recommended: true },
+  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout público automático · Suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const TOKENIZATION_VARIABLES: NotificationVariableOption[] = [
-  { label: "Link de autorización actual", value: "{{tokenizationLink.url}}" },
-  { label: "Link para autorizar débito", value: "{{tokenization.url}}", recommended: true },
-  { label: "Link alterno para autorizar (automático del evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Link alterno para autorizar · suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
+  { label: "Link de tokenización actual", value: "{{tokenizationLink.url}}" },
+  { label: "URL de tokenización", value: "{{tokenization.url}}", recommended: true },
+  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout público automático · Suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const CATALOG_VARIABLES: NotificationVariableOption[] = [
   { label: "Link de catálogo actual", value: "{{cartLink.url}}" },
-  { label: "Link de catálogo", value: "{{catalog.url}}", recommended: true },
-  { label: "Link alterno de catálogo (automático del evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Link alterno de catálogo · checkout público", value: "{{checkoutPublicUrl.AUTO_CART}}" }
+  { label: "URL de catálogo", value: "{{catalog.url}}", recommended: true },
+  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout público automático · Catálogo", value: "{{checkoutPublicUrl.AUTO_CART}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const PLAN_TOKEN_VARIABLES: NotificationVariableOption[] = [
-  { label: "Botón recomendado · Pagar ahora", value: "{{checkoutPublicToken.AUTO}}", recommended: true },
-  { label: "Botón alterno · Pagar compra puntual", value: "{{checkoutPublicToken.AUTO_PLAN}}" },
-  { label: "Link para pagar", value: "{{paymentLink.url}}" },
-  { label: "Link alterno para pagar (automático del evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Link alterno para pagar · compra puntual", value: "{{checkoutPublicUrl.AUTO_PLAN}}" }
+  { label: "Token checkout automático (según este evento)", value: "{{checkoutPublicToken.AUTO}}", recommended: true },
+  { label: "Token checkout automático · Cobro puntual", value: "{{checkoutPublicToken.AUTO_PLAN}}" },
+  { label: "Link de cobro actual", value: "{{paymentLink.url}}" },
+  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout público automático · Cobro puntual", value: "{{checkoutPublicUrl.AUTO_PLAN}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const SUBSCRIPTION_TOKEN_VARIABLES: NotificationVariableOption[] = [
-  { label: "Botón recomendado · Continuar con este flujo", value: "{{checkoutPublicToken.AUTO}}", recommended: true },
-  { label: "Botón alterno · Flujo de suscripción", value: "{{checkoutPublicToken.AUTO_SUBSCRIPTION}}" },
-  { label: "Link para pagar", value: "{{paymentLink.url}}" },
-  { label: "Link de autorización actual", value: "{{tokenizationLink.url}}" },
-  { label: "Link para autorizar débito", value: "{{tokenization.url}}" },
-  { label: "Link alterno del evento", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Link alterno · suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
+  { label: "Token checkout automático (según este evento)", value: "{{checkoutPublicToken.AUTO}}", recommended: true },
+  { label: "Token checkout automático · Suscripción", value: "{{checkoutPublicToken.AUTO_SUBSCRIPTION}}" },
+  { label: "Link de cobro actual", value: "{{paymentLink.url}}" },
+  { label: "Link de tokenización actual", value: "{{tokenizationLink.url}}" },
+  { label: "URL de tokenización", value: "{{tokenization.url}}" },
+  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout público automático · Suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const CATALOG_TOKEN_VARIABLES: NotificationVariableOption[] = [
-  { label: "Botón recomendado · Abrir catálogo", value: "{{checkoutPublicToken.AUTO}}", recommended: true },
-  { label: "Botón alterno · Checkout de catálogo", value: "{{checkoutPublicToken.AUTO_CART}}" },
+  { label: "Token checkout automático (según este evento)", value: "{{checkoutPublicToken.AUTO}}", recommended: true },
+  { label: "Token checkout automático · Catálogo", value: "{{checkoutPublicToken.AUTO_CART}}" },
   { label: "Link de catálogo actual", value: "{{cartLink.url}}" },
-  { label: "Link de catálogo", value: "{{catalog.url}}" },
-  { label: "Link alterno de catálogo (automático del evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Link alterno de catálogo · checkout público", value: "{{checkoutPublicUrl.AUTO_CART}}" }
+  { label: "URL de catálogo", value: "{{catalog.url}}" },
+  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout público automático · Catálogo", value: "{{checkoutPublicUrl.AUTO_CART}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 type TemplateVariableMatrix = {
