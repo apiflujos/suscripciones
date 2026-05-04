@@ -854,9 +854,21 @@ a {
 }
 
 .sidebar {
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   -webkit-overflow-scrolling: touch;
+}
+
+.sidebar,
+.nav {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar::-webkit-scrollbar,
+.nav::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 /* Nota: mantenemos el menú SIEMPRE a la izquierda.
@@ -3956,6 +3968,7 @@ html[data-contrast="high"] .filtersPanel {
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
 }
 
 .nav-item {
