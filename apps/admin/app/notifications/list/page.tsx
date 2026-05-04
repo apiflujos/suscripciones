@@ -30,17 +30,17 @@ function humanType(item: any) {
   const trigger = String(item?.providerResp?.meta?.trigger || "").trim().toUpperCase();
   const paymentType = String(item?.providerResp?.meta?.paymentType || "").trim().toUpperCase();
   const offsetSeconds = Number(item?.providerResp?.meta?.offsetSeconds ?? 0);
-  if (trigger === "PAYMENT_LINK_CREATED" && paymentType === "LINK") return "Link de cobro enviado (pago puntual)";
-  if (trigger === "PAYMENT_LINK_CREATED" && paymentType === "SUBSCRIPTION") return "Link de cobro enviado (suscripción por link)";
+  if (trigger === "PAYMENT_LINK_CREATED" && paymentType === "LINK") return "Link de cobro enviado (link de pago)";
+  if (trigger === "PAYMENT_LINK_CREATED" && paymentType === "SUBSCRIPTION") return "Link de cobro enviado (suscripción · link de pago)";
   if (trigger === "TOKENIZATION_LINK_CREATED") return "Link de tokenización enviado (débito automático)";
-  if (trigger === "CATALOG_LINK_CREATED" && paymentType === "PLAN") return "Checkout de catálogo enviado (compra puntual)";
+  if (trigger === "CATALOG_LINK_CREATED" && paymentType === "PLAN") return "Checkout de catálogo enviado";
   if (trigger === "CATALOG_LINK_CREATED" && paymentType === "SUBSCRIPTION") return "Checkout de catálogo enviado (suscripción)";
   if (trigger === "PAYMENT_APPROVED") return "Pago aprobado";
-  if (trigger === "PAYMENT_DECLINED" && paymentType === "LINK") return "Pago rechazado (pago puntual)";
+  if (trigger === "PAYMENT_DECLINED" && paymentType === "LINK") return "Pago rechazado (link de pago)";
   if (trigger === "PAYMENT_DECLINED" && paymentType === "SUBSCRIPTION") return "Pago rechazado (débito automático)";
-  if (trigger === "SUBSCRIPTION_DUE" && paymentType === "LINK" && offsetSeconds <= 0) return "Recordatorio antes del vencimiento (pago puntual)";
+  if (trigger === "SUBSCRIPTION_DUE" && paymentType === "LINK" && offsetSeconds <= 0) return "Recordatorio antes del vencimiento (link de pago)";
   if (trigger === "SUBSCRIPTION_DUE" && paymentType === "SUBSCRIPTION" && offsetSeconds <= 0) return "Recordatorio antes del vencimiento (débito automático)";
-  if (trigger === "SUBSCRIPTION_DUE" && paymentType === "LINK" && offsetSeconds > 0) return "Recordatorio en mora (pago puntual)";
+  if (trigger === "SUBSCRIPTION_DUE" && paymentType === "LINK" && offsetSeconds > 0) return "Recordatorio en mora (link de pago)";
   if (trigger === "SUBSCRIPTION_DUE" && paymentType === "SUBSCRIPTION" && offsetSeconds > 0) return "Recordatorio en mora (débito automático)";
   return "No clasificado";
 }
@@ -126,13 +126,13 @@ export default async function WhatsappNotificationsListPage({
               </select>
               <select className="select" name="type" defaultValue={type} style={{ minWidth: 220 }} data-auto-submit="true">
                 <option value="">Tipo: Todos</option>
-                <option value="PAYMENT_LINK_LINK">Link de cobro enviado (pago puntual)</option>
-                <option value="PAYMENT_LINK_SUBSCRIPTION">Link de cobro enviado (suscripción por link)</option>
+                <option value="PAYMENT_LINK_LINK">Link de cobro enviado (link de pago)</option>
+                <option value="PAYMENT_LINK_SUBSCRIPTION">Link de cobro enviado (suscripción · link de pago)</option>
                 <option value="TOKENIZATION_LINK">Link de tokenización enviado (débito automático)</option>
-                <option value="CATALOG_LINK_PLAN">Checkout de catálogo enviado (compra puntual)</option>
+                <option value="CATALOG_LINK_PLAN">Checkout de catálogo enviado</option>
                 <option value="CATALOG_LINK_SUBSCRIPTION">Checkout de catálogo enviado (suscripción)</option>
                 <option value="PAYMENT_APPROVED">Pago aprobado</option>
-                <option value="PAYMENT_DECLINED_LINK">Pago rechazado (pago puntual)</option>
+                <option value="PAYMENT_DECLINED_LINK">Pago rechazado (link de pago)</option>
                 <option value="PAYMENT_DECLINED_SUBSCRIPTION">Pago rechazado (débito automático)</option>
                 <option value="EXPIRY_WARNING">Vencimiento y mora</option>
               </select>

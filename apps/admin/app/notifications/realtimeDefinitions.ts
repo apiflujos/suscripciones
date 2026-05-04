@@ -30,7 +30,7 @@ export type RealtimeNotificationDefinition = {
 export const REALTIME_NOTIFICATION_DEFINITIONS: RealtimeNotificationDefinition[] = [
   {
     key: "catalog_link_created_plan",
-    label: "Checkout de catálogo enviado (compra puntual)",
+    label: "Checkout de catálogo enviado",
     trigger: "CATALOG_LINK_CREATED",
     chatwootType: "PAYMENT_LINK",
     paymentType: "PLAN"
@@ -52,14 +52,14 @@ export const REALTIME_NOTIFICATION_DEFINITIONS: RealtimeNotificationDefinition[]
   },
   {
     key: "payment_link_created",
-    label: "Link de cobro enviado (pago puntual)",
+    label: "Link de cobro enviado (link de pago)",
     trigger: "PAYMENT_LINK_CREATED",
     chatwootType: "PAYMENT_LINK",
     paymentType: "LINK"
   },
   {
     key: "payment_link_created_subscription",
-    label: "Link de cobro enviado (suscripción)",
+    label: "Link de cobro enviado (suscripción · link de pago)",
     trigger: "PAYMENT_LINK_CREATED",
     chatwootType: "PAYMENT_LINK",
     paymentType: "SUBSCRIPTION"
@@ -72,7 +72,7 @@ export const REALTIME_NOTIFICATION_DEFINITIONS: RealtimeNotificationDefinition[]
   },
   {
     key: "payment_failed_link",
-    label: "Pago rechazado (pago puntual)",
+    label: "Pago rechazado (link de pago)",
     trigger: "PAYMENT_DECLINED",
     chatwootType: "PAYMENT_FAILED",
     paymentType: "LINK"

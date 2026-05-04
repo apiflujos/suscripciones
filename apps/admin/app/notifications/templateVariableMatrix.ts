@@ -152,13 +152,13 @@ const REALTIME_VARIABLE_MATRIX: Record<RealtimeNotificationKey, TemplateVariable
   payment_link_created: buildMatrix({
     body: LINK_PAYMENT_VARIABLES,
     button: PLAN_BUTTON_VARIABLES,
-    helpText: "Usa variables del link de cobro puntual. Este evento no corresponde a débito automático ni catálogo.",
+    helpText: "Usa variables del link de pago manual. Este evento no corresponde a débito automático ni catálogo.",
     recommendedButtonLabel: "Link para pagar"
   }),
   payment_link_created_subscription: buildMatrix({
     body: SUBSCRIPTION_LINK_VARIABLES,
     button: SUBSCRIPTION_LINK_BUTTON_VARIABLES,
-    helpText: "Usa variables del link de cobro de una suscripción por link. No mezcles catálogo ni tokenización aislada.",
+    helpText: "Usa variables del link de cobro de una suscripción con link de pago. No mezcles catálogo ni tokenización aislada.",
     recommendedButtonLabel: "Link para pagar"
   }),
   payment_success: buildMatrix({
@@ -185,7 +185,7 @@ const REMINDER_VARIABLE_MATRIX: Record<ReminderNotificationKey, TemplateVariable
   reminder_due_link: buildMatrix({
     body: LINK_PAYMENT_VARIABLES,
     button: PLAN_BUTTON_VARIABLES,
-    helpText: "Recordatorio previo para pago puntual. Usa variables del cobro puntual.",
+    helpText: "Recordatorio previo para link de pago. Usa variables del cobro manual.",
     recommendedButtonLabel: "Link para pagar"
   }),
   reminder_due_subscription: buildMatrix({
@@ -197,7 +197,7 @@ const REMINDER_VARIABLE_MATRIX: Record<ReminderNotificationKey, TemplateVariable
   reminder_mora_link: buildMatrix({
     body: LINK_PAYMENT_VARIABLES,
     button: PLAN_BUTTON_VARIABLES,
-    helpText: "Recordatorio en mora para pago puntual. Usa variables del cobro puntual.",
+    helpText: "Recordatorio en mora para link de pago. Usa variables del cobro manual.",
     recommendedButtonLabel: "Link para pagar"
   }),
   reminder_mora_subscription: buildMatrix({

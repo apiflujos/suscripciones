@@ -109,32 +109,32 @@ function defaultConfig(): NotificationsConfig {
 }
 
 const CANONICAL_TEMPLATE_NAMES: Record<string, string> = {
-  tpl_rt_catalog_link_created_plan: "Checkout de catálogo enviado (compra puntual)",
+  tpl_rt_catalog_link_created_plan: "Checkout de catálogo enviado",
   tpl_rt_catalog_link_created_subscription: "Checkout de catálogo enviado (suscripción)",
   tpl_rt_tokenization_link_created: "Link de tokenización enviado (débito automático)",
-  tpl_rt_payment_link_created: "Link de cobro enviado (pago puntual)",
-  tpl_rt_payment_link_created_subscription: "Link de cobro enviado (suscripción)",
+  tpl_rt_payment_link_created: "Link de cobro enviado (link de pago)",
+  tpl_rt_payment_link_created_subscription: "Link de cobro enviado (suscripción · link de pago)",
   tpl_rt_payment_success: "Pago aprobado",
-  tpl_rt_payment_failed_link: "Pago rechazado (pago puntual)",
+  tpl_rt_payment_failed_link: "Pago rechazado (link de pago)",
   tpl_rt_payment_failed_subscription: "Pago rechazado (débito automático)",
-  tpl_reminder_due_link: "Recordatorio antes del vencimiento (pago puntual)",
+  tpl_reminder_due_link: "Recordatorio antes del vencimiento (link de pago)",
   tpl_reminder_due_subscription: "Recordatorio antes del vencimiento (débito automático)",
-  tpl_reminder_mora_link: "Recordatorio en mora (pago puntual)",
+  tpl_reminder_mora_link: "Recordatorio en mora (link de pago)",
   tpl_reminder_mora_subscription: "Recordatorio en mora (débito automático)"
 };
 
 const CANONICAL_RULE_NAMES: Record<string, string> = {
-  rule_rt_catalog_link_created_plan: "Checkout de catálogo enviado (compra puntual)",
+  rule_rt_catalog_link_created_plan: "Checkout de catálogo enviado",
   rule_rt_catalog_link_created_subscription: "Checkout de catálogo enviado (suscripción)",
   rule_rt_tokenization_link_created: "Link de tokenización enviado (débito automático)",
-  rule_rt_payment_link_created: "Link de cobro enviado (pago puntual)",
-  rule_rt_payment_link_created_subscription: "Link de cobro enviado (suscripción)",
+  rule_rt_payment_link_created: "Link de cobro enviado (link de pago)",
+  rule_rt_payment_link_created_subscription: "Link de cobro enviado (suscripción · link de pago)",
   rule_rt_payment_success: "Pago aprobado",
-  rule_rt_payment_failed_link: "Pago rechazado (pago puntual)",
+  rule_rt_payment_failed_link: "Pago rechazado (link de pago)",
   rule_rt_payment_failed_subscription: "Pago rechazado (débito automático)",
-  rule_reminder_due_link: "Recordatorio antes del vencimiento (pago puntual)",
+  rule_reminder_due_link: "Recordatorio antes del vencimiento (link de pago)",
   rule_reminder_due_subscription: "Recordatorio antes del vencimiento (débito automático)",
-  rule_reminder_mora_link: "Recordatorio en mora (pago puntual)",
+  rule_reminder_mora_link: "Recordatorio en mora (link de pago)",
   rule_reminder_mora_subscription: "Recordatorio en mora (débito automático)"
 };
 

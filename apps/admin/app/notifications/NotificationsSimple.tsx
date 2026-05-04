@@ -111,9 +111,9 @@ const REMINDER_TPL_MORA_LINK = "tpl_reminder_mora_link";
 const REMINDER_TPL_MORA_SUBSCRIPTION = "tpl_reminder_mora_subscription";
 
 const REMINDER_TYPES = [
-  { key: "reminder_due_link", kind: "DUE", paymentType: "LINK", label: "Recordatorio antes del vencimiento (pago puntual)", templateId: REMINDER_TPL_DUE_LINK },
+  { key: "reminder_due_link", kind: "DUE", paymentType: "LINK", label: "Recordatorio antes del vencimiento (link de pago)", templateId: REMINDER_TPL_DUE_LINK },
   { key: "reminder_due_subscription", kind: "DUE", paymentType: "SUBSCRIPTION", label: "Recordatorio antes del vencimiento (débito automático)", templateId: REMINDER_TPL_DUE_SUBSCRIPTION },
-  { key: "reminder_mora_link", kind: "MORA", paymentType: "LINK", label: "Recordatorio en mora (pago puntual)", templateId: REMINDER_TPL_MORA_LINK },
+  { key: "reminder_mora_link", kind: "MORA", paymentType: "LINK", label: "Recordatorio en mora (link de pago)", templateId: REMINDER_TPL_MORA_LINK },
   { key: "reminder_mora_subscription", kind: "MORA", paymentType: "SUBSCRIPTION", label: "Recordatorio en mora (débito automático)", templateId: REMINDER_TPL_MORA_SUBSCRIPTION }
 ] as const;
 
