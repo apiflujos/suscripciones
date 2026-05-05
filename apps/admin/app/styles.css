@@ -926,6 +926,31 @@ a {
   position: relative;
 }
 
+.topbarMenuBtn {
+  display: none;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.topbarMenuBtn:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.topbarMenuIcon {
+  width: 18px;
+  height: 18px;
+}
+
 .topbarLogo {
   height: 24px;
   max-width: 160px;
@@ -11370,6 +11395,63 @@ textarea.input {
     margin-left: 0;
     padding: 12px 12px 24px;
   }
+
+  .topbar {
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .topbarLeft {
+    min-width: 0;
+  }
+
+  .topbarLeftRow {
+    gap: 10px;
+  }
+
+  .topbarMenuBtn {
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
+
+  .topbarTitleCentered {
+    position: static;
+    transform: none;
+    left: auto;
+    top: auto;
+    width: 100%;
+    max-width: none;
+    align-items: flex-start;
+    text-align: left;
+    pointer-events: auto;
+    margin-top: 8px;
+  }
+
+  .topbarLogo {
+    max-width: 132px;
+  }
+
+  .topbarRight {
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+
+  .userMenuBtn > div {
+    display: none !important;
+  }
+
+  .userMenuBtn {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .userMenuIcon {
+    display: none;
+  }
+}
 
   .topbar {
     grid-template-columns: 1fr auto;

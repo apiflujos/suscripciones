@@ -49,11 +49,28 @@ function BellIcon({ className, animated }: { className?: string; animated?: bool
   );
 }
 
+function MenuIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M4 6h16" />
+      <path d="M4 12h16" />
+      <path d="M4 18h16" />
+    </svg>
+  );
+}
+
 function displayNameFromEmail(email: string) {
   const e = String(email || "").trim();
   if (!e) return "Usuario";
   const local = e.split("@")[0] || e;
   return local.slice(0, 1).toUpperCase() + local.slice(1);
+}
+
+function toggleMobileSidebar() {
+  if (typeof document === "undefined") return;
+  const shell = document.querySelector(".app-shell") as HTMLElement | null;
+  if (!shell) return;
+  shell.classList.toggle("is-mobile-open");
 }
 
 export function TopBar({ session }: { session: AdminSession | null }) {
@@ -179,6 +196,16 @@ export function TopBar({ session }: { session: AdminSession | null }) {
     <header className="topbar" aria-label="Topbar" suppressHydrationWarning>
       <div className="topbarLeft">
         <div className="topbarLeftRow">
+          <button
+            type="button"
+            className="topbarMenuBtn"
+            data-loader="off"
+            onClick={toggleMobileSidebar}
+            aria-label="Abrir menú"
+            title="Abrir menú"
+          >
+            <MenuIcon className="topbarMenuIcon" />
+          </button>
           <Link href="/" className="topbarLogoLink" prefetch={false} aria-label="Ir al home">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/logo_horizontal.svg" alt="Logo" className="topbarLogo" data-theme-logo="horizontal" />
