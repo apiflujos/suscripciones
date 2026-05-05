@@ -384,6 +384,91 @@ function paymentAssociationLabel(reason?: string | null) {
   return s || "—";
 }
 
+function paymentAssociationErrorLabel(raw?: string | null) {
+  const s = String(raw || "").trim();
+  if (!s) return "unknown_error";
+  if (s === "missing_ids") return "Selecciona un ciclo o una suscripción antes de asociar el pago.";
+  if (s === "subscription_not_found") return "No se encontró la suscripción para asociar este pago.";
+  if (s === "cycle_not_found") return "No se encontró el ciclo seleccionado.";
+  if (s === "subscription_inactive") return "La suscripción está inactiva y no admite asociación.";
+  if (s === "cycle_already_has_payment") return "Ese ciclo ya tiene otro pago asociado.";
+  if (s === "tenant_mismatch") return "El pago y la suscripción pertenecen a tenants distintos.";
+  if (s === "out_of_cycle") return "El pago cae fuera del rango esperado para ese ciclo.";
+  return s;
+}
+
+function paymentSubscriptionStatusLabel(status?: string | null) {
+  const s = String(status || "").toUpperCase();
+  if (s === "ACTIVE") return "Activa";
+  if (s === "PAST_DUE") return "En mora";
+  if (s === "SUSPENDED") return "Suspendida";
+  if (s === "CANCELED") return "Cancelada";
+  if (s === "EXPIRED") return "Expirada";
+  return s || "—";
+}
+
+function paymentCollectionModeLabel(mode?: string | null) {
+  const s = String(mode || "").toUpperCase();
+  if (s === "AUTO_DEBIT") return "Suscripción automática";
+  if (s === "AUTO_LINK") return "Cobro automático por link";
+  if (s === "MANUAL_LINK") return "Cobro manual por link";
+  return "Sin definir";
+}
+
+function paymentMethodLabel(payment: any) {
+  const providerResponse = payment?.providerResponse && typeof payment.providerResponse === "object" ? payment.providerResponse : null;
+  const collectionMode = String(payment?.subscription?.plan?.metadata?.collectionMode || "").toUpperCase();
+  const origin = String(payment?.origin || "").toUpperCase();
+  const reference = String(payment?.reference || "");
+  const customerMeta = payment?.subscription?.customer?.metadata || payment?.customer?.metadata || {};
+  const paymentSource =
+    customerMeta?.wompi?.paymentSourceId ||
+    customerMeta?.wompi?.payment_source_id ||
+    customerMeta?.paymentSourceId ||
+    customerMeta?.payment_source_id;
+  const hasToken = Boolean(paymentSource);
+
+  if (Boolean(providerResponse?.manual) || reference.startsWith("MANUAL_") || origin === "MANUAL_USER") {
+    return "Marcado manual";
+  }
+  if (origin === "AUTO_DEBIT" || collectionMode === "AUTO_DEBIT") {
+    return hasToken ? "Tarjeta tokenizada" : "Auto débito sin tarjeta";
+  }
+  if (origin === "MANUAL_LINK") return "Link enviado manualmente";
+  if (origin === "AUTO_LINK") return "Link generado automáticamente";
+  if (payment?.wompiPaymentLinkId || payment?.checkoutUrl) return "Link de pago";
+  if (payment?.wompiTransactionId) return "Cobro procesado";
+  return "—";
+}
+
+function formatCycleSummary(cycle: any) {
+  if (!cycle) return "—";
+  const fmt = (value: any) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" }).format(date);
+  };
+  return `Ciclo ${cycle.cycleNumber || "—"} · ${fmt(cycle.periodStartAt)} → ${fmt(cycle.periodEndAt)}`;
+}
+
+function resolveNextChargeCycle(payment: any) {
+  const currentCycleId = String(payment?.billingCycle?.id || "");
+  const currentDueAt = payment?.billingCycle?.dueAt ? new Date(payment.billingCycle.dueAt).getTime() : null;
+  const cycles = Array.isArray(payment?.candidateCycles) ? payment.candidateCycles : [];
+  if (!cycles.length) return null;
+  const differentCycles = cycles.filter((cycle: any) => String(cycle?.id || "") !== currentCycleId);
+  if (!differentCycles.length) return null;
+  if (currentDueAt && Number.isFinite(currentDueAt)) {
+    const nextFuture = differentCycles.find((cycle: any) => {
+      const dueTime = cycle?.dueAt ? new Date(cycle.dueAt).getTime() : NaN;
+      return Number.isFinite(dueTime) && dueTime > currentDueAt;
+    });
+    if (nextFuture) return nextFuture;
+  }
+  return differentCycles[0] || null;
+}
+
 export default async function LogsPage({
   searchParams
 }: {
@@ -993,7 +1078,7 @@ export default async function LogsPage({
       ) : null}
       {reconcileStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error conciliando pago: {reconcileError || "unknown_error"}</div> : null}
       {assocStatus === "ok" ? <div className="card cardPad">Pago asociado manualmente a la suscripción.</div> : null}
-      {assocStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error asociando pago: {assocError || "unknown_error"}</div> : null}
+      {assocStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error asociando pago: {paymentAssociationErrorLabel(assocError)}</div> : null}
       {assocAllStatus === "ok" ? (
         <div className="card cardPad">
           Asociaciones automáticas completadas. Asociados: {assocAllCount || "0"} · Omitidos: {assocAllSkipped || "0"} · Fallidos: {assocAllFailed || "0"}
@@ -1221,8 +1306,8 @@ export default async function LogsPage({
                   <col style={{ width: "160px" }} />
                   <col style={{ width: "120px" }} />
                   <col style={{ width: "260px" }} />
-                  <col style={{ width: "220px" }} />
-                  <col style={{ width: "220px" }} />
+                  <col style={{ width: "320px" }} />
+                  <col style={{ width: "300px" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -1304,6 +1389,23 @@ export default async function LogsPage({
                     const originLabel = paymentOriginLabel(p.origin);
                     const associationLabel = paymentAssociationLabel(p.associationReason);
                     const traceLabel = [originLabel, associationLabel, p.associatedBy].filter(Boolean).join(" · ");
+                    const collectionMode = String(p.subscription?.plan?.metadata?.collectionMode || "").toUpperCase();
+                    const collectionModeLabel = p.subscriptionId ? paymentCollectionModeLabel(collectionMode) : "Pago sin suscripción";
+                    const paymentMethod = paymentMethodLabel(p);
+                    const subscriptionStatusLabel = p.subscriptionId ? paymentSubscriptionStatusLabel(p.subscription?.status) : null;
+                    const currentCycleLabel = p.billingCycle ? formatCycleSummary(p.billingCycle) : null;
+                    const nextChargeCycle = resolveNextChargeCycle(p);
+                    const nextChargeAt = nextChargeCycle?.dueAt || null;
+                    const shouldShowNextCharge = Boolean(
+                      p.subscriptionId &&
+                      (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK" || collectionMode === "MANUAL_LINK")
+                    );
+                    const hasLinkedSubscription = Boolean(String(p.subscriptionId || "").trim());
+                    const primaryCustomerHref = contactId
+                      ? `/customers/${encodeURIComponent(contactId)}`
+                      : contactQuery
+                        ? `/customers?q=${encodeURIComponent(String(contactQuery))}`
+                        : "";
                     const originKey = String(p.origin || "").toUpperCase();
                     const assocKey = String(p.associationReason || "").toUpperCase();
                     const originChipClass =
@@ -1382,8 +1484,60 @@ export default async function LogsPage({
                           </div>
                         </td>
                         <td className="log-payment-error-cell" title={detailText}>
-                          {detailText}
-                          {traceLabel ? <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>{traceLabel}</div> : null}
+                          <div className="log-payment-detail">
+                            <div className="log-payment-detail-group">
+                              <span className="log-payment-detail-label">Cobro</span>
+                              <div className="log-payment-detail-value">{collectionModeLabel}</div>
+                              <div className="log-payment-detail-meta">Método: {paymentMethod}</div>
+                            </div>
+                            {hasLinkedSubscription ? (
+                              <div className="log-payment-detail-group">
+                                <span className="log-payment-detail-label">Suscripción</span>
+                                <div className="log-payment-detail-value">
+                                  {p.subscription?.plan?.name || p.subscription?.product?.name || "Suscripción vinculada"}
+                                </div>
+                                <div className="log-payment-detail-meta">
+                                  Estado: {subscriptionStatusLabel || "—"}
+                                </div>
+                              </div>
+                            ) : null}
+                            {currentCycleLabel ? (
+                              <div className="log-payment-detail-group">
+                                <span className="log-payment-detail-label">Ciclo asociado</span>
+                                <div className="log-payment-detail-value">{currentCycleLabel}</div>
+                                {p.billingCycle?.dueAt ? (
+                                  <div className="log-payment-detail-meta">
+                                    Vencía: <LocalDateTime value={p.billingCycle.dueAt} variant="short" />
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : needsCycleAssociation ? (
+                              <div className="log-payment-detail-group">
+                                <span className="log-payment-detail-label">Ciclo asociado</span>
+                                <div className="log-payment-detail-value">Falta asociar el ciclo de esta suscripción.</div>
+                              </div>
+                            ) : null}
+                            {shouldShowNextCharge ? (
+                              <div className="log-payment-detail-group">
+                                <span className="log-payment-detail-label">Próximo cobro</span>
+                                {nextChargeAt ? (
+                                  <>
+                                    <div className="log-payment-detail-value">
+                                      <LocalDateTime value={nextChargeAt} variant="short" />
+                                    </div>
+                                    <div className="log-payment-detail-meta">{formatCycleSummary(nextChargeCycle)}</div>
+                                  </>
+                                ) : (
+                                  <div className="log-payment-detail-value">No hay próximo ciclo abierto.</div>
+                                )}
+                              </div>
+                            ) : null}
+                            <div className="log-payment-detail-group">
+                              <span className="log-payment-detail-label">{isIgnoredExternal ? "Procesamiento" : "Detalle"}</span>
+                              <div className="log-payment-detail-value">{detailText}</div>
+                              {traceLabel ? <div className="log-payment-detail-meta">{traceLabel}</div> : null}
+                            </div>
+                          </div>
                           {originLabel || associationLabel ? (
                             <div className="log-trace-badges">
                               {originLabel ? <span className={`pill pill-sm ${originChipClass}`}>Origen: {originLabel}</span> : null}
@@ -1422,12 +1576,15 @@ export default async function LogsPage({
                                   </PendingButton>
                                 </form>
                               ) : null}
-                              {contactId ? (
-                                <Link className="ghost btn-compact btn-view" href={`/customers/${encodeURIComponent(contactId)}`}>
-                                  Ver cliente
+                              {hasLinkedSubscription ? (
+                                <Link
+                                  className="ghost btn-compact btn-view"
+                                  href={`/billing?${new URLSearchParams({ subscriptionId: String(p.subscriptionId || "") }).toString()}`}
+                                >
+                                  Ver suscripción
                                 </Link>
-                              ) : contactQuery ? (
-                                <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
+                              ) : primaryCustomerHref ? (
+                                <Link className="ghost btn-compact btn-view" href={primaryCustomerHref}>
                                   Ver cliente
                                 </Link>
                               ) : null}
@@ -1473,7 +1630,12 @@ export default async function LogsPage({
                                     ? <input type="hidden" name="subscriptionId" value={String(p.subscriptionId || "")} />
                                     : null}
                                   {Array.isArray(p.candidateCycles) && p.candidateCycles.length ? (
-                                    <select className="select select-sm" name="cycleId" defaultValue="">
+                                    <select
+                                      className="select select-sm"
+                                      name="cycleId"
+                                      defaultValue=""
+                                      required={!String(p.subscriptionId || "").trim()}
+                                    >
                                       <option value="">Ciclo…</option>
                                       {p.candidateCycles.map((c: any) => {
                                         const start = c.periodStartAt ? new Date(c.periodStartAt) : null;

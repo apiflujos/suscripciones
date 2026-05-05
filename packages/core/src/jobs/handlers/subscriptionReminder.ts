@@ -150,6 +150,114 @@ function renderAny(input: any, ctx: any): any {
   return input;
 }
 
+function extractPlaceholderIndexes(value: unknown): number[] {
+  if (typeof value !== "string") return [];
+  const matches = value.match(/\{\{\s*(\d+)\s*\}\}/g) || [];
+  return matches
+    .map((match) => {
+      const num = Number(match.replace(/[^\d]/g, ""));
+      return Number.isFinite(num) ? Math.max(0, Math.trunc(num)) : 0;
+    })
+    .filter((num) => num > 0);
+}
+
+function countPlaceholderSlotsFromText(value: unknown) {
+  const indexes = extractPlaceholderIndexes(value);
+  return indexes.length ? Math.max(...indexes) : 0;
+}
+
+function countPlaceholderSlotsFromExample(value: unknown): number {
+  if (Array.isArray(value)) {
+    return value.reduce<number>((max, item) => Math.max(max, countPlaceholderSlotsFromExample(item)), 0);
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).reduce<number>(
+      (max, item) => Math.max(max, countPlaceholderSlotsFromExample(item)),
+      0
+    );
+  }
+  return 0;
+}
+
+function countExampleValueSlots(value: unknown): number {
+  if (!Array.isArray(value)) return 0;
+  return value.reduce((max, item) => {
+    if (Array.isArray(item)) return Math.max(max, item.filter((entry) => entry != null && String(entry).trim() !== "").length);
+    if (item && typeof item === "object") return Math.max(max, countExampleValueSlots(Object.values(item)));
+    return max;
+  }, 0);
+}
+
+function countBodyParams(components: any[], currentCount: number) {
+  const body = components.find((component: any) => String(component?.type || "").toUpperCase() === "BODY") as any;
+  if (!body) return 0;
+  const countByText = countPlaceholderSlotsFromText(body?.text);
+  const countByExample = Math.max(
+    countPlaceholderSlotsFromExample(body?.example),
+    countExampleValueSlots(body?.example?.body_text)
+  );
+  return Math.max(countByText, countByExample, currentCount);
+}
+
+function countHeaderParams(components: any[], currentCount: number) {
+  const header = components.find((component: any) => String(component?.type || "").toUpperCase() === "HEADER") as any;
+  if (!header) return 0;
+  const format = String(header?.format || header?.format_type || "").toUpperCase();
+  if (format && format !== "TEXT") return 0;
+  const countByText = countPlaceholderSlotsFromText(header?.text);
+  const countByExample = Math.max(
+    countPlaceholderSlotsFromExample(header?.example),
+    Array.isArray(header?.example?.header_text)
+      ? header.example.header_text.filter((entry: unknown) => entry != null && String(entry).trim() !== "").length
+      : 0
+  );
+  return Math.max(countByText, countByExample, currentCount);
+}
+
+function countButtonParams(components: any[], currentCount: number) {
+  const buttons = components.find((component: any) => String(component?.type || "").toUpperCase() === "BUTTONS") as any;
+  if (!buttons || !Array.isArray(buttons?.buttons)) return 0;
+  const urlButtons = buttons.buttons.filter((button: any) => String(button?.type || "").toUpperCase() === "URL");
+  const byUrlPlaceholders = urlButtons.reduce(
+    (max: number, button: any) => Math.max(max, countPlaceholderSlotsFromText(button?.url), countPlaceholderSlotsFromExample(button?.example)),
+    0
+  );
+  const inferred = byUrlPlaceholders > 0 ? byUrlPlaceholders : urlButtons.length;
+  return Math.max(inferred, currentCount);
+}
+
+function extractTemplateValueList(value: unknown, kind: "body" | "header" | "buttons"): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((entry: any, idx: number) => {
+    if (kind === "buttons") {
+      return String(entry?.value ?? "").trim();
+    }
+    return String(entry?.value ?? entry?.text ?? "").trim();
+  });
+}
+
+function validateRenderedTemplateParams(templateParams: any, templateMeta: any) {
+  const components = Array.isArray(templateMeta?.components) ? templateMeta.components : [];
+  if (!components.length) return;
+  const processed = templateParams?.processed_params || {};
+  const bodyParams = extractTemplateValueList(processed?.body, "body");
+  const headerParams = extractTemplateValueList(processed?.header, "header");
+  const buttonParams = extractTemplateValueList(processed?.buttons, "buttons");
+  const requiredBody = countBodyParams(components, bodyParams.length);
+  const requiredHeader = countHeaderParams(components, headerParams.length);
+  const requiredButtons = countButtonParams(components, buttonParams.length);
+  const completeBody = bodyParams.length === requiredBody && bodyParams.every(Boolean);
+  const completeHeader = headerParams.length === requiredHeader && headerParams.every(Boolean);
+  const completeButtons = buttonParams.length === requiredButtons && buttonParams.every(Boolean);
+  const missingSections: string[] = [];
+  if (!completeBody) missingSections.push(`body:${requiredBody}`);
+  if (!completeHeader) missingSections.push(`header:${requiredHeader}`);
+  if (!completeButtons) missingSections.push(`buttons:${requiredButtons}`);
+  if (missingSections.length) {
+    throw new Error(`missing_template_params:${missingSections.join(",")}`);
+  }
+}
+
 function dedupeKey(args: { trigger: string; ruleId: string; subscriptionId?: string; paymentId?: string; cycleNumber?: number; offsetSeconds?: number }) {
   const sub = args.subscriptionId || "-";
   const pay = args.paymentId || "-";
@@ -553,31 +661,47 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
     }
   }
   const centsToPesos = (value?: number | null) => Math.trunc(Number(value || 0) / 100);
+  const tokenUrlFromPayload = parsed.data.trigger === "TOKENIZATION_LINK_CREATED" ? parsed.data.tokenUrl : "";
+  const catalogUrlFromPayload = parsed.data.trigger === "CATALOG_LINK_CREATED" ? parsed.data.catalogUrl : "";
   const autoPlanUrl = String(checkoutPublicUrl.AUTO_PLAN || "").trim();
   const autoSubscriptionUrl = String(checkoutPublicUrl.AUTO_SUBSCRIPTION || "").trim();
   const autoCartUrl = String(checkoutPublicUrl.AUTO_CART || "").trim();
-  const effectivePaymentLink = autoPlanUrl
+  const directPaymentLinkUrl = String(effectivePayment?.checkoutUrl || "").trim();
+  const directTokenizationLinkUrl = String(tokenUrlFromPayload || "").trim();
+  const directCatalogLinkUrl = String(catalogUrlFromPayload || "").trim();
+  const effectivePaymentLinkUrl =
+    autoPlanUrl ||
+    directPaymentLinkUrl ||
+    String(meta?.paymentLink?.url || "").trim();
+  const effectiveTokenizationLinkUrl =
+    autoSubscriptionUrl ||
+    directTokenizationLinkUrl ||
+    String(meta?.tokenizationLink?.url || "").trim();
+  const effectiveCartLinkUrl =
+    autoCartUrl ||
+    directCatalogLinkUrl ||
+    String(meta?.cartLink?.url || "").trim();
+  const effectivePaymentLink = effectivePaymentLinkUrl
     ? {
         ...(meta?.paymentLink ?? {}),
-        url: autoPlanUrl
+        url: effectivePaymentLinkUrl,
+        checkoutUrl: directPaymentLinkUrl || meta?.paymentLink?.checkoutUrl || null
       }
     : (meta?.paymentLink ?? null);
-  const effectiveTokenizationLink = autoSubscriptionUrl
+  const effectiveTokenizationLink = effectiveTokenizationLinkUrl
     ? {
         ...(meta?.tokenizationLink ?? {}),
-        url: autoSubscriptionUrl
+        url: effectiveTokenizationLinkUrl
       }
     : (meta?.tokenizationLink ?? null);
-  const effectiveCartLink = autoCartUrl
+  const effectiveCartLink = effectiveCartLinkUrl
     ? {
         ...(meta?.cartLink ?? {}),
-        url: autoCartUrl
+        url: effectiveCartLinkUrl
       }
     : (meta?.cartLink ?? null);
-  const tokenUrlFromPayload = parsed.data.trigger === "TOKENIZATION_LINK_CREATED" ? parsed.data.tokenUrl : "";
-  const catalogUrlFromPayload = parsed.data.trigger === "CATALOG_LINK_CREATED" ? parsed.data.catalogUrl : "";
-  const tokenizationUrl = tokenUrlFromPayload || String(effectiveTokenizationLink?.url || "").trim() || "";
-  const catalogUrl = catalogUrlFromPayload || String(effectiveCartLink?.url || "").trim() || "";
+  const tokenizationUrl = directTokenizationLinkUrl || String(effectiveTokenizationLink?.url || "").trim() || "";
+  const catalogUrl = directCatalogLinkUrl || String(effectiveCartLink?.url || "").trim() || "";
   const timeZone = await getAppTimeZone().catch((err: any) => {
     logger.warn({ err }, "subscriptionReminder: fallo resolviendo zona horaria, usando America/Bogota");
     return "America/Bogota";
@@ -643,6 +767,33 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   }
 
   const content = template.content ? renderTemplate(template.content, ctx) : "(template)";
+  const renderedTemplateParams = template.chatwootTemplate ? renderAny(template.chatwootTemplate, ctx) : null;
+  if (renderedTemplateParams) {
+    try {
+      validateRenderedTemplateParams(renderedTemplateParams, template.meta);
+    } catch (err: any) {
+      const validationError = err?.message ? String(err.message) : "missing_template_params";
+      await systemLog(LogLevel.WARN, "notifications.render", "Parámetros faltantes en plantilla WhatsApp", {
+        ruleId: rule.id,
+        templateId: template.id,
+        trigger: parsed.data.trigger,
+        customerId: customer.id,
+        subscriptionId: subscription?.id ?? null,
+        paymentId: effectivePayment?.id ?? null,
+        validationError,
+        mappedBodyParams: template.chatwootTemplate?.processed_params?.body || [],
+        mappedHeaderParams: template.chatwootTemplate?.processed_params?.header || [],
+        mappedButtonParams: template.chatwootTemplate?.processed_params?.buttons || [],
+        renderedBodyParams: renderedTemplateParams?.processed_params?.body || [],
+        renderedHeaderParams: renderedTemplateParams?.processed_params?.header || [],
+        renderedButtonParams: renderedTemplateParams?.processed_params?.buttons || [],
+        missingVariables: missing
+      }, "job:subscriptionReminder").catch((logErr: any) => {
+        logger.warn({ err: logErr, customerId: customer.id, validationError }, "subscriptionReminder: fallo escribiendo systemLog de parámetros faltantes");
+      });
+      throw err;
+    }
+  }
   const dk = dedupeKey({
     trigger: parsed.data.trigger,
     ruleId: rule.id,
@@ -693,9 +844,9 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
       status: MessageStatus.PENDING,
       content,
       actor: "Sistema",
-      providerResp: template.chatwootTemplate
+      providerResp: renderedTemplateParams
         ? ({
-            template_params: renderAny(template.chatwootTemplate, ctx),
+            template_params: renderedTemplateParams,
             meta: {
               trigger: parsed.data.trigger,
               offsetSeconds: parsed.data.offsetSeconds ?? null,

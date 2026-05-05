@@ -1,10 +1,11 @@
 import { ChatwootMessageType, LogLevel, MessageStatus, Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma";
 import { ChatwootClient } from "../../providers/chatwoot/client";
+import { reconcileChatwootMessageDelivery } from "../../services/chatwootDelivery";
 import { getChatwootConfig } from "../../services/runtimeConfig";
 import { consumeApp } from "../../services/superAdminApp";
 import { systemLog } from "../../services/systemLog";
-import { syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
+import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
 import { logger } from "../../lib/logger";
 
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
@@ -167,94 +168,40 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     if (typeof knownSourceId === "string" && knownSourceId.trim()) sourceId = knownSourceId.trim();
   }
 
-  try {
-    if (!contactId) {
-      const name = String(msg.customer.name || "").trim();
-      const email = String(msg.customer.email || "").trim();
-      const phone = String(msg.customer.phone || "").trim();
-      if (!name || !email || !phone) {
-        await prisma.chatwootMessage.update({
-          where: { id: chatwootMessageId },
-          data: { status: MessageStatus.FAILED, errorMessage: "missing_customer_fields" }
-        });
-        await systemLog(LogLevel.WARN, "chatwoot.send", "Contacto no creado: faltan nombre/email/teléfono", {
-          actor: "job:sendChatwootMessage",
-          chatwootMessageId,
-          customerId: msg.customerId,
-          hasName: Boolean(name),
-          hasEmail: Boolean(email),
-          hasPhone: Boolean(phone)
-        }).catch((err) => {
-          logger.warn({ err, chatwootMessageId }, "chatwoot.send: failed to write system log");
-        });
-        return;
-      }
-
-      const created = await client.createContact({
-        name,
-        email,
-        phoneNumber: phone
+  if (!contactId) {
+    const ensured = await ensureChatwootContactForCustomer(msg.customerId);
+    if (ensured.ok) {
+      contactId = ensured.contactId;
+      sourceId = ensured.sourceId;
+    } else {
+      const errorMessage =
+        ensured.reason === "customer_phone_required"
+          ? "customer_phone_required"
+          : ensured.reason === "chatwoot_not_configured"
+            ? "chatwoot_not_configured"
+            : ensured.reason === "customer_not_found"
+              ? "customer_not_found"
+              : ensured.reason === "missing_customer_id"
+                ? "missing_customer_id"
+                : ensured.reason === "create_or_search_failed"
+                  ? "contact not found/created"
+                  : "contact not found/created";
+      await prisma.chatwootMessage.update({
+        where: { id: chatwootMessageId },
+        data: { status: MessageStatus.FAILED, errorMessage }
       });
-      contactId = created.contactId;
-      sourceId = created.sourceId;
-
-      const merged = {
-        ...(customerMeta && typeof customerMeta === "object" ? customerMeta : {}),
-        chatwoot: {
-          ...(customerMeta?.chatwoot || {}),
-          contactId,
-          sourceId,
-          contactSnapshot: { name: msg.customer.name ?? null, email: msg.customer.email ?? null, phone: msg.customer.phone ?? null }
-        }
-      };
-      await prisma.customer.update({
-        where: { id: msg.customerId },
-        data: { metadata: merged as Prisma.InputJsonValue }
+      await systemLog(LogLevel.WARN, "chatwoot.send", "No se pudo crear o encontrar el contacto en Chatwoot", {
+        actor: "job:sendChatwootMessage",
+        chatwootMessageId,
+        customerId: msg.customerId,
+        reason: ensured.reason,
+        detail: "detail" in ensured ? (ensured as any).detail : null,
+        searchQueries: "searchQueries" in ensured ? (ensured as any).searchQueries : [],
+        customerPhone: msg.customer.phone || null
       }).catch((err) => {
-        logger.warn({ err, customerId: msg.customerId }, "chatwoot.send: failed to update customer metadata");
+        logger.warn({ err, chatwootMessageId }, "chatwoot.send: failed to write system log");
       });
-    }
-  } catch {
-    const queries = client.buildSearchQueries({
-      email: msg.customer.email || undefined,
-      phoneNumber: msg.customer.phone || undefined
-    });
-    for (const q of queries) {
-      const found = await client.searchContact(q).catch(() => null);
-      contactId = found?.contactId;
-      if (!contactId) continue;
-      let fetchedSourceId: string | undefined;
-      try {
-        const contactInfo = await client.getContact(contactId);
-        fetchedSourceId = contactInfo.sourceId;
-      } catch {
-        // ignore
-      }
-      if (!fetchedSourceId) {
-        try {
-          const createdInbox = await client.createContactInbox(contactId);
-          fetchedSourceId = createdInbox.sourceId;
-        } catch {
-          // ignore
-        }
-      }
-      sourceId = fetchedSourceId || sourceId;
-      const merged = {
-        ...(customerMeta && typeof customerMeta === "object" ? customerMeta : {}),
-        chatwoot: {
-          ...(customerMeta?.chatwoot || {}),
-          contactId,
-          sourceId,
-          contactSnapshot: { name: msg.customer.name ?? null, email: msg.customer.email ?? null, phone: msg.customer.phone ?? null }
-        }
-      };
-      await prisma.customer.update({
-        where: { id: msg.customerId },
-        data: { metadata: merged as Prisma.InputJsonValue }
-      }).catch((err) => {
-        logger.warn({ err, customerId: msg.customerId }, "chatwoot.send: failed to update customer metadata");
-      });
-      break;
+      return;
     }
   }
 
@@ -606,8 +553,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   await prisma.chatwootMessage.update({
     where: { id: chatwootMessageId },
     data: {
-      status: MessageStatus.SENT,
-      sentAt: new Date(),
+      status: MessageStatus.PENDING,
       providerResp: templateParams
         ? ({ ...(msg.providerResp as Record<string, unknown>), response: sent.raw } as Prisma.InputJsonValue)
         : (sent.raw as Prisma.InputJsonValue),
@@ -633,9 +579,41 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     logger.warn({ err, customerId: msg.customerId }, "chatwoot.send: failed to update customer metadata");
   });
 
-  await consumeApp("messages_sent", { amount: 1, source: "jobs:chatwoot.sent", meta: { type: msg.type, id: msg.id } });
-  if (msg.type === ChatwootMessageType.PAYMENT_LINK) {
-    await consumeApp("payment_links_sent", { amount: 1, source: "jobs:chatwoot.sent", meta: { chatwootMessageId: msg.id } });
+  const delivery = await reconcileChatwootMessageDelivery({
+    chatwootMessageId,
+    actor: "job:sendChatwootMessage",
+    attempts: 4,
+    waitMs: 1500
+  }).catch((err: any) => ({
+    ok: false as const,
+    reason: err?.message ? String(err.message) : "chatwoot_delivery_lookup_failed"
+  }));
+
+  if (!delivery.ok) {
+    await prisma.chatwootMessage.update({
+      where: { id: chatwootMessageId },
+      data: {
+        status: MessageStatus.SENT,
+        sentAt: new Date(),
+        errorMessage: delivery.reason
+      }
+    }).catch((err) => {
+      logger.warn({ err, chatwootMessageId }, "chatwoot.send: failed to persist fallback sent state");
+    });
+    await systemLog(LogLevel.WARN, "chatwoot.send", "No se pudo reconciliar entrega real en Chatwoot", {
+      actor: "job:sendChatwootMessage",
+      chatwootMessageId,
+      customerId: msg.customerId,
+      reason: delivery.reason
+    }).catch((err) => {
+      logger.warn({ err, chatwootMessageId }, "chatwoot.send: failed to write delivery reconciliation log");
+    });
   }
 
+  if (delivery.ok ? delivery.state !== "failed" : true) {
+    await consumeApp("messages_sent", { amount: 1, source: "jobs:chatwoot.sent", meta: { type: msg.type, id: msg.id } });
+    if (msg.type === ChatwootMessageType.PAYMENT_LINK) {
+      await consumeApp("payment_links_sent", { amount: 1, source: "jobs:chatwoot.sent", meta: { chatwootMessageId: msg.id } });
+    }
+  }
 }

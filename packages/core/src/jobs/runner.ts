@@ -14,6 +14,7 @@ import { syncSmartLists } from "./handlers/syncSmartLists";
 import { aiAssist } from "./handlers/aiAssist";
 import { gamificationRecalc } from "./handlers/gamificationRecalc";
 import { dataTrainer } from "./handlers/dataTrainer";
+import { reconcileRecentChatwootDeliveries } from "../services/chatwootDelivery";
 import { reconcileWompiByReference, reconcileWompiTransaction } from "../services/wompiReconcile";
 import { resolveSubscriptionCollectionMode } from "../services/subscriptionMode";
 import { ensurePaymentRetryJob } from "../services/retryJobScheduler";
@@ -116,6 +117,7 @@ let lastAutoReconcileAtMs = 0;
 let lastWebhookRecoveryAtMs = 0;
 let lastEnsureDueCutoffRetriesAtMs = 0;
 let lastEnsurePaymentRetryQueueHealthAtMs = 0;
+let lastChatwootDeliveryReconcileAtMs = 0;
 
 function getRunnerErrorMessage(err: unknown) {
   return err instanceof Error ? err.message : String(err);
@@ -429,6 +431,28 @@ async function ensureDueCutoffRetries() {
       const collectionCycle = billingState?.collectionCycle || null;
       const collectionCyclePaid = isBillingCyclePaid(collectionCycle);
       if (!collectionCycle || collectionCyclePaid) continue;
+
+      if (!autoDebitConfig.retryEnabled) {
+        const existingCyclePayment = await prisma.payment.findFirst({
+          where: {
+            subscriptionId: sub.id,
+            cycleNumber: collectionCycle.cycleNumber,
+            status: { in: ["PENDING", "PROCESSING", "DECLINED", "ERROR", "VOIDED"] as any[] }
+          },
+          orderBy: [{ createdAt: "desc" }],
+          select: {
+            id: true,
+            status: true,
+            reference: true,
+            wompiTransactionId: true,
+            createdAt: true
+          }
+        });
+        if (existingCyclePayment) {
+          continue;
+        }
+      }
+
       const dueAt = collectionCycle ? new Date(collectionCycle.dueAt || collectionCycle.periodEndAt) : null;
       const runAtMs = dueAt?.getTime?.() ?? 0;
       const runAt = runAtMs > now + futureToleranceMs ? new Date(runAtMs) : nowDate;
@@ -508,6 +532,22 @@ async function ensurePaymentRetryQueueHealth() {
       data: { status: RetryJobStatus.PENDING, lockedAt: null, lockedBy: null, attempts: { increment: 1 } }
     }).catch((err) => {
       logger.warn({ err, jobId: job.id }, "[Jobs/Health] Fallo reencolando retry job estancado");
+    });
+  }
+}
+
+async function ensureChatwootDeliveryReconcile() {
+  const now = Date.now();
+  if (now - lastChatwootDeliveryReconcileAtMs < 60_000) return;
+  lastChatwootDeliveryReconcileAtMs = now;
+
+  const result = await reconcileRecentChatwootDeliveries({ windowMinutes: 30, limit: 50 }).catch((err) => {
+    logger.warn({ err }, "[Jobs/Chatwoot] Fallo reconciliando estados de entrega");
+    return null;
+  });
+  if (result && result.checked > 0) {
+    await systemLog(LogLevel.INFO, "chatwoot.delivery", "Chatwoot delivery reconcile run", result).catch((err) => {
+      logger.warn({ err, result }, "[Jobs/Chatwoot] Fallo creando systemLog de reconciliación");
     });
   }
 }
@@ -759,6 +799,7 @@ async function main() {
       await ensureWompiWebhookRecoveryJobs();
       await ensureDueCutoffRetries();
       await ensurePaymentRetryQueueHealth();
+      await ensureChatwootDeliveryReconcile();
       await ensureExpiredSubscriptions();
       await runOnce();
       await new Promise((r) => setTimeout(r, 1000));

@@ -485,6 +485,14 @@ export class ChatwootClient {
     return { conversationId: parsed.data.id, raw: res.json };
   }
 
+  async getConversationDetails(conversationId: number) {
+    const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/conversations/${conversationId}`, {
+      method: "GET"
+    });
+    if (!res.ok) throw new Error(`Chatwoot get conversation failed: ${res.status} ${JSON.stringify(res.json)}`);
+    return { raw: res.json };
+  }
+
   async listConversationLabels(conversationId: number) {
     const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/conversations/${conversationId}/labels`, {
       method: "GET"

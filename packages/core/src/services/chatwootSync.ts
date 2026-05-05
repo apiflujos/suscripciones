@@ -261,6 +261,7 @@ export async function ensureChatwootContactForCustomer(customerId: string, opts?
   } catch (err: any) {
     // If contact exists already, try to search by normalized phone/email.
     const queries = client.buildSearchQueries({ email: customer.email || undefined, phoneNumber: customer.phone || undefined });
+    const createError = err?.message ? String(err.message) : "unknown error";
     for (const q of queries) {
       const found = await client.searchContact(q).catch(() => null);
       if (!found?.contactId) continue;
@@ -316,11 +317,14 @@ export async function ensureChatwootContactForCustomer(customerId: string, opts?
     }
     await systemLog(LogLevel.WARN, "chatwoot.sync", "Could not create/search contact for customer", {
       customerId: customer.id,
-      err: err?.message ? String(err.message) : "unknown error"
+      err: createError,
+      phone: customer.phone || null,
+      email: customer.email || null,
+      searchQueries: queries
     }).catch((logErr) => {
       logger.warn({ err: logErr, customerId: customer.id }, "chatwoot.sync: failed to write system log");
     });
-    return { ok: false as const, reason: "create_or_search_failed" as const };
+    return { ok: false as const, reason: "create_or_search_failed" as const, detail: createError, searchQueries: queries };
   }
 
   if (!created?.contactId) return { ok: false as const, reason: "create_failed" as const };
