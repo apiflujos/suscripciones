@@ -73,7 +73,11 @@ export function BillingCard({ row, context }: BillingCardProps) {
       .map((part: string) => part[0]?.toUpperCase())
       .join("") || "PR";
   const stateBadges = buildBillingStatusCards(row);
+  const autoChargeEnabled = Boolean(row.autoChargeEnabled);
+  const retryAutomationEnabled = Boolean(row.retryAutomationEnabled);
   const nextChargeLabel = formatLongCivilDate(row.vencimientoAt);
+  const currentCollectionDueLabel = formatLongCivilDate(row.currentCollectionDueAt || row.vencimientoAt);
+  const nextRetryLabel = row.nextRetryAt ? formatLongCivilDate(row.nextRetryAt) : "Sin intento programado";
   const currentCycleLabel =
     row.periodoInicioAt && row.periodoFinAt ? `${formatLongCivilDate(row.periodoInicioAt)} – ${formatLongCivilDate(row.periodoFinAt)}` : "—";
   const lastPaymentLabel =
@@ -200,6 +204,20 @@ export function BillingCard({ row, context }: BillingCardProps) {
           </div>
         </div>
         <div className="billing-card-col billing-card-col-right billing-card-col-payments">
+          <div className="billing-body-row billing-body-row-keyval">
+            <span className="billing-body-label">Cobro automático</span>
+            <div className="billing-body-value">{isAutoDebit ? (autoChargeEnabled ? "Activo" : "Apagado") : "No aplica"}</div>
+          </div>
+          <div className="billing-body-row billing-body-row-keyval">
+            <span className="billing-body-label">Vencimiento</span>
+            <div className="billing-body-value">{currentCollectionDueLabel}</div>
+          </div>
+          <div className="billing-body-row billing-body-row-keyval">
+            <span className="billing-body-label">Próx. intento</span>
+            <div className="billing-body-value">
+              {isAutoDebit ? (autoChargeEnabled && retryAutomationEnabled ? nextRetryLabel : "No programado") : "No aplica"}
+            </div>
+          </div>
           <div className="billing-body-row billing-body-row-keyval">
             <span className="billing-body-label">Próx. cobro</span>
             <div className="billing-body-value">{nextChargeLabel}</div>

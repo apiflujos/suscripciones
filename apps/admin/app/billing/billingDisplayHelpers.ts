@@ -141,6 +141,12 @@ export function buildBillingStatusCards(r: any) {
 
   if (String(r.mode || "") === "AUTO_DEBIT") {
     badges.push({
+      heading: "Auto cobro",
+      value: r.autoChargeEnabled ? "Activo" : "Apagado",
+      className: r.autoChargeEnabled ? "pill-ok" : "pill-warn",
+      title: r.autoChargeEnabled ? "Los cobros automáticos están habilitados" : "Los cobros automáticos están apagados en configuración"
+    });
+    badges.push({
       heading: "Tarjeta",
       value: r.customerTokenized ? "Guardada" : "Sin tarjeta",
       className: r.customerTokenized ? "pill-ok" : "pill-warn",

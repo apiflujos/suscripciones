@@ -3407,6 +3407,33 @@ html[data-theme="dark"] .payments-health-banner code {
   gap: 10px;
 }
 
+.logs-table-payments .log-payment-details-collapsible {
+  display: grid;
+  gap: 10px;
+}
+
+.logs-table-payments .log-payment-details-summary {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.logs-table-payments .log-payment-details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.logs-table-payments .log-payment-details-summary::marker {
+  content: "";
+}
+
+.logs-table-payments .log-payment-details-summary-sep {
+  color: var(--muted);
+}
+
 .logs-table-payments .log-payment-detail-group {
   display: grid;
   gap: 3px;

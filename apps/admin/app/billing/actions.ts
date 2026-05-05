@@ -501,10 +501,16 @@ export async function chargeSubscriptionNow(formData: FormData) {
   const tenantId = tenantIds[0] || "";
   if (!subscriptionId) return redirect(mergeQuery(returnTo, { error: "missing_subscription_id" }));
 
+  const c = await cookies();
+  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
+  const session = await verifyAdminSessionToken(sessionToken);
+  const actor = session?.email ? `admin:${session.email}` : "admin:unknown";
+
   try {
     const res = await chargeSubscriptionNowService({
       subscriptionId,
-      tenantId: tenantId || null
+      tenantId: tenantId || null,
+      actor
     });
     if (!res.ok) throw new Error(res.error);
     const paymentId =

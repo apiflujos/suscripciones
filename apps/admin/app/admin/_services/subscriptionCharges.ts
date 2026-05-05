@@ -120,7 +120,7 @@ export async function createSubscriptionPaymentLink(args: { subscriptionId: stri
   }
 }
 
-export async function chargeSubscriptionNow(args: { subscriptionId: string; tenantId?: string | null; amountInCents?: number }) {
+export async function chargeSubscriptionNow(args: { subscriptionId: string; tenantId?: string | null; amountInCents?: number; actor?: string | null }) {
   const subscriptionId = String(args.subscriptionId || "").trim();
   if (!subscriptionId) return { ok: false, status: 400, error: "invalid_subscription_id" as const };
 
@@ -306,7 +306,8 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
       subscriptionId,
       amountInCentsOverride: args.amountInCents,
       forceNewTransaction: true,
-      cycleNumberOverride
+      cycleNumberOverride,
+      initiatedBy: args.actor || "system"
     });
     return { ok: true, ...result };
   } catch (err) {

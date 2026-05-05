@@ -11,6 +11,8 @@ type ChatwootMessageRecord = {
   providerResp: Prisma.JsonValue | null;
   status: MessageStatus;
   errorMessage: string | null;
+  sentAt?: Date | null;
+  createdAt?: Date | null;
 };
 
 type DeliverySnapshot = {
@@ -56,16 +58,21 @@ function inferMissingTemplateParamFromProcessedParams(processedParams: Record<st
     ["buttons", processedParams.buttons]
   ];
   for (const [section, entries] of sections) {
-    if (!Array.isArray(entries)) continue;
-    const missingEntry = entries.find((entry: unknown) => {
-      const rec = asRecord(entry);
-      const value = stringifyValue(rec?.value ?? rec?.text ?? "");
-      return !value;
-    });
-    if (missingEntry) {
-      const rec = asRecord(missingEntry) || {};
-      const slot = stringifyValue(rec.key ?? rec.index ?? "");
-      return slot ? `${section}:${slot}` : section;
+    if (Array.isArray(entries)) {
+      const missingIndex = entries.findIndex((entry: unknown) => {
+        const rec = asRecord(entry);
+        const value = stringifyValue(rec?.parameter ?? rec?.value ?? rec?.text ?? entry);
+        return !value;
+      });
+      if (missingIndex >= 0) return `${section}:${missingIndex + 1}`;
+      continue;
+    }
+    const record = asRecord(entries);
+    if (!record) continue;
+    const keys = Object.keys(record).sort((a, b) => Number(a) - Number(b));
+    const missingKey = keys.find((key) => !stringifyValue(record[key]));
+    if (missingKey) {
+      return `${section}:${missingKey}`;
     }
   }
   return null;
@@ -178,7 +185,7 @@ async function persistSnapshot(record: ChatwootMessageRecord, snapshot: Delivery
       data: {
         status: MessageStatus.SENT,
         errorMessage: snapshot.providerError || null,
-        sentAt: new Date(),
+        sentAt: record.sentAt ?? record.createdAt ?? new Date(),
         providerResp: nextProviderResp as Prisma.InputJsonValue
       }
     });
@@ -195,7 +202,7 @@ export async function reconcileChatwootMessageDelivery(args: {
   const waitMs = Number.isFinite(args.waitMs) ? Math.max(0, Math.trunc(args.waitMs || 0)) : 0;
   const record = await prisma.chatwootMessage.findUnique({
     where: { id: args.chatwootMessageId },
-    select: { id: true, customerId: true, providerResp: true, status: true, errorMessage: true }
+    select: { id: true, customerId: true, providerResp: true, status: true, errorMessage: true, sentAt: true, createdAt: true }
   });
   if (!record) return { ok: false as const, reason: "message_not_found" as const };
 
@@ -245,7 +252,7 @@ export async function reconcileRecentChatwootDeliveries(args?: { windowMinutes?:
     },
     orderBy: { createdAt: "desc" },
     take: limit,
-    select: { id: true, customerId: true, providerResp: true, status: true, errorMessage: true }
+    select: { id: true, customerId: true, providerResp: true, status: true, errorMessage: true, sentAt: true, createdAt: true }
   });
 
   let checked = 0;

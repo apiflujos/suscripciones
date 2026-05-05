@@ -770,6 +770,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
   amountInCentsOverride?: number;
   forceNewTransaction?: boolean;
   cycleNumberOverride?: number;
+  initiatedBy?: string | null;
 }): Promise<{ paymentId: string; wompiTransactionId: string }> {
   const sub = await prisma.subscription.findUnique({
     where: { id: args.subscriptionId },
@@ -809,6 +810,9 @@ export async function createAutoDebitTransactionForSubscription(args: {
   const currency = validateWompiCurrency(sub.plan.currency);
 
   const subscriptionCycleKey = `${sub.id}:${cycle}`;
+  const manualInitiator = String(args.initiatedBy || "").trim();
+  const paymentOrigin = manualInitiator ? "MANUAL_USER" : "AUTO_DEBIT";
+  const associatedBy = manualInitiator || "system";
   const existingApproved = await prisma.payment.findFirst({
     where: { subscriptionId: sub.id, cycleNumber: cycle, status: PaymentStatus.APPROVED },
     select: { id: true, wompiTransactionId: true }
@@ -865,9 +869,9 @@ export async function createAutoDebitTransactionForSubscription(args: {
         reference,
         status: PaymentStatus.PENDING,
         subscriptionCycleKey: null,
-        origin: "AUTO_DEBIT",
+        origin: paymentOrigin as any,
         associationReason: "SUB_REF",
-        associatedBy: "system"
+        associatedBy
       },
       select: { id: true, wompiTransactionId: true, status: true, reference: true }
     });
@@ -884,9 +888,9 @@ export async function createAutoDebitTransactionForSubscription(args: {
         reference,
         status: PaymentStatus.PENDING,
         subscriptionCycleKey,
-        origin: "AUTO_DEBIT",
+        origin: paymentOrigin as any,
         associationReason: "SUB_REF",
-        associatedBy: "system"
+        associatedBy
       },
       update: {
         tenantId,

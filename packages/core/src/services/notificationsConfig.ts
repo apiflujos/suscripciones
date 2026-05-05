@@ -1,5 +1,6 @@
 import { CredentialProvider } from "@prisma/client";
 import { z } from "zod";
+import { normalizeProcessedTemplateParams } from "./chatwootTemplates";
 import { getCredential, setCredential } from "./credentials";
 
 export type ActiveEnv = "PRODUCTION" | "SANDBOX";
@@ -271,7 +272,19 @@ function normalizeNotificationsConfig(cfg: NotificationsConfig): NotificationsCo
   const validTemplates = templates
     .map((template) => {
       const canonicalName = CANONICAL_TEMPLATE_NAMES[String(template.id)];
-      return canonicalName ? { ...template, name: canonicalName } : template;
+      const normalizedTemplate = template?.chatwootTemplate
+        ? {
+            ...template,
+            chatwootTemplate: {
+              ...template.chatwootTemplate,
+              processed_params: normalizeProcessedTemplateParams(
+                template.chatwootTemplate.processed_params,
+                template?.meta?.components
+              )
+            }
+          }
+        : template;
+      return canonicalName ? { ...normalizedTemplate, name: canonicalName } : normalizedTemplate;
     })
     .filter((t) => hasUsableWhatsAppTemplate(t));
   const templateById = new Map(validTemplates.map((t) => [String(t.id), t]));

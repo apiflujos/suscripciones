@@ -90,7 +90,11 @@ export type BillingRow = {
   inGrace: boolean;
   inArrears: boolean;
   nextRetryAt: string | null;
+  nextRetryAtEffective?: string | null;
   mode: string;
+  autoChargeEnabled?: boolean;
+  retryAutomationEnabled?: boolean;
+  currentCollectionDueAt?: string | Date | null;
   canManualCharge?: boolean;
   canManualMarkPaid?: boolean;
   canManualUnmarkPaid?: boolean;

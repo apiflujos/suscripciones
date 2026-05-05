@@ -14,6 +14,10 @@ import { formatDateTimeEs } from "../../lib/dates";
 import { getAppTimeZone } from "../../services/runtimeConfig";
 import { logger } from "../../lib/logger";
 import { resolveSubscriptionBillingState } from "../../services/billingCycles";
+import {
+  extractProcessedParamValues,
+  normalizeProcessedTemplateParams
+} from "../../services/chatwootTemplates";
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 import { readCustomerMetadata } from "../../lib/customerMetadata";
 
@@ -218,31 +222,21 @@ function countButtonParams(components: any[], currentCount: number) {
   const buttons = components.find((component: any) => String(component?.type || "").toUpperCase() === "BUTTONS") as any;
   if (!buttons || !Array.isArray(buttons?.buttons)) return 0;
   const urlButtons = buttons.buttons.filter((button: any) => String(button?.type || "").toUpperCase() === "URL");
-  const byUrlPlaceholders = urlButtons.reduce(
-    (max: number, button: any) => Math.max(max, countPlaceholderSlotsFromText(button?.url), countPlaceholderSlotsFromExample(button?.example)),
-    0
-  );
-  const inferred = byUrlPlaceholders > 0 ? byUrlPlaceholders : urlButtons.length;
+  const inferred = urlButtons.reduce((count: number, button: any) => {
+    const hasPlaceholder = countPlaceholderSlotsFromText(button?.url) > 0;
+    const hasExample = countPlaceholderSlotsFromExample(button?.example) > 0;
+    return count + (hasPlaceholder || hasExample ? 1 : 0);
+  }, 0);
   return Math.max(inferred, currentCount);
-}
-
-function extractTemplateValueList(value: unknown, kind: "body" | "header" | "buttons"): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.map((entry: any, idx: number) => {
-    if (kind === "buttons") {
-      return String(entry?.value ?? "").trim();
-    }
-    return String(entry?.value ?? entry?.text ?? "").trim();
-  });
 }
 
 function validateRenderedTemplateParams(templateParams: any, templateMeta: any) {
   const components = Array.isArray(templateMeta?.components) ? templateMeta.components : [];
   if (!components.length) return;
   const processed = templateParams?.processed_params || {};
-  const bodyParams = extractTemplateValueList(processed?.body, "body");
-  const headerParams = extractTemplateValueList(processed?.header, "header");
-  const buttonParams = extractTemplateValueList(processed?.buttons, "buttons");
+  const bodyParams = extractProcessedParamValues(processed?.body, "body");
+  const headerParams = extractProcessedParamValues(processed?.header, "header");
+  const buttonParams = extractProcessedParamValues(processed?.buttons, "buttons");
   const requiredBody = countBodyParams(components, bodyParams.length);
   const requiredHeader = countHeaderParams(components, headerParams.length);
   const requiredButtons = countButtonParams(components, buttonParams.length);
@@ -768,9 +762,18 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
 
   const content = template.content ? renderTemplate(template.content, ctx) : "(template)";
   const renderedTemplateParams = template.chatwootTemplate ? renderAny(template.chatwootTemplate, ctx) : null;
-  if (renderedTemplateParams) {
+  const normalizedRenderedTemplateParams = renderedTemplateParams
+    ? {
+        ...renderedTemplateParams,
+        processed_params: normalizeProcessedTemplateParams(
+          renderedTemplateParams?.processed_params,
+          template?.meta?.components
+        )
+      }
+    : null;
+  if (normalizedRenderedTemplateParams) {
     try {
-      validateRenderedTemplateParams(renderedTemplateParams, template.meta);
+      validateRenderedTemplateParams(normalizedRenderedTemplateParams, template.meta);
     } catch (err: any) {
       const validationError = err?.message ? String(err.message) : "missing_template_params";
       await systemLog(LogLevel.WARN, "notifications.render", "Parámetros faltantes en plantilla WhatsApp", {
@@ -784,9 +787,9 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
         mappedBodyParams: template.chatwootTemplate?.processed_params?.body || [],
         mappedHeaderParams: template.chatwootTemplate?.processed_params?.header || [],
         mappedButtonParams: template.chatwootTemplate?.processed_params?.buttons || [],
-        renderedBodyParams: renderedTemplateParams?.processed_params?.body || [],
-        renderedHeaderParams: renderedTemplateParams?.processed_params?.header || [],
-        renderedButtonParams: renderedTemplateParams?.processed_params?.buttons || [],
+        renderedBodyParams: normalizedRenderedTemplateParams?.processed_params?.body || [],
+        renderedHeaderParams: normalizedRenderedTemplateParams?.processed_params?.header || [],
+        renderedButtonParams: normalizedRenderedTemplateParams?.processed_params?.buttons || [],
         missingVariables: missing
       }, "job:subscriptionReminder").catch((logErr: any) => {
         logger.warn({ err: logErr, customerId: customer.id, validationError }, "subscriptionReminder: fallo escribiendo systemLog de parámetros faltantes");
@@ -844,9 +847,9 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
       status: MessageStatus.PENDING,
       content,
       actor: "Sistema",
-      providerResp: renderedTemplateParams
+      providerResp: normalizedRenderedTemplateParams
         ? ({
-            template_params: renderedTemplateParams,
+            template_params: normalizedRenderedTemplateParams,
             meta: {
               trigger: parsed.data.trigger,
               offsetSeconds: parsed.data.offsetSeconds ?? null,

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeProcessedTemplateParams } from "../../services/chatwootTemplates";
 
 const contactCreateSchema = z.object({
   payload: z
@@ -211,6 +212,9 @@ export class ChatwootClient {
       } else {
         out[key] = this.sanitizeTemplateParams(value);
       }
+    }
+    if ("processed_params" in out) {
+      out.processed_params = normalizeProcessedTemplateParams(out.processed_params);
     }
     return out;
   }

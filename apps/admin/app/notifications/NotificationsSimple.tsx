@@ -5,6 +5,7 @@ import { PendingButton } from "../ui/PendingButton";
 import { HelpTip } from "../ui/HelpTip";
 import { AppModal } from "../ui/AppModal";
 import { isNotificationTemplateConfigured } from "../lib/notificationTemplate";
+import { extractProcessedParamValues } from "@suscripciones/core/services/chatwootTemplates";
 import {
   REALTIME_NOTIFICATION_DEFINITIONS,
   type RealtimeNotificationKey
@@ -33,6 +34,10 @@ type Template = {
     };
   } | null;
 };
+
+function defaultTemplateParamString(value: unknown, kind: "body" | "header" | "buttons") {
+  return extractProcessedParamValues(value, kind).join("|");
+}
 
 type ChatwootTemplate = {
   id?: string | number;
@@ -79,6 +84,12 @@ function countExampleValueSlots(value: unknown): number {
     if (item && typeof item === "object") return Math.max(max, countExampleValueSlots(Object.values(item)));
     return max;
   }, 0);
+}
+
+function buttonRequiresParameter(button: any) {
+  const hasPlaceholder = countPlaceholderSlotsFromText(button?.url) > 0;
+  const hasExample = countPlaceholderSlotsFromExample(button?.example) > 0;
+  return hasPlaceholder || hasExample;
 }
 
 type Rule = {
@@ -209,11 +220,9 @@ function WaTemplateFields({
     const buttons = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BUTTONS") as any;
     if (!buttons || !Array.isArray(buttons?.buttons)) return 0;
     const urlButtons = buttons.buttons.filter((b: any) => String(b?.type || "").toUpperCase() === "URL");
-    const byUrlPlaceholders = urlButtons.reduce(
-      (max: number, button: any) => Math.max(max, countPlaceholderSlotsFromText(button?.url), countPlaceholderSlotsFromExample(button?.example)),
-      0
-    );
-    const inferred = byUrlPlaceholders > 0 ? byUrlPlaceholders : urlButtons.length;
+    const inferred = urlButtons.reduce((count: number, button: any) => {
+      return count + (buttonRequiresParameter(button) ? 1 : 0);
+    }, 0);
     return Math.max(inferred, buttonParams.length);
   }, [selectedTemplate, buttonParams.length]);
 
@@ -854,9 +863,9 @@ export function NotificationsSimple({
                   templates={waTemplates}
                   defaultName={waName}
                   defaultLang={waLang}
-                  defaultParams={waBodyParams.map((p) => p.value).join("|")}
-                  defaultHeaderParams={waHeaderParams.map((p) => p.value).join("|")}
-                  defaultButtonParams={waButtonParams.map((p) => p.value).join("|")}
+                  defaultParams={defaultTemplateParamString(waBodyParams, "body")}
+                  defaultHeaderParams={defaultTemplateParamString(waHeaderParams, "header")}
+                  defaultButtonParams={defaultTemplateParamString(waButtonParams, "buttons")}
                   variables={variableMatrix.bodyVariables}
                   buttonVariables={variableMatrix.buttonVariables}
                 />
@@ -918,13 +927,13 @@ export function NotificationsSimple({
               defaultName={activeReminder?.template?.chatwootTemplate?.name || ""}
               defaultLang={activeReminder?.template?.chatwootTemplate?.language || "es"}
               defaultParams={
-                (activeReminder?.template?.chatwootTemplate?.processed_params?.body || []).map((p) => p.value).join("|")
+                defaultTemplateParamString(activeReminder?.template?.chatwootTemplate?.processed_params?.body, "body")
               }
               defaultHeaderParams={
-                (activeReminder?.template?.chatwootTemplate?.processed_params?.header || []).map((p) => p.value).join("|")
+                defaultTemplateParamString(activeReminder?.template?.chatwootTemplate?.processed_params?.header, "header")
               }
               defaultButtonParams={
-                (activeReminder?.template?.chatwootTemplate?.processed_params?.buttons || []).map((p) => p.value).join("|")
+                defaultTemplateParamString(activeReminder?.template?.chatwootTemplate?.processed_params?.buttons, "buttons")
               }
               variables={variableMatrix.bodyVariables}
               buttonVariables={variableMatrix.buttonVariables}

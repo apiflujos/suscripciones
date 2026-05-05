@@ -61,6 +61,7 @@ export function buildBillingRows(args: BuildBillingRowsArgs): BillingRow[] {
       const shippingAppliedInCents = requiresShipping ? Math.max(0, shippingInCents) : 0;
       const baseValueInCents = Math.max(0, totalInCents - shippingAppliedInCents);
       const dueAtDate = s.nextBillingDate ? new Date(s.nextBillingDate) : null;
+      const currentCollectionDueAtDate = s.currentCollectionDueAt ? new Date(s.currentCollectionDueAt) : dueAtDate;
       const collectionCyclePaid = typeof s?.collectionCyclePaid === "boolean" ? s.collectionCyclePaid : false;
       const graceDays = Number(s.graceDays || 5);
       const paymentCollectionState = getCollectionStatusLabel({
@@ -121,8 +122,12 @@ export function buildBillingRows(args: BuildBillingRowsArgs): BillingRow[] {
         daysLate,
         inGrace,
         inArrears,
-        nextRetryAt: s.nextRetryJob?.runAt || (s.metadata as any)?.manualRetry?.nextRetryAt || (s.metadata as any)?.autoRetry?.nextRetryAt || null,
+        nextRetryAt: s.nextRetryAtEffective || s.nextRetryJob?.runAt || (s.metadata as any)?.manualRetry?.nextRetryAt || (s.metadata as any)?.autoRetry?.nextRetryAt || null,
+        nextRetryAtEffective: s.nextRetryAtEffective || null,
         mode: collectionMode,
+        autoChargeEnabled: typeof s?.autoChargeEnabled === "boolean" ? s.autoChargeEnabled : undefined,
+        retryAutomationEnabled: typeof s?.retryAutomationEnabled === "boolean" ? s.retryAutomationEnabled : undefined,
+        currentCollectionDueAt: currentCollectionDueAtDate ? currentCollectionDueAtDate.toISOString() : null,
         canManualCharge: typeof s?.canManualCharge === "boolean" ? s.canManualCharge : undefined,
         canManualMarkPaid: typeof s?.canManualMarkPaid === "boolean" ? s.canManualMarkPaid : undefined,
         canManualUnmarkPaid: typeof s?.canManualUnmarkPaid === "boolean" ? s.canManualUnmarkPaid : undefined,

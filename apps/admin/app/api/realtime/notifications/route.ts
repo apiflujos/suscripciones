@@ -75,6 +75,11 @@ export async function GET(req: NextRequest) {
         const customerPhone = String(m?.customer?.phone || "").trim();
         const type = String(m?.type || "").toUpperCase();
         const offsetSeconds = Number(m?.providerResp?.meta?.offsetSeconds ?? 0);
+        const deliveryState = String(m?.providerResp?.delivery?.state || "").trim().toLowerCase();
+        const templateName = String(m?.providerResp?.meta?.templateName || "").trim();
+        const providerError = String(
+          m?.providerResp?.delivery?.providerError || m?.errorMessage || ""
+        ).trim();
         const label =
           type === "PAYMENT_LINK"
             ? "Notificación: link de pago"
@@ -88,8 +93,22 @@ export async function GET(req: NextRequest) {
                   ? "Notificación: pago exitoso"
                   : "Mensaje enviado";
         const title = ok ? label : `${label} (fallida)`;
-        const snippet = String(m?.content || "").trim().replace(/\s+/g, " ");
-        const message = customerName ? `${customerName} · ${snippet.slice(0, 80)}` : snippet.slice(0, 80) || title;
+        const rawSnippet = String(m?.content || "").trim().replace(/\s+/g, " ");
+        const snippet =
+          rawSnippet && rawSnippet !== "(template)"
+            ? rawSnippet
+            : templateName
+              ? `Plantilla: ${templateName}`
+              : "";
+        const deliveryLabel =
+          ok && deliveryState === "unknown"
+            ? "Pendiente de confirmación"
+            : !ok && providerError
+              ? providerError
+              : snippet;
+        const message = customerName
+          ? `${customerName} · ${(deliveryLabel || title).slice(0, 120)}`
+          : (deliveryLabel || title).slice(0, 120);
         return {
           id: m?.id || `${customerEmail}:${ts}`,
           ts,

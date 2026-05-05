@@ -187,6 +187,13 @@ export async function listSubscriptions(args: {
         : null;
     const canManualUnmarkPaid = Boolean(lastPaidInCurrentPeriod && currentCycleApprovedPayment?.isManual);
     const dueAt = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : periodEndAt;
+    const nextOpenCycle = (billingState?.cycles || [])
+      .filter((cycle) => !isBillingCyclePaid(cycle))
+      .sort((a, b) => {
+        const aTs = new Date(a.dueAt || a.periodEndAt).getTime();
+        const bTs = new Date(b.dueAt || b.periodEndAt).getTime();
+        return aTs - bTs;
+      })[0] || null;
     const chargeDue = collectionCyclePaid ? false : dueAt ? dueAt.getTime() <= Date.now() + 5_000 : false;
     const isInactive =
       s.status === SubscriptionStatus.CANCELED || s.status === SubscriptionStatus.EXPIRED || s.status === SubscriptionStatus.SUSPENDED;
@@ -199,6 +206,12 @@ export async function listSubscriptions(args: {
     const canManualMarkPaid =
       allowManualCharge &&
       !isInactive;
+    const autoChargeEnabled = resolvedMode === "AUTO_DEBIT" ? Boolean(autoDebitCfg.enabled && autoDebitCfg.chargeAtCutoffEnabled) : false;
+    const retryAutomationEnabled = resolvedMode === "AUTO_DEBIT" ? Boolean(autoDebitCfg.retryEnabled) : false;
+    const effectiveRetryAt =
+      nextRetry?.runAt ||
+      (autoChargeEnabled && retryAutomationEnabled ? ((s.metadata as any)?.manualRetry?.nextRetryAt || (s.metadata as any)?.autoRetry?.nextRetryAt || null) : null);
+    const nextChargeDate = nextOpenCycle?.dueAt ? new Date(nextOpenCycle.dueAt) : dueAt;
 
     return {
       ...s,
@@ -217,7 +230,8 @@ export async function listSubscriptions(args: {
       activeCycleEndAt: periodEndAt,
       collectionCycleNumber: collectionCycle?.cycleNumber ?? null,
       collectionCyclePaid,
-      nextBillingDate: dueAt,
+      nextBillingDate: nextChargeDate,
+      currentCollectionDueAt: dueAt,
       customerTokenized,
       chargeDue,
       canManualCharge,
@@ -225,7 +239,10 @@ export async function listSubscriptions(args: {
       canManualUnmarkPaid,
       manualChargeEnabled: allowManualCharge,
       manualMarkPaidEnabled: allowManualCharge,
-      lastPaidInCurrentPeriod
+      lastPaidInCurrentPeriod,
+      autoChargeEnabled,
+      retryAutomationEnabled,
+      nextRetryAtEffective: effectiveRetryAt || null
     };
   });
 

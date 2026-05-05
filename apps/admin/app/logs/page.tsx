@@ -453,12 +453,27 @@ function formatCycleSummary(cycle: any) {
 }
 
 function resolveNextChargeCycle(payment: any) {
+  const now = Date.now();
   const currentCycleId = String(payment?.billingCycle?.id || "");
   const currentDueAt = payment?.billingCycle?.dueAt ? new Date(payment.billingCycle.dueAt).getTime() : null;
   const cycles = Array.isArray(payment?.candidateCycles) ? payment.candidateCycles : [];
   if (!cycles.length) return null;
   const differentCycles = cycles.filter((cycle: any) => String(cycle?.id || "") !== currentCycleId);
   if (!differentCycles.length) return null;
+  const futureCycles = differentCycles.filter((cycle: any) => {
+    const dueTime = cycle?.dueAt ? new Date(cycle.dueAt).getTime() : NaN;
+    return Number.isFinite(dueTime) && dueTime > now;
+  });
+  if (futureCycles.length) {
+    if (currentDueAt && Number.isFinite(currentDueAt)) {
+      const nextFuture = futureCycles.find((cycle: any) => {
+        const dueTime = cycle?.dueAt ? new Date(cycle.dueAt).getTime() : NaN;
+        return Number.isFinite(dueTime) && dueTime > currentDueAt;
+      });
+      if (nextFuture) return nextFuture;
+    }
+    return futureCycles[0] || null;
+  }
   if (currentDueAt && Number.isFinite(currentDueAt)) {
     const nextFuture = differentCycles.find((cycle: any) => {
       const dueTime = cycle?.dueAt ? new Date(cycle.dueAt).getTime() : NaN;
@@ -1484,60 +1499,73 @@ export default async function LogsPage({
                           </div>
                         </td>
                         <td className="log-payment-error-cell" title={detailText}>
-                          <div className="log-payment-detail">
-                            <div className="log-payment-detail-group">
-                              <span className="log-payment-detail-label">Cobro</span>
-                              <div className="log-payment-detail-value">{collectionModeLabel}</div>
-                              <div className="log-payment-detail-meta">Método: {paymentMethod}</div>
-                            </div>
-                            {hasLinkedSubscription ? (
+                          <details className="log-payment-details-collapsible">
+                            <summary className="log-payment-details-summary">
+                              <span>{collectionModeLabel}</span>
+                              <span className="log-payment-details-summary-sep">·</span>
+                              <span>{paymentMethod}</span>
+                              {hasLinkedSubscription ? (
+                                <>
+                                  <span className="log-payment-details-summary-sep">·</span>
+                                  <span>{subscriptionStatusLabel || "—"}</span>
+                                </>
+                              ) : null}
+                            </summary>
+                            <div className="log-payment-detail">
                               <div className="log-payment-detail-group">
-                                <span className="log-payment-detail-label">Suscripción</span>
-                                <div className="log-payment-detail-value">
-                                  {p.subscription?.plan?.name || p.subscription?.product?.name || "Suscripción vinculada"}
-                                </div>
-                                <div className="log-payment-detail-meta">
-                                  Estado: {subscriptionStatusLabel || "—"}
-                                </div>
+                                <span className="log-payment-detail-label">Cobro</span>
+                                <div className="log-payment-detail-value">{collectionModeLabel}</div>
+                                <div className="log-payment-detail-meta">Método: {paymentMethod}</div>
                               </div>
-                            ) : null}
-                            {currentCycleLabel ? (
-                              <div className="log-payment-detail-group">
-                                <span className="log-payment-detail-label">Ciclo asociado</span>
-                                <div className="log-payment-detail-value">{currentCycleLabel}</div>
-                                {p.billingCycle?.dueAt ? (
-                                  <div className="log-payment-detail-meta">
-                                    Vencía: <LocalDateTime value={p.billingCycle.dueAt} variant="short" />
+                              {hasLinkedSubscription ? (
+                                <div className="log-payment-detail-group">
+                                  <span className="log-payment-detail-label">Suscripción</span>
+                                  <div className="log-payment-detail-value">
+                                    {p.subscription?.plan?.name || p.subscription?.product?.name || "Suscripción vinculada"}
                                   </div>
-                                ) : null}
-                              </div>
-                            ) : needsCycleAssociation ? (
-                              <div className="log-payment-detail-group">
-                                <span className="log-payment-detail-label">Ciclo asociado</span>
-                                <div className="log-payment-detail-value">Falta asociar el ciclo de esta suscripción.</div>
-                              </div>
-                            ) : null}
-                            {shouldShowNextCharge ? (
-                              <div className="log-payment-detail-group">
-                                <span className="log-payment-detail-label">Próximo cobro</span>
-                                {nextChargeAt ? (
-                                  <>
-                                    <div className="log-payment-detail-value">
-                                      <LocalDateTime value={nextChargeAt} variant="short" />
+                                  <div className="log-payment-detail-meta">
+                                    Estado: {subscriptionStatusLabel || "—"}
+                                  </div>
+                                </div>
+                              ) : null}
+                              {currentCycleLabel ? (
+                                <div className="log-payment-detail-group">
+                                  <span className="log-payment-detail-label">Ciclo asociado</span>
+                                  <div className="log-payment-detail-value">{currentCycleLabel}</div>
+                                  {p.billingCycle?.dueAt ? (
+                                    <div className="log-payment-detail-meta">
+                                      Vencía: <LocalDateTime value={p.billingCycle.dueAt} variant="short" />
                                     </div>
-                                    <div className="log-payment-detail-meta">{formatCycleSummary(nextChargeCycle)}</div>
-                                  </>
-                                ) : (
-                                  <div className="log-payment-detail-value">No hay próximo ciclo abierto.</div>
-                                )}
+                                  ) : null}
+                                </div>
+                              ) : needsCycleAssociation ? (
+                                <div className="log-payment-detail-group">
+                                  <span className="log-payment-detail-label">Ciclo asociado</span>
+                                  <div className="log-payment-detail-value">Falta asociar el ciclo de esta suscripción.</div>
+                                </div>
+                              ) : null}
+                              {shouldShowNextCharge ? (
+                                <div className="log-payment-detail-group">
+                                  <span className="log-payment-detail-label">Próximo cobro</span>
+                                  {nextChargeAt ? (
+                                    <>
+                                      <div className="log-payment-detail-value">
+                                        <LocalDateTime value={nextChargeAt} variant="short" />
+                                      </div>
+                                      <div className="log-payment-detail-meta">{formatCycleSummary(nextChargeCycle)}</div>
+                                    </>
+                                  ) : (
+                                    <div className="log-payment-detail-value">No hay próximo ciclo futuro programado.</div>
+                                  )}
+                                </div>
+                              ) : null}
+                              <div className="log-payment-detail-group">
+                                <span className="log-payment-detail-label">{isIgnoredExternal ? "Procesamiento" : "Detalle"}</span>
+                                <div className="log-payment-detail-value">{detailText}</div>
+                                {traceLabel ? <div className="log-payment-detail-meta">{traceLabel}</div> : null}
                               </div>
-                            ) : null}
-                            <div className="log-payment-detail-group">
-                              <span className="log-payment-detail-label">{isIgnoredExternal ? "Procesamiento" : "Detalle"}</span>
-                              <div className="log-payment-detail-value">{detailText}</div>
-                              {traceLabel ? <div className="log-payment-detail-meta">{traceLabel}</div> : null}
                             </div>
-                          </div>
+                          </details>
                           {originLabel || associationLabel ? (
                             <div className="log-trace-badges">
                               {originLabel ? <span className={`pill pill-sm ${originChipClass}`}>Origen: {originLabel}</span> : null}

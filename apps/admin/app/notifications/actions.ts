@@ -17,6 +17,7 @@ import {
 } from "./realtimeDefinitions";
 import { getAllowedTemplateValues } from "./templateVariableMatrix";
 import { ChatwootClient } from "@suscripciones/core/providers/chatwoot/client";
+import { normalizeProcessedTemplateParams } from "@suscripciones/core/services/chatwootTemplates";
 import { getChatwootConfig } from "@suscripciones/core/services/runtimeConfig";
 
 function toShortErrorMessage(err: unknown) {
@@ -87,15 +88,36 @@ function parsePipeParams(raw: string) {
     .filter(Boolean);
 }
 
-function buildProcessedParams(args: { bodyParams?: string[]; headerParams?: string[]; buttonParams?: string[] }) {
+function buildProcessedParams(args: {
+  bodyParams?: string[];
+  headerParams?: string[];
+  buttonParams?: string[];
+  components?: any[];
+}) {
   const bodyParams = args.bodyParams?.filter(Boolean) || [];
   const headerParams = args.headerParams?.filter(Boolean) || [];
   const buttonParams = args.buttonParams?.filter(Boolean) || [];
   const out: Record<string, unknown> = {};
-  if (bodyParams.length) out.body = bodyParams.map((v, idx) => ({ key: String(idx + 1), value: v }));
-  if (headerParams.length) out.header = headerParams.map((v, idx) => ({ key: String(idx + 1), value: v }));
-  if (buttonParams.length) out.buttons = buttonParams.map((v, idx) => ({ index: String(idx), value: v }));
-  return Object.keys(out).length ? out : undefined;
+  if (bodyParams.length) {
+    out.body = Object.fromEntries(bodyParams.map((value, idx) => [String(idx + 1), value]));
+  }
+  if (headerParams.length) {
+    out.header = Object.fromEntries(headerParams.map((value, idx) => [String(idx + 1), value]));
+  }
+  if (buttonParams.length) {
+    out.buttons = buttonParams.map((value, idx) => ({
+      type:
+        String(
+          (Array.isArray(args.components)
+            ? args.components.find((component: any) => String(component?.type || "").toUpperCase() === "BUTTONS")
+            : null)?.buttons?.[idx]?.type || "url"
+        )
+          .trim()
+          .toLowerCase() || "url",
+      parameter: value
+    }));
+  }
+  return normalizeProcessedTemplateParams(out, args.components);
 }
 
 async function listAvailableWhatsappTemplates() {
@@ -141,11 +163,11 @@ function countButtonParams(components: any[], currentCount: number) {
   const buttons = components.find((component: any) => String(component?.type || "").toUpperCase() === "BUTTONS") as any;
   if (!buttons || !Array.isArray(buttons?.buttons)) return 0;
   const urlButtons = buttons.buttons.filter((button: any) => String(button?.type || "").toUpperCase() === "URL");
-  const byUrlPlaceholders = urlButtons.reduce(
-    (max: number, button: any) => Math.max(max, countPlaceholderSlotsFromText(button?.url), countPlaceholderSlotsFromExample(button?.example)),
-    0
-  );
-  const inferred = byUrlPlaceholders > 0 ? byUrlPlaceholders : urlButtons.length;
+  const inferred = urlButtons.reduce((count: number, button: any) => {
+    const hasPlaceholder = countPlaceholderSlotsFromText(button?.url) > 0;
+    const hasExample = countPlaceholderSlotsFromExample(button?.example) > 0;
+    return count + (hasPlaceholder || hasExample ? 1 : 0);
+  }, 0);
   return Math.max(inferred, currentCount);
 }
 
@@ -239,7 +261,7 @@ function validateAllowedTemplateVariables(args: {
   if (issues.length) throw new Error(`invalid_template_variables:${issues.join(";")}`);
 }
 
-function normalizeTemplatePayload(formData: FormData) {
+function normalizeTemplatePayload(formData: FormData, selectedTemplate?: any) {
   const templateKind = String(formData.get("templateKind") || "WHATSAPP_TEMPLATE").trim().toUpperCase();
   const waTemplateName = String(formData.get("waTemplateName") || "").trim();
   const waLanguage = String(formData.get("waLanguage") || "es").trim();
@@ -260,7 +282,12 @@ function normalizeTemplatePayload(formData: FormData) {
     chatwootTemplate: {
       name: waTemplateName,
       language: waLanguage,
-      processed_params: buildProcessedParams({ bodyParams, headerParams, buttonParams })
+      processed_params: buildProcessedParams({
+        bodyParams,
+        headerParams,
+        buttonParams,
+        components: Array.isArray(selectedTemplate?.components) ? selectedTemplate.components : []
+      })
     },
     bodyParams,
     headerParams,
@@ -309,14 +336,21 @@ export async function saveRealtime(formData: FormData) {
     const rules: NotificationRule[] = baseConfig.rules.slice();
 
     const templateId = `tpl_rt_${key}`;
-    const tplPayload = normalizeTemplatePayload(formData);
+    const availableTemplates = await listAvailableWhatsappTemplates();
+    const selectedTemplate =
+      availableTemplates.find(
+        (template: any) =>
+          String(template?.name || "").trim() === String(formData.get("waTemplateName") || "").trim() &&
+          String(template?.language || "es").trim() === String(formData.get("waLanguage") || "es").trim()
+      ) || null;
+    const tplPayload = normalizeTemplatePayload(formData, selectedTemplate);
     validateMappedParams({
       name: tplPayload.chatwootTemplate.name,
       language: tplPayload.chatwootTemplate.language,
       bodyParams: tplPayload.bodyParams,
       headerParams: tplPayload.headerParams,
       buttonParams: tplPayload.buttonParams,
-      templates: await listAvailableWhatsappTemplates()
+      templates: availableTemplates
     });
     const allowed = getAllowedTemplateValues({ type: "realtime", key });
     validateAllowedTemplateVariables({
@@ -335,7 +369,14 @@ export async function saveRealtime(formData: FormData) {
       channel: "CHATWOOT",
       chatwootType: meta.chatwootType,
       content: tplPayload.content,
-      chatwootTemplate: tplPayload.chatwootTemplate
+      chatwootTemplate: tplPayload.chatwootTemplate,
+      meta: selectedTemplate
+        ? {
+            templateName: String(selectedTemplate.name || "").trim(),
+            language: String(selectedTemplate.language || "es").trim(),
+            components: selectedTemplate.components ?? []
+          }
+        : undefined
     });
 
     const ruleId = `rule_rt_${key}`;
@@ -383,14 +424,21 @@ export async function saveReminder(formData: FormData) {
     const templates: NotificationTemplate[] = baseConfig.templates.slice();
     const rules: NotificationRule[] = baseConfig.rules.slice();
 
-    const tplPayload = normalizeTemplatePayload(formData);
+    const availableTemplates = await listAvailableWhatsappTemplates();
+    const selectedTemplate =
+      availableTemplates.find(
+        (template: any) =>
+          String(template?.name || "").trim() === String(formData.get("waTemplateName") || "").trim() &&
+          String(template?.language || "es").trim() === String(formData.get("waLanguage") || "es").trim()
+      ) || null;
+    const tplPayload = normalizeTemplatePayload(formData, selectedTemplate);
     validateMappedParams({
       name: tplPayload.chatwootTemplate.name,
       language: tplPayload.chatwootTemplate.language,
       bodyParams: tplPayload.bodyParams,
       headerParams: tplPayload.headerParams,
       buttonParams: tplPayload.buttonParams,
-      templates: await listAvailableWhatsappTemplates()
+      templates: availableTemplates
     });
     const allowed = getAllowedTemplateValues({ type: "reminder", kind: kind === "MORA" ? "MORA" : "DUE", paymentType });
     validateAllowedTemplateVariables({
@@ -411,7 +459,14 @@ export async function saveReminder(formData: FormData) {
       channel: "CHATWOOT",
       chatwootType: "EXPIRY_WARNING",
       content: tplPayload.content,
-      chatwootTemplate: tplPayload.chatwootTemplate
+      chatwootTemplate: tplPayload.chatwootTemplate,
+      meta: selectedTemplate
+        ? {
+            templateName: String(selectedTemplate.name || "").trim(),
+            language: String(selectedTemplate.language || "es").trim(),
+            components: selectedTemplate.components ?? []
+          }
+        : undefined
     });
 
     const ruleIdBase = kind === "MORA" ? "rule_reminder_mora" : "rule_reminder_due";
