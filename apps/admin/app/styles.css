@@ -6,10 +6,8 @@
 
 /* Base real del módulo "Productos e inventarios" (guía de estilos) */
 
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap");
-
 :root {
-  --font-primary: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-primary: var(--font-primary-next), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-secondary: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   /* ============================================
@@ -11450,11 +11448,6 @@ textarea.input {
 
   .userMenuIcon {
     display: none;
-  }
-}
-
-  .topbar {
-    grid-template-columns: 1fr auto;
   }
 
   .topbar .subtitle {

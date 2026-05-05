@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Poppins } from "next/font/google";
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { cookies } from "next/headers";
@@ -11,6 +12,13 @@ import { ShellGate } from "./ShellGate";
 import { listTenants } from "./admin/_services/tenants";
 import type { AdminSession } from "../lib/session";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../lib/session";
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  display: "swap",
+  variable: "--font-primary-next"
+});
 
 const APP_ICONS: Metadata["icons"] = {
   icon: [
@@ -69,7 +77,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const forceSystemTheme = isPublicRoute ? "1" : "0";
 
   return (
-    <html lang="es" suppressHydrationWarning data-force-system-theme={forceSystemTheme}>
+    <html
+      lang="es"
+      suppressHydrationWarning
+      data-force-system-theme={forceSystemTheme}
+      className={poppins.variable}
+    >
       <head>
         <link id="theme-favicon" rel="icon" type="image/svg+xml" href="/brand/isotipo_icono.svg" data-theme-favicon="true" />
         <script src="/theme-init.js" />
