@@ -4195,6 +4195,8 @@ html[data-contrast="high"] .filtersPanel {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .settings-section-hint {
@@ -16689,8 +16691,9 @@ html[data-contrast="high"] .toggle::after {
 .settings-group-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .settings-group-header-main {
@@ -16717,6 +16720,11 @@ html[data-contrast="high"] .toggle::after {
 
 .settings-group-header > div:first-child {
   flex: 1;
+}
+
+.settings-group-header > .settings-group-header-actions,
+.settings-group-header > div:last-child {
+  max-width: 100%;
 }
 
 .settings-group-header > div:last-child {

@@ -593,12 +593,11 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     await prisma.chatwootMessage.update({
       where: { id: chatwootMessageId },
       data: {
-        status: MessageStatus.SENT,
-        sentAt: new Date(),
+        status: MessageStatus.PENDING,
         errorMessage: delivery.reason
       }
     }).catch((err) => {
-      logger.warn({ err, chatwootMessageId }, "chatwoot.send: failed to persist fallback sent state");
+      logger.warn({ err, chatwootMessageId }, "chatwoot.send: failed to persist fallback pending state");
     });
     await systemLog(LogLevel.WARN, "chatwoot.send", "No se pudo reconciliar entrega real en Chatwoot", {
       actor: "job:sendChatwootMessage",
@@ -610,7 +609,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     });
   }
 
-  if (delivery.ok ? delivery.state !== "failed" : true) {
+  if (delivery.ok ? delivery.state === "delivered" || delivery.state === "submitted" : false) {
     await consumeApp("messages_sent", { amount: 1, source: "jobs:chatwoot.sent", meta: { type: msg.type, id: msg.id } });
     if (msg.type === ChatwootMessageType.PAYMENT_LINK) {
       await consumeApp("payment_links_sent", { amount: 1, source: "jobs:chatwoot.sent", meta: { chatwootMessageId: msg.id } });

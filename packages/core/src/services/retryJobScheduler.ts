@@ -40,16 +40,12 @@ export async function ensurePaymentRetryJob(args: {
   const sameSlot = Math.abs(existing.runAt.getTime() - targetRunAt.getTime()) <= SAME_SLOT_TOLERANCE_MS;
   if (sameSlot) return existing;
 
-  if (targetRunAt.getTime() < existing.runAt.getTime()) {
-    return db.retryJob.update({
-      where: { id: existing.id },
-      data: {
-        runAt: targetRunAt,
-        maxAttempts: Math.max(existing.maxAttempts, maxAttempts),
-        updatedAt: new Date()
-      }
-    });
-  }
-
-  return existing;
+  return db.retryJob.update({
+    where: { id: existing.id },
+    data: {
+      runAt: targetRunAt,
+      maxAttempts: Math.max(existing.maxAttempts, maxAttempts),
+      updatedAt: new Date()
+    }
+  });
 }

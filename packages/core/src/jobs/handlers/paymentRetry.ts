@@ -144,7 +144,7 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
         select: { id: true, wompiTransactionId: true, createdAt: true }
       });
       if (recentPendingAutoCharge) {
-        const nextRunAt = new Date(now.getTime() + 30 * 60 * 1000);
+        const nextRunAt = new Date(now.getTime() + Math.max(1, Number(autoDebitConfig.retryEveryMinutes || 30)) * 60 * 1000);
         await systemLog(LogLevel.WARN, "jobs.payment_retry", "Cobro automático omitido: ya existe cobro pendiente reciente", {
           subscriptionId,
           mode,

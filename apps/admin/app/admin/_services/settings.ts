@@ -197,6 +197,15 @@ export async function getAdminSettings() {
     enabled: toBool(autoDebitConfigRaw?.enabled, true),
     chargeAtCutoffEnabled: toBool(autoDebitConfigRaw?.chargeAtCutoffEnabled, true),
     allowManualCharge: toBool(autoDebitConfigRaw?.allowManualCharge, true),
+    executionHour: String(autoDebitConfigRaw?.executionHour || "09:00").trim() || "09:00",
+    timeZone:
+      String(
+        autoDebitConfigRaw?.timeZone ||
+          autoDebitConfigRaw?.timezone ||
+          checkoutConfig?.timeZone ||
+          checkoutConfig?.timezone ||
+          "America/Bogota"
+      ).trim() || "America/Bogota",
     retryEnabled: toBool(autoDebitConfigRaw?.retryEnabled, false),
     retryEveryMinutes: toInt(autoDebitConfigRaw?.retryEveryMinutes, 60, 1, 10080),
     retryEveryValue: deriveRetryUnitAndValue(toInt(autoDebitConfigRaw?.retryEveryMinutes, 60, 1, 10080)).retryEveryValue,
@@ -256,6 +265,7 @@ export async function getAdminSettings() {
       planBaseUrl: storedPlanBaseUrl || envBases.planBaseUrl,
       subscriptionBaseUrl: storedSubscriptionBaseUrl || envBases.subscriptionBaseUrl,
       cartBaseUrl: storedCartBaseUrl || envBases.cartBaseUrl,
+      timeZone: String(checkoutConfig?.timeZone || checkoutConfig?.timezone || "America/Bogota").trim() || "America/Bogota",
       defaultUtmParams: checkoutConfig.defaultUtmParams || "",
       defaultPlanTemplateId: String(checkoutConfig?.defaultPlanTemplateId || "").trim(),
       defaultSubscriptionTemplateId: String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim(),

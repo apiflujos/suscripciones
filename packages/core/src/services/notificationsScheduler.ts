@@ -1,6 +1,7 @@
 import { LogLevel, PaymentStatus, RetryJobType } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
+import { applyClockTimeInZone } from "../lib/timeZoneScheduling";
 import {
   filterNotificationRules,
   getNotificationsActiveEnv,
@@ -16,7 +17,7 @@ import type {
   SubscriptionDueJobPayload,
   TokenizationLinkCreatedJobPayload
 } from "./notificationJobPayloads";
-import { getAppTimeZone, getPaymentsConfig } from "./runtimeConfig";
+import { getAutoDebitConfig, getAppTimeZone, getPaymentsConfig } from "./runtimeConfig";
 import { systemLog, SystemActor } from "./systemLog";
 import { subscriptionReminder } from "../jobs/handlers/subscriptionReminder";
 import { classifyReference } from "../webhooks/wompi/classifyReference";
@@ -40,56 +41,13 @@ function clampRunAt(runAt: Date, now: Date) {
   return runAt.getTime() < now.getTime() ? now : runAt;
 }
 
-function getZonedParts(date: Date, timeZone: string) {
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23"
-  });
-  const values = Object.fromEntries(
-    fmt
-      .formatToParts(date)
-      .filter((part) => part.type !== "literal")
-      .map((part) => [part.type, part.value])
-  ) as Record<string, string>;
-  return {
-    year: Number(values.year),
-    month: Number(values.month),
-    day: Number(values.day),
-    hour: Number(values.hour),
-    minute: Number(values.minute),
-    second: Number(values.second)
-  };
-}
-
-function getTimeZoneOffsetMs(date: Date, timeZone: string) {
-  const parts = getZonedParts(date, timeZone);
-  const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second, 0);
-  return asUtc - date.getTime();
-}
-
-function applyAtTimeInZone(date: Date, hhmm: string, timeZone: string) {
-  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(hhmm || "").trim());
-  if (!m) return date;
-  const hours = Number(m[1]);
-  const minutes = Number(m[2]);
-  const parts = getZonedParts(date, timeZone);
-  const guessUtcMs = Date.UTC(parts.year, parts.month - 1, parts.day, hours, minutes, 0, 0);
-  const firstPass = new Date(guessUtcMs - getTimeZoneOffsetMs(new Date(guessUtcMs), timeZone));
-  const finalOffset = getTimeZoneOffsetMs(firstPass, timeZone);
-  return new Date(guessUtcMs - finalOffset);
-}
-
 async function resolveScheduledRunAt(args: { base: Date; atTime?: string | null }) {
   const atTime = String(args.atTime || "").trim();
   if (!atTime) return args.base;
-  const timeZone = await getAppTimeZone().catch(() => "America/Bogota");
-  return applyAtTimeInZone(args.base, atTime, timeZone);
+  const timeZone =
+    (await getAutoDebitConfig().then((cfg) => String(cfg?.timeZone || "").trim()).catch(() => "")) ||
+    (await getAppTimeZone().catch(() => "America/Bogota"));
+  return applyClockTimeInZone(args.base, atTime, timeZone);
 }
 
 async function enqueueNotificationJob(runAt: Date, payload: NotificationJobPayload) {

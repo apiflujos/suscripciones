@@ -88,6 +88,12 @@ function parsePipeParams(raw: string) {
     .filter(Boolean);
 }
 
+function buttonRequiresParameter(button: any) {
+  const hasPlaceholder = countPlaceholderSlotsFromText(button?.url) > 0;
+  const hasExample = countPlaceholderSlotsFromExample(button?.example) > 0;
+  return hasPlaceholder || hasExample;
+}
+
 function buildProcessedParams(args: {
   bodyParams?: string[];
   headerParams?: string[];
@@ -105,15 +111,14 @@ function buildProcessedParams(args: {
     out.header = Object.fromEntries(headerParams.map((value, idx) => [String(idx + 1), value]));
   }
   if (buttonParams.length) {
+    const buttonBlock = Array.isArray(args.components)
+      ? args.components.find((component: any) => String(component?.type || "").toUpperCase() === "BUTTONS")
+      : null;
+    const dynamicButtons = Array.isArray(buttonBlock?.buttons)
+      ? buttonBlock.buttons.filter((button: any) => String(button?.type || "").toUpperCase() === "URL" && buttonRequiresParameter(button))
+      : [];
     out.buttons = buttonParams.map((value, idx) => ({
-      type:
-        String(
-          (Array.isArray(args.components)
-            ? args.components.find((component: any) => String(component?.type || "").toUpperCase() === "BUTTONS")
-            : null)?.buttons?.[idx]?.type || "url"
-        )
-          .trim()
-          .toLowerCase() || "url",
+      type: String(dynamicButtons[idx]?.type || "url").trim().toLowerCase() || "url",
       parameter: value
     }));
   }

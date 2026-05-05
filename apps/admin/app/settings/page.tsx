@@ -129,6 +129,8 @@ export default async function SettingsPage({
   const retryEveryValue = Number(autoDebit?.retryEveryValue || 1);
   const retryEveryUnit = String(autoDebit?.retryEveryUnit || "MINUTES");
   const retryEveryMinutes = Number(autoDebit?.retryEveryMinutes || 60);
+  const autoDebitExecutionHour = String(autoDebit?.executionHour || "09:00");
+  const autoDebitTimeZone = String(autoDebit?.timeZone || settings?.checkoutConfig?.timeZone || "America/Bogota");
   const sp = (await searchParams) ?? {};
   const action = String(sp.a || "");
   const status = String(sp.status || "");
@@ -731,6 +733,45 @@ export default async function SettingsPage({
                     form="auto-debit-form"
                   />
                 </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div className="field">
+                    <label>
+                      Hora base de ejecución
+                      <HelpTip text="Todos los cobros automáticos, links automáticos y notificaciones parten de esta hora operativa." />
+                    </label>
+                    <input
+                      className="input"
+                      type="time"
+                      name="executionHour"
+                      defaultValue={autoDebitExecutionHour}
+                      data-auto-submit="true"
+                      disabled={!Boolean(autoDebit?.enabled)}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>
+                      Zona horaria operativa
+                      <HelpTip text="La hora base se interpreta en esta zona horaria. Recomendado: America/Bogota." />
+                    </label>
+                    <input
+                      className="input"
+                      list="auto-debit-timezones"
+                      name="timeZone"
+                      defaultValue={autoDebitTimeZone}
+                      data-auto-submit="true"
+                      disabled={!Boolean(autoDebit?.enabled)}
+                      placeholder="America/Bogota"
+                    />
+                    <datalist id="auto-debit-timezones">
+                      <option value="America/Bogota" />
+                      <option value="America/Lima" />
+                      <option value="America/Mexico_City" />
+                      <option value="America/Santiago" />
+                      <option value="America/Argentina/Buenos_Aires" />
+                      <option value="UTC" />
+                    </datalist>
+                  </div>
+                </div>
                 <div className="toggleRow">
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -822,6 +863,7 @@ export default async function SettingsPage({
                 <div className="field-hint">
                   Si cobros automáticos está apagado, no se hacen cargos automáticos.
                   Si apagas fecha de corte, no se encolan cobros por vencimiento automático.
+                  La hora/zona configuradas definen el momento base de cobro, links y recordatorios.
                 </div>
               </form>
             </div>

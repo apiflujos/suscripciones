@@ -111,11 +111,33 @@ function resolveDeliveryState(rawMessage: Record<string, unknown> | null) {
   return { state: "unknown" as const, providerStatus: rawStatus };
 }
 
+function extractMessageCandidates(value: unknown): Record<string, unknown>[] {
+  if (Array.isArray(value)) {
+    return value.map((entry) => asRecord(entry)).filter(Boolean) as Record<string, unknown>[];
+  }
+  const record = asRecord(value);
+  if (!record) return [];
+  const payload = record.payload;
+  if (Array.isArray(payload)) {
+    return payload.map((entry) => asRecord(entry)).filter(Boolean) as Record<string, unknown>[];
+  }
+  if (Array.isArray(record.messages)) {
+    return record.messages.map((entry) => asRecord(entry)).filter(Boolean) as Record<string, unknown>[];
+  }
+  if (Array.isArray(record.data)) {
+    return record.data.map((entry) => asRecord(entry)).filter(Boolean) as Record<string, unknown>[];
+  }
+  return [];
+}
+
 function findConversationMessage(conversation: Record<string, unknown> | null, targetMessageId: number) {
-  const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
-  return (
-    messages.find((entry: unknown) => Number(asRecord(entry)?.id) === targetMessageId) as Record<string, unknown> | undefined
-  ) || null;
+  const candidates = [
+    ...extractMessageCandidates(conversation?.messages),
+    ...extractMessageCandidates(conversation?.payload),
+    ...extractMessageCandidates(conversation?.data),
+    ...extractMessageCandidates(conversation)
+  ];
+  return candidates.find((entry) => Number(entry?.id) === targetMessageId) || null;
 }
 
 async function loadDeliverySnapshot(record: ChatwootMessageRecord): Promise<DeliverySnapshot> {
@@ -138,9 +160,15 @@ async function loadDeliverySnapshot(record: ChatwootMessageRecord): Promise<Deli
     inboxId: cfg.inboxId
   });
   const conversation = await client.getConversationDetails(conversationId);
-  const rawMessage = findConversationMessage(asRecord(conversation.raw), providerMessageId);
-  const delivery = resolveDeliveryState(rawMessage);
+  const messageList = await client.listConversationMessages(conversationId).catch(() => null);
+  const rawMessage =
+    findConversationMessage(asRecord(messageList?.raw), providerMessageId) ||
+    findConversationMessage(asRecord(conversation.raw), providerMessageId);
+  let delivery = resolveDeliveryState(rawMessage);
   const providerError = resolveProviderError(rawMessage, providerResp);
+  if (providerError && rawMessage && delivery.state === "unknown") {
+    delivery = { state: "failed", providerStatus: delivery.providerStatus };
+  }
   return { state: delivery.state, providerStatus: delivery.providerStatus, providerError, rawMessage };
 }
 
@@ -179,7 +207,7 @@ async function persistSnapshot(record: ChatwootMessageRecord, snapshot: Delivery
     return;
   }
 
-  if (snapshot.state === "delivered" || snapshot.state === "submitted" || snapshot.state === "unknown") {
+  if (snapshot.state === "delivered" || snapshot.state === "submitted") {
     await prisma.chatwootMessage.update({
       where: { id: record.id },
       data: {
@@ -189,7 +217,17 @@ async function persistSnapshot(record: ChatwootMessageRecord, snapshot: Delivery
         providerResp: nextProviderResp as Prisma.InputJsonValue
       }
     });
+    return;
   }
+
+  await prisma.chatwootMessage.update({
+    where: { id: record.id },
+    data: {
+      status: MessageStatus.PENDING,
+      errorMessage: snapshot.providerError || "chatwoot_delivery_unconfirmed",
+      providerResp: nextProviderResp as Prisma.InputJsonValue
+    }
+  });
 }
 
 export async function reconcileChatwootMessageDelivery(args: {

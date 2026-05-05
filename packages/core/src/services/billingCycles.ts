@@ -1,6 +1,8 @@
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
 import { BillingCycleStatus, PlanIntervalUnit, PaymentAssociationReason, PaymentOrigin } from "@prisma/client";
+import { getAutoDebitConfig } from "./runtimeConfig";
+import { applyClockTimeInZone } from "../lib/timeZoneScheduling";
 
 type SubscriptionSeed = {
   id: string;
@@ -368,6 +370,25 @@ export function buildBillingCyclesForSubscription(sub: SubscriptionSeed, cyclesB
   return cycles;
 }
 
+async function applyConfiguredExecutionSchedule<T extends { dueAt: Date }>(cycles: T[]) {
+  if (!cycles.length) return cycles;
+  const cfg = await getAutoDebitConfig().catch(() => null);
+  const executionHour = String(cfg?.executionHour || "09:00").trim() || "09:00";
+  const timeZone = String(cfg?.timeZone || "America/Bogota").trim() || "America/Bogota";
+  return cycles.map((cycle) => ({
+    ...cycle,
+    dueAt: applyClockTimeInZone(new Date(cycle.dueAt), executionHour, timeZone)
+  }));
+}
+
+function canRescheduleExistingCycle(cycle: BillingCycleLike | null | undefined, now: Date) {
+  if (!cycle) return true;
+  if (cycle.paymentId) return false;
+  const status = String(cycle.status || "").trim().toUpperCase();
+  if (status === "PAID" || status === "FAILED" || status === "SKIPPED") return false;
+  return new Date(cycle.dueAt).getTime() >= now.getTime();
+}
+
 function pickAuthoritativeCycleSeed(args: {
   sub: SubscriptionSeed;
   existingCycles: BillingCycleLike[];
@@ -400,33 +421,47 @@ export async function ensureBillingCyclesForSubscriptions(subs: SubscriptionSeed
     existingCyclesBySubscription.set(cycle.subscriptionId, list);
   }
 
-  const ops = uniqueSubs.flatMap((rawSub) => {
+  const prepared = await Promise.all(uniqueSubs.map(async (rawSub) => {
+    const now = new Date();
     const sub = pickAuthoritativeCycleSeed({
       sub: rawSub,
       existingCycles: existingCyclesBySubscription.get(rawSub.id) || [],
       asOf: new Date()
     });
     const safeCyclesBack = Math.max(cyclesBack, Math.max(1, Math.trunc(sub.currentCycle || 1)) - 1);
-    const cycles = buildBillingCyclesForSubscription(sub, safeCyclesBack, cyclesForward);
+    const cycles = await applyConfiguredExecutionSchedule(buildBillingCyclesForSubscription(sub, safeCyclesBack, cyclesForward));
+    const existingByCycle = new Map(
+      (existingCyclesBySubscription.get(rawSub.id) || []).map((cycle) => [cycle.cycleNumber, cycle] as const)
+    );
     return cycles.map((c) =>
+      {
+        const existing = existingByCycle.get(c.cycleNumber) || null;
+        const keepExisting = existing && !canRescheduleExistingCycle(existing, now);
+        const nextPeriodStartAt = keepExisting ? new Date(existing.periodStartAt) : c.periodStartAt;
+        const nextPeriodEndAt = keepExisting ? new Date(existing.periodEndAt) : c.periodEndAt;
+        const nextDueAt = keepExisting ? new Date(existing.dueAt) : c.dueAt;
+        return (
       prisma.subscriptionBillingCycle.upsert({
         where: { subscriptionId_cycleNumber: { subscriptionId: c.subscriptionId, cycleNumber: c.cycleNumber } },
         create: {
           subscriptionId: c.subscriptionId,
           cycleNumber: c.cycleNumber,
-          periodStartAt: c.periodStartAt,
-          periodEndAt: c.periodEndAt,
-          dueAt: c.dueAt,
+          periodStartAt: nextPeriodStartAt,
+          periodEndAt: nextPeriodEndAt,
+          dueAt: nextDueAt,
           status: c.status
         },
         update: {
-          periodStartAt: c.periodStartAt,
-          periodEndAt: c.periodEndAt,
-          dueAt: c.dueAt
+          periodStartAt: nextPeriodStartAt,
+          periodEndAt: nextPeriodEndAt,
+          dueAt: nextDueAt
         }
       })
+        );
+      }
     );
-  });
+  }));
+  const ops = prepared.flat();
   for (let i = 0; i < ops.length; i += 50) {
     const chunk = ops.slice(i, i + 50);
     await prisma.$transaction(chunk);

@@ -1,6 +1,7 @@
 import { CredentialProvider } from "@prisma/client";
 import { getCredential } from "./credentials";
 import { getPublicReturnUrlFromEnv } from "./publicBase";
+import { normalizeClockTime } from "../lib/timeZoneScheduling";
 
 type ActiveEnv = "PRODUCTION" | "SANDBOX";
 
@@ -114,6 +115,8 @@ export type AutoDebitConfig = {
   enabled: boolean;
   chargeAtCutoffEnabled: boolean;
   allowManualCharge: boolean;
+  executionHour: string;
+  timeZone: string;
   retryEnabled: boolean;
   retryEveryValue: number;
   retryEveryUnit: "MINUTES" | "HOURS" | "DAYS";
@@ -169,6 +172,11 @@ function deriveRetryUnitAndValue(minutes: number): { retryEveryValue: number; re
   return { retryEveryValue: Math.max(1, Math.trunc(minutes)), retryEveryUnit: "MINUTES" };
 }
 
+function normalizeTimeZone(value: unknown, fallback: string) {
+  const raw = String(value || "").trim();
+  return raw || fallback;
+}
+
 export async function getAutoDebitConfig(): Promise<AutoDebitConfig> {
   const raw = (await getCredential(CredentialProvider.WOMPI, "AUTO_DEBIT_CONFIG")) || "";
   let parsed: any = {};
@@ -182,6 +190,9 @@ export async function getAutoDebitConfig(): Promise<AutoDebitConfig> {
   const envRetryEnabled = toBool(process.env.AUTO_DEBIT_RETRY_ENABLED, false);
   const envRetryMinutes = toInt(process.env.AUTO_DEBIT_RETRY_MINUTES, 60, 1, 10_080);
   const envMaxRetries = toInt(process.env.AUTO_DEBIT_MAX_RETRIES, 0, 0, 20);
+  const fallbackTimeZone = await getAppTimeZone().catch(() => "America/Bogota");
+  const executionHour = normalizeClockTime(parsed?.executionHour || process.env.AUTO_DEBIT_EXECUTION_HOUR || "09:00");
+  const timeZone = normalizeTimeZone(parsed?.timeZone || parsed?.timezone || process.env.AUTO_DEBIT_TIMEZONE, fallbackTimeZone);
 
   const enabled = envDisabled ? false : toBool(String(parsed?.enabled ?? ""), true);
   const chargeAtCutoffEnabled = toBool(String(parsed?.chargeAtCutoffEnabled ?? ""), true);
@@ -204,6 +215,8 @@ export async function getAutoDebitConfig(): Promise<AutoDebitConfig> {
     enabled,
     chargeAtCutoffEnabled,
     allowManualCharge,
+    executionHour,
+    timeZone,
     retryEnabled,
     retryEveryValue: derived.retryEveryValue,
     retryEveryUnit: derived.retryEveryUnit,

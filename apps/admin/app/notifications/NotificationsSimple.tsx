@@ -250,12 +250,18 @@ function WaTemplateFields({
   const templateButtons = useMemo(() => {
     const comps = selectedTemplate?.components || [];
     const buttons = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BUTTONS") as any;
-    if (!buttons || !Array.isArray(buttons?.buttons)) return [] as Array<{ type: string; text: string; url?: string | null }>;
-    return buttons.buttons.map((button: any) => ({
+    if (!buttons || !Array.isArray(buttons?.buttons)) return [] as Array<{ type: string; text: string; url?: string | null; parameterIndex: number | null }>;
+    let dynamicParamIndex = 0;
+    return buttons.buttons.map((button: any) => {
+      const requiresParameter = String(button?.type || "").toUpperCase() === "URL" && buttonRequiresParameter(button);
+      const parameterIndex = requiresParameter ? dynamicParamIndex++ : null;
+      return {
       type: String(button?.type || "").toUpperCase(),
       text: String(button?.text || button?.label || "Botón").trim() || "Botón",
-      url: button?.url ? String(button.url) : null
-    }));
+      url: button?.url ? String(button.url) : null,
+      parameterIndex
+      };
+    });
   }, [selectedTemplate]);
 
   const ensureLength = (values: string[], count: number) => {
@@ -325,7 +331,7 @@ function WaTemplateFields({
             }}
           >
             {templateButtons.map((button, idx) => {
-              const mappedValue = button.type === "URL" ? buttonParams[idx] || "" : "";
+              const mappedValue = button.parameterIndex != null ? buttonParams[button.parameterIndex] || "" : "";
               return (
                 <div
                   key={`preview-button-${idx}`}

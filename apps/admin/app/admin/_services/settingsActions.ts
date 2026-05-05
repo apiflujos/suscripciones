@@ -1,14 +1,24 @@
 import "server-only";
 
-import { LogLevel, CredentialProvider } from "@prisma/client";
+import { LogLevel, CredentialProvider, RetryJobStatus, RetryJobType } from "@prisma/client";
 import { clearCredential, getCredential, setCredential } from "@suscripciones/core/services/credentials";
+import { prisma } from "@suscripciones/core/db/prisma";
+import {
+  buildSubscriptionSeed,
+  ensureBillingCyclesForSubscriptions,
+  isBillingCyclePaid,
+  resolveSubscriptionBillingState
+} from "@suscripciones/core/services/billingCycles";
 import { checkoutConfigSchema } from "@suscripciones/core/services/checkoutConfig";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { WompiClient } from "@suscripciones/core/providers/wompi/client";
 import { getGlobalModuleAccess } from "@suscripciones/core/services/moduleAccess";
-import { getShopifyForward } from "@suscripciones/core/services/runtimeConfig";
+import { getAutoDebitConfig, getShopifyForward } from "@suscripciones/core/services/runtimeConfig";
 import { postJson } from "@suscripciones/core/lib/http";
 import { logger } from "@suscripciones/core/lib/logger";
+import { scheduleSubscriptionDueNotifications } from "@suscripciones/core/services/notificationsScheduler";
+import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
+import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import {
   envOnlySchema,
   wompiTestSchema,
@@ -27,6 +37,115 @@ import {
   deriveRetryUnitAndValue,
   ActiveEnv
 } from "../settings/_lib";
+
+type BillingScheduleSubscription = Awaited<ReturnType<typeof loadSubscriptionsForBillingScheduleRefresh>>[number];
+
+async function loadSubscriptionsForBillingScheduleRefresh() {
+  const subscriptions = await prisma.subscription.findMany({
+    where: {
+      status: { notIn: ["CANCELED", "EXPIRED"] as any }
+    },
+    include: {
+      plan: {
+        select: {
+          metadata: true,
+          intervalUnit: true,
+          intervalCount: true
+        }
+      }
+    }
+  });
+  return subscriptions;
+}
+
+async function rebuildBillingSchedulesAfterConfigChange(subscriptions: BillingScheduleSubscription[]) {
+  for (let index = 0; index < subscriptions.length; index += 100) {
+    const chunk = subscriptions.slice(index, index + 100);
+    await ensureBillingCyclesForSubscriptions(
+      chunk.map((subscription) =>
+        buildSubscriptionSeed({
+          id: subscription.id,
+          startAt: subscription.startAt,
+          currentCycle: subscription.currentCycle,
+          currentPeriodStartAt: subscription.currentPeriodStartAt,
+          currentPeriodEndAt: subscription.currentPeriodEndAt,
+          cycleStartDay: subscription.cycleStartDay,
+          paymentDay: subscription.paymentDay,
+          paymentTiming: subscription.paymentTiming,
+          graceDays: subscription.graceDays,
+          plan: {
+            intervalUnit: subscription.plan.intervalUnit,
+            intervalCount: subscription.plan.intervalCount
+          }
+        })
+      )
+    );
+  }
+}
+
+async function cancelPendingOperationalJobsAfterAutoDebitConfigChange() {
+  const now = new Date();
+  await prisma.retryJob.updateMany({
+    where: {
+      type: RetryJobType.PAYMENT_RETRY,
+      status: RetryJobStatus.PENDING
+    },
+    data: {
+      status: RetryJobStatus.CANCELED,
+      lastError: "rescheduled_after_auto_debit_config_change",
+      updatedAt: now,
+      lockedAt: null,
+      lockedBy: null
+    }
+  });
+  await prisma.retryJob.updateMany({
+    where: {
+      type: RetryJobType.SUBSCRIPTION_REMINDER,
+      status: RetryJobStatus.PENDING,
+      payload: { path: ["trigger"], equals: "SUBSCRIPTION_DUE" } as any
+    },
+    data: {
+      status: RetryJobStatus.CANCELED,
+      lastError: "rescheduled_after_auto_debit_config_change",
+      updatedAt: now,
+      lockedAt: null,
+      lockedBy: null
+    }
+  });
+}
+
+async function rebuildOperationalSchedulesAfterConfigChange(subscriptions: BillingScheduleSubscription[]) {
+  const autoDebitConfig = await getAutoDebitConfig().catch(() => null);
+  const now = new Date();
+
+  for (const subscription of subscriptions) {
+    const billingState = await resolveSubscriptionBillingState({ subscriptionId: subscription.id }).catch(() => null);
+    const collectionCycle = billingState?.collectionCycle || null;
+    if (collectionCycle && !isBillingCyclePaid(collectionCycle)) {
+      await scheduleSubscriptionDueNotifications({
+        subscriptionId: subscription.id,
+        actor: "settings:auto_debit_config"
+      }).catch((err) => {
+        logger.warn({ err, subscriptionId: subscription.id }, "Fallo reprogramando notificaciones de vencimiento");
+      });
+    }
+
+    const collectionMode = resolveSubscriptionCollectionMode(subscription as any);
+    if (collectionMode !== "AUTO_DEBIT" && collectionMode !== "AUTO_LINK") continue;
+    if (!collectionCycle || isBillingCyclePaid(collectionCycle)) continue;
+    if (collectionMode === "AUTO_DEBIT" && (!autoDebitConfig?.enabled || !autoDebitConfig?.chargeAtCutoffEnabled)) continue;
+
+    const runAtBase = new Date(collectionCycle.dueAt || collectionCycle.periodEndAt);
+    const runAt = runAtBase.getTime() > now.getTime() ? runAtBase : now;
+    await ensurePaymentRetryJob({
+      subscriptionId: subscription.id,
+      runAt,
+      maxAttempts: 1
+    }).catch((err) => {
+      logger.warn({ err, subscriptionId: subscription.id, runAt }, "Fallo reprogramando job de cobro");
+    });
+  }
+}
 
 export async function updateWompiSettings(input: unknown) {
   const parsed = wompiUpdateSchema.safeParse(input ?? {});
@@ -304,6 +423,8 @@ export async function updateAutoDebitConfig(input: unknown) {
       : toBool(current?.chargeAtCutoffEnabled, true);
   const allowManualCharge =
     parsed.data.allowManualCharge != null ? toBool(parsed.data.allowManualCharge, true) : toBool(current?.allowManualCharge, true);
+  const executionHour = String(parsed.data.executionHour || current?.executionHour || "09:00").trim() || "09:00";
+  const timeZone = String(parsed.data.timeZone || current?.timeZone || current?.timezone || "America/Bogota").trim() || "America/Bogota";
   const retryEnabled = parsed.data.retryEnabled != null ? toBool(parsed.data.retryEnabled, false) : toBool(current?.retryEnabled, false);
   const retryUnit = parsed.data.retryEveryUnit ? normalizeRetryUnit(parsed.data.retryEveryUnit) : normalizeRetryUnit(current?.retryEveryUnit);
   const retryValue =
@@ -325,6 +446,8 @@ export async function updateAutoDebitConfig(input: unknown) {
       enabled,
       chargeAtCutoffEnabled,
       allowManualCharge,
+      executionHour,
+      timeZone,
       retryEnabled,
       retryEveryValue: derived.retryEveryValue,
       retryEveryUnit: derived.retryEveryUnit,
@@ -332,10 +455,25 @@ export async function updateAutoDebitConfig(input: unknown) {
       maxRetries
     })
   );
+  const subscriptions = await loadSubscriptionsForBillingScheduleRefresh().catch((err) => {
+    logger.warn({ err }, "Fallo cargando suscripciones para recalcular programación operativa");
+    return [] as BillingScheduleSubscription[];
+  });
+  await rebuildBillingSchedulesAfterConfigChange(subscriptions).catch((err) => {
+    logger.warn({ err }, "Fallo recalculando billing cycles tras actualizar configuración de débito automático");
+  });
+  await cancelPendingOperationalJobsAfterAutoDebitConfigChange().catch((err) => {
+    logger.warn({ err }, "Fallo cancelando jobs pendientes tras actualizar configuración de débito automático");
+  });
+  await rebuildOperationalSchedulesAfterConfigChange(subscriptions).catch((err) => {
+    logger.warn({ err }, "Fallo reprogramando jobs operativos tras actualizar configuración de débito automático");
+  });
   await systemLog(LogLevel.INFO, "configuracion.auto_debito", "Configuración de débito automático actualizada", {
     enabled,
     chargeAtCutoffEnabled,
     allowManualCharge,
+    executionHour,
+    timeZone,
     retryEnabled,
     retryEveryValue: derived.retryEveryValue,
     retryEveryUnit: derived.retryEveryUnit,

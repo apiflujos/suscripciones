@@ -44,6 +44,8 @@ export const autoDebitUpdateSchema = z.object({
   enabled: z.union([z.boolean(), z.string()]).optional(),
   chargeAtCutoffEnabled: z.union([z.boolean(), z.string()]).optional(),
   allowManualCharge: z.union([z.boolean(), z.string()]).optional(),
+  executionHour: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
+  timeZone: z.string().min(1).max(120).optional(),
   retryEnabled: z.union([z.boolean(), z.string()]).optional(),
   retryEveryValue: z.coerce.number().int().min(1).max(10080).optional(),
   retryEveryUnit: z.enum(["MINUTES", "HOURS", "DAYS"]).optional(),

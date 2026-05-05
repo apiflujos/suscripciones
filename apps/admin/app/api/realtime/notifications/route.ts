@@ -68,14 +68,14 @@ export async function GET(req: NextRequest) {
       .filter((m: any) => ["SENT", "FAILED"].includes(String(m?.status || "").toUpperCase()))
       .map((m: any) => {
         const status = String(m?.status || "").toUpperCase();
-        const ok = status === "SENT";
+        const deliveryState = String(m?.providerResp?.delivery?.state || "").trim().toLowerCase();
+        const ok = status === "SENT" && deliveryState !== "unknown";
         const ts = m?.sentAt || m?.createdAt || new Date().toISOString();
         const customerName = String(m?.customer?.name || "").trim();
         const customerEmail = String(m?.customer?.email || "").trim();
         const customerPhone = String(m?.customer?.phone || "").trim();
         const type = String(m?.type || "").toUpperCase();
         const offsetSeconds = Number(m?.providerResp?.meta?.offsetSeconds ?? 0);
-        const deliveryState = String(m?.providerResp?.delivery?.state || "").trim().toLowerCase();
         const templateName = String(m?.providerResp?.meta?.templateName || "").trim();
         const providerError = String(
           m?.providerResp?.delivery?.providerError || m?.errorMessage || ""
@@ -92,7 +92,8 @@ export async function GET(req: NextRequest) {
                 : type === "PAYMENT_CONFIRMED"
                   ? "Notificación: pago exitoso"
                   : "Mensaje enviado";
-        const title = ok ? label : `${label} (fallida)`;
+        const pendingConfirmation = status === "SENT" && deliveryState === "unknown";
+        const title = pendingConfirmation ? `${label} (pendiente)` : ok ? label : `${label} (fallida)`;
         const rawSnippet = String(m?.content || "").trim().replace(/\s+/g, " ");
         const snippet =
           rawSnippet && rawSnippet !== "(template)"
@@ -101,7 +102,7 @@ export async function GET(req: NextRequest) {
               ? `Plantilla: ${templateName}`
               : "";
         const deliveryLabel =
-          ok && deliveryState === "unknown"
+          pendingConfirmation
             ? "Pendiente de confirmación"
             : !ok && providerError
               ? providerError
@@ -114,7 +115,7 @@ export async function GET(req: NextRequest) {
           ts,
           title,
           message,
-          level: ok ? "success" : "error",
+          level: pendingConfirmation ? "info" : ok ? "success" : "error",
           category: type === "PAYMENT_LINK" || type === "EXPIRY_WARNING" ? "pagos" : "clientes",
           href: "/notifications",
           read: false,

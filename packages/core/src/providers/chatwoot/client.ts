@@ -497,6 +497,14 @@ export class ChatwootClient {
     return { raw: res.json };
   }
 
+  async listConversationMessages(conversationId: number) {
+    const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/conversations/${conversationId}/messages`, {
+      method: "GET"
+    });
+    if (!res.ok) throw new Error(`Chatwoot list conversation messages failed: ${res.status} ${JSON.stringify(res.json)}`);
+    return { raw: res.json };
+  }
+
   async listConversationLabels(conversationId: number) {
     const res = await this.request(`/api/v1/accounts/${this.opts.accountId}/conversations/${conversationId}/labels`, {
       method: "GET"

@@ -345,7 +345,7 @@ async function hasRecentPendingPaymentLink(subscriptionId: string, windowMs: num
     where: {
       subscriptionId,
       status: PaymentStatus.PENDING,
-      origin: { in: ["AUTO_LINK", "MANUAL_LINK"] as any },
+      origin: { in: ["AUTO_LINK"] as any },
       createdAt: { gte: new Date(Date.now() - windowMs) }
     },
     select: { id: true }
@@ -363,10 +363,10 @@ async function ensureDueCutoffRetries() {
   const autoDebitEnabled = autoDebitConfig.enabled;
   const chargeAtCutoffEnabled = autoDebitConfig.chargeAtCutoffEnabled;
 
-  // 1. Limpieza de duplicados (mantiene el más reciente)
+  // 1. Limpieza de duplicados (mantiene el más próximo a ejecutar)
   await prisma.$executeRawUnsafe(`
     WITH ranked AS (
-      SELECT id, ROW_NUMBER() OVER(PARTITION BY (payload->>'subscriptionId') ORDER BY "runAt" DESC) as rn
+      SELECT id, ROW_NUMBER() OVER(PARTITION BY (payload->>'subscriptionId') ORDER BY "runAt" ASC, "createdAt" ASC) as rn
       FROM "RetryJob"
       WHERE "type" = 'PAYMENT_RETRY'::"RetryJobType"
         AND "status" = 'PENDING'::"RetryJobStatus"
@@ -531,9 +531,17 @@ async function ensurePaymentRetryQueueHealth() {
     take: 100
   });
   for (const job of stale) {
+    const cfg = await getAutoDebitConfig().catch(() => null);
+    const retryDelayMinutes = Math.max(1, Number(cfg?.retryEveryMinutes || 30));
     await prisma.retryJob.update({
       where: { id: job.id },
-      data: { status: RetryJobStatus.PENDING, lockedAt: null, lockedBy: null, attempts: { increment: 1 } }
+      data: {
+        status: RetryJobStatus.PENDING,
+        runAt: new Date(now + retryDelayMinutes * 60_000),
+        lockedAt: null,
+        lockedBy: null,
+        attempts: { increment: 1 }
+      }
     }).catch((err) => {
       logger.warn({ err, jobId: job.id }, "[Jobs/Health] Fallo reencolando retry job estancado");
     });

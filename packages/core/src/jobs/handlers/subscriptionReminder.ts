@@ -11,7 +11,7 @@ import { createPublicCheckoutLink } from "../../services/publicCheckoutLinks";
 import { sendChatwootMessage } from "./sendChatwootMessage";
 import { getDefaultTenantId } from "../../services/tenantContext";
 import { formatDateTimeEs } from "../../lib/dates";
-import { getAppTimeZone } from "../../services/runtimeConfig";
+import { getAutoDebitConfig, getAppTimeZone } from "../../services/runtimeConfig";
 import { logger } from "../../lib/logger";
 import { resolveSubscriptionBillingState } from "../../services/billingCycles";
 import {
@@ -696,10 +696,12 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
     : (meta?.cartLink ?? null);
   const tokenizationUrl = directTokenizationLinkUrl || String(effectiveTokenizationLink?.url || "").trim() || "";
   const catalogUrl = directCatalogLinkUrl || String(effectiveCartLink?.url || "").trim() || "";
-  const timeZone = await getAppTimeZone().catch((err: any) => {
-    logger.warn({ err }, "subscriptionReminder: fallo resolviendo zona horaria, usando America/Bogota");
-    return "America/Bogota";
-  });
+  const timeZone =
+    (await getAutoDebitConfig().then((cfg) => String(cfg?.timeZone || "").trim()).catch(() => "")) ||
+    (await getAppTimeZone().catch((err: any) => {
+      logger.warn({ err }, "subscriptionReminder: fallo resolviendo zona horaria, usando America/Bogota");
+      return "America/Bogota";
+    }));
   const activeCycleLabel = activeCycle?.periodStartAt ? formatCycleLabel(activeCycle.periodStartAt, timeZone) : null;
   const collectionCycleLabel = collectionCycle?.periodStartAt
     ? formatCycleLabel(collectionCycle.periodStartAt, timeZone)
@@ -813,9 +815,12 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
       subscriptionId: subscription?.id ?? effectivePayment?.subscriptionId ?? null,
       paymentId: effectivePayment?.id ?? null,
       type: template.chatwootType as ChatwootMessageType,
-      content,
       status: { in: [MessageStatus.PENDING, MessageStatus.SENT] },
-      createdAt: { gt: new Date(Date.now() - 7 * 24 * 60 * 60_000) }
+      createdAt: { gt: new Date(Date.now() - 7 * 24 * 60 * 60_000) },
+      AND: [
+        { providerResp: { path: ["meta", "ruleId"], equals: rule.id } as any },
+        { providerResp: { path: ["meta", "templateId"], equals: template.id } as any }
+      ]
     },
     select: { id: true }
   });

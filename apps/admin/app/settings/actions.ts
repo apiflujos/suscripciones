@@ -178,6 +178,8 @@ export async function updateAutoDebitConfig(formData: FormData) {
   const enabled = getLastValue(formData, "enabled");
   const chargeAtCutoffEnabled = getLastValue(formData, "chargeAtCutoffEnabled");
   const allowManualCharge = getLastValue(formData, "allowManualCharge");
+  const executionHour = String(formData.get("executionHour") || "").trim();
+  const timeZone = String(formData.get("timeZone") || "").trim();
   const retryEnabled = getLastValue(formData, "retryEnabled");
   const retryEveryValue = String(formData.get("retryEveryValue") || "").trim();
   const retryEveryUnit = String(formData.get("retryEveryUnit") || "").trim().toUpperCase();
@@ -204,6 +206,8 @@ export async function updateAutoDebitConfig(formData: FormData) {
       ...(enabled ? { enabled } : {}),
       ...(chargeAtCutoffEnabled ? { chargeAtCutoffEnabled } : {}),
       ...(allowManualCharge ? { allowManualCharge } : {}),
+      ...(executionHour ? { executionHour } : {}),
+      ...(timeZone ? { timeZone } : {}),
       ...(retryEnabled ? { retryEnabled } : {}),
       ...(retryEveryValue ? { retryEveryValue } : {}),
       ...(retryEveryUnit ? { retryEveryUnit: retryEveryUnitNormalized } : {}),
