@@ -1172,7 +1172,7 @@ export async function enqueueShopifyForwardForPayment(args: { paymentId: string 
           }).catch(() => null)
         : null;
 
-    if (reconcileResult && reconcileResult.ok && reconcileResult.webhookEventId) {
+    if (reconcileResult && reconcileResult.ok && "webhookEventId" in reconcileResult && reconcileResult.webhookEventId) {
       return { ok: true as const, queued: true, webhookEventId: reconcileResult.webhookEventId };
     }
 
