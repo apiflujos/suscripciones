@@ -187,13 +187,13 @@ export async function listSubscriptions(args: {
         : null;
     const canManualUnmarkPaid = Boolean(lastPaidInCurrentPeriod && currentCycleApprovedPayment?.isManual);
     const dueAt = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : periodEndAt;
-    const nextOpenCycle = (billingState?.cycles || [])
-      .filter((cycle) => !isBillingCyclePaid(cycle))
-      .sort((a, b) => {
-        const aTs = new Date(a.dueAt || a.periodEndAt).getTime();
-        const bTs = new Date(b.dueAt || b.periodEndAt).getTime();
-        return aTs - bTs;
-      })[0] || null;
+    // Use the oldest unresolved cycle shape exposed by ResolvedBillingState.
+    const nextOpenCycle =
+      billingState?.oldestUnpaidCycle && !isBillingCyclePaid(billingState.oldestUnpaidCycle)
+        ? billingState.oldestUnpaidCycle
+        : collectionCycle && !isBillingCyclePaid(collectionCycle)
+          ? collectionCycle
+          : null;
     const chargeDue = collectionCyclePaid ? false : dueAt ? dueAt.getTime() <= Date.now() + 5_000 : false;
     const isInactive =
       s.status === SubscriptionStatus.CANCELED || s.status === SubscriptionStatus.EXPIRED || s.status === SubscriptionStatus.SUSPENDED;
