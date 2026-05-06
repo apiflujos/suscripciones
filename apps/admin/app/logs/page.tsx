@@ -33,7 +33,7 @@ import {
   retryFailedWebhooks as retryFailedWebhooksAction,
   retryWebhookById
 } from "../admin/_services/logsActions";
-import { isShopifyLikePayment } from "@suscripciones/core/webhooks/wompi/classifyReference";
+import { isShopifyLikePayload } from "@suscripciones/core/webhooks/wompi/classifyReference";
 import { PaymentCreateSubscriptionModal } from "./PaymentCreateSubscriptionModal";
 
 export const dynamic = "force-dynamic";
@@ -1370,13 +1370,15 @@ export default async function LogsPage({
                         ""
                     ).toLowerCase();
                     const referenceText = String(p.reference || "").trim();
-                    const isShopifyPayment = isShopifyLikePayment({
-                      reference: referenceText,
-                      origin: String(reconciliation?.origin || providerResponse?.origin || "").trim() || null,
-                      redirectUrl: String(providerResponse?.redirect_url || providerResponse?.redirectUrl || "").trim() || null,
-                      source: String(reconciliation?.source || providerResponse?.source || "").trim() || null,
-                      provider: String(providerResponse?.provider || "").trim() || null
-                    });
+                    const isShopifyPayment = isShopifyLikePayload(
+                      providerResponse?.webhook || {
+                        reference: referenceText,
+                        origin: String(reconciliation?.origin || providerResponse?.origin || "").trim() || null,
+                        redirect_url: String(providerResponse?.redirect_url || providerResponse?.redirectUrl || "").trim() || null,
+                        source: String(reconciliation?.source || providerResponse?.source || "").trim() || null,
+                        provider: String(providerResponse?.provider || "").trim() || null
+                      }
+                    );
                     const externalSourceLabel = isShopifyPayment
                       ? "Shopify"
                       : sourceRaw.includes("wompi")

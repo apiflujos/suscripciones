@@ -2,7 +2,7 @@ import "server-only";
 
 import { prisma } from "@suscripciones/database";
 import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, WebhookProcessStatus, WebhookProvider } from "@prisma/client";
-import { classifyReference, isShopifyLikePayment } from "@suscripciones/core/webhooks/wompi/classifyReference";
+import { classifyReference, isShopifyLikePayload } from "@suscripciones/core/webhooks/wompi/classifyReference";
 import { reconcileWompiByReference, reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { attachPaymentToCycle, buildSubscriptionSeed, ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
@@ -1115,26 +1115,8 @@ export async function enqueueShopifyForwardForPayment(args: { paymentId: string 
   if (!payment) return { ok: false as const, error: "payment_not_found" as const };
 
   const reference = String(payment.reference || "").trim();
-  const classification = classifyReference(reference);
   const providerResponse = payment.providerResponse && typeof payment.providerResponse === "object" ? (payment.providerResponse as any) : null;
-  const sourceRaw = String(
-    providerResponse?.reconciliation?.source ||
-      providerResponse?.origin ||
-      providerResponse?.provider ||
-      providerResponse?.source ||
-      ""
-  ).toLowerCase();
-  const isShopify = isShopifyLikePayment({
-    reference,
-    origin: String(providerResponse?.reconciliation?.origin || providerResponse?.origin || "").trim() || null,
-    redirectUrl: String(providerResponse?.redirect_url || providerResponse?.redirectUrl || "").trim() || null,
-    source: String(
-      providerResponse?.reconciliation?.source ||
-        providerResponse?.source ||
-        ""
-    ).trim() || null,
-    provider: String(providerResponse?.provider || "").trim() || null
-  });
+  const isShopify = isShopifyLikePayload(providerResponse?.webhook || providerResponse || { reference });
   if (!isShopify) return { ok: false as const, error: "not_shopify_payment" as const };
 
   const events = await prisma.webhookEvent.findMany({
