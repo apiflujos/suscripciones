@@ -167,7 +167,7 @@ async function loadDeliverySnapshot(record: ChatwootMessageRecord): Promise<Deli
   let delivery = resolveDeliveryState(rawMessage);
   const providerError = resolveProviderError(rawMessage, providerResp);
   if (providerError && rawMessage && delivery.state === "unknown") {
-    delivery = { state: "failed", providerStatus: delivery.providerStatus };
+    delivery = { state: "failed", providerStatus: delivery.providerStatus || "unknown" };
   }
   return { state: delivery.state, providerStatus: delivery.providerStatus, providerError, rawMessage };
 }
