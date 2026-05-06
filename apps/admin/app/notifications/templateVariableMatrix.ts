@@ -41,63 +41,63 @@ const CORE_MESSAGE_VARIABLES: NotificationVariableOption[] = [
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const LINK_PAYMENT_VARIABLES: NotificationVariableOption[] = [
-  { label: "Link de cobro actual", value: "{{paymentLink.url}}", recommended: true },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Cobro puntual", value: "{{checkoutPublicUrl.AUTO_PLAN}}" }
+  { label: "Link creado por este evento", value: "{{paymentLink.url}}", recommended: true },
+  { label: "Checkout automático recomendado para este evento", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout automático · pago único", value: "{{checkoutPublicUrl.AUTO_PLAN}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const SUBSCRIPTION_LINK_VARIABLES: NotificationVariableOption[] = [
-  { label: "Link de cobro actual", value: "{{paymentLink.url}}", recommended: true },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
+  { label: "Link creado por este evento", value: "{{paymentLink.url}}", recommended: true },
+  { label: "Checkout automático recomendado para este evento", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout automático · suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const TOKENIZATION_VARIABLES: NotificationVariableOption[] = [
   { label: "Link de tokenización actual", value: "{{tokenizationLink.url}}" },
   { label: "URL de tokenización", value: "{{tokenization.url}}", recommended: true },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
+  { label: "Checkout automático recomendado para este evento", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout automático · suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const CATALOG_VARIABLES: NotificationVariableOption[] = [
   { label: "Link de catálogo actual", value: "{{cartLink.url}}" },
   { label: "URL de catálogo", value: "{{catalog.url}}", recommended: true },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Catálogo", value: "{{checkoutPublicUrl.AUTO_CART}}" }
+  { label: "Checkout automático recomendado para este evento", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout automático · catálogo", value: "{{checkoutPublicUrl.AUTO_CART}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const PLAN_BUTTON_VARIABLES: NotificationVariableOption[] = [
-  { label: "Link de cobro actual", value: "{{paymentLink.url}}", recommended: true },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Cobro puntual", value: "{{checkoutPublicUrl.AUTO_PLAN}}" }
+  { label: "Link creado por este evento", value: "{{paymentLink.url}}", recommended: true },
+  { label: "Checkout automático recomendado para este evento", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout automático · pago único", value: "{{checkoutPublicUrl.AUTO_PLAN}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const SUBSCRIPTION_LINK_BUTTON_VARIABLES: NotificationVariableOption[] = [
-  { label: "Link de cobro actual", value: "{{paymentLink.url}}", recommended: true },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
+  { label: "Link creado por este evento", value: "{{paymentLink.url}}", recommended: true },
+  { label: "Checkout automático recomendado para este evento", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout automático · suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const TOKENIZATION_BUTTON_VARIABLES: NotificationVariableOption[] = [
   { label: "URL de tokenización", value: "{{tokenization.url}}", recommended: true },
   { label: "Link de tokenización actual", value: "{{tokenizationLink.url}}" },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
+  { label: "Checkout automático recomendado para este evento", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout automático · suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const SUBSCRIPTION_RECOVERY_BUTTON_VARIABLES: NotificationVariableOption[] = [
   { label: "URL de tokenización", value: "{{tokenization.url}}", recommended: true },
   { label: "Link de tokenización actual", value: "{{tokenizationLink.url}}" },
-  { label: "Link de cobro actual", value: "{{paymentLink.url}}" },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
+  { label: "Link creado por este evento", value: "{{paymentLink.url}}" },
+  { label: "Checkout automático recomendado para este evento", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout automático · suscripción", value: "{{checkoutPublicUrl.AUTO_SUBSCRIPTION}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const CATALOG_BUTTON_VARIABLES: NotificationVariableOption[] = [
   { label: "URL de catálogo", value: "{{catalog.url}}", recommended: true },
   { label: "Link de catálogo actual", value: "{{cartLink.url}}" },
-  { label: "Checkout público automático (según este evento)", value: "{{checkoutPublicUrl.AUTO}}" },
-  { label: "Checkout público automático · Catálogo", value: "{{checkoutPublicUrl.AUTO_CART}}" }
+  { label: "Checkout automático recomendado para este evento", value: "{{checkoutPublicUrl.AUTO}}" },
+  { label: "Checkout automático · catálogo", value: "{{checkoutPublicUrl.AUTO_CART}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 type TemplateVariableMatrix = {
@@ -152,14 +152,14 @@ const REALTIME_VARIABLE_MATRIX: Record<RealtimeNotificationKey, TemplateVariable
   payment_link_created: buildMatrix({
     body: LINK_PAYMENT_VARIABLES,
     button: PLAN_BUTTON_VARIABLES,
-    helpText: "Usa variables del link de pago manual. Este evento no corresponde a débito automático ni catálogo.",
-    recommendedButtonLabel: "Link para pagar"
+    helpText: "Recomendado: usa 'Link creado por este evento'. Solo usa checkout automático si tu plantilla debe llevar al checkout público general, no al link puntual recién creado.",
+    recommendedButtonLabel: "Link creado por este evento"
   }),
   payment_link_created_subscription: buildMatrix({
     body: SUBSCRIPTION_LINK_VARIABLES,
     button: SUBSCRIPTION_LINK_BUTTON_VARIABLES,
-    helpText: "Usa variables del link de cobro de una suscripción con link de pago. No mezcles catálogo ni tokenización aislada.",
-    recommendedButtonLabel: "Link para pagar"
+    helpText: "Recomendado: usa 'Link creado por este evento'. Usa la opción de suscripción solo si quieres mandar al checkout general de la suscripción en vez del link puntual generado.",
+    recommendedButtonLabel: "Link creado por este evento"
   }),
   payment_success: buildMatrix({
     body: [],
@@ -170,13 +170,13 @@ const REALTIME_VARIABLE_MATRIX: Record<RealtimeNotificationKey, TemplateVariable
   payment_failed_link: buildMatrix({
     body: LINK_PAYMENT_VARIABLES,
     button: PLAN_BUTTON_VARIABLES,
-    helpText: "Usa variables de reintento para cobro puntual. No mezcles catálogo ni links de tokenización.",
-    recommendedButtonLabel: "Link para pagar"
+    helpText: "Si el mensaje habla de volver a pagar este cobro específico, usa 'Link creado por este evento'. 'Pago único' significa checkout general de un cobro suelto, no el link puntual recién creado.",
+    recommendedButtonLabel: "Link creado por este evento"
   }),
   payment_failed_subscription: buildMatrix({
     body: [...SUBSCRIPTION_LINK_VARIABLES, ...TOKENIZATION_VARIABLES],
     button: SUBSCRIPTION_RECOVERY_BUTTON_VARIABLES,
-    helpText: "Usa variables de recuperación de suscripción: link de cobro o tokenización, según tu plantilla.",
+    helpText: "Para recuperar la suscripción, usa link de cobro si quieres cobrar ya. Usa tokenización si el mensaje pide autorizar o actualizar el método de pago.",
     recommendedButtonLabel: "Depende del mensaje: pagar o autorizar débito"
   })
 };
