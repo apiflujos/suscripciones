@@ -38,13 +38,13 @@ export async function listPaymentLogs(args: {
     statusRaw === "APPROVED"
       ? ["APPROVED"]
       : statusRaw === "PENDING"
-        ? ["PENDING", "PROCESSING"]
+        ? ["PENDING"]
         : statusRaw === "FAILED"
           ? ["DECLINED", "ERROR", "VOIDED"]
           : statusRaw === "RECEIVED"
             ? ["APPROVED", "DECLINED", "ERROR", "VOIDED"]
             : statusRaw === "REQUESTED"
-              ? ["PENDING", "PROCESSING"]
+              ? ["PENDING"]
               : null;
 
   const fromDate = parseDate(fromRaw) ?? defaultFromDate();

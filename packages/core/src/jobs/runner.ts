@@ -436,7 +436,15 @@ async function ensureDueCutoffRetries() {
         const existingCyclePayment = await prisma.payment.findFirst({
           where: {
             subscriptionId: sub.id,
-            status: { in: ["PENDING", "PROCESSING", "DECLINED", "ERROR", "VOIDED", "APPROVED"] as any[] },
+            status: {
+              in: [
+                PaymentStatus.PENDING,
+                PaymentStatus.DECLINED,
+                PaymentStatus.ERROR,
+                PaymentStatus.VOIDED,
+                PaymentStatus.APPROVED
+              ]
+            },
             OR: [
               { cycleNumber: collectionCycle.cycleNumber },
               { subscriptionCycleKey: `${sub.id}:${collectionCycle.cycleNumber}` },
