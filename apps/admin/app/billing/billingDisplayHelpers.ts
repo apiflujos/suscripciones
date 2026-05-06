@@ -36,14 +36,16 @@ export function getTipoPago(collectionMode: string) {
 }
 
 export function getActivo(status: any) {
-  return String(status || "") !== "CANCELED";
+  const s = String(status || "");
+  return s !== "CANCELED" && s !== "EXPIRED";
 }
 
 export function getEstadoSimple(status: any): EstadoSimpleInfo {
   const s = String(status || "");
   if (s === "ACTIVE" || s === "PAST_DUE") return { label: "Activa", class: "pill-ok" };
   if (s === "SUSPENDED") return { label: "Suspendida", class: "pill-warn" };
-  if (s === "CANCELED" || s === "EXPIRED") return { label: "Cancelada", class: "pill-muted" };
+  if (s === "CANCELED") return { label: "Cancelada", class: "pill-muted" };
+  if (s === "EXPIRED") return { label: "Expirada", class: "pill-muted" };
   return { label: s || "—", class: "pill-muted" };
 }
 

@@ -59,6 +59,28 @@ function renderTrace(item: any) {
   return parts.join(" · ");
 }
 
+function deliveryStateOf(item: any) {
+  return String(item?.providerResp?.delivery?.state || "").trim().toLowerCase();
+}
+
+function deliveryErrorOf(item: any) {
+  const providerError = String(item?.providerResp?.delivery?.providerError || "").trim();
+  if (providerError) return providerError;
+  return String(item?.errorMessage || "").trim();
+}
+
+function resolveNotificationChip(item: any) {
+  const status = String(item?.status || "").trim().toUpperCase();
+  const deliveryState = deliveryStateOf(item);
+  if (deliveryState === "failed" || status === "FAILED") {
+    return { cls: "is-error", label: "Fallido" };
+  }
+  if (deliveryState === "submitted" || deliveryState === "delivered" || status === "SENT") {
+    return { cls: "is-success", label: "Enviado" };
+  }
+  return { cls: "is-warning", label: "En cola" };
+}
+
 export const dynamic = "force-dynamic";
 
 export default async function WhatsappNotificationsListPage({
@@ -171,15 +193,9 @@ export default async function WhatsappNotificationsListPage({
             </thead>
             <tbody>
               {items.map((m: any) => {
-                const status = String(m.status || "");
-                const chip =
-                  status === "SENT"
-                    ? { cls: "is-success", label: "Enviado" }
-                    : status === "FAILED"
-                      ? { cls: "is-error", label: "Fallido" }
-                      : { cls: "is-warning", label: "En cola" };
+                const chip = resolveNotificationChip(m);
                 const trace = renderTrace(m);
-                const detailRaw = String(m.errorMessage || trace || m.content || "—");
+                const detailRaw = String(deliveryErrorOf(m) || trace || m.content || "—");
                 const detailText = detailRaw.length > 200 ? `${detailRaw.slice(0, 200)}…` : detailRaw;
                 return (
                   <tr key={m.id}>

@@ -610,6 +610,8 @@ export async function updateSubscriptionStatus(args: {
 
   if (args.action === "suspend") {
     if (existing.status === SubscriptionStatus.CANCELED) return { ok: false, status: 409, error: "subscription_canceled" as const };
+    if (existing.status === SubscriptionStatus.EXPIRED) return { ok: false, status: 409, error: "subscription_expired" as const };
+    if (existing.status === SubscriptionStatus.SUSPENDED) return { ok: false, status: 409, error: "subscription_already_suspended" as const };
     const updated = await prisma.subscription.update({
       where: { id: subscriptionId },
       data: { status: SubscriptionStatus.SUSPENDED, suspendedAt: new Date() }
@@ -621,6 +623,7 @@ export async function updateSubscriptionStatus(args: {
   }
 
   if (args.action === "cancel") {
+    if (existing.status === SubscriptionStatus.CANCELED) return { ok: false, status: 409, error: "subscription_already_canceled" as const };
     const updated = await prisma.subscription.update({
       where: { id: subscriptionId },
       data: { status: SubscriptionStatus.CANCELED, canceledAt: new Date(), suspendedAt: null }
@@ -632,6 +635,7 @@ export async function updateSubscriptionStatus(args: {
   }
 
   if (args.action === "resume") {
+    if (existing.status !== SubscriptionStatus.SUSPENDED) return { ok: false, status: 409, error: "subscription_not_suspended" as const };
     const updated = await prisma.subscription.update({
       where: { id: subscriptionId },
       data: { status: SubscriptionStatus.ACTIVE, suspendedAt: null }
@@ -643,6 +647,9 @@ export async function updateSubscriptionStatus(args: {
   }
 
   if (args.action === "activate") {
+    if (existing.status !== SubscriptionStatus.CANCELED && existing.status !== SubscriptionStatus.EXPIRED) {
+      return { ok: false, status: 409, error: "subscription_not_reactivatable" as const };
+    }
     const updated = await prisma.subscription.update({
       where: { id: subscriptionId },
       data: { status: SubscriptionStatus.ACTIVE, canceledAt: null, suspendedAt: null }

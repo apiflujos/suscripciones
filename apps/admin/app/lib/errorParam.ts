@@ -15,6 +15,24 @@ export function normalizeErrorParam(input?: string | null) {
   if (norm.includes("subscription_must_be_canceled")) {
     return "Primero cancela la suscripción para poder eliminarla.";
   }
+  if (norm.includes("subscription_canceled")) {
+    return "La suscripción ya está cancelada.";
+  }
+  if (norm.includes("subscription_expired")) {
+    return "La suscripción está expirada. Debes reactivarla, no suspenderla.";
+  }
+  if (norm.includes("subscription_already_suspended")) {
+    return "La suscripción ya está suspendida.";
+  }
+  if (norm.includes("subscription_already_canceled")) {
+    return "La suscripción ya está cancelada.";
+  }
+  if (norm.includes("subscription_not_suspended")) {
+    return "Solo puedes reanudar suscripciones suspendidas.";
+  }
+  if (norm.includes("subscription_not_reactivatable")) {
+    return "Solo puedes reactivar suscripciones canceladas o expiradas.";
+  }
   if (norm.includes("plan_has_dependencies")) {
     return "No se puede borrar el plan: tiene dependencias.";
   }
@@ -71,6 +89,9 @@ export function normalizeErrorParam(input?: string | null) {
   }
   if (norm.includes("centralcom_send_failed")) {
     return "No se pudo enviar el mensaje de WhatsApp. Revisa la configuración de Chatwoot.";
+  }
+  if (norm.includes("notification_not_delivered")) {
+    return "La notificación no se entregó correctamente en WhatsApp.";
   }
   if (norm.includes("missing_template")) {
     return MISSING_WHATSAPP_TEMPLATE_MESSAGE;

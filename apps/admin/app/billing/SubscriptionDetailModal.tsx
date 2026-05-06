@@ -131,10 +131,18 @@ export function SubscriptionDetailModal({
     .map((part: string) => part[0]?.toUpperCase())
     .join("") || "PR";
 
-  const estadoSimple = {
-    label: subscription.status === "ACTIVE" ? "Activa" : subscription.status === "PAST_DUE" ? "En mora" : "Inactiva",
-    class: subscription.status === "ACTIVE" ? "pill-ok" : subscription.status === "PAST_DUE" ? "pill-bad" : "pill-muted"
-  };
+  const estadoSimple =
+    subscription.status === "ACTIVE"
+      ? { label: "Activa", class: "pill-ok" }
+      : subscription.status === "PAST_DUE"
+        ? { label: "En mora", class: "pill-bad" }
+        : subscription.status === "SUSPENDED"
+          ? { label: "Suspendida", class: "pill-warn" }
+          : subscription.status === "CANCELED"
+            ? { label: "Cancelada", class: "pill-muted" }
+            : subscription.status === "EXPIRED"
+              ? { label: "Expirada", class: "pill-muted" }
+              : { label: "Inactiva", class: "pill-muted" };
 
   const modeValue = String(subscription.mode || "").trim().toUpperCase();
   const tipoLabel = String(subscription.tipoTx || "").toLowerCase();
@@ -143,13 +151,15 @@ export function SubscriptionDetailModal({
   const isAutoDebit = modeValue === "AUTO_DEBIT" || tipoLabel.includes("débito") || tipoLabel.includes("debito");
   const isCanceled = subscription.status === "CANCELED";
   const isSuspended = subscription.status === "SUSPENDED";
-  const isInactive = isCanceled || isSuspended;
+  const isExpired = subscription.status === "EXPIRED";
+  const isReactivatable = isCanceled || isExpired;
+  const isInactive = isReactivatable || isSuspended;
   const showChargeButton = isAutoDebit && !isInactive;
-  const showMarkPaidButton = !isCanceled && !alreadyPaidCurrentPeriod;
+  const showMarkPaidButton = !isInactive && !alreadyPaidCurrentPeriod;
   const showPaymentLinkButton = !isInactive && !isAutoDebit;
   const showTokenizationLink = isAutoDebit && !isInactive;
   const showResume = subscription.status === "SUSPENDED";
-  const showActivate = subscription.status === "CANCELED";
+  const showActivate = isReactivatable;
   const showCancelSuspend = !showResume && !showActivate;
   const paymentMethodHref = `/customers/${encodeURIComponent(String(subscription.customerId || ""))}/payment-method?returnTo=${encodeURIComponent(returnTo)}`;
 
@@ -417,8 +427,8 @@ export function SubscriptionDetailModal({
                     <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="subscriptionId" value={subscription.id} />
                     {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-                    <button className="ghost btn-compact btn-green" type="submit" title="Activar suscripción">
-                      Activar
+                    <button className="ghost btn-compact btn-green" type="submit" title="Reactivar suscripción">
+                      Reactivar
                     </button>
                   </form>
                 ) : null}

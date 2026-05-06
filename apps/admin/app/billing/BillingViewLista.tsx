@@ -32,7 +32,8 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
         const isAutoDebit = row.mode === "AUTO_DEBIT";
         const isCanceled = row.status === "CANCELED";
         const isSuspended = row.status === "SUSPENDED";
-        const isInactive = isCanceled || isSuspended;
+        const isExpired = row.status === "EXPIRED";
+        const isInactive = isCanceled || isSuspended || isExpired;
         const contactHref = `/customers?${new URLSearchParams({
           tx: row.customerId,
           ...(row.tenantId ? { tenantId: row.tenantId } : {})

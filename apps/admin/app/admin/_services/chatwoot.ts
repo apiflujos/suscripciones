@@ -90,6 +90,18 @@ export async function sendChatwootMessageForCustomer(args: {
 
   try {
     await sendChatwootMessage(created.id);
+    const refreshed = await prisma.chatwootMessage.findUnique({
+      where: { id: created.id },
+      select: { status: true, errorMessage: true }
+    });
+    if (refreshed?.status !== MessageStatus.SENT) {
+      return {
+        ok: false,
+        status: 502,
+        error: String(refreshed?.errorMessage || "notification_not_delivered"),
+        messageId: created.id
+      };
+    }
     return { ok: true, sent: true, messageId: created.id };
   } catch (err: any) {
     await prisma.retryJob.create({

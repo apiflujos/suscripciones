@@ -344,6 +344,28 @@ function renderContactBlock(item: any) {
   );
 }
 
+function chatwootDeliveryState(item: any) {
+  return String(item?.providerResp?.delivery?.state || "").trim().toLowerCase();
+}
+
+function chatwootDeliveryError(item: any) {
+  const providerError = String(item?.providerResp?.delivery?.providerError || "").trim();
+  if (providerError) return providerError;
+  return String(item?.errorMessage || "").trim();
+}
+
+function chatwootStatusChip(item: any) {
+  const status = String(item?.status || "").trim().toUpperCase();
+  const deliveryState = chatwootDeliveryState(item);
+  if (deliveryState === "failed" || status === "FAILED") {
+    return { cls: "is-error", label: "Fallido" };
+  }
+  if (deliveryState === "submitted" || deliveryState === "delivered" || status === "SENT") {
+    return { cls: "is-success", label: "Enviado" };
+  }
+  return { cls: "is-warning", label: "Pendiente" };
+}
+
 function paymentStatusChip(raw: any) {
   const status = String(raw || "").toUpperCase();
   if (status === "APPROVED" || status === "PAID") return { cls: "is-success", label: "Pagado" };
@@ -1273,14 +1295,8 @@ export default async function LogsPage({
                 </thead>
                 <tbody>
                   {messageItems.map((m) => {
-                    const status = String(m.status || "");
-                    const chip =
-                      status === "SENT"
-                        ? { cls: "is-success", label: "Enviado" }
-                        : status === "FAILED"
-                          ? { cls: "is-error", label: "Fallido" }
-                          : { cls: "is-warning", label: "Pendiente" };
-                    const detailRaw = String(m.errorMessage || m.content || "—");
+                    const chip = chatwootStatusChip(m);
+                    const detailRaw = String(chatwootDeliveryError(m) || m.content || "—");
                     const detailText = detailRaw.length > 300 ? `${detailRaw.slice(0, 300)}…` : detailRaw;
                     return (
                       <tr key={m.id}>

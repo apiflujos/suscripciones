@@ -39,7 +39,8 @@ export function BillingViewKanban({ rows, context }: BillingViewKanbanProps) {
               const isAutoDebit = row.mode === "AUTO_DEBIT";
               const isCanceled = row.status === "CANCELED";
               const isSuspended = row.status === "SUSPENDED";
-              const isInactive = isCanceled || isSuspended;
+              const isExpired = row.status === "EXPIRED";
+              const isInactive = isCanceled || isSuspended || isExpired;
               const itemPaymentStatus = getCollectionStatusLabel({
                 status: row.status,
                 dueAt: row.vencimientoAt,

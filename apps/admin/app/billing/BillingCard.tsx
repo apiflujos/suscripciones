@@ -50,7 +50,9 @@ export function BillingCard({ row, context }: BillingCardProps) {
   const chargeDue = typeof row.chargeDue === "boolean" ? row.chargeDue : !row.collectionCyclePaid && isChargeDue;
   const isCanceled = row.status === "CANCELED";
   const isSuspended = row.status === "SUSPENDED";
-  const isInactive = isCanceled || isSuspended;
+  const isExpired = row.status === "EXPIRED";
+  const isReactivatable = isCanceled || isExpired;
+  const isInactive = isReactivatable || isSuspended;
   const alreadyPaidCurrentPeriod = Boolean(row.lastPaidInCurrentPeriod);
   const canManualUnmarkPaid = Boolean(row.canManualUnmarkPaid);
   const customerTokenized = Boolean(row.customerTokenized);
@@ -58,7 +60,7 @@ export function BillingCard({ row, context }: BillingCardProps) {
   const tokenizationBlockedReason = context.helpers.getTokenizationBlockedReason(row);
   const paymentMethodHref = `/customers/${encodeURIComponent(String(row.customerId || ""))}/payment-method?returnTo=${encodeURIComponent(context.data.returnTo)}`;
   const showChargeButton = isAutoDebit && !isInactive;
-  const showMarkPaidButton = row.status !== "CANCELED" && !alreadyPaidCurrentPeriod;
+  const showMarkPaidButton = !isInactive && !alreadyPaidCurrentPeriod;
   const showPaymentLinkButton = !isInactive && !isAutoDebit;
   const showTokenizationLink = isAutoDebit && !isInactive;
   const duplicateKey = context.helpers.resolveDuplicateKey(row);
@@ -349,13 +351,13 @@ export function BillingCard({ row, context }: BillingCardProps) {
                 Reanudar
               </button>
             </form>
-          ) : row.status === "CANCELED" ? (
+          ) : isReactivatable ? (
             <form action={context.actions.activateSubscription}>
               <input type="hidden" name="csrf" value={context.data.csrfToken} />
               <input type="hidden" name="subscriptionId" value={row.id} />
               {row.tenantId ? <input type="hidden" name="tenantId" value={row.tenantId} /> : null}
-              <button className="ghost btn-compact btn-green btn-noicon contact-action-btn action-token" type="submit" title="Activar suscripción">
-                Activar
+              <button className="ghost btn-compact btn-green btn-noicon contact-action-btn action-token" type="submit" title={isExpired ? "Reactivar suscripción expirada" : "Reactivar suscripción"}>
+                Reactivar
               </button>
             </form>
           ) : (
