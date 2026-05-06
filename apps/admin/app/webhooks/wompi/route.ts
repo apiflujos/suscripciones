@@ -7,7 +7,7 @@ import { systemLog, SystemActor } from "@suscripciones/core/services/systemLog";
 import { redactHeaders } from "@suscripciones/core/lib/redact";
 import { getDefaultTenantId } from "@suscripciones/core/services/tenantContext";
 import { processWompiEventLogic } from "@suscripciones/core/jobs/handlers/processWompiEvent";
-import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyReference";
+import { classifyReference, isShopifyLikePayload } from "@suscripciones/core/webhooks/wompi/classifyReference";
 import { logger } from "@suscripciones/core/lib/logger";
 
 export const runtime = "nodejs";
@@ -28,10 +28,7 @@ function getTxFromPayload(payload: any): Record<string, unknown> | null {
 }
 
 function shouldForwardPayloadToShopify(payload: any): boolean {
-  const tx = getTxFromPayload(payload);
-  const reference = normalizeRef(tx?.reference || payload?.data?.reference || payload?.reference);
-  if (!reference) return false;
-  return classifyReference(reference).kind === "shopify";
+  return isShopifyLikePayload(payload);
 }
 
 async function resolveWebhookTenantId(payload: any): Promise<string | null> {

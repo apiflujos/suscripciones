@@ -2,6 +2,7 @@ node_modules
 **/node_modules
 npm-debug.log
 .git
+.github
 .gitignore
 *.md
 .env
@@ -16,3 +17,6 @@ coverage
 *.pem
 .vscode
 .idea
+build
+apps/admin/node_modules
+apps/worker/node_modules

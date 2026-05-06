@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { classifyReference } from "../classifyReference";
+import { classifyReference, isShopifyLikePayload, isShopifyLikePayment } from "../classifyReference";
 
 test("classifyReference: empty reference -> unknown", () => {
   expect(classifyReference("")).toEqual({ kind: "unknown", reference: "" });
@@ -39,4 +39,62 @@ test("classifyReference: ORDER_ returns order or shopify", () => {
 
 test("classifyReference: SHOPIFY_ prefix", () => {
   expect(classifyReference("SHOPIFY_abc")).toEqual({ kind: "shopify", reference: "SHOPIFY_abc" });
+});
+
+test("isShopifyLikePayment: detects Shopify by non-reference signals", () => {
+  expect(
+    isShopifyLikePayment({
+      reference: "r3uEYBDiJC1kpV3cxDVvyMUIX",
+      origin: "shopify"
+    })
+  ).toBe(true);
+
+  expect(
+    isShopifyLikePayment({
+      reference: "random-reference",
+      redirectUrl: "https://wompi-integracion-ecommerce-api-prod.conexa.ai/wompi/continue-checkout/random-reference"
+    })
+  ).toBe(true);
+
+  expect(
+    isShopifyLikePayment({
+      reference: "random-reference",
+      source: "wompi"
+    })
+  ).toBe(false);
+});
+
+test("isShopifyLikePayload: detects Shopify webhook payloads beyond reference", () => {
+  expect(
+    isShopifyLikePayload({
+      data: {
+        transaction: {
+          reference: "r3uEYBDiJC1kpV3cxDVvyMUIX",
+          origin: "shopify"
+        }
+      }
+    })
+  ).toBe(true);
+
+  expect(
+    isShopifyLikePayload({
+      data: {
+        transaction: {
+          reference: "random-reference",
+          redirect_url: "https://wompi-integracion-ecommerce-api-prod.conexa.ai/wompi/continue-checkout/random-reference"
+        }
+      }
+    })
+  ).toBe(true);
+
+  expect(
+    isShopifyLikePayload({
+      data: {
+        transaction: {
+          reference: "random-reference",
+          origin: "wompi"
+        }
+      }
+    })
+  ).toBe(false);
 });

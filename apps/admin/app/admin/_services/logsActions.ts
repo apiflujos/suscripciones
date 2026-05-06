@@ -2,7 +2,7 @@ import "server-only";
 
 import { prisma } from "@suscripciones/database";
 import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, WebhookProcessStatus, WebhookProvider } from "@prisma/client";
-import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyReference";
+import { classifyReference, isShopifyLikePayment } from "@suscripciones/core/webhooks/wompi/classifyReference";
 import { reconcileWompiByReference, reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { attachPaymentToCycle, buildSubscriptionSeed, ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
@@ -1090,7 +1090,8 @@ type ShopifyForwardError =
   | "missing_payment_id"
   | "payment_not_found"
   | "not_shopify_payment"
-  | "webhook_event_not_found";
+  | "webhook_event_not_found"
+  | "wompi_transaction_missing";
 
 type ShopifyForwardResult =
   | { ok: false; error: ShopifyForwardError }
@@ -1123,7 +1124,17 @@ export async function enqueueShopifyForwardForPayment(args: { paymentId: string 
       providerResponse?.source ||
       ""
   ).toLowerCase();
-  const isShopify = classification.kind === "shopify" || sourceRaw.includes("shopify");
+  const isShopify = isShopifyLikePayment({
+    reference,
+    origin: String(providerResponse?.reconciliation?.origin || providerResponse?.origin || "").trim() || null,
+    redirectUrl: String(providerResponse?.redirect_url || providerResponse?.redirectUrl || "").trim() || null,
+    source: String(
+      providerResponse?.reconciliation?.source ||
+        providerResponse?.source ||
+        ""
+    ).trim() || null,
+    provider: String(providerResponse?.provider || "").trim() || null
+  });
   if (!isShopify) return { ok: false as const, error: "not_shopify_payment" as const };
 
   const events = await prisma.webhookEvent.findMany({
@@ -1143,11 +1154,36 @@ export async function enqueueShopifyForwardForPayment(args: { paymentId: string 
     return (txId && evTx === txId) || (linkId && evLink === linkId) || (reference && evRef === reference);
   });
 
-  if (!match) return { ok: false as const, error: "webhook_event_not_found" as const };
+  if (!match) {
+    const reconcileResult = txId
+      ? await reconcileWompiTransaction({
+          wompiTransactionId: txId,
+          tenantId: payment.tenantId || undefined,
+          processNow: true,
+          checksumPrefix: "manual-shopify-forward"
+        }).catch(() => null)
+      : reference
+        ? await reconcileWompiByReference({
+            reference,
+            tenantId: payment.tenantId || undefined,
+            paymentLinkId: linkId || undefined,
+            processNow: true,
+            checksumPrefix: "manual-shopify-forward-ref"
+          }).catch(() => null)
+        : null;
+
+    if (reconcileResult && reconcileResult.ok && reconcileResult.webhookEventId) {
+      return { ok: true as const, queued: true, webhookEventId: reconcileResult.webhookEventId };
+    }
+
+    if (!txId && !reference) return { ok: false as const, error: "wompi_transaction_missing" as const };
+    return { ok: false as const, error: "webhook_event_not_found" as const };
+  }
 
   const existing = await prisma.retryJob.findFirst({
     where: {
       type: RetryJobType.FORWARD_WOMPI_TO_SHOPIFY,
+      status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING] },
       payload: { path: ["webhookEventId"], equals: match.id } as any
     }
   });

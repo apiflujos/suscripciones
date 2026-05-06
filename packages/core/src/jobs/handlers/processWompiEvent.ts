@@ -1657,4 +1657,21 @@ export async function forwardWompiToShopify(webhookEventId: string) {
     });
     throw new Error(`forward failed: ${res.status} ${bodyText}`);
   }
+
+  await systemLog(
+    LogLevel.INFO,
+    "shopify.forward",
+    "Forward delivered",
+    {
+      webhookEventId,
+      url: cfg.url,
+      reference: reference || null,
+      transactionId: transactionId || null,
+      paymentLinkId: paymentLinkId || null,
+      status: res.status
+    },
+    "webhook:wompi"
+  ).catch((err) => {
+    logger.warn({ err, webhookEventId, status: res.status }, "processWompiEvent: fallo escribiendo systemLog de Shopify forward exitoso");
+  });
 }

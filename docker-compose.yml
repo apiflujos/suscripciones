@@ -24,6 +24,8 @@ services:
     build:
       context: .
       dockerfile: apps/admin/Dockerfile
+      target: runner
+    image: wompi-admin:local
     ports:
       - "3002:3002"
     environment:
@@ -67,6 +69,8 @@ services:
     build:
       context: .
       dockerfile: apps/worker/Dockerfile
+      target: runner
+    image: wompi-jobs:local
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://wompi_subs:${POSTGRES_PASSWORD:-wompi_subs}@postgres:5432/wompi_subs?schema=public

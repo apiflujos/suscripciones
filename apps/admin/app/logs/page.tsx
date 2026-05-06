@@ -33,7 +33,7 @@ import {
   retryFailedWebhooks as retryFailedWebhooksAction,
   retryWebhookById
 } from "../admin/_services/logsActions";
-import { classifyReference } from "@suscripciones/core/webhooks/wompi/classifyReference";
+import { isShopifyLikePayment } from "@suscripciones/core/webhooks/wompi/classifyReference";
 import { PaymentCreateSubscriptionModal } from "./PaymentCreateSubscriptionModal";
 
 export const dynamic = "force-dynamic";
@@ -1369,15 +1369,21 @@ export default async function LogsPage({
                         providerResponse?.source ||
                         ""
                     ).toLowerCase();
-                    const externalSourceLabel = sourceRaw.includes("shopify")
+                    const referenceText = String(p.reference || "").trim();
+                    const isShopifyPayment = isShopifyLikePayment({
+                      reference: referenceText,
+                      origin: String(reconciliation?.origin || providerResponse?.origin || "").trim() || null,
+                      redirectUrl: String(providerResponse?.redirect_url || providerResponse?.redirectUrl || "").trim() || null,
+                      source: String(reconciliation?.source || providerResponse?.source || "").trim() || null,
+                      provider: String(providerResponse?.provider || "").trim() || null
+                    });
+                    const externalSourceLabel = isShopifyPayment
                       ? "Shopify"
                       : sourceRaw.includes("wompi")
                         ? "Wompi"
-                        : sourceRaw
+                      : sourceRaw
                           ? sourceRaw.toUpperCase()
                           : "Sin identificar";
-                    const referenceText = String(p.reference || "").trim();
-                    const isShopifyPayment = sourceRaw.includes("shopify") || (referenceText ? classifyReference(referenceText).kind === "shopify" : false);
                     const ignoredReason = String(p?.reconciliation?.reason || "").trim();
                     const wompiTxText = String(p.wompiTransactionId || "").trim();
                     const wompiLinkText = String(p.wompiPaymentLinkId || "").trim();

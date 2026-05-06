@@ -6,7 +6,7 @@ import { randomUUID } from "crypto";
 import { processWompiEventLogic } from "../jobs/handlers/processWompiEvent";
 import { logger } from "../lib/logger";
 import { getDefaultTenantId } from "./tenantContext";
-import { classifyReference } from "../webhooks/wompi/classifyReference";
+import { isShopifyLikePayload } from "../webhooks/wompi/classifyReference";
 
 const FINAL_WOMPI_STATUSES = new Set(["APPROVED", "DECLINED", "VOIDED", "ERROR"]);
 
@@ -33,11 +33,7 @@ function extractWompiTransactionFromRaw(raw: unknown): Record<string, unknown> |
 }
 
 function shouldForwardToShopify(raw: unknown): boolean {
-  const tx = extractWompiTransactionFromRaw(raw);
-  const root = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
-  const reference = String(tx?.reference || root?.reference || "").trim();
-  if (!reference) return false;
-  return classifyReference(reference).kind === "shopify";
+  return isShopifyLikePayload(raw);
 }
 
 export async function reconcileWompiTransaction(args: {
