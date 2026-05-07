@@ -160,6 +160,41 @@ describe("buildBillingCyclesForSubscription", () => {
     expect(normalized.anchorPeriodEndAt?.toISOString()).toBe("2026-06-07T00:00:00.000Z");
   });
 
+  it("should build a reactivated monthly cycle from the explicit anchor start instead of snapping back to cycleStartDay", () => {
+    const sub = createBillingSeed({
+      startAt: new Date("2025-01-01T00:00:00.000Z"),
+      anchorCycleNumber: 2,
+      anchorPeriodStartAt: new Date("2026-05-07T00:00:00.000Z"),
+      anchorPeriodEndAt: new Date("2026-06-07T00:00:00.000Z"),
+      cycleStartDay: 1,
+      paymentDay: 19,
+      paymentTiming: "EN_CURSO"
+    });
+
+    const [cycle] = buildBillingCyclesForSubscription(sub as any, 0, 0);
+
+    expect(cycle.cycleNumber).toBe(2);
+    expect(cycle.periodStartAt.toISOString()).toBe("2026-05-07T00:00:00.000Z");
+    expect(cycle.periodEndAt.toISOString()).toBe("2026-06-07T00:00:00.000Z");
+  });
+
+  it("should not create a due date before the start of an explicit EN_CURSO reactivation period", () => {
+    const sub = createBillingSeed({
+      startAt: new Date("2025-01-01T00:00:00.000Z"),
+      anchorCycleNumber: 2,
+      anchorPeriodStartAt: new Date("2026-05-25T00:00:00.000Z"),
+      anchorPeriodEndAt: new Date("2026-06-25T00:00:00.000Z"),
+      cycleStartDay: 1,
+      paymentDay: 19,
+      paymentTiming: "EN_CURSO"
+    });
+
+    const [cycle] = buildBillingCyclesForSubscription(sub as any, 0, 0);
+
+    expect(cycle.periodStartAt.toISOString()).toBe("2026-05-25T00:00:00.000Z");
+    expect(cycle.dueAt.toISOString()).toBe("2026-05-25T00:00:00.000Z");
+  });
+
   it("should generate cycles back and forward from current cycle", () => {
     const sub = createBillingSeed({
       anchorCycleNumber: 6,

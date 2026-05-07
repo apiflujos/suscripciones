@@ -5,6 +5,7 @@ import { BillingCycleStatus, LogLevel, PaymentAssociationReason, PaymentOrigin, 
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
+import { resolveEffectiveSubscriptionAutomationConfig } from "@suscripciones/core/services/subscriptionAutomationConfig";
 import { addIntervalUtc } from "@suscripciones/core/lib/dates";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import {
@@ -149,7 +150,7 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
     return { ok: false, status: 409, error: "manual_charge_not_allowed", ...(paymentId ? { paymentId } : {}) };
   }
 
-  const autoDebitCfg = await getAutoDebitConfig();
+  const autoDebitCfg = await resolveEffectiveSubscriptionAutomationConfig(subscription).catch(() => getAutoDebitConfig());
   if (!autoDebitCfg.allowManualCharge) {
     const paymentId = await recordManualChargeFailure({
       subscription,

@@ -710,6 +710,7 @@ export async function updateSubscriptionBillingSettings(formData: FormData) {
   const returnTo = mergeQuery(String(formData.get("returnTo") || "/billing"), {});
   const subscriptionId = String(formData.get("subscriptionId") || "").trim();
   const tenantId = String(formData.get("tenantId") || "").trim();
+  const startAt = String(formData.get("startAt") || "").trim();
   const collectionMode = String(formData.get("collectionMode") || "").trim();
   const cycleStartDay = String(formData.get("cycleStartDay") || "").trim();
   const paymentDay = String(formData.get("paymentDay") || "").trim();
@@ -722,6 +723,7 @@ export async function updateSubscriptionBillingSettings(formData: FormData) {
     const res = await updateSubscriptionBillingSettingsService({
       subscriptionId,
       tenantId: tenantId || null,
+      startAt: startAt || undefined,
       collectionMode: collectionMode || undefined,
       cycleStartDay,
       paymentDay,

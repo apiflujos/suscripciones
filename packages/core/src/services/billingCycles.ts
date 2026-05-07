@@ -354,7 +354,11 @@ export function buildBillingCyclesForSubscription(sub: BillingComputationSeed, c
   const count = Math.max(1, Math.trunc(sub.plan.intervalCount || 1));
   const anchorCycleNumber = Math.max(1, Math.trunc(sub.anchorCycleNumber || 1));
   const anchorPeriodStartAt = sub.anchorPeriodStartAt ? new Date(sub.anchorPeriodStartAt) : resolveCycleAnchorFromStart(sub);
-  const anchorStart = unit === PlanIntervalUnit.MONTH ? resolveCycleStartAnchor({ ...sub, anchorPeriodStartAt }) : anchorPeriodStartAt;
+  const hasExplicitAnchorStart = sub.anchorPeriodStartAt instanceof Date && !Number.isNaN(sub.anchorPeriodStartAt.getTime());
+  const anchorStart =
+    unit === PlanIntervalUnit.MONTH && !hasExplicitAnchorStart
+      ? resolveCycleStartAnchor({ ...sub, anchorPeriodStartAt })
+      : anchorPeriodStartAt;
   const cycles: Array<{
     subscriptionId: string;
     cycleNumber: number;
@@ -369,7 +373,7 @@ export function buildBillingCyclesForSubscription(sub: BillingComputationSeed, c
     const shift = offset * count;
     const periodStartAt = shiftIntervalUtc(anchorStart, unit, shift);
     const periodEndAt = shiftIntervalUtc(periodStartAt, unit, count);
-    const dueAt =
+    const rawDueAt =
       unit === PlanIntervalUnit.MONTH
         ? computeBillingCycleDueAt({
             periodStartAt,
@@ -379,6 +383,13 @@ export function buildBillingCyclesForSubscription(sub: BillingComputationSeed, c
             paymentTiming: sub.paymentTiming
           })
         : periodEndAt;
+    const dueAt =
+      hasExplicitAnchorStart &&
+      cycleNumber === anchorCycleNumber &&
+      sub.paymentTiming !== "ANTICIPADO" &&
+      rawDueAt.getTime() < periodStartAt.getTime()
+        ? new Date(periodStartAt)
+        : rawDueAt;
     cycles.push({
       subscriptionId: sub.id,
       cycleNumber,
@@ -668,7 +679,12 @@ export async function attachPaymentToCycle(args: {
   if (!cycle) return { ok: false as const, error: "cycle_not_found" as const };
   if (cycle.subscriptionId !== args.subscriptionId) return { ok: false as const, error: "cycle_mismatch" as const };
   const dueAt = cycle.dueAt || cycle.periodEndAt;
-  const graceDays = Number.isFinite(cycle.subscription?.graceDays as any) ? Math.max(0, Number(cycle.subscription?.graceDays || 0)) : 0;
+  const autoDebitConfig = await getAutoDebitConfig().catch(() => null);
+  const graceDays = Number.isFinite(Number(autoDebitConfig?.graceDays))
+    ? Math.max(0, Math.trunc(Number(autoDebitConfig?.graceDays || 0)))
+    : Number.isFinite(cycle.subscription?.graceDays as any)
+      ? Math.max(0, Number(cycle.subscription?.graceDays || 0))
+      : 0;
   const dueWithGrace = new Date(dueAt.getTime() + graceDays * 24 * 60 * 60 * 1000);
   const msDiff = paymentAt.getTime() - dueWithGrace.getTime();
   const daysLate = msDiff > 0 ? Math.ceil(msDiff / (24 * 60 * 60 * 1000)) : 0;

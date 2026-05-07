@@ -23,6 +23,7 @@ import { getNotificationsConfig, resolveNotificationTemplate } from "./notificat
 import { schedulePaymentLinkNotifications } from "./notificationsScheduler";
 import { publishRealtime } from "./realtimePublisher";
 import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
+import { resolveEffectiveSubscriptionAutomationConfig } from "./subscriptionAutomationConfig";
 import { reconcileWompiTransaction } from "./wompiReconcile";
 import { getExpectedSubscriptionTotalInCents, getPlanCollectionMode } from "../lib/metadataSchemas";
 import { isBillingCyclePaid, resolveSubscriptionBillingState } from "./billingCycles";
@@ -231,10 +232,6 @@ function shouldMarkSubscriptionPastDue(args: {
 
 export async function ensureExpiredSubscriptions() {
   const now = new Date();
-  const autoDebitConfig = await getAutoDebitConfig().catch(() => null);
-  const graceDays = Math.max(0, Math.trunc(Number(autoDebitConfig?.graceDays ?? 5)));
-  const suspendDays = Math.max(0, Math.trunc(Number(autoDebitConfig?.suspendDays ?? 15)));
-  const cancelDays = Math.max(0, Math.trunc(Number(autoDebitConfig?.cancelDays ?? 30)));
   const candidates = await prisma.subscription.findMany({
     where: {
       status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED] }
@@ -242,7 +239,9 @@ export async function ensureExpiredSubscriptions() {
     select: {
       id: true,
       status: true,
-      graceDays: true
+      graceDays: true,
+      maxRetries: true,
+      metadata: true
     }
   });
   let toPastDue = 0;
@@ -251,6 +250,10 @@ export async function ensureExpiredSubscriptions() {
   let recoveredToActive = 0;
 
   for (const sub of candidates) {
+    const automation = await resolveEffectiveSubscriptionAutomationConfig(sub).catch(() => null);
+    const graceDays = Math.max(0, Math.trunc(Number(automation?.graceDays ?? 5)));
+    const suspendDays = Math.max(0, Math.trunc(Number(automation?.suspendDays ?? 15)));
+    const cancelDays = Math.max(0, Math.trunc(Number(automation?.cancelDays ?? 30)));
     const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id }).catch(() => null);
     const collectionCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
 
@@ -329,12 +332,14 @@ export async function handleSubscriptionPaymentFailure(subscriptionId: string, e
     select: {
       id: true,
       status: true,
-      graceDays: true
+      graceDays: true,
+      maxRetries: true,
+      metadata: true
     }
   });
   if (!sub || sub.status === SubscriptionStatus.CANCELED || sub.status === SubscriptionStatus.EXPIRED) return;
-  const autoDebitConfig = await getAutoDebitConfig().catch(() => null);
-  const graceDays = Math.max(0, Math.trunc(Number(autoDebitConfig?.graceDays ?? sub.graceDays ?? 5)));
+  const automation = await resolveEffectiveSubscriptionAutomationConfig(sub).catch(() => null);
+  const graceDays = Math.max(0, Math.trunc(Number(automation?.graceDays ?? 5)));
 
   const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id }).catch(() => null);
   const mostRecentCycle = billingState?.collectionCycle || billingState?.activeCycle || null;

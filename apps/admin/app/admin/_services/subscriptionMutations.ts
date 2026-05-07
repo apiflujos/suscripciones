@@ -7,7 +7,7 @@ import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
 import { addIntervalUtc, toUtc } from "@suscripciones/core/lib/dates";
 import { systemLog } from "@suscripciones/core/services/systemLog";
-import { ensureBillingCyclesForSubscription, syncSubscriptionBillingSnapshot } from "@suscripciones/core/services/billingCycles";
+import { ensureBillingCyclesForSubscription, ensureBillingCyclesForSubscriptions, syncSubscriptionBillingSnapshot } from "@suscripciones/core/services/billingCycles";
 import { createPaymentLinkForSubscription } from "@suscripciones/core/services/subscriptionBilling";
 import { scheduleSubscriptionDueNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { consumeApp } from "@suscripciones/core/services/superAdminApp";
@@ -141,7 +141,7 @@ export async function createSubscription(args: {
   const subscriptionMetaBase = asRecord(args.metadata);
   const autoDebitCfg = await getAutoDebitConfig().catch(() => null);
   const defaultGraceDays = Number(autoDebitCfg?.graceDays || 5);
-  const graceDays = Number.isFinite(defaultGraceDays) ? Math.max(1, Math.min(5, Math.trunc(defaultGraceDays))) : 5;
+  const graceDays = Number.isFinite(defaultGraceDays) ? Math.max(1, Math.min(30, Math.trunc(defaultGraceDays))) : 5;
   const cycleStartDay = Math.max(
     1,
     Math.min(
@@ -383,8 +383,9 @@ export async function updateSubscriptionBillingSettings(args: {
       })()
     : (subscription.startAt ? new Date(subscription.startAt) : now);
 
-  const baseStart =
-    normalized.unit === "MONTH"
+  const baseStart = args.startAt
+    ? anchor
+    : normalized.unit === "MONTH"
       ? resolveMonthlyPeriodStart(toUtc(now), cycleDay)
       : resolvePeriodStartFromAnchor(now, anchor, normalized.unit, normalized.count);
 
@@ -444,13 +445,9 @@ export async function updateSubscriptionBillingSettings(args: {
       intervalUnit: subscription.plan.intervalUnit,
       intervalCount: subscription.plan.intervalCount
     }
-  }).catch((err) => {
-    logger.warn({ err, subscriptionId }, "Fallo regenerando ciclos tras actualizar reglas de suscripción");
   });
 
-  await syncSubscriptionBillingSnapshot({ subscriptionId, asOf: new Date() }).catch((err) => {
-    logger.warn({ err, subscriptionId }, "Fallo sincronizando snapshot tras actualizar reglas");
-  });
+  await syncSubscriptionBillingSnapshot({ subscriptionId, asOf: new Date() });
 
   return { ok: true as const };
 }
@@ -683,21 +680,23 @@ export async function updateSubscriptionStatus(args: {
       }
     });
 
-    await ensureBillingCyclesForSubscription({
-      id: subscriptionWithPlan.id,
-      startAt: subscriptionWithPlan.startAt,
-      anchorCycleNumber: nextCycleNumber,
-      anchorPeriodStartAt: now,
-      anchorPeriodEndAt: nextPeriodEndAt,
-      cycleStartDay: subscriptionWithPlan.cycleStartDay,
-      paymentDay: subscriptionWithPlan.paymentDay,
-      paymentTiming: normalizePaymentTiming(subscriptionWithPlan.paymentTiming),
-      graceDays: subscriptionWithPlan.graceDays,
-      plan: {
-        intervalUnit: subscriptionWithPlan.plan.intervalUnit,
-        intervalCount: subscriptionWithPlan.plan.intervalCount
+    await ensureBillingCyclesForSubscriptions([
+      {
+        id: subscriptionWithPlan.id,
+        startAt: subscriptionWithPlan.startAt,
+        anchorCycleNumber: nextCycleNumber,
+        anchorPeriodStartAt: now,
+        anchorPeriodEndAt: nextPeriodEndAt,
+        cycleStartDay: subscriptionWithPlan.cycleStartDay,
+        paymentDay: subscriptionWithPlan.paymentDay,
+        paymentTiming: normalizePaymentTiming(subscriptionWithPlan.paymentTiming),
+        graceDays: subscriptionWithPlan.graceDays,
+        plan: {
+          intervalUnit: subscriptionWithPlan.plan.intervalUnit,
+          intervalCount: subscriptionWithPlan.plan.intervalCount
+        }
       }
-    });
+    ], 0, 2);
 
     const updated = await prisma.subscription.update({
       where: { id: subscriptionId },

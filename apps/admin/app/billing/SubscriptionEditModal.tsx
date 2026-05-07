@@ -1,21 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { AppModal } from "../ui/AppModal";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
-import { mapPlanFromApi, type PlanOption } from "./ChangePlanButton";
 import { formatCivilDate } from "./civilDate";
-
-type SubscriptionProduct = {
-  id: string;
-  productId: string;
-  name: string;
-  priceInCents: number;
-  currency: string;
-  requiresShipping: boolean;
-  quantity: number;
-};
 
 export function SubscriptionEditModal({
   subscriptionId,
@@ -24,15 +13,9 @@ export function SubscriptionEditModal({
   returnTo,
   currentChargeAt,
   periodStartAt,
-  currentPlanId,
   currentPlanName,
-  currentPlanCurrency,
-  currentShippingInCents,
-  currentRequiresShipping,
   planIntervalUnit,
   planIntervalCount,
-  plans,
-  changeSubscriptionPlan,
   cycleStartDay,
   paymentDay,
   paymentTiming,
@@ -59,7 +42,7 @@ export function SubscriptionEditModal({
   currentRequiresShipping: boolean;
   planIntervalUnit: string;
   planIntervalCount: number;
-  plans: PlanOption[];
+  plans: unknown[];
   changeSubscriptionPlan: (formData: FormData) => void;
   cycleStartDay: number;
   paymentDay: number;
@@ -82,19 +65,9 @@ export function SubscriptionEditModal({
   const [subscriptionType, setSubscriptionType] = useState<"AUTO_DEBIT" | "LINK_PAYMENT">(
     collectionMode === "AUTO_DEBIT" ? "AUTO_DEBIT" : "LINK_PAYMENT"
   );
-  const [products, setProducts] = useState<SubscriptionProduct[]>([]);
-  const [intervalCount, setIntervalCount] = useState(Number(planIntervalCount || 1));
-  const [intervalUnit, setIntervalUnit] = useState(String(planIntervalUnit || "MONTH"));
   const [localCycleStartDay, setLocalCycleStartDay] = useState(cycleStartDay || 1);
   const [localPaymentDay, setLocalPaymentDay] = useState(paymentDay || 15);
   const [localPaymentTiming, setLocalPaymentTiming] = useState(String(paymentTiming || "EN_CURSO"));
-  const [shippingCop, setShippingCop] = useState("");
-  const [freeShipping, setFreeShipping] = useState(!currentRequiresShipping || currentShippingInCents <= 0);
-  const [productSearchOpen, setProductSearchOpen] = useState(false);
-  const [productSearchQuery, setProductSearchQuery] = useState("");
-  const [productSearchResults, setProductSearchResults] = useState<PlanOption[]>([]);
-  const [productSearchLoading, setProductSearchLoading] = useState(false);
-  const [productSearchError, setProductSearchError] = useState("");
 
   // Start date state — editable to regenerate cycles
   const [localStartAt, setLocalStartAt] = useState<string>(() => {
@@ -107,12 +80,6 @@ export function SubscriptionEditModal({
     }
     return "";
   });
-
-  useEffect(() => {
-    if (!open) return;
-    setShippingCop(currentShippingInCents > 0 ? (currentShippingInCents / 100).toString() : "0");
-    setFreeShipping(!currentRequiresShipping || currentShippingInCents <= 0);
-  }, [open, currentShippingInCents, currentRequiresShipping]);
 
   const toLocalDate = (value?: string | null) => {
     if (!value) return null;
@@ -128,69 +95,6 @@ export function SubscriptionEditModal({
     if (!d) return "—";
     const normalized = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
     return new Intl.DateTimeFormat("es-CO", { dateStyle: "short" }).format(normalized);
-  };
-
-  const searchProducts = useCallback(async (query: string, signal?: AbortSignal) => {
-    const trimmed = query.trim();
-
-    setProductSearchLoading(true);
-    setProductSearchError("");
-    try {
-      const qs = new URLSearchParams({ q: trimmed, take: "10" });
-      if (tenantId) qs.set("tenantId", tenantId);
-      const res = await fetch(`/api/search/products?${qs.toString()}`, { cache: "no-store", signal });
-      if (!res.ok) {
-        setProductSearchResults([]);
-        setProductSearchError(`Error buscando productos (${res.status}).`);
-        return;
-      }
-      const json = await res.json().catch(() => ({ items: [] }));
-      const items = Array.isArray(json.items) ? json.items : [];
-      const existingProductIds = new Set(products.map((product) => String(product.productId)));
-      const mapped = items
-        .map((item) => mapPlanFromApi(item))
-        .filter((item) => item.id && !existingProductIds.has(String(item.id)));
-      setProductSearchResults(mapped);
-    } catch (err: any) {
-      if (err?.name === "AbortError") return;
-      setProductSearchResults([]);
-      setProductSearchError("Error de red buscando productos.");
-    } finally {
-      if (!signal?.aborted) {
-        setProductSearchLoading(false);
-      }
-    }
-  }, [products, tenantId]);
-
-  useEffect(() => {
-    const ac = new AbortController();
-    const timer = setTimeout(() => {
-      if (productSearchOpen) {
-        void searchProducts(productSearchQuery, ac.signal);
-      }
-    }, 300);
-    return () => {
-      clearTimeout(timer);
-      ac.abort();
-    };
-  }, [productSearchOpen, productSearchQuery, searchProducts]);
-
-  const addProduct = (product: PlanOption) => {
-    setProducts((prev) => [...prev, {
-      id: `prod-${Date.now()}`,
-      productId: String(product.id),
-      name: String(product.name),
-      priceInCents: Number(product.priceInCents || 0),
-      currency: String(product.currency || "COP"),
-      requiresShipping: Boolean(product.requiresShipping),
-      quantity: 1
-    }]);
-    setProductSearchOpen(false);
-    setProductSearchQuery("");
-  };
-
-  const removeProduct = (productId: string) => {
-    setProducts((prev) => prev.filter((p) => p.productId !== productId));
   };
 
   return (
@@ -237,106 +141,22 @@ export function SubscriptionEditModal({
                 </div>
               </section>
 
-              {/* 2. Productos */}
+              {/* 2. Resumen actual */}
               <section className="card cardPad">
-                <div className="subscription-edit-products-list">
-                  {products.map((product) => (
-                    <div key={product.id} className="customer-search-item subscription-edit-product-row">
-                      <div className="subscription-edit-product-meta">
-                        <strong>{product.name}</strong>
-                        <div className="muted">{new Intl.NumberFormat("es-CO", { style: "currency", currency: product.currency, maximumFractionDigits: 0 }).format(product.priceInCents / 100)}</div>
-                      </div>
-                      <button
-                        className="ghost btn-compact btn-icon-only btn-cancel"
-                        type="button"
-                        title="Quitar"
-                        aria-label="Quitar producto"
-                        onClick={() => removeProduct(product.productId)}
-                      />
-                    </div>
-                  ))}
-                  {products.length === 0 && (
-                    <div className="field-hint">No hay productos adicionales configurados</div>
-                  )}
-                </div>
-                
-                {productSearchOpen ? (
-                  <div className="subscription-product-search">
-                  <div className="subscription-product-search-row">
-                      <input
-                        className="input subscription-product-search-input"
-                        type="search"
-                        placeholder="Buscar producto..."
-                        value={productSearchQuery}
-                        onChange={(e) => setProductSearchQuery(e.target.value)}
-                        autoFocus
-                      />
-                      <button className="ghost btn-compact btn-icon-only btn-cancel" type="button" onClick={() => setProductSearchOpen(false)} aria-label="Cerrar búsqueda" title="Cerrar búsqueda" />
-                    </div>
-                    <div aria-live="polite">
-                      {productSearchLoading ? <div className="muted">Buscando...</div> : null}
-                      {productSearchError ? <div className="field-hint subscription-edit-search-error">{productSearchError}</div> : null}
-                    </div>
-                    {productSearchResults.length > 0 && (
-                      <div className="plan-option-list">
-                        {productSearchResults.map((product) => (
-                          <button
-                            key={product.id}
-                            className="ghost btn-compact btn-noicon plan-option-item"
-                            type="button"
-                            onClick={() => addProduct(product)}
-                          >
-                            <span>{product.name}</span>
-                            <span className="muted subscription-edit-plan-price">{new Intl.NumberFormat("es-CO", { style: "currency", currency: product.currency || "COP", maximumFractionDigits: 0 }).format(Number(product.priceInCents || 0) / 100)}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {!productSearchLoading && !productSearchError && productSearchResults.length === 0 ? (
-                      <div className="field-hint">{productSearchQuery.trim() ? "Sin resultados. Prueba con otro término." : "No hay productos activos disponibles."}</div>
-                    ) : null}
+                <div style={{ display: "grid", gap: "var(--space-2)" }}>
+                  <div className="field-hint">
+                    Producto actual: <strong>{currentPlanName}</strong>
                   </div>
-                ) : (
-                  <button className="primary btn-compact subscription-edit-add-product-btn" type="button" onClick={() => setProductSearchOpen(true)}>
-                    Agregar producto
-                  </button>
-                )}
-              </section>
-
-              {/* 3. Periodicidad */}
-              <section className="card cardPad">
-                <div className="subscription-edit-frequency-row">
-                  <span className="subscription-edit-frequency-label">
-                    Cobrar cada
-                    <HelpTip text="Define la periodicidad del ciclo (ej. cada 1 mes, cada 2 semanas)." />
-                  </span>
-                  <select
-                    className="select select-compact"
-                    name="intervalCount"
-                    value={intervalCount}
-                    onChange={(e) => setIntervalCount(Number(e.target.value))}
-                  >
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="6">6</option>
-                    <option value="12">12</option>
-                  </select>
-                  <select
-                    className="select select-compact"
-                    name="intervalUnit"
-                    value={intervalUnit}
-                    onChange={(e) => setIntervalUnit(e.target.value)}
-                  >
-                    <option value="DAY">día(s)</option>
-                    <option value="WEEK">semana(s)</option>
-                    <option value="MONTH">mes(es)</option>
-                    <option value="YEAR">año(s)</option>
-                  </select>
+                  <div className="field-hint">
+                    Periodicidad actual: cada {planIntervalCount} {String(planIntervalUnit || "MONTH").toLowerCase()}
+                  </div>
+                  <div className="field-hint">
+                    Esta pantalla edita reglas de cobro y ciclo. El cambio de producto o periodicidad debe hacerse desde su flujo específico.
+                  </div>
                 </div>
               </section>
 
-              {/* 4. Configuración de ciclo */}
+              {/* 3. Configuración de ciclo */}
               <section className="card cardPad">
                 <div style={{ display: "grid", gap: "var(--space-3)" }}>
                   {/* Fecha de inicio — editable para regenerar ciclos */}

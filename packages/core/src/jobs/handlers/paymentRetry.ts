@@ -4,6 +4,7 @@ import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscrip
 import { systemLog, SystemActor } from "../../services/systemLog";
 import { getAutoDebitConfig } from "../../services/runtimeConfig";
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
+import { resolveEffectiveSubscriptionAutomationConfig } from "../../services/subscriptionAutomationConfig";
 import { publishRealtime } from "../../services/realtimePublisher";
 import { resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "../../services/billingCycles";
 import { logger } from "../../lib/logger";
@@ -125,7 +126,7 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
 
     const mode = resolveSubscriptionCollectionMode(sub);
     if (mode === "AUTO_DEBIT" || mode === "AUTO_LINK") {
-      const autoDebitConfig = await getAutoDebitConfig();
+      const autoDebitConfig = await resolveEffectiveSubscriptionAutomationConfig(sub).catch(() => getAutoDebitConfig());
       const now = new Date();
 
       const retryWindowMinutes = autoDebitConfig.retryEnabled
@@ -203,7 +204,7 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
     }
 
     if (mode === "AUTO_DEBIT") {
-      const autoDebitConfig = await getAutoDebitConfig();
+      const autoDebitConfig = await resolveEffectiveSubscriptionAutomationConfig(sub).catch(() => getAutoDebitConfig());
       if (!autoDebitConfig.enabled) {
         if (shouldCreateFallbackLinkWhenAutoDebitDisabled()) {
           await systemLog(LogLevel.INFO, "jobs.payment_retry", "Débito automático deshabilitado; creando link de respaldo", {
