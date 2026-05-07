@@ -885,7 +885,7 @@ export default async function SettingsPage({
               
               <div style={{ display: "grid", gap: 12 }}>
                 <h4 style={{ margin: 0, fontSize: 14 }}>Tiempos de mora y suspensión</h4>
-                <p className="field-hint" style={{ margin: 0 }}>Estos valores aplican para TODAS las suscripciones (se pueden sobrescribir por suscripción individual)</p>
+                <p className="field-hint" style={{ margin: 0 }}>Estos valores aplican para TODAS las suscripciones y se gestionan solo desde esta configuración global.</p>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
@@ -895,7 +895,7 @@ export default async function SettingsPage({
                     <HelpTip text="Días después del vencimiento donde la suscripción está en gracia (no en mora)" />
                   </label>
                   <select className="select" name="graceDays" defaultValue={String(autoDebit?.graceDays ?? 5)} data-auto-submit="true">
-                    {Array.from({ length: 16 }, (_, i) => i).map((days) => (
+                    {Array.from({ length: 30 }, (_, i) => i + 1).map((days) => (
                       <option key={days} value={days}>{days} días</option>
                     ))}
                   </select>
@@ -908,7 +908,7 @@ export default async function SettingsPage({
                     <HelpTip text="Días después del vencimiento cuando se suspende la suscripción" />
                   </label>
                   <select className="select" name="suspendDays" defaultValue={String(autoDebit?.suspendDays ?? 15)} data-auto-submit="true">
-                    {Array.from({ length: 31 }, (_, i) => i + 10).map((days) => (
+                    {Array.from({ length: 180 }, (_, i) => i + 1).map((days) => (
                       <option key={days} value={days}>{days} días</option>
                     ))}
                   </select>
@@ -921,7 +921,7 @@ export default async function SettingsPage({
                     <HelpTip text="Días después de suspendido cuando se cancela la suscripción" />
                   </label>
                   <select className="select" name="cancelDays" defaultValue={String(autoDebit?.cancelDays ?? 30)} data-auto-submit="true">
-                    {Array.from({ length: 31 }, (_, i) => i + 20).map((days) => (
+                    {Array.from({ length: 365 }, (_, i) => i + 1).map((days) => (
                       <option key={days} value={days}>{days} días</option>
                     ))}
                   </select>

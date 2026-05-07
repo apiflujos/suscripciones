@@ -188,6 +188,24 @@ function countElapsedIntervals(args: {
 export function normalizeBillingSeed(sub: BillingComputationSeed): BillingComputationSeed {
   const unit = sub.plan.intervalUnit;
   const count = Math.max(1, Math.trunc(sub.plan.intervalCount || 1));
+  const hasExplicitAnchor =
+    Number.isFinite(Number(sub.anchorCycleNumber)) &&
+    sub.anchorPeriodStartAt instanceof Date &&
+    !Number.isNaN(sub.anchorPeriodStartAt.getTime());
+  if (hasExplicitAnchor) {
+    const anchorCycleNumber = Math.max(1, Math.trunc(Number(sub.anchorCycleNumber || 1)));
+    const anchorPeriodStartAt = new Date(sub.anchorPeriodStartAt as Date);
+    const anchorPeriodEndAt =
+      sub.anchorPeriodEndAt instanceof Date && !Number.isNaN(sub.anchorPeriodEndAt.getTime())
+        ? new Date(sub.anchorPeriodEndAt)
+        : shiftIntervalUtc(anchorPeriodStartAt, unit, count);
+    return {
+      ...sub,
+      anchorCycleNumber,
+      anchorPeriodStartAt,
+      anchorPeriodEndAt
+    };
+  }
   const anchorStart = resolveCycleAnchorFromStart(sub);
   const referenceAt = sub.anchorPeriodStartAt ? new Date(sub.anchorPeriodStartAt) : new Date();
   const inferredCycle = countElapsedIntervals({

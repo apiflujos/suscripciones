@@ -142,6 +142,24 @@ describe("buildBillingCyclesForSubscription", () => {
     expect(normalized.anchorCycleNumber).toBe(2);
   });
 
+  it("should preserve an explicit anchor during reactivation instead of inferring from historical startAt", () => {
+    const sub = createBillingSeed({
+      startAt: new Date("2025-01-01T00:00:00.000Z"),
+      anchorCycleNumber: 2,
+      anchorPeriodStartAt: new Date("2026-05-07T00:00:00.000Z"),
+      anchorPeriodEndAt: new Date("2026-06-07T00:00:00.000Z"),
+      cycleStartDay: 7,
+      paymentDay: 19,
+      paymentTiming: "EN_CURSO"
+    });
+
+    const normalized = normalizeBillingSeed(sub as any);
+
+    expect(normalized.anchorCycleNumber).toBe(2);
+    expect(normalized.anchorPeriodStartAt?.toISOString()).toBe("2026-05-07T00:00:00.000Z");
+    expect(normalized.anchorPeriodEndAt?.toISOString()).toBe("2026-06-07T00:00:00.000Z");
+  });
+
   it("should generate cycles back and forward from current cycle", () => {
     const sub = createBillingSeed({
       anchorCycleNumber: 6,

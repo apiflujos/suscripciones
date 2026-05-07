@@ -356,6 +356,7 @@ export function BillingCard({ row, context }: BillingCardProps) {
               <input type="hidden" name="csrf" value={context.data.csrfToken} />
               <input type="hidden" name="subscriptionId" value={row.id} />
               {row.tenantId ? <input type="hidden" name="tenantId" value={row.tenantId} /> : null}
+              <input type="hidden" name="returnTo" value={context.data.returnTo} />
               <button className="ghost btn-compact btn-green btn-noicon contact-action-btn action-token" type="submit" title={isExpired ? "Reactivar suscripción expirada" : "Reactivar suscripción"}>
                 Reactivar
               </button>

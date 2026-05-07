@@ -427,6 +427,7 @@ export function SubscriptionDetailModal({
                     <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="subscriptionId" value={subscription.id} />
                     {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+                    <input type="hidden" name="returnTo" value={returnTo} />
                     <button className="ghost btn-compact btn-green" type="submit" title="Reactivar suscripción">
                       Reactivar
                     </button>

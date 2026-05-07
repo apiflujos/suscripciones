@@ -88,7 +88,6 @@ export function SubscriptionEditModal({
   const [localCycleStartDay, setLocalCycleStartDay] = useState(cycleStartDay || 1);
   const [localPaymentDay, setLocalPaymentDay] = useState(paymentDay || 15);
   const [localPaymentTiming, setLocalPaymentTiming] = useState(String(paymentTiming || "EN_CURSO"));
-  const [localGraceDays, setLocalGraceDays] = useState(graceDays || globalConfig?.graceDays || 5);
   const [shippingCop, setShippingCop] = useState("");
   const [freeShipping, setFreeShipping] = useState(!currentRequiresShipping || currentShippingInCents <= 0);
   const [productSearchOpen, setProductSearchOpen] = useState(false);
@@ -210,7 +209,6 @@ export function SubscriptionEditModal({
               <input type="hidden" name="subscriptionId" value={subscriptionId} />
               {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-              <input type="hidden" name="graceDays" value={String(localGraceDays)} />
               <input type="hidden" name="collectionMode" value={subscriptionType === "AUTO_DEBIT" ? "AUTO_DEBIT" : "MANUAL_LINK"} />
               {/* 1. Tipo de suscripción */}
               <section className="card cardPad">
@@ -438,21 +436,12 @@ export function SubscriptionEditModal({
                   </div>
                   <div className="field">
                     <label className="field-label">
-                      Días de gracia
-                      <HelpTip text="Este valor se puede sobrescribir por suscripción. La suspensión y cancelación se manejan desde configuración global." />
+                      Configuración global de cobro
+                      <HelpTip text="Los días de gracia, suspensión y cancelación se definen solo en Configuración." />
                     </label>
-                    <select
-                      className="select"
-                      value={localGraceDays}
-                      onChange={(e) => setLocalGraceDays(Number(e.target.value))}
-                    >
-                      {Array.from({ length: 16 }, (_, i) => i).map((days) => (
-                        <option key={days} value={days}>{days} días</option>
-                      ))}
-                    </select>
-                    <div className="field-hint">
-                      Default global actual: {globalConfig?.graceDays ?? 5} días.
-                    </div>
+                    <div className="field-hint">Gracia: {globalConfig?.graceDays ?? graceDays} días.</div>
+                    <div className="field-hint">Suspender: {globalConfig?.suspendDays ?? suspendDays} días.</div>
+                    <div className="field-hint">Cancelar: {globalConfig?.cancelDays ?? cancelDays} días.</div>
                   </div>
 
                   {nextChargeDate && (

@@ -683,6 +683,22 @@ export async function updateSubscriptionStatus(args: {
       }
     });
 
+    await ensureBillingCyclesForSubscription({
+      id: subscriptionWithPlan.id,
+      startAt: subscriptionWithPlan.startAt,
+      anchorCycleNumber: nextCycleNumber,
+      anchorPeriodStartAt: now,
+      anchorPeriodEndAt: nextPeriodEndAt,
+      cycleStartDay: subscriptionWithPlan.cycleStartDay,
+      paymentDay: subscriptionWithPlan.paymentDay,
+      paymentTiming: normalizePaymentTiming(subscriptionWithPlan.paymentTiming),
+      graceDays: subscriptionWithPlan.graceDays,
+      plan: {
+        intervalUnit: subscriptionWithPlan.plan.intervalUnit,
+        intervalCount: subscriptionWithPlan.plan.intervalCount
+      }
+    });
+
     const updated = await prisma.subscription.update({
       where: { id: subscriptionId },
       data: {
@@ -690,24 +706,6 @@ export async function updateSubscriptionStatus(args: {
         canceledAt: null,
         suspendedAt: null
       }
-    });
-
-    await ensureBillingCyclesForSubscription({
-      id: updated.id,
-      startAt: updated.startAt,
-      anchorCycleNumber: nextCycleNumber,
-      anchorPeriodStartAt: now,
-      anchorPeriodEndAt: nextPeriodEndAt,
-      cycleStartDay: updated.cycleStartDay,
-      paymentDay: updated.paymentDay,
-      paymentTiming: normalizePaymentTiming(updated.paymentTiming),
-      graceDays: updated.graceDays,
-      plan: {
-        intervalUnit: subscriptionWithPlan.plan.intervalUnit,
-        intervalCount: subscriptionWithPlan.plan.intervalCount
-      }
-    }).catch((err) => {
-      logger.warn({ err, subscriptionId }, "Fallo regenerando ciclos al reactivar suscripcion");
     });
 
     await prisma.retryJob.deleteMany({
@@ -735,9 +733,7 @@ export async function updateSubscriptionStatus(args: {
       logger.warn({ err, subscriptionId }, "Fallo reprogramando notificaciones al reactivar suscripcion");
     });
 
-    await syncSubscriptionBillingSnapshot({ subscriptionId, asOf: now }).catch((err) => {
-      logger.warn({ err, subscriptionId }, "Fallo sincronizando snapshot al reactivar suscripcion");
-    });
+    await syncSubscriptionBillingSnapshot({ subscriptionId, asOf: now });
 
     await systemLog(LogLevel.INFO, "subscriptions.activate", "Subscription activated", { subscriptionId }).catch((err) => {
       logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al activar suscripcion");
