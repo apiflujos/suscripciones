@@ -7,7 +7,7 @@ import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
 import { addIntervalUtc, toUtc } from "@suscripciones/core/lib/dates";
 import { systemLog } from "@suscripciones/core/services/systemLog";
-import { ensureBillingCyclesForSubscription, ensureBillingCyclesForSubscriptions, syncSubscriptionBillingSnapshot } from "@suscripciones/core/services/billingCycles";
+import { ensureBillingCyclesForSubscription, ensureBillingCyclesForSubscriptions, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "@suscripciones/core/services/billingCycles";
 import { createPaymentLinkForSubscription } from "@suscripciones/core/services/subscriptionBilling";
 import { scheduleSubscriptionDueNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { consumeApp } from "@suscripciones/core/services/superAdminApp";
@@ -658,11 +658,34 @@ export async function updateSubscriptionStatus(args: {
     if (!subscriptionWithPlan) return { ok: false, status: 404, error: "subscription_not_found" as const };
 
     const now = new Date();
+    const previousBillingState = await resolveSubscriptionBillingState({ subscriptionId }).catch(() => null);
+    const previousCollectionCycle = previousBillingState?.collectionCycle || previousBillingState?.activeCycle || null;
     const nextPeriodEndAt = addIntervalUtc(
       now,
       subscriptionWithPlan.plan.intervalUnit,
       Math.max(1, Math.trunc(subscriptionWithPlan.plan.intervalCount || 1))
     );
+    const referenceDueAt = previousCollectionCycle?.dueAt ? new Date(previousCollectionCycle.dueAt) : null;
+    const referencePeriodStartAt = previousCollectionCycle?.periodStartAt ? new Date(previousCollectionCycle.periodStartAt) : null;
+    const fallbackDueAt = computeDueAtForPeriod({
+      periodStartAt: now,
+      periodEndAt: nextPeriodEndAt,
+      cycleStartDay: now.getUTCDate(),
+      paymentDay: subscriptionWithPlan.paymentDay,
+      paymentTiming: normalizePaymentTiming(subscriptionWithPlan.paymentTiming),
+      intervalUnit: subscriptionWithPlan.plan.intervalUnit
+    });
+    const dueOffsetMs =
+      referenceDueAt && referencePeriodStartAt
+        ? Math.max(0, referenceDueAt.getTime() - referencePeriodStartAt.getTime())
+        : null;
+    const explicitDueAt = dueOffsetMs != null
+      ? new Date(Math.min(nextPeriodEndAt.getTime(), now.getTime() + dueOffsetMs))
+      : fallbackDueAt && !Number.isNaN(fallbackDueAt.getTime())
+        ? new Date(Math.max(now.getTime(), Math.min(nextPeriodEndAt.getTime(), fallbackDueAt.getTime())))
+        : new Date(now);
+    const reactivatedCycleStartDay = now.getUTCDate();
+    const reactivatedPaymentDay = explicitDueAt.getUTCDate();
     const latestPreservedCycle = await prisma.subscriptionBillingCycle.findFirst({
       where: {
         subscriptionId,
@@ -687,8 +710,9 @@ export async function updateSubscriptionStatus(args: {
         anchorCycleNumber: nextCycleNumber,
         anchorPeriodStartAt: now,
         anchorPeriodEndAt: nextPeriodEndAt,
-        cycleStartDay: subscriptionWithPlan.cycleStartDay,
-        paymentDay: subscriptionWithPlan.paymentDay,
+        anchorDueAt: explicitDueAt,
+        cycleStartDay: reactivatedCycleStartDay,
+        paymentDay: reactivatedPaymentDay,
         paymentTiming: normalizePaymentTiming(subscriptionWithPlan.paymentTiming),
         graceDays: subscriptionWithPlan.graceDays,
         plan: {
@@ -702,6 +726,9 @@ export async function updateSubscriptionStatus(args: {
       where: { id: subscriptionId },
       data: {
         status: SubscriptionStatus.ACTIVE,
+        startAt: now,
+        cycleStartDay: reactivatedCycleStartDay,
+        paymentDay: reactivatedPaymentDay,
         canceledAt: null,
         suspendedAt: null
       }

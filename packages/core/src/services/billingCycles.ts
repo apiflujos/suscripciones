@@ -10,6 +10,7 @@ export type BillingComputationSeed = {
   anchorCycleNumber?: number | null;
   anchorPeriodStartAt?: Date | null;
   anchorPeriodEndAt?: Date | null;
+  anchorDueAt?: Date | null;
   cycleStartDay: number;
   paymentDay: number;
   paymentTiming: "EN_CURSO" | "ANTICIPADO";
@@ -23,6 +24,7 @@ export function buildBillingSeed(input: {
   anchorCycleNumber?: number | null;
   anchorPeriodStartAt?: Date | null;
   anchorPeriodEndAt?: Date | null;
+  anchorDueAt?: Date | null;
   currentCycle?: number | null;
   currentPeriodStartAt?: Date | null;
   currentPeriodEndAt?: Date | null;
@@ -38,6 +40,7 @@ export function buildBillingSeed(input: {
     anchorCycleNumber: input.anchorCycleNumber ?? input.currentCycle ?? null,
     anchorPeriodStartAt: input.anchorPeriodStartAt ?? input.currentPeriodStartAt ?? null,
     anchorPeriodEndAt: input.anchorPeriodEndAt ?? input.currentPeriodEndAt ?? null,
+    anchorDueAt: input.anchorDueAt ?? null,
     cycleStartDay: input.cycleStartDay,
     paymentDay: input.paymentDay,
     paymentTiming: input.paymentTiming === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",
@@ -199,11 +202,16 @@ export function normalizeBillingSeed(sub: BillingComputationSeed): BillingComput
       sub.anchorPeriodEndAt instanceof Date && !Number.isNaN(sub.anchorPeriodEndAt.getTime())
         ? new Date(sub.anchorPeriodEndAt)
         : shiftIntervalUtc(anchorPeriodStartAt, unit, count);
+    const anchorDueAt =
+      sub.anchorDueAt instanceof Date && !Number.isNaN(sub.anchorDueAt.getTime())
+        ? new Date(sub.anchorDueAt)
+        : null;
     return {
       ...sub,
       anchorCycleNumber,
       anchorPeriodStartAt,
-      anchorPeriodEndAt
+      anchorPeriodEndAt,
+      anchorDueAt
     };
   }
   const anchorStart = resolveCycleAnchorFromStart(sub);
@@ -221,12 +229,14 @@ export function normalizeBillingSeed(sub: BillingComputationSeed): BillingComput
   const anchorPeriodEndAt = sub.anchorPeriodEndAt
     ? new Date(sub.anchorPeriodEndAt)
     : shiftIntervalUtc(anchorPeriodStartAt, unit, count);
+  const anchorDueAt = sub.anchorDueAt instanceof Date && !Number.isNaN(sub.anchorDueAt.getTime()) ? new Date(sub.anchorDueAt) : null;
 
   return {
     ...sub,
     anchorCycleNumber,
     anchorPeriodStartAt,
-    anchorPeriodEndAt
+    anchorPeriodEndAt,
+    anchorDueAt
   };
 }
 
@@ -384,11 +394,13 @@ export function buildBillingCyclesForSubscription(sub: BillingComputationSeed, c
           })
         : periodEndAt;
     const dueAt =
-      hasExplicitAnchorStart &&
-      cycleNumber === anchorCycleNumber &&
-      sub.paymentTiming !== "ANTICIPADO" &&
-      rawDueAt.getTime() < periodStartAt.getTime()
-        ? new Date(periodStartAt)
+      hasExplicitAnchorStart && cycleNumber === anchorCycleNumber && sub.anchorDueAt instanceof Date && !Number.isNaN(sub.anchorDueAt.getTime())
+        ? new Date(sub.anchorDueAt)
+        : hasExplicitAnchorStart &&
+            cycleNumber === anchorCycleNumber &&
+            sub.paymentTiming !== "ANTICIPADO" &&
+            rawDueAt.getTime() < periodStartAt.getTime()
+          ? new Date(periodStartAt)
         : rawDueAt;
     cycles.push({
       subscriptionId: sub.id,
