@@ -335,9 +335,9 @@ export async function POST(req: Request) {
     await ensureBillingCyclesForSubscription({
       id: subscription.id,
       startAt,
-      currentCycle: 1,
-      currentPeriodStartAt: startAt,
-      currentPeriodEndAt: periodEnd,
+      anchorCycleNumber: 1,
+      anchorPeriodStartAt: startAt,
+      anchorPeriodEndAt: periodEnd,
       cycleStartDay,
       paymentDay,
       paymentTiming,
