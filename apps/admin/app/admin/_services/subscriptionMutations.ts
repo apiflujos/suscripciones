@@ -1,7 +1,7 @@
 import "server-only";
 
 import { prisma } from "@suscripciones/database";
-import { LogLevel, PaymentOrigin, PaymentStatus, PlanIntervalUnit, Prisma, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { BillingCycleStatus, LogLevel, PaymentOrigin, PaymentStatus, PlanIntervalUnit, Prisma, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
@@ -669,7 +669,7 @@ export async function updateSubscriptionStatus(args: {
     const latestPreservedCycle = await prisma.subscriptionBillingCycle.findFirst({
       where: {
         subscriptionId,
-        paymentId: { not: null }
+        status: BillingCycleStatus.PAID
       },
       orderBy: { cycleNumber: "desc" },
       select: { cycleNumber: true }
@@ -679,7 +679,7 @@ export async function updateSubscriptionStatus(args: {
     await prisma.subscriptionBillingCycle.deleteMany({
       where: {
         subscriptionId,
-        paymentId: null
+        status: { not: BillingCycleStatus.PAID }
       }
     });
 
