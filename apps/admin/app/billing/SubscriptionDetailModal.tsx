@@ -546,7 +546,7 @@ export function SubscriptionDetailModal({
           graceDays={subscription.graceDays}
           suspendDays={subscription.suspendDays}
           cancelDays={subscription.cancelDays}
-          collectionMode={subscription.mode}
+          collectionMode={subscription.mode || undefined}
           updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
           deleteSubscription={deleteSubscription}
           globalConfig={{
