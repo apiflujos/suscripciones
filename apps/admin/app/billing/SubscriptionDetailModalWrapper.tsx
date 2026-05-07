@@ -40,8 +40,8 @@ type SubscriptionDetail = {
   paymentDay: number;
   paymentTiming: string;
   graceDays: number;
-  suspendDays?: number;
-  cancelDays?: number;
+  suspendDays: number;
+  cancelDays: number;
   duplicateCount?: number;
   canManualCharge?: boolean;
   canManualMarkPaid?: boolean;
