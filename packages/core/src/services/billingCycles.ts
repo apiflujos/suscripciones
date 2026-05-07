@@ -368,7 +368,7 @@ export function buildBillingCyclesForSubscription(sub: BillingComputationSeed, c
   const anchorStart =
     unit === PlanIntervalUnit.MONTH && !hasExplicitAnchorStart
       ? resolveCycleStartAnchor({ ...sub, anchorPeriodStartAt })
-      : anchorPeriodStartAt;
+      : new Date(anchorPeriodStartAt);
   const cycles: Array<{
     subscriptionId: string;
     cycleNumber: number;
