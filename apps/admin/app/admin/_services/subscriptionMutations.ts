@@ -650,10 +650,94 @@ export async function updateSubscriptionStatus(args: {
     if (existing.status !== SubscriptionStatus.CANCELED && existing.status !== SubscriptionStatus.EXPIRED) {
       return { ok: false, status: 409, error: "subscription_not_reactivatable" as const };
     }
+    const subscriptionWithPlan = await prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      include: { plan: true }
+    });
+    if (!subscriptionWithPlan) return { ok: false, status: 404, error: "subscription_not_found" as const };
+
+    const now = new Date();
+    const nextPeriodEndAt = addIntervalUtc(
+      now,
+      subscriptionWithPlan.plan.intervalUnit,
+      Math.max(1, Math.trunc(subscriptionWithPlan.plan.intervalCount || 1))
+    );
+    const latestPreservedCycle = await prisma.subscriptionBillingCycle.findFirst({
+      where: {
+        subscriptionId,
+        paymentId: { not: null }
+      },
+      orderBy: { cycleNumber: "desc" },
+      select: { cycleNumber: true }
+    });
+    const nextCycleNumber = Math.max(1, Number(latestPreservedCycle?.cycleNumber || 0) + 1);
+
+    await prisma.subscriptionBillingCycle.deleteMany({
+      where: {
+        subscriptionId,
+        paymentId: null
+      }
+    });
+
     const updated = await prisma.subscription.update({
       where: { id: subscriptionId },
-      data: { status: SubscriptionStatus.ACTIVE, canceledAt: null, suspendedAt: null }
+      data: {
+        status: SubscriptionStatus.ACTIVE,
+        canceledAt: null,
+        suspendedAt: null,
+        currentCycle: nextCycleNumber,
+        currentPeriodStartAt: now,
+        currentPeriodEndAt: nextPeriodEndAt
+      }
     });
+
+    await ensureBillingCyclesForSubscription({
+      id: updated.id,
+      startAt: updated.startAt,
+      currentCycle: nextCycleNumber,
+      currentPeriodStartAt: now,
+      currentPeriodEndAt: nextPeriodEndAt,
+      cycleStartDay: updated.cycleStartDay,
+      paymentDay: updated.paymentDay,
+      paymentTiming: normalizePaymentTiming(updated.paymentTiming),
+      graceDays: updated.graceDays,
+      plan: {
+        intervalUnit: subscriptionWithPlan.plan.intervalUnit,
+        intervalCount: subscriptionWithPlan.plan.intervalCount
+      }
+    }).catch((err) => {
+      logger.warn({ err, subscriptionId }, "Fallo regenerando ciclos al reactivar suscripcion");
+    });
+
+    await prisma.retryJob.deleteMany({
+      where: {
+        type: RetryJobType.PAYMENT_RETRY,
+        status: RetryJobStatus.PENDING,
+        payload: subscriptionIdJsonFilter(subscriptionId)
+      }
+    }).catch((err) => {
+      logger.warn({ err, subscriptionId }, "Fallo limpiando retries pendientes al reactivar suscripcion");
+    });
+
+    const collectionMode = resolveSubscriptionCollectionMode(subscriptionWithPlan);
+    if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
+      await ensurePaymentRetryJob({
+        subscriptionId,
+        runAt: now,
+        maxAttempts: 1
+      }).catch((err) => {
+        logger.warn({ err, subscriptionId }, "Fallo reprogramando cobro al reactivar suscripcion");
+      });
+    }
+
+    await scheduleSubscriptionDueNotifications({ subscriptionId }).catch((err) => {
+      logger.warn({ err, subscriptionId }, "Fallo reprogramando notificaciones al reactivar suscripcion");
+    });
+
+    await syncSubscriptionBillingSnapshot({ subscriptionId, asOf: now }).catch((err) => {
+      logger.warn({ err, subscriptionId }, "Fallo sincronizando snapshot al reactivar suscripcion");
+    });
+
     await systemLog(LogLevel.INFO, "subscriptions.activate", "Subscription activated", { subscriptionId }).catch((err) => {
       logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al activar suscripcion");
     });
