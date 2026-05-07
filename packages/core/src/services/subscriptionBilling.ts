@@ -10,6 +10,7 @@ import { logger } from "../lib/logger";
 import { buildWompiTransactionSignature, validateWompiCurrency } from "../lib/wompiSignature";
 import { toUtc } from "../lib/dates";
 import {
+  getAutoDebitConfig,
   getChatwootConfig,
   getWompiApiBaseUrl,
   getWompiCheckoutLinkBaseUrl,
@@ -230,9 +231,13 @@ function shouldMarkSubscriptionPastDue(args: {
 
 export async function ensureExpiredSubscriptions() {
   const now = new Date();
+  const autoDebitConfig = await getAutoDebitConfig().catch(() => null);
+  const graceDays = Math.max(0, Math.trunc(Number(autoDebitConfig?.graceDays ?? 5)));
+  const suspendDays = Math.max(0, Math.trunc(Number(autoDebitConfig?.suspendDays ?? 15)));
+  const cancelDays = Math.max(0, Math.trunc(Number(autoDebitConfig?.cancelDays ?? 30)));
   const candidates = await prisma.subscription.findMany({
     where: {
-      status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE] }
+      status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED] }
     },
     select: {
       id: true,
@@ -241,7 +246,8 @@ export async function ensureExpiredSubscriptions() {
     }
   });
   let toPastDue = 0;
-  let toExpired = 0;
+  let toSuspended = 0;
+  let toCanceled = 0;
   let recoveredToActive = 0;
 
   for (const sub of candidates) {
@@ -251,15 +257,18 @@ export async function ensureExpiredSubscriptions() {
     // Check if subscription should be PAST_DUE
     const pastDueCheck = shouldMarkSubscriptionPastDue({
       mostRecentCycle: collectionCycle,
-      graceDays: sub.graceDays,
+      graceDays,
       asOf: now
     });
 
     // CRITICAL: If most recent cycle is paid but subscription is PAST_DUE, recover to ACTIVE
-    if (sub.status === SubscriptionStatus.PAST_DUE && isBillingCyclePaid(collectionCycle)) {
+    if (
+      (sub.status === SubscriptionStatus.PAST_DUE || sub.status === SubscriptionStatus.SUSPENDED) &&
+      isBillingCyclePaid(collectionCycle)
+    ) {
       await prisma.subscription.update({
         where: { id: sub.id },
-        data: { status: SubscriptionStatus.ACTIVE }
+        data: { status: SubscriptionStatus.ACTIVE, suspendedAt: null, canceledAt: null }
       });
       recoveredToActive += 1;
       continue;
@@ -274,23 +283,42 @@ export async function ensureExpiredSubscriptions() {
       continue;
     }
 
-    const expiredCutoff = new Date(new Date(collectionCycle?.dueAt || now).getTime() + (Math.max(0, Math.trunc(sub.graceDays || 0)) + 15) * 24 * 60 * 60 * 1000);
-    if (sub.status === SubscriptionStatus.PAST_DUE && expiredCutoff.getTime() < now.getTime() && !isBillingCyclePaid(collectionCycle)) {
+    const dueAt = new Date(collectionCycle?.dueAt || now);
+    const suspendedCutoff = new Date(
+      dueAt.getTime() + (graceDays + suspendDays) * 24 * 60 * 60 * 1000
+    );
+    if (sub.status === SubscriptionStatus.PAST_DUE && suspendedCutoff.getTime() < now.getTime() && !isBillingCyclePaid(collectionCycle)) {
       await prisma.subscription.update({
         where: { id: sub.id },
-        data: { status: SubscriptionStatus.EXPIRED }
+        data: { status: SubscriptionStatus.SUSPENDED, suspendedAt: now }
       });
-      toExpired += 1;
+      toSuspended += 1;
+      continue;
+    }
+
+    const canceledCutoff = new Date(suspendedCutoff.getTime() + cancelDays * 24 * 60 * 60 * 1000);
+    if (sub.status === SubscriptionStatus.SUSPENDED && canceledCutoff.getTime() < now.getTime() && !isBillingCyclePaid(collectionCycle)) {
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: SubscriptionStatus.CANCELED, canceledAt: now, suspendedAt: null }
+      });
+      toCanceled += 1;
     }
   }
 
-  if (toPastDue > 0 || toExpired > 0 || recoveredToActive > 0) {
+  if (toPastDue > 0 || toSuspended > 0 || toCanceled > 0 || recoveredToActive > 0) {
     await systemLog(LogLevel.INFO, "subscriptions.lifecycle", "Limpieza de estados de suscripciones", {
       markedPastDue: toPastDue,
-      markedExpired: toExpired,
+      markedSuspended: toSuspended,
+      markedCanceled: toCanceled,
       recoveredToActive
     }).catch((err: any) => {
-      logIgnored(err, "subscription lifecycle: failed to write cleanup log", { toPastDue, toExpired, recoveredToActive });
+      logIgnored(err, "subscription lifecycle: failed to write cleanup log", {
+        toPastDue,
+        toSuspended,
+        toCanceled,
+        recoveredToActive
+      });
     });
   }
 }
@@ -305,6 +333,8 @@ export async function handleSubscriptionPaymentFailure(subscriptionId: string, e
     }
   });
   if (!sub || sub.status === SubscriptionStatus.CANCELED || sub.status === SubscriptionStatus.EXPIRED) return;
+  const autoDebitConfig = await getAutoDebitConfig().catch(() => null);
+  const graceDays = Math.max(0, Math.trunc(Number(autoDebitConfig?.graceDays ?? sub.graceDays ?? 5)));
 
   const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id }).catch(() => null);
   const mostRecentCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
@@ -324,7 +354,7 @@ export async function handleSubscriptionPaymentFailure(subscriptionId: string, e
 
   if (!mostRecentCycle) return;
 
-  const dueWithGraceAt = new Date(mostRecentCycle.dueAt.getTime() + Math.max(0, Math.trunc(sub.graceDays || 0)) * 24 * 60 * 60 * 1000);
+  const dueWithGraceAt = new Date(mostRecentCycle.dueAt.getTime() + graceDays * 24 * 60 * 60 * 1000);
   if (dueWithGraceAt.getTime() >= Date.now()) {
     await systemLog(LogLevel.WARN, "subscriptions.lifecycle", "Cobro falló pero la suscripción sigue dentro de gracia", {
       subscriptionId,

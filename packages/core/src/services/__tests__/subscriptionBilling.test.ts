@@ -716,4 +716,82 @@ describe("ensureExpiredSubscriptions", () => {
 
     expect(store.subscription["sub-paid-no-id"].status).toBe("ACTIVE");
   });
+
+  it("should mark PAST_DUE as SUSPENDED after configured suspend window", async () => {
+    const { store } = await import("../../db/prisma");
+    const now = Date.now();
+    const dueAt = new Date(now - 25 * 24 * 60 * 60 * 1000);
+    const periodStartAt = new Date(now - 55 * 24 * 60 * 60 * 1000);
+    const periodEndAt = new Date(now - 25 * 24 * 60 * 60 * 1000);
+
+    store.plan = { "plan-suspend": { id: "plan-suspend", tenantId: "tenant-1", name: "Plan", priceInCents: 10000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 } };
+    store.subscription["sub-suspend"] = {
+      id: "sub-suspend",
+      tenantId: "tenant-1",
+      customerId: "cust-1",
+      planId: "plan-suspend",
+      startAt: periodStartAt,
+      status: "PAST_DUE",
+      cycleStartDay: 1,
+      paymentDay: 5,
+      paymentTiming: "EN_CURSO",
+      graceDays: 3
+    };
+    store.subscriptionBillingCycle["cycle-suspend"] = {
+      id: "cycle-suspend",
+      subscriptionId: "sub-suspend",
+      cycleNumber: 2,
+      periodStartAt,
+      periodEndAt,
+      dueAt,
+      status: "PENDING",
+      paymentId: null
+    };
+
+    const { ensureExpiredSubscriptions } = await import("../../services/subscriptionBilling");
+    await ensureExpiredSubscriptions();
+
+    expect(store.subscription["sub-suspend"].status).toBe("SUSPENDED");
+    expect(store.subscription["sub-suspend"].suspendedAt).toBeTruthy();
+  });
+
+  it("should mark SUSPENDED as CANCELED after configured cancel window", async () => {
+    const { store } = await import("../../db/prisma");
+    const now = Date.now();
+    const dueAt = new Date(now - 60 * 24 * 60 * 60 * 1000);
+    const periodStartAt = new Date(now - 90 * 24 * 60 * 60 * 1000);
+    const periodEndAt = new Date(now - 60 * 24 * 60 * 60 * 1000);
+
+    store.plan = { "plan-cancel": { id: "plan-cancel", tenantId: "tenant-1", name: "Plan", priceInCents: 10000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 } };
+    store.subscription["sub-cancel"] = {
+      id: "sub-cancel",
+      tenantId: "tenant-1",
+      customerId: "cust-1",
+      planId: "plan-cancel",
+      startAt: periodStartAt,
+      status: "SUSPENDED",
+      suspendedAt: new Date(now - 31 * 24 * 60 * 60 * 1000),
+      cycleStartDay: 1,
+      paymentDay: 5,
+      paymentTiming: "EN_CURSO",
+      graceDays: 3
+    };
+    store.subscriptionBillingCycle["cycle-cancel"] = {
+      id: "cycle-cancel",
+      subscriptionId: "sub-cancel",
+      cycleNumber: 2,
+      periodStartAt,
+      periodEndAt,
+      dueAt,
+      status: "PENDING",
+      paymentId: null
+    };
+
+    const { ensureExpiredSubscriptions } = await import("../../services/subscriptionBilling");
+    await ensureExpiredSubscriptions();
+
+    expect(store.subscription["sub-cancel"].status).toBe("CANCELED");
+    expect(store.subscription["sub-cancel"].canceledAt).toBeTruthy();
+    expect(store.subscription["sub-cancel"].suspendedAt).toBeNull();
+  });
 });

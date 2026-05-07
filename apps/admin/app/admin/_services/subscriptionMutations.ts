@@ -363,7 +363,10 @@ export async function updateSubscriptionBillingSettings(args: {
 
   const cycleStartDay = Number(args.cycleStartDay ?? subscription.cycleStartDay ?? 1);
   const paymentDay = Number(args.paymentDay ?? subscription.paymentDay ?? 1);
-  const graceDays = Number(args.graceDays ?? subscription.graceDays ?? 1);
+  const autoDebitCfg = await getAutoDebitConfig().catch(() => null);
+  const graceDays = Number.isFinite(Number(autoDebitCfg?.graceDays))
+    ? Math.max(1, Math.min(30, Math.trunc(Number(autoDebitCfg?.graceDays))))
+    : Math.max(1, Math.min(30, Math.trunc(Number(subscription.graceDays || 5))));
   const timingRaw = String(args.paymentTiming ?? subscription.paymentTiming ?? "EN_CURSO").toUpperCase();
   const paymentTiming = timingRaw === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
 
@@ -404,7 +407,7 @@ export async function updateSubscriptionBillingSettings(args: {
       ...(args.startAt ? { startAt: anchor } : {}),
       cycleStartDay: Math.max(1, Math.min(31, Math.trunc(cycleStartDay))),
       paymentDay: Math.max(1, Math.min(31, Math.trunc(paymentDay))),
-      graceDays: Math.max(1, Math.min(5, Math.trunc(graceDays))),
+      graceDays: graceDays,
       paymentTiming,
       ...(normalizedCollectionMode ? {
         metadata: {
@@ -421,6 +424,7 @@ export async function updateSubscriptionBillingSettings(args: {
     paymentDay: updated.paymentDay,
     paymentTiming: updated.paymentTiming,
     graceDays: updated.graceDays,
+    graceDaysSource: "AUTO_DEBIT_CONFIG",
     ...(normalizedCollectionMode ? { collectionMode: normalizedCollectionMode } : {})
   }, args.actor || "Sistema").catch((err) => {
     logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al actualizar reglas de ciclo");

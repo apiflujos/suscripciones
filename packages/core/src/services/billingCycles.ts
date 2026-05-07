@@ -397,6 +397,13 @@ function pickAuthoritativeCycleSeed(args: {
   existingCycles: BillingCycleLike[];
   asOf: Date;
 }): BillingComputationSeed {
+  const hasExplicitAnchor =
+    args.sub.anchorPeriodStartAt instanceof Date ||
+    args.sub.anchorPeriodEndAt instanceof Date ||
+    Number.isFinite(Number(args.sub.anchorCycleNumber));
+  if (hasExplicitAnchor) {
+    return normalizeBillingSeed(args.sub);
+  }
   if (!args.existingCycles.length) return normalizeBillingSeed(args.sub);
   const activeCycle = resolveActiveCycle({ cycles: args.existingCycles, asOf: args.asOf });
   const latestCycle = [...args.existingCycles].sort((a, b) => b.cycleNumber - a.cycleNumber)[0] || null;

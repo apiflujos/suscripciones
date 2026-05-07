@@ -714,7 +714,6 @@ export async function updateSubscriptionBillingSettings(formData: FormData) {
   const cycleStartDay = String(formData.get("cycleStartDay") || "").trim();
   const paymentDay = String(formData.get("paymentDay") || "").trim();
   const paymentTiming = String(formData.get("paymentTiming") || "").trim();
-  const graceDays = String(formData.get("graceDays") || "").trim();
 
   if (!subscriptionId) {
     return redirect(mergeQuery(returnTo, { error: "missing_subscription_id", ...(tenantId ? { tenantId } : {}) }));
@@ -727,7 +726,6 @@ export async function updateSubscriptionBillingSettings(formData: FormData) {
       cycleStartDay,
       paymentDay,
       paymentTiming,
-      graceDays,
       actor: "Sistema"
     });
     if (!res.ok) return redirect(mergeQuery(returnTo, { error: res.error || "update_failed", ...(tenantId ? { tenantId } : {}) }));

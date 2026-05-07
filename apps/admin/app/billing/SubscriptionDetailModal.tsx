@@ -354,11 +354,11 @@ export function SubscriptionDetailModal({
                 </div>
                 <div>
                   <div className="field-hint">Suspender después de</div>
-                  <div className="contact-value">{subscription.suspendDays || 15} días</div>
+                  <div className="contact-value">{subscription.suspendDays} días</div>
                 </div>
                 <div>
                   <div className="field-hint">Cancelar después de</div>
-                  <div className="contact-value">{subscription.cancelDays || 30} días</div>
+                  <div className="contact-value">{subscription.cancelDays} días</div>
                 </div>
               </div>
             </div>
@@ -543,11 +543,15 @@ export function SubscriptionDetailModal({
           paymentDay={subscription.paymentDay}
           paymentTiming={subscription.paymentTiming}
           graceDays={subscription.graceDays}
-          suspendDays={subscription.suspendDays || 15}
-          cancelDays={subscription.cancelDays || 30}
+          suspendDays={subscription.suspendDays}
+          cancelDays={subscription.cancelDays}
           updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
           deleteSubscription={deleteSubscription}
-          globalConfig={{ graceDays: 5, suspendDays: 15, cancelDays: 30 }}
+          globalConfig={{
+            graceDays: subscription.graceDays,
+            suspendDays: subscription.suspendDays,
+            cancelDays: subscription.cancelDays
+          }}
         />
       )}
       <PaymentHistoryButton
