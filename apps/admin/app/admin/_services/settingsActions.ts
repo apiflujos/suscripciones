@@ -4,7 +4,7 @@ import { LogLevel, CredentialProvider, RetryJobStatus, RetryJobType } from "@pri
 import { clearCredential, getCredential, setCredential } from "@suscripciones/core/services/credentials";
 import { prisma } from "@suscripciones/core/db/prisma";
 import {
-  buildSubscriptionSeed,
+  buildBillingSeed,
   ensureBillingCyclesForSubscriptions,
   isBillingCyclePaid,
   resolveSubscriptionBillingState
@@ -61,14 +61,16 @@ async function loadSubscriptionsForBillingScheduleRefresh() {
 async function rebuildBillingSchedulesAfterConfigChange(subscriptions: BillingScheduleSubscription[]) {
   for (let index = 0; index < subscriptions.length; index += 100) {
     const chunk = subscriptions.slice(index, index + 100);
-    await ensureBillingCyclesForSubscriptions(
-      chunk.map((subscription) =>
-        buildSubscriptionSeed({
+    const seeds = await Promise.all(
+      chunk.map(async (subscription) => {
+        const billingState = await resolveSubscriptionBillingState({ subscriptionId: subscription.id }).catch(() => null);
+        const activeCycle = billingState?.activeCycle || null;
+        return buildBillingSeed({
           id: subscription.id,
           startAt: subscription.startAt,
-          currentCycle: subscription.currentCycle,
-          currentPeriodStartAt: subscription.currentPeriodStartAt,
-          currentPeriodEndAt: subscription.currentPeriodEndAt,
+          currentCycle: activeCycle?.cycleNumber ?? null,
+          currentPeriodStartAt: activeCycle?.periodStartAt ?? null,
+          currentPeriodEndAt: activeCycle?.periodEndAt ?? null,
           cycleStartDay: subscription.cycleStartDay,
           paymentDay: subscription.paymentDay,
           paymentTiming: subscription.paymentTiming,
@@ -77,8 +79,11 @@ async function rebuildBillingSchedulesAfterConfigChange(subscriptions: BillingSc
             intervalUnit: subscription.plan.intervalUnit,
             intervalCount: subscription.plan.intervalCount
           }
-        })
-      )
+        });
+      })
+    );
+    await ensureBillingCyclesForSubscriptions(
+      seeds
     );
   }
 }

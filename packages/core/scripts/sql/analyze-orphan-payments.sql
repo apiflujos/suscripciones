@@ -73,18 +73,28 @@ SELECT
   s.id as subscription_id,
   s."customerId" as sub_customer_id,
   s.status as sub_status,
-  s."currentPeriodEndAt",
+  cycle.cycle_number as cycle_number,
+  cycle."periodEndAt" as billing_period_end_at,
   'MATCH_POTENCIAL' as sugerencia
 FROM "Payment" p
 CROSS JOIN "Subscription" s
+JOIN LATERAL (
+  SELECT
+    sbc."cycleNumber" as cycle_number,
+    sbc."periodEndAt"
+  FROM "SubscriptionBillingCycle" sbc
+  WHERE sbc."subscriptionId" = s.id
+  ORDER BY sbc."periodEndAt" DESC, sbc."cycleNumber" DESC
+  LIMIT 1
+) cycle ON TRUE
 WHERE p."subscriptionId" IS NULL
   AND p."customerId" != s."customerId"  -- Diferente cliente (posible error de asignación)
   AND p."amountInCents" = (
-    SELECT price 
+    SELECT "priceInCents"
     FROM "SubscriptionPlan" sp 
     WHERE sp.id = s."planId"
   )
-  AND ABS(EXTRACT(EPOCH FROM (p."createdAt" - s."currentPeriodEndAt")) / 3600) < 24  -- Dentro de 24h del corte
+  AND ABS(EXTRACT(EPOCH FROM (p."createdAt" - cycle."periodEndAt")) / 3600) < 24  -- Dentro de 24h del corte
   AND p.status = 'APPROVED'
 ORDER BY p."createdAt" DESC
 LIMIT 20;

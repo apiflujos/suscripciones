@@ -185,14 +185,7 @@ describe("notificationsScheduler", () => {
   it("programa SUBSCRIPTION_DUE como SUBSCRIPTION_REMINDER usando dueAt", async () => {
     vi.mocked(prisma.subscription.findUnique).mockResolvedValue({
       id: "sub-1",
-      customerId: "cus-1",
-      currentCycle: 1,
-      currentPeriodStartAt: new Date("2026-04-01T00:00:00.000Z"),
-      currentPeriodEndAt: new Date("2026-05-01T00:00:00.000Z"),
-      cycleStartDay: 1,
-      paymentDay: 15,
-      paymentTiming: "EN_CURSO",
-      plan: { intervalUnit: "MONTH" }
+      customerId: "cus-1"
     } as any);
 
     await scheduleSubscriptionDueNotifications({ subscriptionId: "sub-1" });

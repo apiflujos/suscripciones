@@ -6,7 +6,7 @@
 import { BillingCycleStatus, PaymentAssociationReason } from "@prisma/client";
 import type { prisma } from "../../../db/prisma";
 import { logger } from "../../../lib/logger";
-import { buildSubscriptionSeed, ensureBillingCyclesForSubscriptions } from "../../../services/billingCycles";
+import { buildBillingSeed, ensureBillingCyclesForSubscriptions } from "../../../services/billingCycles";
 import { getSubscriptionPricingTotal } from "../../../lib/metadataSchemas";
 import { classifyReference } from "../../../webhooks/wompi/classifyReference";
 import type { AssociationDecision } from "./types";
@@ -184,7 +184,7 @@ export async function resolveAssociationByScore(args: {
   // Multiple matches — tie-break by oldest unpaid cycle
   await ensureBillingCyclesForSubscriptions(
     withExactAmount.map((sub: any) =>
-      buildSubscriptionSeed({
+      buildBillingSeed({
         id: sub.id,
         startAt: sub.startAt,
         cycleStartDay: sub.cycleStartDay,
@@ -245,7 +245,7 @@ export async function findOldestUnpaidCycle(args: {
   graceDays: number;
   plan: { intervalUnit: string; intervalCount: number };
 }) {
-  await ensureBillingCyclesForSubscriptions([buildSubscriptionSeed({
+  await ensureBillingCyclesForSubscriptions([buildBillingSeed({
     id: args.subscriptionId,
     startAt: args.startAt,
     currentCycle: args.currentCycle,

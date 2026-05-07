@@ -64,22 +64,23 @@ function computeBillingCycleDueAt(params) {
 
 function buildBillingCycles(args) {
   const subscriptionId = String(args.subscriptionId);
-  const currentCycle = Math.max(1, Math.trunc(args.currentCycle || 1));
+  const rawAnchorCycleNumber = args.anchorCycleNumber ?? args.currentCycle ?? 1;
+  const anchorCycleNumber = Math.max(1, Math.trunc(rawAnchorCycleNumber));
   const intervalUnit = String(args.intervalUnit || "MONTH").toUpperCase();
   const intervalCount = Math.max(1, Math.trunc(args.intervalCount || 1));
   const cycleStartDay = Math.max(1, Math.min(31, Math.trunc(args.cycleStartDay || 1)));
   const paymentDay = Math.max(1, Math.min(31, Math.trunc(args.paymentDay || cycleStartDay)));
   const paymentTiming = String(args.paymentTiming || "EN_CURSO").toUpperCase() === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
-  const currentPeriodStartAt = new Date(args.currentPeriodStartAt);
+  const anchorPeriodStartAt = new Date(args.anchorPeriodStartAt || args.currentPeriodStartAt);
   const cyclesBack = Math.max(0, Math.trunc(args.cyclesBack || 0));
   const cyclesForward = Math.max(0, Math.trunc(args.cyclesForward || 0));
   const cycles = [];
 
   for (let offset = -cyclesBack; offset <= cyclesForward; offset += 1) {
-    const cycleNumber = currentCycle + offset;
+    const cycleNumber = anchorCycleNumber + offset;
     if (cycleNumber <= 0) continue;
     const shift = offset * intervalCount;
-    const periodStartAt = addIntervalUtc(currentPeriodStartAt, intervalUnit, shift);
+    const periodStartAt = addIntervalUtc(anchorPeriodStartAt, intervalUnit, shift);
     const periodEndAt = addIntervalUtc(periodStartAt, intervalUnit, intervalCount);
     const dueAt =
       intervalUnit === "MONTH"
@@ -116,6 +117,10 @@ function readCollectionMode(plan) {
   const raw = String(plan?.metadata?.collectionMode || "").toUpperCase();
   if (raw === "AUTO_DEBIT" || raw === "AUTO_LINK" || raw === "MANUAL_LINK") return raw;
   return String(plan?.planType || "").toLowerCase() === "auto_subscription" ? "AUTO_DEBIT" : "MANUAL_LINK";
+}
+
+function resolveCollectionMode(plan) {
+  return readCollectionMode(plan);
 }
 
 function buildPricing(plan, shippingInCents, currency) {
@@ -178,8 +183,8 @@ async function createSubscriptionWithCycles(prisma, args) {
 
   const cycles = buildBillingCycles({
     subscriptionId: subscription.id,
-    currentCycle: args.currentCycle,
-    currentPeriodStartAt: args.currentPeriodStartAt,
+    anchorCycleNumber: args.anchorCycleNumber ?? args.currentCycle,
+    anchorPeriodStartAt: args.anchorPeriodStartAt || args.currentPeriodStartAt,
     cycleStartDay: args.cycleStartDay,
     paymentDay: args.paymentDay,
     paymentTiming: args.paymentTiming,
@@ -221,5 +226,6 @@ module.exports = {
   dateForDayInMonthUtc,
   ensureTenantLinks,
   paymentLinkStatusFromPaymentStatus,
-  readCollectionMode
+  readCollectionMode,
+  resolveCollectionMode
 };

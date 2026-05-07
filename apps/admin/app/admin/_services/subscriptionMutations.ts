@@ -684,10 +684,7 @@ export async function updateSubscriptionStatus(args: {
       data: {
         status: SubscriptionStatus.ACTIVE,
         canceledAt: null,
-        suspendedAt: null,
-        currentCycle: nextCycleNumber,
-        currentPeriodStartAt: now,
-        currentPeriodEndAt: nextPeriodEndAt
+        suspendedAt: null
       }
     });
 

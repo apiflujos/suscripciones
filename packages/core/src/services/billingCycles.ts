@@ -4,12 +4,12 @@ import { BillingCycleStatus, PlanIntervalUnit, PaymentAssociationReason, Payment
 import { getAutoDebitConfig } from "./runtimeConfig";
 import { applyClockTimeInZone } from "../lib/timeZoneScheduling";
 
-type SubscriptionSeed = {
+export type BillingComputationSeed = {
   id: string;
   startAt?: Date | null;
-  currentCycle?: number | null;
-  currentPeriodStartAt?: Date | null;
-  currentPeriodEndAt?: Date | null;
+  anchorCycleNumber?: number | null;
+  anchorPeriodStartAt?: Date | null;
+  anchorPeriodEndAt?: Date | null;
   cycleStartDay: number;
   paymentDay: number;
   paymentTiming: "EN_CURSO" | "ANTICIPADO";
@@ -17,9 +17,12 @@ type SubscriptionSeed = {
   plan: { intervalUnit: PlanIntervalUnit; intervalCount: number };
 };
 
-export function buildSubscriptionSeed(input: {
+export function buildBillingSeed(input: {
   id: string;
   startAt?: Date | null;
+  anchorCycleNumber?: number | null;
+  anchorPeriodStartAt?: Date | null;
+  anchorPeriodEndAt?: Date | null;
   currentCycle?: number | null;
   currentPeriodStartAt?: Date | null;
   currentPeriodEndAt?: Date | null;
@@ -28,13 +31,13 @@ export function buildSubscriptionSeed(input: {
   paymentTiming?: string | null;
   graceDays: number;
   plan: { intervalUnit: PlanIntervalUnit; intervalCount: number };
-}): SubscriptionSeed {
+}): BillingComputationSeed {
   return {
     id: input.id,
     startAt: input.startAt ?? null,
-    currentCycle: input.currentCycle ?? null,
-    currentPeriodStartAt: input.currentPeriodStartAt ?? null,
-    currentPeriodEndAt: input.currentPeriodEndAt ?? null,
+    anchorCycleNumber: input.anchorCycleNumber ?? input.currentCycle ?? null,
+    anchorPeriodStartAt: input.anchorPeriodStartAt ?? input.currentPeriodStartAt ?? null,
+    anchorPeriodEndAt: input.anchorPeriodEndAt ?? input.currentPeriodEndAt ?? null,
     cycleStartDay: input.cycleStartDay,
     paymentDay: input.paymentDay,
     paymentTiming: input.paymentTiming === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO",
@@ -125,8 +128,8 @@ function dateForDayInMonth(year: number, month0: number, day: number) {
   return new Date(Date.UTC(year, month0, d, 0, 0, 0, 0));
 }
 
-function resolveCycleStartAnchor(sub: SubscriptionSeed) {
-  const base = sub.currentPeriodStartAt ? new Date(sub.currentPeriodStartAt) : resolveCycleAnchorFromStart(sub);
+function resolveCycleStartAnchor(sub: BillingComputationSeed) {
+  const base = sub.anchorPeriodStartAt ? new Date(sub.anchorPeriodStartAt) : resolveCycleAnchorFromStart(sub);
   const day = Math.max(1, Math.min(31, Math.trunc(sub.cycleStartDay || 1)));
   const candidate = setDayInMonth(base, day);
   if (candidate.getTime() <= base.getTime()) return candidate;
@@ -134,8 +137,8 @@ function resolveCycleStartAnchor(sub: SubscriptionSeed) {
   return prev;
 }
 
-function resolveCycleAnchorFromStart(sub: SubscriptionSeed) {
-  const base = sub.startAt ? new Date(sub.startAt) : sub.currentPeriodStartAt ? new Date(sub.currentPeriodStartAt) : new Date();
+function resolveCycleAnchorFromStart(sub: BillingComputationSeed) {
+  const base = sub.startAt ? new Date(sub.startAt) : sub.anchorPeriodStartAt ? new Date(sub.anchorPeriodStartAt) : new Date();
   if (sub.plan.intervalUnit !== PlanIntervalUnit.MONTH) return base;
   const day = Math.max(1, Math.min(31, Math.trunc(sub.cycleStartDay || 1)));
   const candidate = setDayInMonth(base, day);
@@ -182,30 +185,30 @@ function countElapsedIntervals(args: {
   return Math.max(0, steps);
 }
 
-export function normalizeSubscriptionSeed(sub: SubscriptionSeed): SubscriptionSeed {
+export function normalizeBillingSeed(sub: BillingComputationSeed): BillingComputationSeed {
   const unit = sub.plan.intervalUnit;
   const count = Math.max(1, Math.trunc(sub.plan.intervalCount || 1));
   const anchorStart = resolveCycleAnchorFromStart(sub);
-  const referenceAt = sub.currentPeriodStartAt ? new Date(sub.currentPeriodStartAt) : new Date();
+  const referenceAt = sub.anchorPeriodStartAt ? new Date(sub.anchorPeriodStartAt) : new Date();
   const inferredCycle = countElapsedIntervals({
     startAt: anchorStart,
     endAt: referenceAt,
     unit,
     count
   }) + 1;
-  const currentCycle = Math.max(1, Math.max(Math.trunc(sub.currentCycle || 1), inferredCycle));
-  const currentPeriodStartAt = sub.currentPeriodStartAt
-    ? new Date(sub.currentPeriodStartAt)
-    : shiftIntervalUtc(anchorStart, unit, (currentCycle - 1) * count);
-  const currentPeriodEndAt = sub.currentPeriodEndAt
-    ? new Date(sub.currentPeriodEndAt)
-    : shiftIntervalUtc(currentPeriodStartAt, unit, count);
+  const anchorCycleNumber = Math.max(1, Math.max(Math.trunc(sub.anchorCycleNumber || 1), inferredCycle));
+  const anchorPeriodStartAt = sub.anchorPeriodStartAt
+    ? new Date(sub.anchorPeriodStartAt)
+    : shiftIntervalUtc(anchorStart, unit, (anchorCycleNumber - 1) * count);
+  const anchorPeriodEndAt = sub.anchorPeriodEndAt
+    ? new Date(sub.anchorPeriodEndAt)
+    : shiftIntervalUtc(anchorPeriodStartAt, unit, count);
 
   return {
     ...sub,
-    currentCycle,
-    currentPeriodStartAt,
-    currentPeriodEndAt
+    anchorCycleNumber,
+    anchorPeriodStartAt,
+    anchorPeriodEndAt
   };
 }
 
@@ -328,12 +331,12 @@ export function computeBillingCycleDueAt(params: {
   return dateForDayInMonth(year, month0, paymentDay);
 }
 
-export function buildBillingCyclesForSubscription(sub: SubscriptionSeed, cyclesBack = 12, cyclesForward = 2) {
+export function buildBillingCyclesForSubscription(sub: BillingComputationSeed, cyclesBack = 12, cyclesForward = 2) {
   const unit = sub.plan.intervalUnit;
   const count = Math.max(1, Math.trunc(sub.plan.intervalCount || 1));
-  const currentCycle = Math.max(1, Math.trunc(sub.currentCycle || 1));
-  const currentPeriodStartAt = sub.currentPeriodStartAt ? new Date(sub.currentPeriodStartAt) : resolveCycleAnchorFromStart(sub);
-  const anchorStart = unit === PlanIntervalUnit.MONTH ? resolveCycleStartAnchor({ ...sub, currentPeriodStartAt }) : currentPeriodStartAt;
+  const anchorCycleNumber = Math.max(1, Math.trunc(sub.anchorCycleNumber || 1));
+  const anchorPeriodStartAt = sub.anchorPeriodStartAt ? new Date(sub.anchorPeriodStartAt) : resolveCycleAnchorFromStart(sub);
+  const anchorStart = unit === PlanIntervalUnit.MONTH ? resolveCycleStartAnchor({ ...sub, anchorPeriodStartAt }) : anchorPeriodStartAt;
   const cycles: Array<{
     subscriptionId: string;
     cycleNumber: number;
@@ -343,7 +346,7 @@ export function buildBillingCyclesForSubscription(sub: SubscriptionSeed, cyclesB
     status: BillingCycleStatus;
   }> = [];
   for (let offset = -cyclesBack; offset <= cyclesForward; offset += 1) {
-    const cycleNumber = currentCycle + offset;
+    const cycleNumber = anchorCycleNumber + offset;
     if (cycleNumber <= 0) continue;
     const shift = offset * count;
     const periodStartAt = shiftIntervalUtc(anchorStart, unit, shift);
@@ -390,24 +393,24 @@ function canRescheduleExistingCycle(cycle: BillingCycleLike | null | undefined, 
 }
 
 function pickAuthoritativeCycleSeed(args: {
-  sub: SubscriptionSeed;
+  sub: BillingComputationSeed;
   existingCycles: BillingCycleLike[];
   asOf: Date;
-}): SubscriptionSeed {
-  if (!args.existingCycles.length) return normalizeSubscriptionSeed(args.sub);
+}): BillingComputationSeed {
+  if (!args.existingCycles.length) return normalizeBillingSeed(args.sub);
   const activeCycle = resolveActiveCycle({ cycles: args.existingCycles, asOf: args.asOf });
   const latestCycle = [...args.existingCycles].sort((a, b) => b.cycleNumber - a.cycleNumber)[0] || null;
   const anchor = activeCycle || latestCycle;
-  if (!anchor) return normalizeSubscriptionSeed(args.sub);
-  return normalizeSubscriptionSeed({
+  if (!anchor) return normalizeBillingSeed(args.sub);
+  return normalizeBillingSeed({
     ...args.sub,
-    currentCycle: anchor.cycleNumber,
-    currentPeriodStartAt: new Date(anchor.periodStartAt),
-    currentPeriodEndAt: new Date(anchor.periodEndAt)
+    anchorCycleNumber: anchor.cycleNumber,
+    anchorPeriodStartAt: new Date(anchor.periodStartAt),
+    anchorPeriodEndAt: new Date(anchor.periodEndAt)
   });
 }
 
-export async function ensureBillingCyclesForSubscriptions(subs: SubscriptionSeed[], cyclesBack = 12, cyclesForward = 2) {
+export async function ensureBillingCyclesForSubscriptions(subs: BillingComputationSeed[], cyclesBack = 12, cyclesForward = 2) {
   if (!subs.length) return;
   const uniqueSubs = Array.from(new Map(subs.map((sub) => [sub.id, sub])).values());
   const existingCycles = await prisma.subscriptionBillingCycle.findMany({
@@ -428,7 +431,7 @@ export async function ensureBillingCyclesForSubscriptions(subs: SubscriptionSeed
       existingCycles: existingCyclesBySubscription.get(rawSub.id) || [],
       asOf: new Date()
     });
-    const safeCyclesBack = Math.max(cyclesBack, Math.max(1, Math.trunc(sub.currentCycle || 1)) - 1);
+    const safeCyclesBack = Math.max(cyclesBack, Math.max(1, Math.trunc(sub.anchorCycleNumber || 1)) - 1);
     const cycles = await applyConfiguredExecutionSchedule(buildBillingCyclesForSubscription(sub, safeCyclesBack, cyclesForward));
     const existingByCycle = new Map(
       (existingCyclesBySubscription.get(rawSub.id) || []).map((cycle) => [cycle.cycleNumber, cycle] as const)
@@ -468,9 +471,9 @@ export async function ensureBillingCyclesForSubscriptions(subs: SubscriptionSeed
   }
 }
 
-export async function ensureBillingCyclesForSubscription(args: SubscriptionSeed, cyclesForward = 2) {
-  const sub = normalizeSubscriptionSeed(args);
-  await ensureBillingCyclesForSubscriptions([sub], Math.max(0, Math.max(1, Math.trunc(sub.currentCycle || 1)) - 1), cyclesForward);
+export async function ensureBillingCyclesForSubscription(args: BillingComputationSeed, cyclesForward = 2) {
+  const sub = normalizeBillingSeed(args);
+  await ensureBillingCyclesForSubscriptions([sub], Math.max(0, Math.max(1, Math.trunc(sub.anchorCycleNumber || 1)) - 1), cyclesForward);
   await syncSubscriptionBillingSnapshot({ subscriptionId: sub.id }).catch(() => null);
 }
 
@@ -515,19 +518,19 @@ export function resolveBillingStateFromCycles(args: {
 }
 
 export async function buildSubscriptionBillingStateIndex(args: {
-  subscriptions: SubscriptionSeed[];
+  subscriptions: BillingComputationSeed[];
   asOf?: Date;
   cyclesForward?: number;
   ensureCycles?: boolean;
 }) {
-  const subscriptions = args.subscriptions.map((sub) => normalizeSubscriptionSeed(sub));
+  const subscriptions = args.subscriptions.map((sub) => normalizeBillingSeed(sub));
   if (!subscriptions.length) return new Map<string, ResolvedBillingState>();
 
   const uniqueSubscriptions = Array.from(new Map(subscriptions.map((sub) => [sub.id, sub])).values());
   if (args.ensureCycles !== false) {
     await ensureBillingCyclesForSubscriptions(
       uniqueSubscriptions,
-      Math.max(...uniqueSubscriptions.map((sub) => Math.max(0, Number(sub.currentCycle || 1) - 1)), 0),
+      Math.max(...uniqueSubscriptions.map((sub) => Math.max(0, Number(sub.anchorCycleNumber || 1) - 1)), 0),
       Math.max(0, Number(args.cyclesForward || 2))
     );
   }
@@ -569,7 +572,7 @@ export async function resolveSubscriptionBillingState(args: {
   if (!subscription) return null;
 
   await ensureBillingCyclesForSubscriptions([
-    buildSubscriptionSeed({
+    buildBillingSeed({
       id: subscription.id,
       startAt: subscription.startAt,
       cycleStartDay: subscription.cycleStartDay,
@@ -739,7 +742,7 @@ export async function attachPaymentToMatchingCycle(args: {
   if (!subscription) return { ok: false as const, error: "subscription_not_found" as const };
 
   await ensureBillingCyclesForSubscriptions([
-    buildSubscriptionSeed({
+    buildBillingSeed({
       id: subscription.id,
       startAt: subscription.startAt,
       cycleStartDay: subscription.cycleStartDay,

@@ -86,7 +86,24 @@ vi.mock("../../services/billingCycles", async (importOriginal) => {
     attachPaymentToCycle: vi.fn(() => Promise.resolve({ ok: true })),
     attachPaymentToMatchingCycle: vi.fn(() => Promise.resolve({ ok: true })),
     ensureBillingCyclesForSubscriptions: vi.fn(() => Promise.resolve()),
-    syncSubscriptionBillingSnapshot: vi.fn(() => Promise.resolve(null))
+    syncSubscriptionBillingSnapshot: vi.fn(() => Promise.resolve(null)),
+    resolveSubscriptionBillingState: vi.fn(async ({ subscriptionId }: { subscriptionId: string }) => {
+      const { store } = await import("../../db/prisma");
+      const subscription = store.subscription[subscriptionId];
+      if (!subscription) return null;
+      const cycles = Object.values(store.subscriptionBillingCycle || {})
+        .filter((cycle: any) => cycle.subscriptionId === subscriptionId)
+        .sort((a: any, b: any) => Number(a.cycleNumber || 0) - Number(b.cycleNumber || 0));
+      const unpaid = cycles.filter((cycle: any) => String(cycle?.status || "").toUpperCase() !== "PAID");
+      const activeCycle = cycles[cycles.length - 1] || null;
+      return {
+        subscription,
+        cycles,
+        activeCycle,
+        collectionCycle: unpaid[0] || activeCycle,
+        oldestUnpaidCycle: unpaid[0] || null
+      };
+    })
   };
 });
 
@@ -230,15 +247,9 @@ function createMockPrisma() {
       updateMany: async ({ where, data }: any) => {
         const existing = store.subscription[where.id];
         if (!existing) return { count: 0 };
-        if (typeof where.currentCycle === "number" && Number(existing.currentCycle || 0) !== where.currentCycle) return { count: 0 };
         const next = { ...existing };
-        if (data?.currentCycle && typeof data.currentCycle.increment === "number") {
-          next.currentCycle = Number(existing.currentCycle || 0) + data.currentCycle.increment;
-        }
         if (data?.status) next.status = data.status;
         if (data?.retryCount !== undefined) next.retryCount = data.retryCount;
-        if (data?.currentPeriodStartAt) next.currentPeriodStartAt = data.currentPeriodStartAt;
-        if (data?.currentPeriodEndAt) next.currentPeriodEndAt = data.currentPeriodEndAt;
         store.subscription[where.id] = next;
         return { count: 1 };
       }
@@ -349,14 +360,22 @@ function createSubscriptionWithPaymentSource(store: any, opts?: { email?: string
     customerId,
     planId: "plan-1",
     status: opts?.status || SubscriptionStatus.ACTIVE,
-    currentCycle: 1,
-    currentPeriodStartAt: new Date("2026-04-01T00:00:00.000Z"),
-    currentPeriodEndAt: new Date("2026-05-01T00:00:00.000Z"),
     cycleStartDay: 1,
     paymentDay: 5,
     paymentTiming: "EN_CURSO",
     graceDays: 3,
     createdAt: new Date("2026-04-01T00:00:00.000Z")
+  };
+
+  store.subscriptionBillingCycle["sub-1-cycle-1"] = {
+    id: "sub-1-cycle-1",
+    subscriptionId: "sub-1",
+    cycleNumber: 1,
+    periodStartAt: new Date("2026-04-01T00:00:00.000Z"),
+    periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
+    dueAt: new Date("2026-04-05T00:00:00.000Z"),
+    paymentId: null,
+    status: "PENDING"
   };
 
   return { customerId, subscriptionId: "sub-1" };
@@ -452,9 +471,6 @@ describe("Webhook: Late Payment (pays several cycles behind)", () => {
       "c3": { id: "c3", subscriptionId: "sub-1", cycleNumber: 3, periodStartAt: new Date("2026-03-01"), periodEndAt: new Date("2026-04-01"), dueAt: new Date("2026-03-05"), paymentId: null, status: "PENDING" }
     };
 
-    // Current cycle is 3 but payment is for cycle 1
-    store.subscription["sub-1"].currentCycle = 3;
-
     const payload = approvedTransactionPayload({
       txId: "tx-late-1",
       reference: "SUB_sub-1_1", // Reference points to cycle 1
@@ -487,9 +503,6 @@ describe("Webhook: Early Payment (pays before due date)", () => {
     store.subscriptionBillingCycle = {
       "c1": { id: "c1", subscriptionId: "sub-1", cycleNumber: 1, periodStartAt: new Date("2026-04-01"), periodEndAt: new Date("2026-05-01"), dueAt: new Date("2026-05-05"), paymentId: null, status: "PENDING" }
     };
-
-    // Payment arrives on April 15 (20 days early)
-    store.subscription["sub-1"].currentCycle = 1;
 
     const payload = {
       event: "transaction.updated",
@@ -545,13 +558,20 @@ describe("Auto-debit: Customer without email", () => {
       customerId,
       planId: "plan-1",
       status: SubscriptionStatus.ACTIVE,
-      currentCycle: 1,
-      currentPeriodStartAt: new Date("2026-04-01"),
-      currentPeriodEndAt: new Date("2026-05-01"),
       cycleStartDay: 1,
       paymentDay: 5,
       paymentTiming: "EN_CURSO",
       graceDays: 3
+    };
+    store.subscriptionBillingCycle["sub-noemail-cycle-1"] = {
+      id: "sub-noemail-cycle-1",
+      subscriptionId: "sub-noemail",
+      cycleNumber: 1,
+      periodStartAt: new Date("2026-04-01"),
+      periodEndAt: new Date("2026-05-01"),
+      dueAt: new Date("2026-04-05"),
+      paymentId: null,
+      status: "PENDING"
     };
 
     // Try to process a webhook that would trigger auto-debit
@@ -775,13 +795,20 @@ describe("Webhook: Identity match by name + amount", () => {
       customerId,
       planId: "plan-1",
       status: SubscriptionStatus.ACTIVE,
-      currentCycle: 1,
-      currentPeriodStartAt: new Date("2026-04-01"),
-      currentPeriodEndAt: new Date("2026-05-01"),
       cycleStartDay: 1,
       paymentDay: 5,
       paymentTiming: "EN_CURSO",
       graceDays: 3
+    };
+    store.subscriptionBillingCycle["sub-named-cycle-1"] = {
+      id: "sub-named-cycle-1",
+      subscriptionId: "sub-named",
+      cycleNumber: 1,
+      periodStartAt: new Date("2026-04-01"),
+      periodEndAt: new Date("2026-05-01"),
+      dueAt: new Date("2026-04-05"),
+      paymentId: null,
+      status: "PENDING"
     };
 
     // Payment without reference, only name + amount

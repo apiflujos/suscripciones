@@ -264,7 +264,7 @@ async function createPaymentArtifacts(args) {
 
 async function main() {
   const tenant = await getTenant();
-  const currentPeriodStartAt = inferCurrentPeriodStartAt();
+  const anchorPeriodStartAt = inferCurrentPeriodStartAt();
 
   console.log("Seeding curated MDV local dataset", { tenantId: tenant.id, subscriptions: curatedMembers.length });
 
@@ -280,9 +280,9 @@ async function main() {
       customerId: customer.id,
       planId: plan.id,
       status: member.subscriptionStatus || "ACTIVE",
-      startAt: currentPeriodStartAt,
-      currentCycle: Number(member.cycleNumber || 1),
-      currentPeriodStartAt,
+      startAt: anchorPeriodStartAt,
+      anchorCycleNumber: Number(member.cycleNumber || 1),
+      anchorPeriodStartAt,
       cycleStartDay: 1,
       paymentDay: 1,
       paymentTiming: "EN_CURSO",

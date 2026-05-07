@@ -196,11 +196,7 @@ function createMockPrisma() {
       updateMany: async ({ where, data }: any) => {
         const existing = store.subscription[where.id];
         if (!existing) return { count: 0 };
-        if (typeof where.currentCycle === "number" && Number(existing.currentCycle || 0) !== where.currentCycle) return { count: 0 };
         const next = { ...existing, ...data };
-        if (data?.currentCycle && typeof data.currentCycle.increment === "number") {
-          next.currentCycle = Number(existing.currentCycle || 0) + data.currentCycle.increment;
-        }
         store.subscription[where.id] = next;
         return { count: 1 };
       },
@@ -365,9 +361,6 @@ test("processWompiEventLogic: match por nombre y monto guarda matchScore", async
     id: "sub-1",
     tenantId: "tenant-1",
     customerId,
-    currentCycle: 1,
-    currentPeriodStartAt: new Date(),
-    currentPeriodEndAt: new Date(),
     cycleStartDay: 1,
     paymentDay: 1,
     paymentTiming: "EN_CURSO",
@@ -401,9 +394,6 @@ test("processWompiEventLogic: match por email/phone guarda matchScore", async ()
     id: "sub-2",
     tenantId: "tenant-1",
     customerId,
-    currentCycle: 1,
-    currentPeriodStartAt: new Date(),
-    currentPeriodEndAt: new Date(),
     cycleStartDay: 1,
     paymentDay: 1,
     paymentTiming: "EN_CURSO",
@@ -437,9 +427,6 @@ test("processWompiEventLogic: procesa pago aprobado con ciclos pendientes sin ro
     id: "sub-3",
     tenantId: "tenant-1",
     customerId,
-    currentCycle: 1,
-    currentPeriodStartAt: new Date(),
-    currentPeriodEndAt: new Date(),
     cycleStartDay: 1,
     paymentDay: 1,
     paymentTiming: "EN_CURSO",
@@ -481,9 +468,6 @@ test("processWompiEventLogic: agenda el siguiente cobro con dueAt del nuevo cicl
     id: "sub-advance",
     tenantId: "tenant-1",
     customerId,
-    currentCycle: 1,
-    currentPeriodStartAt: periodStart,
-    currentPeriodEndAt: periodEnd,
     cycleStartDay: 1,
     paymentDay: 15,
     paymentTiming: "EN_CURSO",

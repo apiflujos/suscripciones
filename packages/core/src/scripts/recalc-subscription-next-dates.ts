@@ -1,6 +1,7 @@
 import { prisma } from "../db/prisma";
 import { addIntervalUtc } from "../lib/dates";
 import { RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
+import { resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "../services/billingCycles";
 
 function normalizeDate(d?: Date | null) {
   if (!d) return null;
@@ -26,28 +27,26 @@ async function main() {
 
   let updated = 0;
   let scheduled = 0;
+  let inspected = 0;
   const now = Date.now();
 
   for (const sub of subs) {
     const lastPayment = sub.payments?.[0];
     if (!lastPayment || !sub.plan) continue;
+    inspected += 1;
 
     const startAt = lastPayment.paidAt || lastPayment.updatedAt || lastPayment.createdAt;
     const endAt = addIntervalUtc(startAt, sub.plan.intervalUnit, sub.plan.intervalCount);
+    const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id }).catch(() => null);
+    const activeCycle = billingState?.activeCycle || null;
 
-    const curStart = normalizeDate(sub.currentPeriodStartAt);
-    const curEnd = normalizeDate(sub.currentPeriodEndAt);
+    const curStart = normalizeDate(activeCycle?.periodStartAt);
+    const curEnd = normalizeDate(activeCycle?.periodEndAt);
     const nextStart = normalizeDate(startAt);
     const nextEnd = normalizeDate(endAt);
 
     if (nextEnd && (curStart !== nextStart || curEnd !== nextEnd)) {
-      await prisma.subscription.update({
-        where: { id: sub.id },
-        data: {
-          currentPeriodStartAt: startAt,
-          currentPeriodEndAt: endAt
-        }
-      });
+      await syncSubscriptionBillingSnapshot({ subscriptionId: sub.id, asOf: startAt }).catch(() => null);
       updated += 1;
     }
 
@@ -75,7 +74,7 @@ async function main() {
     }
   }
 
-  console.log(`Recalc done. Updated: ${updated}. Jobs scheduled: ${scheduled}.`);
+  console.log(`Recalc done. Inspected: ${inspected}. Updated: ${updated}. Jobs scheduled: ${scheduled}.`);
 }
 
 main()

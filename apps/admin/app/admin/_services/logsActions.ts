@@ -5,7 +5,7 @@ import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType, WebhookProcessSt
 import { classifyReference, isShopifyLikePayload } from "@suscripciones/core/webhooks/wompi/classifyReference";
 import { reconcileWompiByReference, reconcileWompiTransaction } from "@suscripciones/core/services/wompiReconcile";
 import { systemLog } from "@suscripciones/core/services/systemLog";
-import { attachPaymentToCycle, buildSubscriptionSeed, ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
+import { attachPaymentToCycle, buildBillingSeed, ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
 import { getSubscriptionPricingTotal } from "@suscripciones/core/lib/metadataSchemas";
 import { logger } from "@suscripciones/core/lib/logger";
 
@@ -312,7 +312,7 @@ export async function associatePaymentToSubscription(args: {
   const toleranceMs = toleranceDays * 24 * 60 * 60 * 1000;
 
   await ensureBillingCyclesForSubscriptions([
-    buildSubscriptionSeed({
+    buildBillingSeed({
       id: subscription.id,
       startAt: subscription.startAt,
       cycleStartDay: subscription.cycleStartDay,

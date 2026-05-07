@@ -11,17 +11,18 @@ import {
   computeBillingCycleDueAt,
   buildBillingCyclesForSubscription,
   findBestBillingCycleForPayment,
-  normalizeSubscriptionSeed,
+  normalizeBillingSeed,
   resolveConfiguredCollectionCycle
 } from "../billingCycles";
 
 // ── Helpers ──
-function createSubSeed(overrides: Partial<any> = {}) {
+// This helper builds cycle-computation seeds, not persisted Subscription rows.
+function createBillingSeed(overrides: Partial<any> = {}) {
   return {
     id: "sub-test",
-    currentCycle: 1,
-    currentPeriodStartAt: new Date("2026-01-15T00:00:00.000Z"),
-    currentPeriodEndAt: new Date("2026-02-15T00:00:00.000Z"),
+    anchorCycleNumber: 1,
+    anchorPeriodStartAt: new Date("2026-01-15T00:00:00.000Z"),
+    anchorPeriodEndAt: new Date("2026-02-15T00:00:00.000Z"),
     cycleStartDay: 15,
     paymentDay: 20,
     paymentTiming: "EN_CURSO" as const,
@@ -126,26 +127,26 @@ describe("computeBillingCycleDueAt", () => {
 
 describe("buildBillingCyclesForSubscription", () => {
   it("should infer the effective current cycle from historical anchors", () => {
-    const sub = createSubSeed({
+    const sub = createBillingSeed({
       startAt: new Date("2026-03-19T07:24:55.034Z"),
-      currentCycle: 1,
-      currentPeriodStartAt: new Date("2026-04-01T00:00:00.000Z"),
-      currentPeriodEndAt: new Date("2026-05-01T00:00:00.000Z"),
+      anchorCycleNumber: 1,
+      anchorPeriodStartAt: new Date("2026-04-01T00:00:00.000Z"),
+      anchorPeriodEndAt: new Date("2026-05-01T00:00:00.000Z"),
       cycleStartDay: 1,
       paymentDay: 20,
       paymentTiming: "ANTICIPADO"
     });
 
-    const normalized = normalizeSubscriptionSeed(sub as any);
+    const normalized = normalizeBillingSeed(sub as any);
 
-    expect(normalized.currentCycle).toBe(2);
+    expect(normalized.anchorCycleNumber).toBe(2);
   });
 
   it("should generate cycles back and forward from current cycle", () => {
-    const sub = createSubSeed({
-      currentCycle: 6,
-      currentPeriodStartAt: new Date("2026-06-15T00:00:00.000Z"),
-      currentPeriodEndAt: new Date("2026-07-15T00:00:00.000Z")
+    const sub = createBillingSeed({
+      anchorCycleNumber: 6,
+      anchorPeriodStartAt: new Date("2026-06-15T00:00:00.000Z"),
+      anchorPeriodEndAt: new Date("2026-07-15T00:00:00.000Z")
     });
 
     const cycles = buildBillingCyclesForSubscription(sub, 3, 2);
@@ -161,10 +162,10 @@ describe("buildBillingCyclesForSubscription", () => {
   });
 
   it("should skip cycleNumber <= 0", () => {
-    const sub = createSubSeed({
-      currentCycle: 2,
-      currentPeriodStartAt: new Date("2026-02-15T00:00:00.000Z"),
-      currentPeriodEndAt: new Date("2026-03-15T00:00:00.000Z")
+    const sub = createBillingSeed({
+      anchorCycleNumber: 2,
+      anchorPeriodStartAt: new Date("2026-02-15T00:00:00.000Z"),
+      anchorPeriodEndAt: new Date("2026-03-15T00:00:00.000Z")
     });
 
     const cycles = buildBillingCyclesForSubscription(sub, 5, 2);

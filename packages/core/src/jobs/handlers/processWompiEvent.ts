@@ -18,7 +18,7 @@ import { GAMIFICATION_WEIGHTS, moneyToPoints } from "../../services/gamification
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 import { publishRealtime } from "../../services/realtimePublisher";
 import { ensurePaymentRetryJob } from "../../services/retryJobScheduler";
-import { attachPaymentToCycle, attachPaymentToMatchingCycle, buildSubscriptionSeed, computeBillingCycleDueAt, ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "../../services/billingCycles";
+import { attachPaymentToCycle, attachPaymentToMatchingCycle, buildBillingSeed, computeBillingCycleDueAt, ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "../../services/billingCycles";
 import { getExpectedSubscriptionTotalInCents, getPlanCollectionMode } from "../../lib/metadataSchemas";
 
 type WompiCustomerData = {
@@ -405,7 +405,7 @@ async function resolveAssociationByScore(args: {
   if (args.db === prisma) {
     await ensureBillingCyclesForSubscriptions(
       withExactAmount.map((sub: any) =>
-        buildSubscriptionSeed({
+        buildBillingSeed({
           id: sub.id,
           startAt: sub.startAt,
           cycleStartDay: sub.cycleStartDay,
@@ -460,7 +460,7 @@ async function findOldestUnpaidCycle(args: {
 }) {
   if (args.db === prisma) {
     await ensureBillingCyclesForSubscriptions([
-      buildSubscriptionSeed({
+      buildBillingSeed({
         id: args.subscription.id,
         startAt: args.subscription.startAt,
         cycleStartDay: args.subscription.cycleStartDay,
@@ -760,7 +760,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   if (subscription && associationCycleNumber != null && !associationCycleId) {
     if (db === prisma) {
       await ensureBillingCyclesForSubscriptions([
-        buildSubscriptionSeed({
+        buildBillingSeed({
           id: subscription.id,
           startAt: subscription.startAt,
           cycleStartDay: subscription.cycleStartDay,
@@ -819,7 +819,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   if (subscription && cycle == null) {
     if (db === prisma) {
       await ensureBillingCyclesForSubscriptions([
-        buildSubscriptionSeed({
+        buildBillingSeed({
           id: subscription.id,
           startAt: subscription.startAt,
           cycleStartDay: subscription.cycleStartDay,

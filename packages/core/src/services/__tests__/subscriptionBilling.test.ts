@@ -83,50 +83,15 @@ vi.mock("../../services/billingCycles", async () => ({
     const cycles = Object.values(store.subscriptionBillingCycle || {})
       .filter((cycle: any) => cycle.subscriptionId === subscriptionId)
       .sort((a: any, b: any) => Number(a.cycleNumber || 0) - Number(b.cycleNumber || 0));
-    const deriveCycleNumberFromDates = () => {
-      const startAt = subscription.startAt ? new Date(subscription.startAt) : null;
-      const periodStartAt = subscription.currentPeriodStartAt ? new Date(subscription.currentPeriodStartAt) : null;
-      const intervalUnit = String(plan?.intervalUnit || "MONTH").toUpperCase();
-      const intervalCount = Math.max(1, Number(plan?.intervalCount || 1));
-      if (!startAt || !periodStartAt) return Number(subscription.currentCycle || 1);
-      if (intervalUnit === "MONTH") {
-        const months =
-          (periodStartAt.getUTCFullYear() - startAt.getUTCFullYear()) * 12 +
-          (periodStartAt.getUTCMonth() - startAt.getUTCMonth());
-        return Math.max(1, Math.floor(months / intervalCount) + 1);
-      }
-      return Number(subscription.currentCycle || 1);
-    };
-    const derivedActiveCycle =
-      cycles.length === 0 && subscription.currentPeriodStartAt && subscription.currentPeriodEndAt
-        ? {
-            id: `derived-${subscriptionId}-${deriveCycleNumberFromDates()}`,
-            subscriptionId,
-            cycleNumber: deriveCycleNumberFromDates(),
-            periodStartAt: new Date(subscription.currentPeriodStartAt),
-            periodEndAt: new Date(subscription.currentPeriodEndAt),
-            dueAt: new Date(subscription.currentPeriodEndAt),
-            status: "PENDING",
-            paymentId: null
-          }
-        : null;
     const now = Date.now();
     const activeCycle =
       cycles.find((cycle: any) => new Date(cycle.periodStartAt).getTime() <= now && now < new Date(cycle.periodEndAt).getTime()) ||
-      cycles.find((cycle: any) => Number(cycle.cycleNumber || 0) === Number(subscription.currentCycle || 0)) ||
-      derivedActiveCycle ||
-      cycles[0] ||
+      cycles[cycles.length - 1] ||
       null;
     const paymentTiming = String(subscription.paymentTiming || "EN_CURSO").toUpperCase();
     const collectionCycle =
       paymentTiming === "ANTICIPADO"
-        ? cycles.find((cycle: any) => Number(cycle.cycleNumber || 0) > Number(activeCycle?.cycleNumber || 0)) ||
-          (activeCycle
-            ? {
-                ...activeCycle,
-                cycleNumber: Number(activeCycle.cycleNumber || 0) + 1
-              }
-            : null)
+        ? cycles.find((cycle: any) => Number(cycle.cycleNumber || 0) > Number(activeCycle?.cycleNumber || 0)) || null
         : activeCycle || null;
     return {
       subscription: { ...subscription, ...(plan ? { plan } : {}) },
@@ -271,6 +236,23 @@ vi.mock("../../db/prisma", () => {
   };
 });
 
+function seedCycle(store: any, input: {
+  id: string;
+  subscriptionId: string;
+  cycleNumber: number;
+  periodStartAt: Date;
+  periodEndAt: Date;
+  dueAt: Date;
+  status?: string;
+  paymentId?: string | null;
+}) {
+  store.subscriptionBillingCycle[input.id] = {
+    paymentId: null,
+    status: "PENDING",
+    ...input
+  };
+}
+
 describe("Subscription Billing: Auto-debit validation", () => {
   beforeEach(async () => {
     const { store } = await import("../../db/prisma");
@@ -302,15 +284,20 @@ describe("Subscription Billing: Auto-debit validation", () => {
       customerId: "cust-notoken",
       planId: "plan-1",
       status: "ACTIVE",
-      currentCycle: 1,
-      currentPeriodStartAt: new Date("2026-04-01"),
-      currentPeriodEndAt: new Date("2026-05-01"),
       cycleStartDay: 1,
       paymentDay: 5,
       paymentTiming: "EN_CURSO",
       graceDays: 3,
       metadata: { collectionMode: "AUTO_DEBIT" }
     };
+    seedCycle(store, {
+      id: "cycle-notoken",
+      subscriptionId: "sub-notoken",
+      cycleNumber: 1,
+      periodStartAt: new Date("2026-04-01"),
+      periodEndAt: new Date("2026-05-01"),
+      dueAt: new Date("2026-04-05")
+    });
 
     vi.mocked(resolveSubscriptionCollectionMode).mockReturnValue("AUTO_DEBIT");
 
@@ -332,15 +319,20 @@ describe("Subscription Billing: Auto-debit validation", () => {
       customerId: "cust-canceled",
       planId: "plan-1",
       status: "CANCELED",
-      currentCycle: 1,
-      currentPeriodStartAt: new Date("2026-04-01"),
-      currentPeriodEndAt: new Date("2026-05-01"),
       cycleStartDay: 1,
       paymentDay: 5,
       paymentTiming: "EN_CURSO",
       graceDays: 3,
       metadata: { collectionMode: "AUTO_DEBIT" }
     };
+    seedCycle(store, {
+      id: "cycle-canceled",
+      subscriptionId: "sub-canceled",
+      cycleNumber: 1,
+      periodStartAt: new Date("2026-04-01"),
+      periodEndAt: new Date("2026-05-01"),
+      dueAt: new Date("2026-04-05")
+    });
 
     const { createAutoDebitTransactionForSubscription } = await import("../../services/subscriptionBilling");
 
@@ -360,15 +352,20 @@ describe("Subscription Billing: Auto-debit validation", () => {
       customerId: "cust-expired",
       planId: "plan-1",
       status: "EXPIRED",
-      currentCycle: 1,
-      currentPeriodStartAt: new Date("2026-01-01"),
-      currentPeriodEndAt: new Date("2026-02-01"),
       cycleStartDay: 1,
       paymentDay: 5,
       paymentTiming: "EN_CURSO",
       graceDays: 3,
       metadata: { collectionMode: "AUTO_DEBIT" }
     };
+    seedCycle(store, {
+      id: "cycle-expired",
+      subscriptionId: "sub-expired",
+      cycleNumber: 1,
+      periodStartAt: new Date("2026-01-01"),
+      periodEndAt: new Date("2026-02-01"),
+      dueAt: new Date("2026-01-05")
+    });
 
     const { createAutoDebitTransactionForSubscription } = await import("../../services/subscriptionBilling");
 
@@ -401,14 +398,19 @@ describe("Subscription Billing: Payment link creation", () => {
       customerId: "cust-suspended",
       planId: "plan-1",
       status: "SUSPENDED",
-      currentCycle: 1,
-      currentPeriodStartAt: new Date("2026-04-01"),
-      currentPeriodEndAt: new Date("2026-05-01"),
       cycleStartDay: 1,
       paymentDay: 5,
       paymentTiming: "EN_CURSO",
       graceDays: 3
     };
+    seedCycle(store, {
+      id: "cycle-suspended",
+      subscriptionId: "sub-suspended",
+      cycleNumber: 1,
+      periodStartAt: new Date("2026-04-01"),
+      periodEndAt: new Date("2026-05-01"),
+      dueAt: new Date("2026-04-05")
+    });
 
     const { createPaymentLinkForSubscription } = await import("../../services/subscriptionBilling");
 
@@ -428,14 +430,19 @@ describe("Subscription Billing: Payment link creation", () => {
       customerId: "cust-link",
       planId: "plan-1",
       status: "ACTIVE",
-      currentCycle: 2,
-      currentPeriodStartAt: new Date("2026-05-01"),
-      currentPeriodEndAt: new Date("2026-06-01"),
       cycleStartDay: 1,
       paymentDay: 5,
       paymentTiming: "EN_CURSO",
       graceDays: 3
     };
+    seedCycle(store, {
+      id: "cycle-link-2",
+      subscriptionId: "sub-link",
+      cycleNumber: 2,
+      periodStartAt: new Date("2026-05-01"),
+      periodEndAt: new Date("2026-06-01"),
+      dueAt: new Date("2026-05-05")
+    });
 
     const { createPaymentLinkForSubscription } = await import("../../services/subscriptionBilling");
 
@@ -462,14 +469,27 @@ describe("Subscription Billing: Payment link creation", () => {
       planId: "plan-advance",
       status: "ACTIVE",
       startAt: new Date("2026-03-19T07:24:55.034Z"),
-      currentCycle: 1,
-      currentPeriodStartAt: new Date("2026-04-01T00:00:00.000Z"),
-      currentPeriodEndAt: new Date("2026-05-01T00:00:00.000Z"),
       cycleStartDay: 1,
       paymentDay: 20,
       paymentTiming: "ANTICIPADO",
       graceDays: 3
     };
+    seedCycle(store, {
+      id: "cycle-link-advance-2",
+      subscriptionId: "sub-link-advance",
+      cycleNumber: 2,
+      periodStartAt: new Date("2026-04-01T00:00:00.000Z"),
+      periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
+      dueAt: new Date("2026-03-20T00:00:00.000Z")
+    });
+    seedCycle(store, {
+      id: "cycle-link-advance-3",
+      subscriptionId: "sub-link-advance",
+      cycleNumber: 3,
+      periodStartAt: new Date("2026-05-01T00:00:00.000Z"),
+      periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
+      dueAt: new Date("2026-04-20T00:00:00.000Z")
+    });
 
     const { createPaymentLinkForSubscription } = await import("../../services/subscriptionBilling");
     const result = await createPaymentLinkForSubscription({ subscriptionId: "sub-link-advance" });
@@ -492,9 +512,6 @@ describe("Subscription Billing: Payment link creation", () => {
       customerId: "cust-approved",
       planId: "plan-approved",
       status: "ACTIVE",
-      currentCycle: 2,
-      currentPeriodStartAt: new Date("2026-05-01T00:00:00.000Z"),
-      currentPeriodEndAt: new Date("2026-06-01T00:00:00.000Z"),
       cycleStartDay: 1,
       paymentDay: 5,
       paymentTiming: "EN_CURSO",
@@ -565,9 +582,6 @@ describe("ensureExpiredSubscriptions", () => {
       customerId: "cust-1",
       planId: "plan-1",
       status: "ACTIVE",
-      currentCycle: 1,
-      currentPeriodStartAt: new Date("2026-03-01T00:00:00.000Z"),
-      currentPeriodEndAt: new Date("2026-04-01T00:00:00.000Z"),
       cycleStartDay: 1,
       paymentDay: 1,
       paymentTiming: "EN_CURSO",
@@ -606,9 +620,6 @@ describe("ensureExpiredSubscriptions", () => {
       planId: "plan-1",
       startAt: periodStartAt,
       status: "ACTIVE",
-      currentCycle: 1,
-      currentPeriodStartAt: periodStartAt,
-      currentPeriodEndAt: periodEndAt,
       cycleStartDay: 1,
       paymentDay: 5,
       paymentTiming: "EN_CURSO",
@@ -647,9 +658,6 @@ describe("ensureExpiredSubscriptions", () => {
       planId: "plan-pending",
       startAt: periodStartAt,
       status: "ACTIVE",
-      currentCycle: 2,
-      currentPeriodStartAt: periodStartAt,
-      currentPeriodEndAt: periodEndAt,
       cycleStartDay: 1,
       paymentDay: 5,
       paymentTiming: "EN_CURSO",
@@ -687,9 +695,6 @@ describe("ensureExpiredSubscriptions", () => {
       planId: "plan-paid-no-id",
       startAt: periodStartAt,
       status: "ACTIVE",
-      currentCycle: 2,
-      currentPeriodStartAt: periodStartAt,
-      currentPeriodEndAt: periodEndAt,
       cycleStartDay: 1,
       paymentDay: 5,
       paymentTiming: "EN_CURSO",
