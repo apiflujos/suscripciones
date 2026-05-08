@@ -31,6 +31,25 @@ function mergeQuery(path: string, extra: Record<string, string | undefined>) {
   return qs ? `${pathname}?${qs}` : pathname;
 }
 
+async function updateStatusWithTenantFallback(args: {
+  subscriptionId: string;
+  tenantId?: string | null;
+  action: "suspend" | "cancel" | "resume" | "activate";
+}) {
+  const first = await updateSubscriptionStatus({
+    subscriptionId: args.subscriptionId,
+    tenantId: args.tenantId || null,
+    action: args.action
+  });
+  if (first.ok) return first;
+  if (first.error !== "subscription_not_found" || !args.tenantId) return first;
+  return updateSubscriptionStatus({
+    subscriptionId: args.subscriptionId,
+    tenantId: null,
+    action: args.action
+  });
+}
+
 export async function createSubscription(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
@@ -94,7 +113,7 @@ export async function suspendSubscription(formData: FormData) {
   const tenantId = String(formData.get("tenantId") || "").trim();
   if (!subscriptionId) return redirect(mergeQuery(returnTo, { error: "invalid_subscription_id" }));
   try {
-    const res = await updateSubscriptionStatus({ subscriptionId, tenantId: tenantId || null, action: "suspend" });
+    const res = await updateStatusWithTenantFallback({ subscriptionId, tenantId: tenantId || null, action: "suspend" });
     if (!res.ok) throw new Error(res.error);
     redirect(mergeQuery(returnTo, { suspended: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
@@ -110,7 +129,7 @@ export async function cancelSubscription(formData: FormData) {
   const tenantId = String(formData.get("tenantId") || "").trim();
   if (!subscriptionId) return redirect(mergeQuery(returnTo, { error: "invalid_subscription_id" }));
   try {
-    const res = await updateSubscriptionStatus({ subscriptionId, tenantId: tenantId || null, action: "cancel" });
+    const res = await updateStatusWithTenantFallback({ subscriptionId, tenantId: tenantId || null, action: "cancel" });
     if (!res.ok) throw new Error(res.error);
     redirect(mergeQuery(returnTo, { canceled: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
@@ -126,7 +145,7 @@ export async function resumeSubscription(formData: FormData) {
   const tenantId = String(formData.get("tenantId") || "").trim();
   if (!subscriptionId) return redirect(mergeQuery(returnTo, { error: "invalid_subscription_id" }));
   try {
-    const res = await updateSubscriptionStatus({ subscriptionId, tenantId: tenantId || null, action: "resume" });
+    const res = await updateStatusWithTenantFallback({ subscriptionId, tenantId: tenantId || null, action: "resume" });
     if (!res.ok) throw new Error(res.error);
     redirect(mergeQuery(returnTo, { resumed: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
@@ -142,7 +161,7 @@ export async function activateSubscription(formData: FormData) {
   const tenantId = String(formData.get("tenantId") || "").trim();
   if (!subscriptionId) return redirect(mergeQuery(returnTo, { error: "invalid_subscription_id" }));
   try {
-    const res = await updateSubscriptionStatus({ subscriptionId, tenantId: tenantId || null, action: "activate" });
+    const res = await updateStatusWithTenantFallback({ subscriptionId, tenantId: tenantId || null, action: "activate" });
     if (!res.ok) throw new Error(res.error);
     redirect(mergeQuery(returnTo, { activated: "1", ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
