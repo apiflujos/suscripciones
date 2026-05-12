@@ -55,7 +55,10 @@ export const tokenizationLinkCreatedJobPayloadSchema = baseNotificationJobPayloa
   trigger: z.literal("TOKENIZATION_LINK_CREATED"),
   customerId: z.string().uuid(),
   tokenUrl: z.string().url(),
-  anchorAt: z.string().datetime()
+  anchorAt: z.string().datetime(),
+  tenantId: uuidField,
+  planId: uuidField,
+  productId: uuidField
 });
 
 export const notificationJobPayloadSchema = z.discriminatedUnion("trigger", [

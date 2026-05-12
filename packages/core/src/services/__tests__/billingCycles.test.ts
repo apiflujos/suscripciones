@@ -20,7 +20,7 @@ function cycle(input: {
 }
 
 describe("findBestBillingCycleForPayment", () => {
-  it("elige el ciclo vencido más antiguo para pagos tardíos con varios ciclos abiertos", () => {
+  it("elige el ciclo cuyo periodo contiene el pago aunque existan ciclos vencidos abiertos", () => {
     const result = findBestBillingCycleForPayment({
       paymentAt: new Date("2026-05-20T12:00:00.000Z"),
       cycles: [
@@ -30,19 +30,19 @@ describe("findBestBillingCycleForPayment", () => {
       ]
     });
 
-    expect(result?.id).toBe("c1");
+    expect(result?.id).toBe("c3");
   });
 
-  it("elige el próximo ciclo cuando el pago es anticipado", () => {
+  it("elige el ciclo vigente cuando el pago cae dentro de su periodo", () => {
     const result = findBestBillingCycleForPayment({
       paymentAt: new Date("2026-04-05T12:00:00.000Z"),
       cycles: [
-        cycle({ id: "c2", cycleNumber: 2, start: "2026-04-01T00:00:00.000Z", end: "2026-05-01T00:00:00.000Z", due: "2026-04-10T00:00:00.000Z" }),
-        cycle({ id: "c3", cycleNumber: 3, start: "2026-05-01T00:00:00.000Z", end: "2026-06-01T00:00:00.000Z", due: "2026-05-10T00:00:00.000Z" })
+        cycle({ id: "c2", cycleNumber: 2, start: "2026-03-01T00:00:00.000Z", end: "2026-04-01T00:00:00.000Z", due: "2026-03-05T00:00:00.000Z" }),
+        cycle({ id: "c3", cycleNumber: 3, start: "2026-04-01T00:00:00.000Z", end: "2026-05-01T00:00:00.000Z", due: "2026-04-10T00:00:00.000Z" })
       ]
     });
 
-    expect(result?.id).toBe("c2");
+    expect(result?.id).toBe("c3");
   });
 
   it("respeta el hint de ciclo si ese ciclo sigue disponible", () => {

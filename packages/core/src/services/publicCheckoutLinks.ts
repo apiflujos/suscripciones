@@ -1,7 +1,7 @@
 import { CredentialProvider, PublicCheckoutKind } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { getCredential } from "./credentials";
-import { getCheckoutBaseUrlsFromEnv } from "./publicBase";
+import { getCheckoutBaseUrlsFromEnv, getSafePublicReturnUrl } from "./publicBase";
 import { signPublicToken } from "./publicTokens";
 import { readCustomerMetadata } from "../lib/customerMetadata";
 import { readCheckoutConfig } from "./checkoutConfig";
@@ -110,7 +110,7 @@ export async function createPublicCheckoutLink(args: {
             tokenizationLink: {
               ...(prevMeta?.tokenizationLink || {}),
               ...commonLink,
-              returnUrl: String(cfg.tokenizationReturnUrl || "").trim() || prevMeta?.tokenizationLink?.returnUrl || null,
+              returnUrl: getSafePublicReturnUrl(String(cfg.tokenizationReturnUrl || "").trim()) || getSafePublicReturnUrl(String(prevMeta?.tokenizationLink?.returnUrl || "").trim()) || null,
               tenantId: template.tenantId || null,
               planId: args.planId ?? null,
               productId: args.productId ?? null

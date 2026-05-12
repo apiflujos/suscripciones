@@ -3,10 +3,9 @@
  * FIX #4: Extracted from the monolithic processWompiEventLogic.
  */
 
-import { BillingCycleStatus, PaymentAssociationReason } from "@prisma/client";
+import { PaymentAssociationReason } from "@prisma/client";
 import type { prisma } from "../../../db/prisma";
 import { logger } from "../../../lib/logger";
-import { buildBillingSeed, ensureBillingCyclesForSubscriptions } from "../../../services/billingCycles";
 import { getSubscriptionPricingTotal } from "../../../lib/metadataSchemas";
 import { classifyReference } from "../../../webhooks/wompi/classifyReference";
 import type { AssociationDecision } from "./types";
@@ -181,52 +180,18 @@ export async function resolveAssociationByScore(args: {
     };
   }
 
-  // Multiple matches — tie-break by oldest unpaid cycle
-  await ensureBillingCyclesForSubscriptions(
-    withExactAmount.map((sub: any) =>
-      buildBillingSeed({
-        id: sub.id,
-        startAt: sub.startAt,
-        cycleStartDay: sub.cycleStartDay,
-        paymentDay: sub.paymentDay,
-        paymentTiming: sub.paymentTiming,
-        graceDays: sub.graceDays,
-        plan: { intervalUnit: sub.plan?.intervalUnit as any, intervalCount: sub.plan?.intervalCount }
-      })
-    )
-  ).catch((err) => {
-    logger.warn({ err, subscriptionIds: withExactAmount.map((sub: any) => sub.id) }, "resolveAssociation: fallo asegurando ciclos para desempate");
-  });
-
-  const oldestCycles = await args.db.subscriptionBillingCycle.findMany({
-    where: {
-      subscriptionId: { in: withExactAmount.map((sub: any) => sub.id) },
-      paymentId: null,
-      status: { not: BillingCycleStatus.PAID }
-    },
-    orderBy: [{ dueAt: "asc" }, { periodStartAt: "asc" }, { cycleNumber: "asc" }],
-    take: 1
-  });
-  const oldest = oldestCycles[0];
-  if (!oldest) return null;
-
-  const winner = withExactAmount.find((sub: any) => sub.id === oldest.subscriptionId);
-  if (!winner) return null;
-
-  return {
-    subscriptionId: winner.id,
-    customerId: winner.customerId ?? undefined,
-    score,
-    reason: "IDENTITY_MATCH" as any,
-    criteria: {
-      method: "identity",
-      source: identitySource,
+  logger.warn(
+    {
+      tenantId: args.tenantId || null,
+      customerIds: Array.from(customerIds),
+      subscriptionIds: withExactAmount.map((sub: any) => sub.id),
       amountInCents: incomingAmount,
       currency: incomingCurrency || null,
-      tieBreak: "oldest_unpaid_cycle"
+      source: identitySource
     },
-    cycleNumber: oldest.cycleNumber
-  };
+    "resolveAssociation: coincidencia ambigua por identidad+monto; se omite autoasignacion"
+  );
+  return null;
 }
 
 /**

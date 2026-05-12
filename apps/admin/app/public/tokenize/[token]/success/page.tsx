@@ -1,6 +1,7 @@
 import { PublicCheckoutLayout } from "../../../_components/PublicCheckoutLayout";
 import { PUBLIC_COPY } from "../../../_components/publicCopy";
 import { fetchPublicJsonAcrossBases, getPublicApiBases } from "../../../_components/publicRuntime";
+import { getSafePublicReturnUrl } from "@suscripciones/core/services/publicBase";
 
 export const dynamic = "force-dynamic";
 
@@ -47,12 +48,12 @@ export default async function PublicTokenizeSuccessPage({ params }: { params: Pr
     supportUrl.replace(/^https?:\/\//, "") ||
     "";
   const redirectUrl = (() => {
-    const explicit = String(link?.returnUrl || config?.tokenizationReturnUrl || config?.publicReturnUrl || "").trim();
+    const explicit = getSafePublicReturnUrl(String(link?.returnUrl || config?.tokenizationReturnUrl || config?.publicReturnUrl || "").trim());
     if (explicit) return explicit;
     const linkUrl = String(link?.url || "").trim();
     if (linkUrl) {
       try {
-        return new URL(linkUrl).origin;
+        return `${new URL(linkUrl).origin}/public/return`;
       } catch {}
     }
     return "/";

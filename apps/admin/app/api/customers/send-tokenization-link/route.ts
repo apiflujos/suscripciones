@@ -84,6 +84,9 @@ export async function POST(req: Request) {
     const schedule = await scheduleTokenizationLinkNotifications({
       customerId,
       tokenUrl: created.url,
+      tenantId: String(body?.tenantId || "").trim() || null,
+      planId: operationalPlan?.id || null,
+      productId,
       forceNow: true,
       actor: auth.session.sub
     });

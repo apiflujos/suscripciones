@@ -4,7 +4,7 @@ import { CredentialProvider } from "@prisma/client";
 import { getCredential, getCredentialsBulk } from "@suscripciones/core/services/credentials";
 import { getGlobalModuleAccess } from "@suscripciones/core/services/moduleAccess";
 import { readCheckoutConfig } from "@suscripciones/core/services/checkoutConfig";
-import { getCheckoutBaseUrlsFromEnv, getPublicReturnUrlFromEnv } from "@suscripciones/core/services/publicBase";
+import { getCheckoutBaseUrlsFromEnv, getPublicReturnUrlFromEnv, getSafePublicReturnUrl } from "@suscripciones/core/services/publicBase";
 import { logger } from "@suscripciones/core/lib/logger";
 import { ActiveEnv, maskSecret, toBool, toInt, deriveRetryUnitAndValue } from "../settings/_lib";
 
@@ -26,7 +26,7 @@ export async function getCheckoutConfig() {
     defaultUtmParams: String(checkoutConfig?.defaultUtmParams || ""),
     tokenExpiryHours: Number(checkoutConfig?.tokenExpiryHours || 24),
     timeZone: timeZone || "America/Bogota",
-    tokenizationReturnUrl: storedReturnUrl || getPublicReturnUrlFromEnv(),
+    tokenizationReturnUrl: getSafePublicReturnUrl(storedReturnUrl) || getPublicReturnUrlFromEnv(),
     defaultPlanTemplateId: String(checkoutConfig?.defaultPlanTemplateId || "").trim(),
     defaultSubscriptionTemplateId: String(checkoutConfig?.defaultSubscriptionTemplateId || "").trim(),
     defaultCartTemplateId: String(checkoutConfig?.defaultCartTemplateId || "").trim()

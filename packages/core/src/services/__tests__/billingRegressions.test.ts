@@ -86,7 +86,7 @@ describe("Regression: bugs de producción corregidos", () => {
     expect(result?.id).toBe("may");
   });
 
-  it("REG-005: la conciliación aún puede sugerir un ciclo con paymentId pendiente", () => {
+  it("REG-005: la conciliación prioriza el ciclo cuyo período contiene el pago", () => {
     const result = findBestBillingCycleForPayment({
       paymentAt: new Date("2026-05-20T12:00:00.000Z"),
       cycles: [
@@ -111,6 +111,6 @@ describe("Regression: bugs de producción corregidos", () => {
       ]
     });
 
-    expect(result?.id).toBe("apr");
+    expect(result?.id).toBe("may");
   });
 });

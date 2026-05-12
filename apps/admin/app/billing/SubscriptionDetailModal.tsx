@@ -15,7 +15,7 @@ import { ManualUnmarkPaidButton } from "./ManualUnmarkPaidButton";
 import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
 import { PaymentLinkModalButton } from "./PaymentLinkModalButton";
 import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
-import { formatCivilDate } from "./civilDate";
+import { formatCivilDate, getCivilDayNumber } from "./civilDate";
 
 type SubscriptionDetail = {
   id: string;
@@ -55,6 +55,7 @@ type SubscriptionDetail = {
   graceDays: number;
   suspendDays: number;
   cancelDays: number;
+  currentCollectionDueAt?: string | null;
   duplicateCount?: number;
   canManualCharge?: boolean;
   canManualMarkPaid?: boolean;
@@ -115,6 +116,12 @@ export function SubscriptionDetailModal({
   activateSubscription: (formData: FormData) => void | Promise<void>;
 }) {
   const tenantId = subscription.tenantId ?? undefined;
+  const effectiveChargeDay = getCivilDayNumber(subscription.currentCollectionDueAt || subscription.vencimientoAt);
+  const configuredPaymentDay = Number(subscription.paymentDay || 0) || null;
+  const paymentDayMismatch =
+    effectiveChargeDay != null &&
+    configuredPaymentDay != null &&
+    effectiveChargeDay !== configuredPaymentDay;
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [cyclesOpen, setCyclesOpen] = useState(false);
@@ -312,8 +319,15 @@ export function SubscriptionDetailModal({
                     <div className="contact-value">Día {subscription.cycleStartDay}</div>
                   </div>
                   <div>
-                    <div className="field-hint">Día de pago</div>
-                    <div className="contact-value">Día {subscription.paymentDay}</div>
+                    <div className="field-hint">Día efectivo de cobro</div>
+                    <div className="contact-value">
+                      {effectiveChargeDay != null ? `Día ${effectiveChargeDay}` : "—"}
+                    </div>
+                    {paymentDayMismatch ? (
+                      <div className="field-hint" style={{ marginTop: 4 }}>
+                        Configurado: día {subscription.paymentDay}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>

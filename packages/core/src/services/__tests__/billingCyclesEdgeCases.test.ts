@@ -334,9 +334,8 @@ describe("findBestBillingCycleForPayment", () => {
       ]
     });
 
-    // c2 is overdue (due Mar 5, paying Apr 5), c3 is upcoming (due Apr 10)
-    // Should pick c2 (overdue)
-    expect(result?.id).toBe("c2");
+    // Aunque c2 esté vencido, el pago cae dentro del período del ciclo 3.
+    expect(result?.id).toBe("c3");
   });
 
   it("should match payment to nearest future cycle when paid very early", () => {

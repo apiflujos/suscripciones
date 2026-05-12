@@ -1,6 +1,6 @@
 import { getCredential, getCredentialsBulk } from "@suscripciones/core/services/credentials";
 import { CredentialProvider } from "@prisma/client";
-import { getCheckoutBaseUrlsFromEnv, getPublicReturnUrlFromEnv } from "@suscripciones/core/services/publicBase";
+import { getCheckoutBaseUrlsFromEnv, getPublicReturnUrlFromEnv, getSafePublicReturnUrl } from "@suscripciones/core/services/publicBase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -83,7 +83,7 @@ export async function GET() {
     tokenizationSuccessTitle: String(parsed?.tokenizationSuccessTitle || "").trim() || "",
     tokenizationSuccessMessage: String(parsed?.tokenizationSuccessMessage || "").trim() || "",
     tokenizationErrorMessage: String(parsed?.tokenizationErrorMessage || "").trim() || "",
-    tokenizationReturnUrl: storedReturnUrl || getPublicReturnUrlFromEnv() || "",
+    tokenizationReturnUrl: getSafePublicReturnUrl(storedReturnUrl) || getPublicReturnUrlFromEnv() || "",
     publicReturnUrl: getPublicReturnUrlFromEnv(),
     wompiActiveEnv,
     wompiPublicKey: wompiPublicKey || null,

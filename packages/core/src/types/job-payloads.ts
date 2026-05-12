@@ -55,6 +55,9 @@ export type SubscriptionReminderPayload =
       customerId: string;
       tokenUrl: string;
       anchorAt: string;
+      tenantId?: string;
+      planId?: string;
+      productId?: string;
       subscriptionId?: string;
       paymentId?: string;
       offsetSeconds?: number;

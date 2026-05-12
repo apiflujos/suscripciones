@@ -203,6 +203,11 @@ vi.mock("../../db/prisma", () => {
         }
       },
       paymentAttempt: {
+        count: async ({ where }: any = {}) => {
+          let rows = Object.values(store.paymentAttempt);
+          if (where?.paymentId) rows = rows.filter((p: any) => p.paymentId === where.paymentId);
+          return rows.length;
+        },
         create: async ({ data }: any) => {
           const id = "pa-" + Math.random().toString(36).slice(2, 8);
           store.paymentAttempt[id] = { id, ...data };
@@ -372,6 +377,78 @@ describe("Subscription Billing: Auto-debit validation", () => {
     await expect(
       createAutoDebitTransactionForSubscription({ subscriptionId: "sub-expired" })
     ).rejects.toThrow("subscription_expired");
+  });
+
+  it("should reuse the same payment row and create only one new transaction after a declined attempt", async () => {
+    const { store } = await import("../../db/prisma");
+
+    store.customer["cust-retry"] = {
+      id: "cust-retry",
+      email: "retry@test.com",
+      name: "Retry User",
+      metadata: { wompi: { paymentSourceId: 789 } }
+    };
+
+    store.plan = {
+      "plan-1": {
+        id: "plan-1",
+        tenantId: "tenant-1",
+        name: "Plan",
+        priceInCents: 10000,
+        currency: "COP",
+        metadata: { collectionMode: "AUTO_DEBIT" },
+        intervalUnit: "MONTH",
+        intervalCount: 1
+      }
+    };
+
+    store.subscription["sub-retry"] = {
+      id: "sub-retry",
+      tenantId: "tenant-1",
+      customerId: "cust-retry",
+      planId: "plan-1",
+      status: "ACTIVE",
+      cycleStartDay: 1,
+      paymentDay: 5,
+      paymentTiming: "EN_CURSO",
+      graceDays: 3,
+      metadata: { collectionMode: "AUTO_DEBIT" }
+    };
+
+    seedCycle(store, {
+      id: "cycle-retry",
+      subscriptionId: "sub-retry",
+      cycleNumber: 1,
+      periodStartAt: new Date("2026-04-01"),
+      periodEndAt: new Date("2026-05-01"),
+      dueAt: new Date("2026-04-05"),
+      status: "PENDING"
+    });
+
+    store.payment["pay-retry"] = {
+      id: "pay-retry",
+      tenantId: "tenant-1",
+      customerId: "cust-retry",
+      subscriptionId: "sub-retry",
+      amountInCents: 10000,
+      currency: "COP",
+      cycleNumber: 1,
+      reference: "SUB_sub-retry_1",
+      status: "DECLINED",
+      wompiTransactionId: "tx-old",
+      subscriptionCycleKey: "sub-retry:1",
+      providerResponse: {}
+    };
+
+    const { createAutoDebitTransactionForSubscription } = await import("../../services/subscriptionBilling");
+
+    const result = await createAutoDebitTransactionForSubscription({ subscriptionId: "sub-retry" });
+
+    expect(result.paymentId).toBe("pay-retry");
+    expect(result.wompiTransactionId).toMatch(/^tx-mock-/);
+    expect(store.payment["pay-retry"].wompiTransactionId).toMatch(/^tx-mock-/);
+    expect(store.payment["pay-retry"].reference).not.toBe("SUB_sub-retry_1");
+    expect(Object.keys(store.payment)).toHaveLength(1);
   });
 });
 

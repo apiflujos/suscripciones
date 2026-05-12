@@ -820,14 +820,18 @@ export async function recalcSubscriptionCutoff(args: { subscriptionId: string; t
     }
   });
 
+  const nextBillingState = await resolveSubscriptionBillingState({ subscriptionId, asOf: new Date() }).catch(() => null);
+  const nextCollectionDueAt = nextBillingState?.collectionCycle?.dueAt
+    ? new Date(nextBillingState.collectionCycle.dueAt)
+    : null;
   const collectionMode = resolveSubscriptionCollectionMode(subscription);
-  if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
+  if ((collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") && nextCollectionDueAt) {
     await ensurePaymentRetryJob({
       subscriptionId,
-      runAt: nextEnd <= new Date(Date.now() + 5_000) ? new Date() : nextEnd,
+      runAt: nextCollectionDueAt <= new Date(Date.now() + 5_000) ? new Date() : nextCollectionDueAt,
       maxAttempts: 1
     }).catch((err) => {
-      logger.warn({ err, subscriptionId, runAt: nextEnd }, "Fallo reprogramando retry al recalcular cutoff");
+      logger.warn({ err, subscriptionId, runAt: nextCollectionDueAt }, "Fallo reprogramando retry al recalcular cutoff");
     });
   }
 

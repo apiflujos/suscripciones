@@ -827,10 +827,12 @@ export function findBestBillingCycleForPayment(args: {
     if (direct) return direct;
   }
 
-  const overdue = unpaidCycles.filter((cycle) => cycle.dueAtMs <= paymentTs);
-  if (overdue.length) {
-    overdue.sort((a, b) => a.dueAtMs - b.dueAtMs || a.cycleNumber - b.cycleNumber);
-    return overdue[0];
+  const strictPeriodMatch = unpaidCycles.filter((cycle) => {
+    return paymentTs >= cycle.periodStartMs && paymentTs < cycle.periodEndMs;
+  });
+  if (strictPeriodMatch.length) {
+    strictPeriodMatch.sort((a, b) => a.periodStartMs - b.periodStartMs || a.cycleNumber - b.cycleNumber);
+    return strictPeriodMatch[0];
   }
 
   const withinWindow = unpaidCycles.filter((cycle) => {
@@ -839,8 +841,14 @@ export function findBestBillingCycleForPayment(args: {
     return paymentTs >= start && paymentTs <= end;
   });
   if (withinWindow.length) {
-    withinWindow.sort((a, b) => a.dueAtMs - b.dueAtMs || a.cycleNumber - b.cycleNumber);
+    withinWindow.sort((a, b) => a.periodStartMs - b.periodStartMs || a.cycleNumber - b.cycleNumber);
     return withinWindow[0];
+  }
+
+  const overdue = unpaidCycles.filter((cycle) => cycle.dueAtMs <= paymentTs);
+  if (overdue.length) {
+    overdue.sort((a, b) => a.dueAtMs - b.dueAtMs || a.cycleNumber - b.cycleNumber);
+    return overdue[0];
   }
 
   const nearestFuture = unpaidCycles

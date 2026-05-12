@@ -1203,14 +1203,22 @@ export async function createPlanAndSubscription(formData: FormData) {
       const createdTokenizationLink = await createPublicCheckoutLink({
         customerId: resolvedCustomerId,
         templateId: String(template?.id || ""),
-        planId
+        planId,
+        productId
       });
       const url = String(createdTokenizationLink?.url || "").trim();
       if (!url) throw new Error("public_checkout_create_failed");
 
       let notificationError = "";
       try {
-        const scheduled = await scheduleTokenizationLinkNotifications({ customerId: resolvedCustomerId, tokenUrl: url, forceNow: true });
+        const scheduled = await scheduleTokenizationLinkNotifications({
+          customerId: resolvedCustomerId,
+          tokenUrl: url,
+          tenantId: tenantId || null,
+          planId,
+          productId,
+          forceNow: true
+        });
         notificationError = firstNotificationDeliveryError(scheduled);
       } catch (err: any) {
         logger.warn({ err, customerId: resolvedCustomerId, planId }, "Fallo programando notificaciones de tokenización");
@@ -1417,7 +1425,14 @@ export async function sendWhatsAppTokenizationLink(formData: FormData) {
 
     let notificationError = "";
     try {
-      const scheduled = await scheduleTokenizationLinkNotifications({ customerId, tokenUrl: url, forceNow: true });
+      const scheduled = await scheduleTokenizationLinkNotifications({
+        customerId,
+        tokenUrl: url,
+        tenantId: tenantId || null,
+        planId: resolvedPlanId || null,
+        productId: resolvedProductId || null,
+        forceNow: true
+      });
       notificationError = firstNotificationDeliveryError(scheduled);
     } catch (err: any) {
       logger.warn({ err, customerId, planId: resolvedPlanId || planId, productId: resolvedProductId }, "Fallo programando notificaciones de tokenización en envío manual");

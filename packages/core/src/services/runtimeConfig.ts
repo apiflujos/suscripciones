@@ -1,6 +1,6 @@
 import { CredentialProvider } from "@prisma/client";
 import { getCredential } from "./credentials";
-import { getPublicReturnUrlFromEnv } from "./publicBase";
+import { getPublicReturnUrlFromEnv, getSafePublicReturnUrl } from "./publicBase";
 import { normalizeClockTime } from "../lib/timeZoneScheduling";
 
 type ActiveEnv = "PRODUCTION" | "SANDBOX";
@@ -86,7 +86,7 @@ export async function getWompiRedirectUrl(): Promise<string | undefined> {
   const checkoutConfigRaw = (await getCredential(CredentialProvider.WOMPI, "CHECKOUT_CONFIG")) || "";
   try {
     const parsed = checkoutConfigRaw ? JSON.parse(checkoutConfigRaw) : {};
-    const configured = String(parsed?.tokenizationReturnUrl || "").trim();
+    const configured = getSafePublicReturnUrl(String(parsed?.tokenizationReturnUrl || "").trim());
     if (configured) return configured;
   } catch {
     // ignore malformed config and continue with env fallback

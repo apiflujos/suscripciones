@@ -42,6 +42,7 @@ type SubscriptionDetail = {
   graceDays: number;
   suspendDays: number;
   cancelDays: number;
+  currentCollectionDueAt?: string | null;
   duplicateCount?: number;
   canManualCharge?: boolean;
   canManualMarkPaid?: boolean;

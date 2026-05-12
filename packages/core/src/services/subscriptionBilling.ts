@@ -926,7 +926,42 @@ export async function createAutoDebitTransactionForSubscription(args: {
   }
 
   if (payment.wompiTransactionId && !args.forceNewTransaction) {
-    return { paymentId: payment.id, wompiTransactionId: payment.wompiTransactionId };
+    if (payment.status === PaymentStatus.PENDING) {
+      return { paymentId: payment.id, wompiTransactionId: payment.wompiTransactionId };
+    }
+    if (payment.status === PaymentStatus.APPROVED) {
+      throw new Error("payment_already_approved");
+    }
+    const attemptCount = await prisma.paymentAttempt.count({
+      where: { paymentId: payment.id }
+    });
+    const retrySuffix = `R${Math.max(1, attemptCount + 1)}`;
+    const nextReference = `${reference}_${retrySuffix}`;
+    reference = nextReference;
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        reference: nextReference,
+        wompiTransactionId: null,
+        providerResponse:
+          payment.providerResponse && typeof payment.providerResponse === "object"
+            ? {
+                ...(payment.providerResponse as Record<string, unknown>),
+                retry: {
+                  previousReference: payment.reference,
+                  previousWompiTransactionId: payment.wompiTransactionId,
+                  retriedAt: new Date().toISOString()
+                }
+              }
+            : {
+                retry: {
+                  previousReference: payment.reference,
+                  previousWompiTransactionId: payment.wompiTransactionId,
+                  retriedAt: new Date().toISOString()
+                }
+              }
+      }
+    });
   }
 
   if (payment.wompiTransactionId && args.forceNewTransaction) {
@@ -971,7 +1006,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
         where: { id: payment.id },
         select: { wompiTransactionId: true, status: true }
       });
-      if (existing?.wompiTransactionId) {
+      if (existing?.wompiTransactionId && existing.status === PaymentStatus.PENDING) {
         return { paymentId: payment.id, wompiTransactionId: existing.wompiTransactionId };
       }
       if (existing?.status === PaymentStatus.APPROVED) {
@@ -1037,7 +1072,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
       where: { id: payment.id },
       select: { wompiTransactionId: true, status: true }
     });
-    if (existingAfterLock?.wompiTransactionId) {
+    if (existingAfterLock?.wompiTransactionId && existingAfterLock.status === PaymentStatus.PENDING) {
       await releaseLock();
       return { paymentId: payment.id, wompiTransactionId: existingAfterLock.wompiTransactionId };
     }

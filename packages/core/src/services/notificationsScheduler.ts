@@ -442,7 +442,15 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
   return { scheduled, sentNow, rulesActive: true, errors };
 }
 
-export async function scheduleTokenizationLinkNotifications(args: { customerId: string; tokenUrl: string; forceNow?: boolean; actor?: string }) {
+export async function scheduleTokenizationLinkNotifications(args: {
+  customerId: string;
+  tokenUrl: string;
+  tenantId?: string | null;
+  planId?: string | null;
+  productId?: string | null;
+  forceNow?: boolean;
+  actor?: string;
+}) {
   const customerId = String(args.customerId || "").trim();
   const tokenUrl = String(args.tokenUrl || "").trim();
   if (!customerId || !tokenUrl) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
@@ -474,6 +482,9 @@ export async function scheduleTokenizationLinkNotifications(args: { customerId: 
         customerId,
         tokenUrl,
         anchorAt: anchorIso,
+        tenantId: String(args.tenantId || "").trim() || undefined,
+        planId: String(args.planId || "").trim() || undefined,
+        productId: String(args.productId || "").trim() || undefined,
         immediateSend: args.forceNow
       };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {

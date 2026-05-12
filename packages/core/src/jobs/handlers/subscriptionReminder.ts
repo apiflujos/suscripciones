@@ -587,17 +587,27 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   const checkoutPublicUrl: Record<string, string> = {};
   if (checkoutIds.length) {
     for (const id of checkoutIds) {
-      const planId = subscription?.planId || payment?.subscription?.planId || notificationLinkMeta?.planId || null;
+      const planId =
+        subscription?.planId ||
+        payment?.subscription?.planId ||
+        parsed.data.planId ||
+        notificationLinkMeta?.planId ||
+        null;
       const productId =
         String((subscription as any)?.productId || "") ||
         String((payment as any)?.subscription?.productId || "") ||
+        String(parsed.data.productId || "") ||
         String(notificationLinkMeta?.productId || "") ||
         String((subscription as any)?.plan?.catalogProductId || (subscription as any)?.plan?.metadata?.catalog?.itemId || "") ||
         String((payment as any)?.subscription?.plan?.catalogProductId || (payment as any)?.subscription?.plan?.metadata?.catalog?.itemId || "");
       const targetId =
         id === "AUTO"
           ? await resolveAutoCheckoutTemplateId({
-              tenantId: subscription?.tenantId || payment?.tenantId || String(notificationLinkMeta?.tenantId || "").trim(),
+              tenantId:
+                subscription?.tenantId ||
+                payment?.tenantId ||
+                String(parsed.data.tenantId || "").trim() ||
+                String(notificationLinkMeta?.tenantId || "").trim(),
               trigger: parsed.data.trigger,
               paymentType,
               planId,

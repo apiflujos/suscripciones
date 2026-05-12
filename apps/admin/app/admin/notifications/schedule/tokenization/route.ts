@@ -13,12 +13,23 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const customerId = String(body?.customerId || "").trim();
   const tokenUrl = String(body?.tokenUrl || "").trim();
+  const tenantId = String(body?.tenantId || "").trim();
+  const planId = String(body?.planId || "").trim();
+  const productId = String(body?.productId || "").trim();
   if (!customerId || !tokenUrl) return Response.json({ error: "invalid_payload" }, { status: 400 });
 
   const url = new URL(req.url);
   const forceNow = String(url.searchParams.get("forceNow") ?? "").trim() === "1";
   const compatReq = reqToCompat(req, body);
   const actor = getActorFromReq(compatReq as any);
-  const result = await scheduleTokenizationLinkNotifications({ customerId, tokenUrl, forceNow, actor });
+  const result = await scheduleTokenizationLinkNotifications({
+    customerId,
+    tokenUrl,
+    tenantId: tenantId || null,
+    planId: planId || null,
+    productId: productId || null,
+    forceNow,
+    actor
+  });
   return Response.json({ ok: true, ...result });
 }

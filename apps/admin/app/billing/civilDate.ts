@@ -6,3 +6,10 @@ export function formatCivilDate(value?: string | Date | null, dateStyle: "short"
   const safe = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
   return new Intl.DateTimeFormat("es-CO", { timeZone: "UTC", dateStyle }).format(safe);
 }
+
+export function getCivilDayNumber(value?: string | Date | null) {
+  if (!value) return null;
+  const raw = typeof value === "string" ? value.slice(0, 10) : value.toISOString().slice(0, 10);
+  const [, , day] = raw.split("-").map((part) => Number(part));
+  return Number.isFinite(day) && day > 0 ? day : null;
+}

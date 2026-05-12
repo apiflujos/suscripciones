@@ -49,6 +49,73 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "unknown error";
 }
 
+function clampCalendarDay(value: unknown, fallback = 1) {
+  const numeric = Math.trunc(Number(value || fallback) || fallback);
+  return Math.max(1, Math.min(31, numeric));
+}
+
+function resolveStableReactivationAnchor(args: {
+  now: Date;
+  subscription: {
+    startAt?: Date | null;
+    cycleStartDay?: number | null;
+    paymentDay?: number | null;
+    paymentTiming?: string | null;
+    plan: { intervalUnit: PlanIntervalUnit; intervalCount: number };
+  };
+}) {
+  const cycleStartDay = clampCalendarDay(args.subscription.cycleStartDay, DEFAULT_SUBSCRIPTION_CYCLE_START_DAY);
+  const paymentDay = clampCalendarDay(args.subscription.paymentDay, cycleStartDay);
+  const paymentTiming = normalizePaymentTiming(args.subscription.paymentTiming);
+  const { unit, count } = normalizeInterval(args.subscription.plan.intervalUnit, args.subscription.plan.intervalCount);
+
+  let periodStartAt =
+    unit === "MONTH"
+      ? resolveMonthlyPeriodStart(args.now, cycleStartDay)
+      : resolvePeriodStartFromAnchor(
+          args.now,
+          args.subscription.startAt || args.now,
+          unit,
+          count
+        );
+  let periodEndAt = addIntervalUtc(periodStartAt, args.subscription.plan.intervalUnit, Math.max(1, Math.trunc(args.subscription.plan.intervalCount || 1)));
+  let dueAt =
+    computeDueAtForPeriod({
+      periodStartAt,
+      periodEndAt,
+      cycleStartDay,
+      paymentDay,
+      paymentTiming,
+      intervalUnit: args.subscription.plan.intervalUnit
+    }) || periodEndAt;
+  let skippedCycles = 0;
+
+  while (dueAt.getTime() < args.now.getTime()) {
+    periodStartAt = periodEndAt;
+    periodEndAt = addIntervalUtc(periodStartAt, args.subscription.plan.intervalUnit, Math.max(1, Math.trunc(args.subscription.plan.intervalCount || 1)));
+    dueAt =
+      computeDueAtForPeriod({
+        periodStartAt,
+        periodEndAt,
+        cycleStartDay,
+        paymentDay,
+        paymentTiming,
+        intervalUnit: args.subscription.plan.intervalUnit
+      }) || periodEndAt;
+    skippedCycles += 1;
+  }
+
+  return {
+    periodStartAt,
+    periodEndAt,
+    dueAt,
+    cycleStartDay,
+    paymentDay,
+    paymentTiming,
+    skippedCycles
+  };
+}
+
 export async function createSubscription(args: {
   customerId: string;
   empresaId?: string | null;
@@ -640,34 +707,24 @@ export async function updateSubscriptionStatus(args: {
     if (!subscriptionWithPlan) return { ok: false, status: 404, error: "subscription_not_found" as const };
 
     const now = new Date();
-    const previousBillingState = await resolveSubscriptionBillingState({ subscriptionId }).catch(() => null);
-    const previousCollectionCycle = previousBillingState?.collectionCycle || previousBillingState?.activeCycle || null;
-    const nextPeriodEndAt = addIntervalUtc(
+    const stableAnchor = resolveStableReactivationAnchor({
       now,
-      subscriptionWithPlan.plan.intervalUnit,
-      Math.max(1, Math.trunc(subscriptionWithPlan.plan.intervalCount || 1))
-    );
-    const referenceDueAt = previousCollectionCycle?.dueAt ? new Date(previousCollectionCycle.dueAt) : null;
-    const referencePeriodStartAt = previousCollectionCycle?.periodStartAt ? new Date(previousCollectionCycle.periodStartAt) : null;
-    const fallbackDueAt = computeDueAtForPeriod({
-      periodStartAt: now,
-      periodEndAt: nextPeriodEndAt,
-      cycleStartDay: now.getUTCDate(),
-      paymentDay: subscriptionWithPlan.paymentDay,
-      paymentTiming: normalizePaymentTiming(subscriptionWithPlan.paymentTiming),
-      intervalUnit: subscriptionWithPlan.plan.intervalUnit
+      subscription: {
+        startAt: subscriptionWithPlan.startAt,
+        cycleStartDay: subscriptionWithPlan.cycleStartDay,
+        paymentDay: subscriptionWithPlan.paymentDay,
+        paymentTiming: subscriptionWithPlan.paymentTiming,
+        plan: {
+          intervalUnit: subscriptionWithPlan.plan.intervalUnit,
+          intervalCount: subscriptionWithPlan.plan.intervalCount
+        }
+      }
     });
-    const dueOffsetMs =
-      referenceDueAt && referencePeriodStartAt
-        ? Math.max(0, referenceDueAt.getTime() - referencePeriodStartAt.getTime())
-        : null;
-    const explicitDueAt = dueOffsetMs != null
-      ? new Date(Math.min(nextPeriodEndAt.getTime(), now.getTime() + dueOffsetMs))
-      : fallbackDueAt && !Number.isNaN(fallbackDueAt.getTime())
-        ? new Date(Math.max(now.getTime(), Math.min(nextPeriodEndAt.getTime(), fallbackDueAt.getTime())))
-        : new Date(now);
-    const reactivatedCycleStartDay = now.getUTCDate();
-    const reactivatedPaymentDay = explicitDueAt.getUTCDate();
+    const explicitDueAt = stableAnchor.dueAt;
+    const reactivationPeriodStartAt = stableAnchor.periodStartAt;
+    const nextPeriodEndAt = stableAnchor.periodEndAt;
+    const reactivatedCycleStartDay = stableAnchor.cycleStartDay;
+    const reactivatedPaymentDay = stableAnchor.paymentDay;
     const latestPreservedCycle = await prisma.subscriptionBillingCycle.findFirst({
       where: {
         subscriptionId,
@@ -676,7 +733,7 @@ export async function updateSubscriptionStatus(args: {
       orderBy: { cycleNumber: "desc" },
       select: { cycleNumber: true }
     });
-    const nextCycleNumber = Math.max(1, Number(latestPreservedCycle?.cycleNumber || 0) + 1);
+    const nextCycleNumber = Math.max(1, Number(latestPreservedCycle?.cycleNumber || 0) + 1 + stableAnchor.skippedCycles);
 
     await prisma.subscriptionBillingCycle.deleteMany({
       where: {
@@ -688,9 +745,9 @@ export async function updateSubscriptionStatus(args: {
     await ensureBillingCyclesForSubscriptions([
       {
         id: subscriptionWithPlan.id,
-        startAt: subscriptionWithPlan.startAt,
+        startAt: reactivationPeriodStartAt,
         anchorCycleNumber: nextCycleNumber,
-        anchorPeriodStartAt: now,
+        anchorPeriodStartAt: reactivationPeriodStartAt,
         anchorPeriodEndAt: nextPeriodEndAt,
         anchorDueAt: explicitDueAt,
         cycleStartDay: reactivatedCycleStartDay,
@@ -708,7 +765,7 @@ export async function updateSubscriptionStatus(args: {
       where: { id: subscriptionId },
       data: {
         status: SubscriptionStatus.ACTIVE,
-        startAt: now,
+        startAt: reactivationPeriodStartAt,
         cycleStartDay: reactivatedCycleStartDay,
         paymentDay: reactivatedPaymentDay,
         canceledAt: null,
@@ -717,7 +774,7 @@ export async function updateSubscriptionStatus(args: {
           ...asRecord(subscriptionWithPlan.metadata),
           billingAnchor: {
             cycleNumber: nextCycleNumber,
-            periodStartAt: now.toISOString(),
+            periodStartAt: reactivationPeriodStartAt.toISOString(),
             periodEndAt: nextPeriodEndAt.toISOString(),
             dueAt: explicitDueAt.toISOString(),
             source: "reactivation"
