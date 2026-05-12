@@ -635,7 +635,7 @@ export async function updateSubscriptionStatus(args: {
     }
     const subscriptionWithPlan = await prisma.subscription.findUnique({
       where: { id: subscriptionId },
-      include: { plan: true }
+      include: { plan: true, customer: true }
     });
     if (!subscriptionWithPlan) return { ok: false, status: 404, error: "subscription_not_found" as const };
 
@@ -712,7 +712,17 @@ export async function updateSubscriptionStatus(args: {
         cycleStartDay: reactivatedCycleStartDay,
         paymentDay: reactivatedPaymentDay,
         canceledAt: null,
-        suspendedAt: null
+        suspendedAt: null,
+        metadata: {
+          ...asRecord(subscriptionWithPlan.metadata),
+          billingAnchor: {
+            cycleNumber: nextCycleNumber,
+            periodStartAt: now.toISOString(),
+            periodEndAt: nextPeriodEndAt.toISOString(),
+            dueAt: explicitDueAt.toISOString(),
+            source: "reactivation"
+          }
+        } as Prisma.InputJsonValue
       }
     });
 
@@ -730,7 +740,7 @@ export async function updateSubscriptionStatus(args: {
     if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
       await ensurePaymentRetryJob({
         subscriptionId,
-        runAt: now,
+        runAt: explicitDueAt,
         maxAttempts: 1
       }).catch((err) => {
         logger.warn({ err, subscriptionId }, "Fallo reprogramando cobro al reactivar suscripcion");

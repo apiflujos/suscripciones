@@ -24,6 +24,7 @@
     "migrate:mdv-curated": "node packages/core/src/scripts/migrate-mdv-abril2026.js",
     "reset:mdv-curated": "node packages/core/src/scripts/reset-mdv-curated.js",
     "audit:product-plan-mapping": "npx tsx packages/core/src/scripts/audit-product-plan-mapping.ts",
+    "repair:subscriptions": "npx tsx packages/core/src/scripts/repair-subscriptions.ts",
     "seed:bootstrap": "node scripts/seed_bootstrap.js",
     "seed:demo": "node scripts/seed-demo.js",
     "seed:local": "node scripts/seed_local.js",

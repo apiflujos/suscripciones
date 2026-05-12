@@ -228,7 +228,7 @@ export function createBillingCardHelpers(args: CreateBillingCardHelpersArgs): Bi
   };
 
   const getTokenizationBlockedReason = (row: BillingRow) => {
-    if (!findCheckoutTemplateForRow("SUBSCRIPTION", row)) return "No hay checkout público de débito automático asociado al producto de esta suscripción.";
+    if (!String(row?.productId || "").trim()) return "No hay producto asociado a esta suscripción para generar tokenización.";
     if (!subscriptionBaseUrl) return "Falta configurar la URL base de suscripción en Checkout público.";
     return "";
   };

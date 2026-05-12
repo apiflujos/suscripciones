@@ -381,6 +381,46 @@ describe("findBestBillingCycleForPayment", () => {
   });
 });
 
+describe("resolveConfiguredCollectionCycle business rule", () => {
+  it("keeps a paid April cycle and an unpaid May cycle al día before May 20", () => {
+    const target = resolveConfiguredCollectionCycle({
+      cycles: [
+        {
+          id: "apr",
+          cycleNumber: 1,
+          periodStartAt: new Date("2026-04-01T00:00:00.000Z"),
+          periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
+          dueAt: new Date("2026-04-20T00:00:00.000Z"),
+          paymentId: "pay-apr",
+          status: "PAID"
+        },
+        {
+          id: "may",
+          cycleNumber: 2,
+          periodStartAt: new Date("2026-05-01T00:00:00.000Z"),
+          periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
+          dueAt: new Date("2026-05-20T00:00:00.000Z"),
+          paymentId: null,
+          status: "PENDING"
+        },
+        {
+          id: "jun",
+          cycleNumber: 3,
+          periodStartAt: new Date("2026-06-01T00:00:00.000Z"),
+          periodEndAt: new Date("2026-07-01T00:00:00.000Z"),
+          dueAt: new Date("2026-06-20T00:00:00.000Z"),
+          paymentId: null,
+          status: "PENDING"
+        }
+      ],
+      asOf: new Date("2026-05-12T12:00:00.000Z"),
+      paymentTiming: "EN_CURSO"
+    });
+
+    expect(target?.id).toBe("may");
+  });
+});
+
 describe("resolveConfiguredCollectionCycle", () => {
   const cycles = [
     {

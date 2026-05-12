@@ -76,7 +76,7 @@ describe("computeBillingCycleDueAt", () => {
 });
 
 describe("resolveConfiguredCollectionCycle", () => {
-  it("EN_CURSO: ciclo vencido tiene prioridad sobre ciclo actual", () => {
+  it("EN_CURSO: el ciclo vigente tiene prioridad mientras no venza", () => {
     const cycles = [
       makeCycle(1, {
         startDate: "2026-03-01T00:00:00.000Z",
@@ -102,7 +102,7 @@ describe("resolveConfiguredCollectionCycle", () => {
       paymentTiming: "EN_CURSO"
     });
 
-    expect(result?.cycleNumber).toBe(2);
+    expect(result?.cycleNumber).toBe(3);
   });
 
   it("EN_CURSO: si no hay vencidos devuelve el ciclo actual", () => {

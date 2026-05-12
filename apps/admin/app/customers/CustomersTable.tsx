@@ -235,7 +235,6 @@ export function CustomersTable({
 
     if (action === "TOKEN") {
       if (!productId) return "missing_product_for_customer";
-      if (!findTemplateForCustomer("SUBSCRIPTION", customer, productId)) return "missing_checkout_for_product";
       if (missingSubBase) return "missing_subscription_base_url";
       return isNotificationTemplateConfigured(resolveNotificationTemplate("TOKENIZATION_LINK_CREATED")) ? "" : "missing_template";
     }

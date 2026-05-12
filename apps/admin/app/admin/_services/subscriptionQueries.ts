@@ -198,10 +198,10 @@ export async function listSubscriptions(args: {
     const dueAt = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : periodEndAt;
     // Use the oldest unresolved cycle shape exposed by ResolvedBillingState.
     const nextOpenCycle =
-      billingState?.oldestUnpaidCycle && !isBillingCyclePaid(billingState.oldestUnpaidCycle)
-        ? billingState.oldestUnpaidCycle
-        : collectionCycle && !isBillingCyclePaid(collectionCycle)
-          ? collectionCycle
+      collectionCycle && !isBillingCyclePaid(collectionCycle)
+        ? collectionCycle
+        : billingState?.oldestUnpaidCycle && !isBillingCyclePaid(billingState.oldestUnpaidCycle)
+          ? billingState.oldestUnpaidCycle
           : null;
     const chargeDue = collectionCyclePaid ? false : dueAt ? dueAt.getTime() <= Date.now() + 5_000 : false;
     const isInactive =

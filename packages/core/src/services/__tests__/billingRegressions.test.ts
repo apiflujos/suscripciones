@@ -6,7 +6,7 @@ import {
 } from "../billingCycles";
 
 describe("Regression: bugs de producción corregidos", () => {
-  it("REG-001: cycle vencido en límite de período no queda invisible", () => {
+  it("REG-001: el ciclo vigente manda mientras su dueAt no haya vencido", () => {
     const cycles = [
       {
         id: "apr",
@@ -34,7 +34,7 @@ describe("Regression: bugs de producción corregidos", () => {
       paymentTiming: "EN_CURSO"
     });
 
-    expect(result?.id).toBe("apr");
+    expect(result?.id).toBe("may");
   });
 
   it("REG-002: paymentId sin status PAID no cuenta como pagado", () => {
@@ -55,7 +55,7 @@ describe("Regression: bugs de producción corregidos", () => {
     expect(isBillingCyclePaid(cycleStatusPaidNoId)).toBe(true);
   });
 
-  it("REG-004: un ciclo con paymentId pero status PENDING sigue siendo cobrable", () => {
+  it("REG-004: un arrastre con paymentId pendiente no desplaza al ciclo vigente", () => {
     const cycles = [
       {
         id: "apr",
@@ -83,7 +83,7 @@ describe("Regression: bugs de producción corregidos", () => {
       paymentTiming: "EN_CURSO"
     });
 
-    expect(result?.id).toBe("apr");
+    expect(result?.id).toBe("may");
   });
 
   it("REG-005: la conciliación aún puede sugerir un ciclo con paymentId pendiente", () => {

@@ -18,6 +18,32 @@ export type BillingComputationSeed = {
   plan: { intervalUnit: PlanIntervalUnit; intervalCount: number };
 };
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function parseAnchorDate(value: unknown) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return new Date(value);
+  if (typeof value !== "string" || !value.trim()) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function readBillingAnchorFromMetadata(metadata: unknown) {
+  const root = asRecord(metadata);
+  const anchor = asRecord(root.billingAnchor);
+  const cycleNumber = Number(anchor.cycleNumber);
+  const periodStartAt = parseAnchorDate(anchor.periodStartAt);
+  if (!Number.isFinite(cycleNumber) || !periodStartAt) return null;
+  return {
+    cycleNumber: Math.max(1, Math.trunc(cycleNumber)),
+    periodStartAt,
+    periodEndAt: parseAnchorDate(anchor.periodEndAt),
+    dueAt: parseAnchorDate(anchor.dueAt),
+    source: String(anchor.source || "").trim() || null
+  };
+}
+
 export function buildBillingSeed(input: {
   id: string;
   startAt?: Date | null;
@@ -50,6 +76,32 @@ export function buildBillingSeed(input: {
       intervalCount: input.plan.intervalCount
     }
   };
+}
+
+export function buildBillingSeedFromSubscriptionRecord(input: {
+  id: string;
+  startAt?: Date | null;
+  cycleStartDay: number;
+  paymentDay: number;
+  paymentTiming?: string | null;
+  graceDays: number;
+  metadata?: unknown;
+  plan: { intervalUnit: PlanIntervalUnit; intervalCount: number };
+}) {
+  const anchor = readBillingAnchorFromMetadata(input.metadata);
+  return buildBillingSeed({
+    id: input.id,
+    startAt: input.startAt,
+    anchorCycleNumber: anchor?.cycleNumber ?? null,
+    anchorPeriodStartAt: anchor?.periodStartAt ?? null,
+    anchorPeriodEndAt: anchor?.periodEndAt ?? null,
+    anchorDueAt: anchor?.dueAt ?? null,
+    cycleStartDay: input.cycleStartDay,
+    paymentDay: input.paymentDay,
+    paymentTiming: input.paymentTiming,
+    graceDays: input.graceDays,
+    plan: input.plan
+  });
 }
 
 export type BillingCycleLike = {
@@ -278,9 +330,17 @@ export function resolveConfiguredCollectionCycle(args: {
     return nextFuture || current || unpaid[0];
   }
 
-  // EN_CURSO: si hay ciclos cuyo dueAt ya pasó (mora), retornar el más antiguo.
-  // Esto garantiza que un ciclo vencido de un período anterior tenga máxima prioridad
-  // sobre el ciclo del período actual, aunque éste ya haya comenzado.
+  // EN_CURSO: mientras exista un ciclo vigente iniciado y aún abierto, ese ciclo
+  // gobierna el cobro del período actual aunque existan arrastres históricos.
+  // Esto evita que el sistema marque mora antes de tiempo cuando el nuevo período
+  // ya fue creado y su dueAt todavía no vence.
+  if (current) return current;
+
+  const latestOpen = [...unpaid]
+    .filter((cycle) => new Date(cycle.periodStartAt).getTime() <= asOfTs)
+    .sort((a, b) => new Date(b.periodStartAt).getTime() - new Date(a.periodStartAt).getTime())[0];
+  if (latestOpen) return latestOpen;
+
   const overdue = unpaid.filter((cycle) => {
     const dueTs = cycle.dueAt
       ? new Date(cycle.dueAt).getTime()
@@ -289,10 +349,7 @@ export function resolveConfiguredCollectionCycle(args: {
   });
   if (overdue.length > 0) return overdue[0];
 
-  const latestOpen = [...unpaid]
-    .filter((cycle) => new Date(cycle.periodStartAt).getTime() <= asOfTs)
-    .sort((a, b) => new Date(b.periodStartAt).getTime() - new Date(a.periodStartAt).getTime())[0];
-  return current || latestOpen || unpaid[0];
+  return unpaid[0];
 }
 
 export function isBillingCyclePaid(cycle: { status?: BillingCycleStatus | string | null; paymentId?: string | null } | null | undefined) {
@@ -636,13 +693,14 @@ export async function resolveSubscriptionBillingState(args: {
   if (!subscription) return null;
 
   await ensureBillingCyclesForSubscriptions([
-    buildBillingSeed({
+    buildBillingSeedFromSubscriptionRecord({
       id: subscription.id,
       startAt: subscription.startAt,
       cycleStartDay: subscription.cycleStartDay,
       paymentDay: subscription.paymentDay,
       paymentTiming: subscription.paymentTiming as any,
       graceDays: subscription.graceDays,
+      metadata: subscription.metadata,
       plan: {
         intervalUnit: subscription.plan.intervalUnit,
         intervalCount: subscription.plan.intervalCount
@@ -811,13 +869,14 @@ export async function attachPaymentToMatchingCycle(args: {
   if (!subscription) return { ok: false as const, error: "subscription_not_found" as const };
 
   await ensureBillingCyclesForSubscriptions([
-    buildBillingSeed({
+    buildBillingSeedFromSubscriptionRecord({
       id: subscription.id,
       startAt: subscription.startAt,
       cycleStartDay: subscription.cycleStartDay,
       paymentDay: subscription.paymentDay,
       paymentTiming: subscription.paymentTiming as any,
       graceDays: subscription.graceDays,
+      metadata: subscription.metadata,
       plan: { intervalUnit: subscription.plan.intervalUnit, intervalCount: subscription.plan.intervalCount }
     })
   ]).catch((err) => {
