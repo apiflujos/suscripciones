@@ -234,7 +234,7 @@ export async function ensureExpiredSubscriptions() {
   const now = new Date();
   const candidates = await prisma.subscription.findMany({
     where: {
-      status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED] }
+      status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED, SubscriptionStatus.EXPIRED] }
     },
     select: {
       id: true,
@@ -262,9 +262,9 @@ export async function ensureExpiredSubscriptions() {
       asOf: now
     });
 
-    // SUSPENDED/CANCELED lifecycle is disabled: recover suspended subscriptions back into the billing flow.
+    // SUSPENDED/EXPIRED lifecycle is disabled: recover those subscriptions back into the billing flow.
     if (
-      sub.status === SubscriptionStatus.SUSPENDED
+      sub.status === SubscriptionStatus.SUSPENDED || sub.status === SubscriptionStatus.EXPIRED
     ) {
       await prisma.subscription.update({
         where: { id: sub.id },
@@ -325,7 +325,7 @@ export async function handleSubscriptionPaymentFailure(subscriptionId: string, e
       metadata: true
     }
   });
-  if (!sub || sub.status === SubscriptionStatus.CANCELED || sub.status === SubscriptionStatus.EXPIRED) return;
+  if (!sub || sub.status === SubscriptionStatus.CANCELED) return;
   const automation = await resolveEffectiveSubscriptionAutomationConfig(sub).catch(() => null);
   const graceDays = Math.max(0, Math.trunc(Number(automation?.graceDays ?? 5)));
 
@@ -405,7 +405,6 @@ export async function createPaymentLinkForSubscription(args: {
   if (!tenantId) throw new Error("tenant_required");
   if (sub.status === SubscriptionStatus.CANCELED) throw new Error("subscription_canceled");
   if (sub.status === SubscriptionStatus.SUSPENDED) throw new Error("subscription_suspended");
-  if (sub.status === SubscriptionStatus.EXPIRED) throw new Error("subscription_expired");
 
   // FIX: Validar moneda antes de crear payment link
   const currency = validateWompiCurrency(sub.plan.currency);
@@ -804,7 +803,6 @@ export async function createAutoDebitTransactionForSubscription(args: {
   if (!tenantId) throw new Error("tenant_required");
   if (sub.status === SubscriptionStatus.CANCELED) throw new Error("subscription_canceled");
   if (sub.status === SubscriptionStatus.SUSPENDED) throw new Error("subscription_suspended");
-  if (sub.status === SubscriptionStatus.EXPIRED) throw new Error("subscription_expired");
 
   const collectionMode = resolveSubscriptionCollectionMode(sub);
   if (collectionMode !== "AUTO_DEBIT") {
