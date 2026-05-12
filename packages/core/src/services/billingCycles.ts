@@ -69,6 +69,22 @@ export type ResolvedBillingState = {
   oldestUnpaidCycle: BillingCycleLike | null;
 };
 
+export function hasExplicitBillingAnchor(sub: BillingComputationSeed) {
+  return (
+    sub.anchorCycleNumber != null ||
+    sub.anchorPeriodStartAt instanceof Date ||
+    sub.anchorPeriodEndAt instanceof Date ||
+    sub.anchorDueAt instanceof Date
+  );
+}
+
+export function resolveCyclesBackfillWindow(sub: BillingComputationSeed, requestedCyclesBack: number) {
+  if (hasExplicitBillingAnchor(sub)) {
+    return Math.max(0, Math.trunc(requestedCyclesBack || 0));
+  }
+  return Math.max(requestedCyclesBack, Math.max(1, Math.trunc(sub.anchorCycleNumber || 1)) - 1);
+}
+
 export type CollectionDelinquencyStatus = "AL_DIA" | "EN_GRACIA" | "EN_MORA";
 
 function daysInMonth(year: number, month0: number) {
@@ -479,7 +495,7 @@ export async function ensureBillingCyclesForSubscriptions(subs: BillingComputati
       existingCycles: existingCyclesBySubscription.get(rawSub.id) || [],
       asOf: new Date()
     });
-    const safeCyclesBack = Math.max(cyclesBack, Math.max(1, Math.trunc(sub.anchorCycleNumber || 1)) - 1);
+    const safeCyclesBack = resolveCyclesBackfillWindow(rawSub, cyclesBack);
     const cycles = await applyConfiguredExecutionSchedule(buildBillingCyclesForSubscription(sub, safeCyclesBack, cyclesForward));
     const existingByCycle = new Map(
       (existingCyclesBySubscription.get(rawSub.id) || []).map((cycle) => [cycle.cycleNumber, cycle] as const)

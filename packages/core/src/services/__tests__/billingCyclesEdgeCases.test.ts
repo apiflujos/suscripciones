@@ -11,6 +11,7 @@ import {
   computeBillingCycleDueAt,
   buildBillingCyclesForSubscription,
   findBestBillingCycleForPayment,
+  resolveCyclesBackfillWindow,
   normalizeBillingSeed,
   resolveConfiguredCollectionCycle
 } from "../billingCycles";
@@ -126,6 +127,31 @@ describe("computeBillingCycleDueAt", () => {
 });
 
 describe("buildBillingCyclesForSubscription", () => {
+  it("should not backfill historical unpaid cycles when reactivation provides an explicit anchor", () => {
+    const sub = createBillingSeed({
+      startAt: new Date("2025-01-01T00:00:00.000Z"),
+      anchorCycleNumber: 8,
+      anchorPeriodStartAt: new Date("2026-05-07T00:00:00.000Z"),
+      anchorPeriodEndAt: new Date("2026-06-07T00:00:00.000Z"),
+      anchorDueAt: new Date("2026-05-26T00:00:00.000Z"),
+      cycleStartDay: 7,
+      paymentDay: 26,
+      paymentTiming: "EN_CURSO"
+    });
+
+    expect(resolveCyclesBackfillWindow(sub as any, 0)).toBe(0);
+  });
+
+  it("should still allow historical backfill when the caller requests it explicitly", () => {
+    const sub = createBillingSeed({
+      anchorCycleNumber: 8,
+      anchorPeriodStartAt: new Date("2026-05-07T00:00:00.000Z"),
+      anchorPeriodEndAt: new Date("2026-06-07T00:00:00.000Z")
+    });
+
+    expect(resolveCyclesBackfillWindow(sub as any, 3)).toBe(3);
+  });
+
   it("should infer the effective current cycle from historical anchors", () => {
     const sub = createBillingSeed({
       startAt: new Date("2026-03-19T07:24:55.034Z"),
