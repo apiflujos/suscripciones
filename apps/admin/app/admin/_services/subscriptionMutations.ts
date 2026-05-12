@@ -610,29 +610,11 @@ export async function updateSubscriptionStatus(args: {
   }
 
   if (args.action === "suspend") {
-    if (existing.status === SubscriptionStatus.CANCELED) return { ok: false, status: 409, error: "subscription_canceled" as const };
-    if (existing.status === SubscriptionStatus.EXPIRED) return { ok: false, status: 409, error: "subscription_expired" as const };
-    if (existing.status === SubscriptionStatus.SUSPENDED) return { ok: false, status: 409, error: "subscription_already_suspended" as const };
-    const updated = await prisma.subscription.update({
-      where: { id: subscriptionId },
-      data: { status: SubscriptionStatus.SUSPENDED, suspendedAt: new Date() }
-    });
-    await systemLog(LogLevel.INFO, "subscriptions.suspend", "Subscription suspended", { subscriptionId }).catch((err) => {
-      logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al suspender suscripcion");
-    });
-    return { ok: true, subscription: updated };
+    return { ok: false, status: 409, error: "subscription_suspend_disabled" as const };
   }
 
   if (args.action === "cancel") {
-    if (existing.status === SubscriptionStatus.CANCELED) return { ok: false, status: 409, error: "subscription_already_canceled" as const };
-    const updated = await prisma.subscription.update({
-      where: { id: subscriptionId },
-      data: { status: SubscriptionStatus.CANCELED, canceledAt: new Date(), suspendedAt: null }
-    });
-    await systemLog(LogLevel.INFO, "subscriptions.cancel", "Subscription canceled", { subscriptionId }).catch((err) => {
-      logger.warn({ err, subscriptionId }, "Fallo escribiendo systemLog al cancelar suscripcion");
-    });
-    return { ok: true, subscription: updated };
+    return { ok: false, status: 409, error: "subscription_cancel_disabled" as const };
   }
 
   if (args.action === "resume") {

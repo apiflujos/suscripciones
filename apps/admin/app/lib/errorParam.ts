@@ -30,6 +30,12 @@ export function normalizeErrorParam(input?: string | null) {
   if (norm.includes("subscription_not_suspended")) {
     return "Solo puedes reanudar suscripciones suspendidas.";
   }
+  if (norm.includes("subscription_suspend_disabled")) {
+    return "La suspensión manual está deshabilitada.";
+  }
+  if (norm.includes("subscription_cancel_disabled")) {
+    return "La cancelación manual está deshabilitada.";
+  }
   if (norm.includes("subscription_not_reactivatable")) {
     return "Solo puedes reactivar suscripciones canceladas o expiradas.";
   }

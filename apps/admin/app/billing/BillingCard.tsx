@@ -363,7 +363,7 @@ export function BillingCard({ row, context }: BillingCardProps) {
             </form>
           ) : (
             <>
-              <form action={context.actions.cancelSubscription}>
+              <form hidden action={context.actions.cancelSubscription}>
                 <input type="hidden" name="csrf" value={context.data.csrfToken} />
                 <input type="hidden" name="subscriptionId" value={row.id} />
                 {row.tenantId ? <input type="hidden" name="tenantId" value={row.tenantId} /> : null}
@@ -371,7 +371,7 @@ export function BillingCard({ row, context }: BillingCardProps) {
                   Cancelar
                 </button>
               </form>
-              <form action={context.actions.suspendSubscription}>
+              <form hidden action={context.actions.suspendSubscription}>
                 <input type="hidden" name="csrf" value={context.data.csrfToken} />
                 <input type="hidden" name="subscriptionId" value={row.id} />
                 {row.tenantId ? <input type="hidden" name="tenantId" value={row.tenantId} /> : null}

@@ -252,8 +252,6 @@ export async function ensureExpiredSubscriptions() {
   for (const sub of candidates) {
     const automation = await resolveEffectiveSubscriptionAutomationConfig(sub).catch(() => null);
     const graceDays = Math.max(0, Math.trunc(Number(automation?.graceDays ?? 5)));
-    const suspendDays = Math.max(0, Math.trunc(Number(automation?.suspendDays ?? 15)));
-    const cancelDays = Math.max(0, Math.trunc(Number(automation?.cancelDays ?? 30)));
     const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id }).catch(() => null);
     const collectionCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
 
@@ -264,11 +262,24 @@ export async function ensureExpiredSubscriptions() {
       asOf: now
     });
 
-    // CRITICAL: If most recent cycle is paid but subscription is PAST_DUE, recover to ACTIVE
+    // SUSPENDED/CANCELED lifecycle is disabled: recover suspended subscriptions back into the billing flow.
     if (
-      (sub.status === SubscriptionStatus.PAST_DUE || sub.status === SubscriptionStatus.SUSPENDED) &&
-      isBillingCyclePaid(collectionCycle)
+      sub.status === SubscriptionStatus.SUSPENDED
     ) {
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        data: {
+          status: isBillingCyclePaid(collectionCycle) ? SubscriptionStatus.ACTIVE : SubscriptionStatus.PAST_DUE,
+          suspendedAt: null,
+          canceledAt: null
+        }
+      });
+      recoveredToActive += 1;
+      continue;
+    }
+
+    // CRITICAL: If most recent cycle is paid but subscription is PAST_DUE, recover to ACTIVE
+    if (sub.status === SubscriptionStatus.PAST_DUE && isBillingCyclePaid(collectionCycle)) {
       await prisma.subscription.update({
         where: { id: sub.id },
         data: { status: SubscriptionStatus.ACTIVE, suspendedAt: null, canceledAt: null }
@@ -283,29 +294,6 @@ export async function ensureExpiredSubscriptions() {
         data: { status: SubscriptionStatus.PAST_DUE }
       });
       toPastDue += 1;
-      continue;
-    }
-
-    const dueAt = new Date(collectionCycle?.dueAt || now);
-    const suspendedCutoff = new Date(
-      dueAt.getTime() + (graceDays + suspendDays) * 24 * 60 * 60 * 1000
-    );
-    if (sub.status === SubscriptionStatus.PAST_DUE && suspendedCutoff.getTime() < now.getTime() && !isBillingCyclePaid(collectionCycle)) {
-      await prisma.subscription.update({
-        where: { id: sub.id },
-        data: { status: SubscriptionStatus.SUSPENDED, suspendedAt: now }
-      });
-      toSuspended += 1;
-      continue;
-    }
-
-    const canceledCutoff = new Date(suspendedCutoff.getTime() + cancelDays * 24 * 60 * 60 * 1000);
-    if (sub.status === SubscriptionStatus.SUSPENDED && canceledCutoff.getTime() < now.getTime() && !isBillingCyclePaid(collectionCycle)) {
-      await prisma.subscription.update({
-        where: { id: sub.id },
-        data: { status: SubscriptionStatus.CANCELED, canceledAt: now, suspendedAt: null }
-      });
-      toCanceled += 1;
     }
   }
 

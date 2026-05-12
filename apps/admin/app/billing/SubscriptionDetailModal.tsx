@@ -160,7 +160,7 @@ export function SubscriptionDetailModal({
   const showTokenizationLink = isAutoDebit && !isInactive;
   const showResume = subscription.status === "SUSPENDED";
   const showActivate = isReactivatable;
-  const showCancelSuspend = !showResume && !showActivate;
+  const showCancelSuspend = false;
   const paymentMethodHref = `/customers/${encodeURIComponent(String(subscription.customerId || ""))}/payment-method?returnTo=${encodeURIComponent(returnTo)}`;
 
   return (
