@@ -112,7 +112,7 @@ async function resolveAutoCheckoutTemplateId(args: {
   if (!resolvedProductId && planId) {
     const plan = await prisma.subscriptionPlan.findUnique({
       where: { id: planId },
-      select: { metadata: true }
+      select: { catalogProductId: true, metadata: true }
     });
     resolvedProductId = String((plan as any)?.catalogProductId || (plan?.metadata as any)?.catalog?.itemId || "");
   }
@@ -567,6 +567,12 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   }
 
   const meta = readCustomerMetadata(customer?.metadata);
+  const notificationLinkMeta =
+    parsed.data.trigger === "TOKENIZATION_LINK_CREATED"
+      ? meta?.tokenizationLink
+      : parsed.data.trigger === "CATALOG_LINK_CREATED"
+        ? meta?.cartLink
+        : meta?.paymentLink;
   const templatePaths = extractTemplatePaths([template.content || "", template.chatwootTemplate || null]);
   const checkoutIds = Array.from(
     new Set(
@@ -581,16 +587,17 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   const checkoutPublicUrl: Record<string, string> = {};
   if (checkoutIds.length) {
     for (const id of checkoutIds) {
-      const planId = subscription?.planId || payment?.subscription?.planId || null;
+      const planId = subscription?.planId || payment?.subscription?.planId || notificationLinkMeta?.planId || null;
       const productId =
         String((subscription as any)?.productId || "") ||
         String((payment as any)?.subscription?.productId || "") ||
+        String(notificationLinkMeta?.productId || "") ||
         String((subscription as any)?.plan?.catalogProductId || (subscription as any)?.plan?.metadata?.catalog?.itemId || "") ||
         String((payment as any)?.subscription?.plan?.catalogProductId || (payment as any)?.subscription?.plan?.metadata?.catalog?.itemId || "");
       const targetId =
         id === "AUTO"
           ? await resolveAutoCheckoutTemplateId({
-              tenantId: subscription?.tenantId || payment?.tenantId || "",
+              tenantId: subscription?.tenantId || payment?.tenantId || String(notificationLinkMeta?.tenantId || "").trim(),
               trigger: parsed.data.trigger,
               paymentType,
               planId,
