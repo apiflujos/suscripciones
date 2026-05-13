@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { UpdateCustomerActionResult } from "./actions";
 import { PendingButton } from "../ui/PendingButton";
 import { AppModal } from "../ui/AppModal";
 
@@ -28,7 +29,7 @@ export function CustomerEditModal({
   tenants: Array<{ id: string; name: string }>;
   csrfToken: string;
   returnTo: string;
-  updateCustomer: (formData: FormData) => Promise<{ ok: true; redirectTo: string } | { ok: false; error: string }>;
+  updateCustomer: (formData: FormData) => Promise<UpdateCustomerActionResult>;
   open: boolean;
   onClose: () => void;
 }) {

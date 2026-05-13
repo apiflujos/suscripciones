@@ -100,7 +100,11 @@ export async function createCustomer(formData: FormData) {
   }
 }
 
-export async function updateCustomer(formData: FormData) {
+export type UpdateCustomerActionResult =
+  | { ok: true; redirectTo: string }
+  | { ok: false; error: string };
+
+export async function updateCustomer(formData: FormData): Promise<UpdateCustomerActionResult> {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   const id = String(formData.get("id") || "").trim();
