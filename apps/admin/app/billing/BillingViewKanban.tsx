@@ -94,31 +94,19 @@ export function BillingViewKanban({ rows, context }: BillingViewKanbanProps) {
                   </SubscriptionDetailModalWrapper>
                   <div className="billing-kanban-card-actions">
                     {!isInactive && !isAutoDebit ? (
-                      context.helpers.resolveRowCheckoutUrl(row) ? (
-                        <a
-                          className="ghost btn-compact btn-send btn-highlight"
-                          href={context.helpers.resolveRowCheckoutUrl(row)}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="Abrir link de pago"
-                        >
-                          Abrir link
-                        </a>
-                      ) : (
-                        <PaymentLinkModalButton
-                          subscriptionId={row.id}
-                          customerId={row.customerId}
-                          tenantId={row.tenantId}
-                          csrfToken={context.data.csrfToken}
-                          returnTo={context.data.returnTo}
-                          defaultAmountPesos={Math.trunc(Number(row.totalInCents || row.montoInCents || 0) / 100)}
-                          notificationTemplates={context.data.notificationsTemplates}
-                          notificationRules={context.data.notificationsRules}
-                          paymentType="SUBSCRIPTION"
-                          blockedReason={context.helpers.getPaymentLinkBlockedReason(row)}
-                          action={context.actions.sendWhatsAppPaymentLink}
-                        />
-                      )
+                      <PaymentLinkModalButton
+                        subscriptionId={row.id}
+                        customerId={row.customerId}
+                        tenantId={row.tenantId}
+                        csrfToken={context.data.csrfToken}
+                        returnTo={context.data.returnTo}
+                        defaultAmountPesos={Math.trunc(Number(row.totalInCents || row.montoInCents || 0) / 100)}
+                        notificationTemplates={context.data.notificationsTemplates}
+                        notificationRules={context.data.notificationsRules}
+                        paymentType="SUBSCRIPTION"
+                        blockedReason={context.helpers.getPaymentLinkBlockedReason(row)}
+                        action={context.actions.sendWhatsAppPaymentLink}
+                      />
                     ) : null}
                     {isAutoDebit && !isInactive ? (
                       <TokenizationLinkModalButton

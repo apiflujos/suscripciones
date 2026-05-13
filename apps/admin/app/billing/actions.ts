@@ -1316,7 +1316,7 @@ export async function sendWhatsAppPaymentLink(formData: FormData) {
           ? res.paymentId.trim()
           : "";
       const scheduled = paymentId
-        ? await schedulePaymentLinkNotifications({ paymentId, forceNow: true })
+        ? await schedulePaymentLinkNotifications({ paymentId, paymentLinkUrl: publicUrl, forceNow: true })
         : null;
       const chatwootError = firstNotificationDeliveryError(scheduled);
       if (chatwootError) {

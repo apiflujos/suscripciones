@@ -377,17 +377,6 @@ export function BillingCard({ row, context }: BillingCardProps) {
             {createdPaymentForRow ? <span>Link de pago creado.</span> : null}
             {chargedForRow ? <span>Cobro manual en proceso.</span> : null}
             {chargeDateScheduledForRow ? <span>Fecha de pago actualizada.</span> : null}
-            {!isAutoDebit && rowCheckoutUrl ? (
-              <a
-                className="ghost btn-compact btn-send btn-highlight"
-                href={rowCheckoutUrl}
-                target="_blank"
-                rel="noreferrer"
-                title="Abrir link de pago"
-              >
-                Abrir link
-              </a>
-            ) : null}
           </div>
         ) : null}
         {tenantsUpdatedForRow ? <div className="field-hint">Canales actualizados.</div> : null}

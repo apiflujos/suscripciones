@@ -472,30 +472,18 @@ export function SubscriptionDetailModal({
 
             <div className="module-footer">
               {showPaymentLinkButton ? (
-                subscription.currentCheckoutUrl ? (
-                  <a
-                    className="ghost btn-compact btn-send btn-highlight"
-                    href={subscription.currentCheckoutUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    title="Abrir link de pago"
-                  >
-                    Abrir link
-                  </a>
-                ) : (
-                  <PaymentLinkModalButton
-                    subscriptionId={subscription.id}
-                    customerId={subscription.customerId}
-                    tenantId={tenantId}
-                    csrfToken={csrfToken}
-                    returnTo={returnTo}
-                    defaultAmountPesos={Math.trunc(subscription.totalInCents / 100)}
-                    notificationTemplates={notificationsTemplates}
-                    notificationRules={notificationsRules}
-                    paymentType="SUBSCRIPTION"
-                    action={sendWhatsAppPaymentLink}
-                  />
-                )
+                <PaymentLinkModalButton
+                  subscriptionId={subscription.id}
+                  customerId={subscription.customerId}
+                  tenantId={tenantId}
+                  csrfToken={csrfToken}
+                  returnTo={returnTo}
+                  defaultAmountPesos={Math.trunc(subscription.totalInCents / 100)}
+                  notificationTemplates={notificationsTemplates}
+                  notificationRules={notificationsRules}
+                  paymentType="SUBSCRIPTION"
+                  action={sendWhatsAppPaymentLink}
+                />
               ) : null}
               {showTokenizationLink ? (
                 <TokenizationLinkModalButton
