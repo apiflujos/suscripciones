@@ -57,6 +57,9 @@ export class ChatwootClient {
       e164 = `+${digits}`;
     } else if (value.startsWith("00")) {
       e164 = `+${digits.slice(2)}`;
+    } else if (digits.length >= 11 && digits.length <= 15) {
+      // Accept already-complete international numbers that come without '+'.
+      e164 = `+${digits}`;
     } else {
       const defaultCode = String(
         process.env.CHATWOOT_DEFAULT_COUNTRY_CODE || process.env.DEFAULT_PHONE_COUNTRY_CODE || ""
