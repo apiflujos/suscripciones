@@ -847,34 +847,38 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
     offsetSeconds: parsed.data.offsetSeconds
   });
 
+  const allowManualImmediateResend = Boolean(parsed.data.immediateSend);
+
   // Best-effort dedupe (without a DB-level constraint): if the same message exists recently, skip.
-  const existing = await prisma.chatwootMessage.findFirst({
-    where: {
-      customerId: customer.id,
-      subscriptionId: subscription?.id ?? effectivePayment?.subscriptionId ?? null,
-      paymentId: effectivePayment?.id ?? null,
-      type: template.chatwootType as ChatwootMessageType,
-      status: { in: [MessageStatus.PENDING, MessageStatus.SENT] },
-      createdAt: { gt: new Date(Date.now() - 7 * 24 * 60 * 60_000) },
-      AND: [
-        { providerResp: { path: ["meta", "ruleId"], equals: rule.id } as any },
-        { providerResp: { path: ["meta", "templateId"], equals: template.id } as any }
-      ]
-    },
-    select: { id: true }
-  });
-  if (existing) {
-    await systemLog(LogLevel.WARN, "notifications.dispatch", "Mensaje duplicado; omitido", {
-      ruleId: rule.id,
-      templateId: template.id,
-      trigger: parsed.data.trigger,
-      customerId: customer.id,
-      subscriptionId: subscription?.id ?? null,
-      paymentId: effectivePayment?.id ?? null
-    }, "job:subscriptionReminder").catch((err: any) => {
-      logger.warn({ err, customerId: customer.id, paymentId: effectivePayment?.id ?? null }, "subscriptionReminder: fallo escribiendo systemLog de mensaje duplicado");
+  if (!allowManualImmediateResend) {
+    const existing = await prisma.chatwootMessage.findFirst({
+      where: {
+        customerId: customer.id,
+        subscriptionId: subscription?.id ?? effectivePayment?.subscriptionId ?? null,
+        paymentId: effectivePayment?.id ?? null,
+        type: template.chatwootType as ChatwootMessageType,
+        status: { in: [MessageStatus.PENDING, MessageStatus.SENT] },
+        createdAt: { gt: new Date(Date.now() - 7 * 24 * 60 * 60_000) },
+        AND: [
+          { providerResp: { path: ["meta", "ruleId"], equals: rule.id } as any },
+          { providerResp: { path: ["meta", "templateId"], equals: template.id } as any }
+        ]
+      },
+      select: { id: true }
     });
-    return { ok: false, skipped: true, error: "duplicate" };
+    if (existing) {
+      await systemLog(LogLevel.WARN, "notifications.dispatch", "Mensaje duplicado; omitido", {
+        ruleId: rule.id,
+        templateId: template.id,
+        trigger: parsed.data.trigger,
+        customerId: customer.id,
+        subscriptionId: subscription?.id ?? null,
+        paymentId: effectivePayment?.id ?? null
+      }, "job:subscriptionReminder").catch((err: any) => {
+        logger.warn({ err, customerId: customer.id, paymentId: effectivePayment?.id ?? null }, "subscriptionReminder: fallo escribiendo systemLog de mensaje duplicado");
+      });
+      return { ok: false, skipped: true, error: "duplicate" };
+    }
   }
 
   const resolvedTenantId =
