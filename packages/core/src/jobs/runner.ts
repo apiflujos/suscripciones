@@ -8,7 +8,6 @@ import { paymentRetry } from "./handlers/paymentRetry";
 import { subscriptionReminder } from "./handlers/subscriptionReminder";
 import { systemLog, SystemActor } from "../services/systemLog";
 import { getAutoDebitConfig, getShopifyForward, getShopifyForwardRetryConfig } from "../services/runtimeConfig";
-import { resolveEffectiveSubscriptionAutomationConfigById } from "../services/subscriptionAutomationConfig";
 import { billingMonthlyReport } from "./handlers/billingMonthlyReport";
 import { sendCampaign } from "./handlers/sendCampaign";
 import { syncSmartLists } from "./handlers/syncSmartLists";
@@ -759,14 +758,10 @@ async function runOnce() {
         let runAt: Date | undefined = status === RetryJobStatus.PENDING ? nextRunAt(attempts) : undefined;
         if (job.type === RetryJobType.PAYMENT_RETRY) {
           const subId = (job.payload as PaymentRetryPayload | null | undefined)?.subscriptionId;
-          const cfg = subId
-            ? await resolveEffectiveSubscriptionAutomationConfigById(subId).catch(() => getAutoDebitConfig())
-            : await getAutoDebitConfig();
-          const shouldRetryOnce = Boolean(cfg.retryEnabled) && attempts === 1;
-          status = shouldRetryOnce ? RetryJobStatus.PENDING : RetryJobStatus.FAILED;
-          runAt = shouldRetryOnce ? nextRunAtMinutes(cfg.retryEveryMinutes) : undefined;
+          status = RetryJobStatus.FAILED;
+          runAt = undefined;
 
-          if (subId && status === RetryJobStatus.FAILED) {
+          if (subId) {
             await handleSubscriptionPaymentFailure(subId, errMsg).catch((err) => {
               logger.warn({ err, subscriptionId: subId }, '[Jobs/Runner] Fallo manejando pago fallido');
             });

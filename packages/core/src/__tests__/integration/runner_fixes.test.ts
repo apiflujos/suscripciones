@@ -105,14 +105,15 @@ describe("Webhook Route: Job deduplication (Fix #3)", () => {
   });
 });
 
-describe("Runner: single payment retry scheduling", () => {
-  it("should only allow one automatic retry after the scheduled attempt fails", async () => {
+describe("Runner: payment retry scheduling", () => {
+  it("should not auto-reschedule PAYMENT_RETRY after the scheduled attempt fails", async () => {
     const fs = await import("fs");
     const path = await import("path");
     const runnerPath = path.resolve(__dirname, "../../jobs/runner.ts");
     const content = fs.readFileSync(runnerPath, "utf-8");
 
-    expect(content).toContain("const shouldRetryOnce = Boolean(cfg.retryEnabled) && attempts === 1;");
+    expect(content).toContain("status = RetryJobStatus.FAILED;");
+    expect(content).not.toContain("resolveEffectiveSubscriptionAutomationConfigById");
     expect(content).not.toContain("attempts <= cfg.maxRetries");
   });
 
