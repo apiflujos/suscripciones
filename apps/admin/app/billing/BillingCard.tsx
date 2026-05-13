@@ -22,9 +22,14 @@ export function buildSubscriptionDetail(row: BillingRow, context: BillingCardCon
     context.state.checkoutCustomerId && context.state.checkoutCustomerId === row.customerId
       ? context.state.tokenUrl
       : "";
+  const currentCollectionDueAt =
+    row.currentCollectionDueAt instanceof Date
+      ? row.currentCollectionDueAt.toISOString()
+      : row.currentCollectionDueAt ?? null;
 
   return {
     ...row,
+    currentCollectionDueAt,
     currentCheckoutUrl: context.helpers.resolveRowCheckoutUrl(row),
     currentTokenUrl: context.helpers.resolveRowTokenUrl(row, transientTokenUrl)
   };
