@@ -28,6 +28,27 @@ function inferButtonType(components: unknown, index: number, fallback?: unknown)
   return inferred || "url";
 }
 
+function normalizeButtonParameter(components: unknown, index: number, parameter: string): string {
+  const value = normalizeText(parameter);
+  if (!value) return "";
+  const button = getButtonComponents(components)[index] || null;
+  const templateUrl = normalizeText(button?.url);
+  if (!templateUrl || !/\{\{\s*\d+\s*\}\}/.test(templateUrl)) return value;
+
+  const match = templateUrl.match(/^(.*)\{\{\s*\d+\s*\}\}(.*)$/);
+  if (!match) return value;
+  const prefix = match[1] || "";
+  const suffix = match[2] || "";
+  if (!/^https?:\/\//i.test(value)) return value;
+  if (prefix && !value.startsWith(prefix)) return value;
+  if (suffix && !value.endsWith(suffix)) return value;
+
+  let extracted = value;
+  if (prefix) extracted = extracted.slice(prefix.length);
+  if (suffix) extracted = extracted.slice(0, extracted.length - suffix.length);
+  return extracted || value;
+}
+
 function isHeaderMediaObject(value: Record<string, unknown>) {
   return Boolean(
     normalizeText(value.media_url) ||
@@ -129,7 +150,11 @@ export function normalizeProcessedTemplateParams(
     const buttons = rawButtons
       .map((entry, idx) => {
         const rec = asRecord(entry);
-        const parameter = normalizeText(rec?.parameter ?? rec?.value ?? rec?.text ?? entry);
+        const parameter = normalizeButtonParameter(
+          components,
+          idx,
+          normalizeText(rec?.parameter ?? rec?.value ?? rec?.text ?? entry)
+        );
         if (!parameter) return null;
         return {
           type: inferButtonType(components, idx, rec?.type),
