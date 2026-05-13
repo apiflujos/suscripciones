@@ -1,7 +1,7 @@
 import { CredentialProvider, PublicCheckoutKind } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { getCredential } from "./credentials";
-import { getCheckoutBaseUrlsFromEnv, getSafePublicReturnUrl } from "./publicBase";
+import { getCheckoutBaseUrlsFromEnv, getSafePublicReturnUrl, normalizePublicUrl } from "./publicBase";
 import { signPublicToken } from "./publicTokens";
 import { readCustomerMetadata } from "../lib/customerMetadata";
 import { readCheckoutConfig } from "./checkoutConfig";
@@ -131,7 +131,10 @@ export async function createPublicCheckoutLink(args: {
               ...(prevMeta?.paymentLink || {}),
               ...commonLink,
               tenantId: template.tenantId || null,
-              checkoutUrl: args.checkoutUrl ?? prevMeta?.paymentLink?.checkoutUrl ?? null,
+              checkoutUrl:
+                normalizePublicUrl(args.checkoutUrl) ||
+                normalizePublicUrl(prevMeta?.paymentLink?.checkoutUrl) ||
+                null,
               templateName: template.name
             }
           };

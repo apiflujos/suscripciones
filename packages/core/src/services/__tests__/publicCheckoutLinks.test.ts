@@ -31,7 +31,13 @@ vi.mock("../publicBase", () => ({
     planBaseUrl: null,
     subscriptionBaseUrl: null,
     cartBaseUrl: null
-  }))
+  })),
+  normalizePublicUrl: vi.fn((value?: string | null) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  }),
+  getSafePublicReturnUrl: vi.fn(() => null)
 }));
 
 vi.mock("../publicTokens", () => ({
@@ -104,6 +110,36 @@ describe("publicCheckoutLinks", () => {
             paymentLink: expect.objectContaining({
               checkoutUrl: "https://wompi.test/checkout/abc",
               templateId: "tpl-plan"
+            })
+          })
+        })
+      })
+    );
+  });
+
+  it("normalizes checkoutUrl before persisting public payment metadata", async () => {
+    findTemplateMock.mockResolvedValue({
+      id: "tpl-plan",
+      tenantId: "tenant-1",
+      name: "Plan publico",
+      kind: PublicCheckoutKind.PLAN,
+      active: true,
+      expiryHours: 24,
+      utmParams: null
+    });
+
+    await createPublicCheckoutLink({
+      customerId: "cus-1",
+      templateId: "tpl-plan",
+      checkoutUrl: "wompi.test/checkout/abc"
+    });
+
+    expect(updateCustomerMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({
+            paymentLink: expect.objectContaining({
+              checkoutUrl: "https://wompi.test/checkout/abc"
             })
           })
         })

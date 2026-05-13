@@ -24,6 +24,7 @@ import { classifyReference } from "../webhooks/wompi/classifyReference";
 import { resolveSubscriptionBillingState } from "./billingCycles";
 import { resolveSubscriptionCollectionMode } from "./subscriptionMode";
 import type { NotificationScheduleResult } from "./notificationDelivery";
+import { normalizePublicUrl } from "./publicBase";
 
 function toMsSeconds(seconds: number) {
   return seconds * 1000;
@@ -263,6 +264,7 @@ export async function schedulePaymentLinkNotifications(args: {
 }) {
   const paymentId = String(args.paymentId || "").trim();
   if (!paymentId) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
+  const paymentLinkUrl = normalizePublicUrl(args.paymentLinkUrl);
 
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
@@ -307,7 +309,7 @@ export async function schedulePaymentLinkNotifications(args: {
         ...(payment.subscriptionId ? { subscriptionId: payment.subscriptionId } : {}),
         anchorAt: anchorIso,
         paymentType,
-        ...(String(args.paymentLinkUrl || "").trim() ? { paymentLinkUrl: String(args.paymentLinkUrl || "").trim() } : {}),
+        ...(paymentLinkUrl ? { paymentLinkUrl } : {}),
         ...(args.forceNow ? { immediateSend: true } : {})
       };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
@@ -366,7 +368,7 @@ export async function schedulePaymentLinkNotifications(args: {
 
 export async function scheduleCatalogLinkNotifications(args: { customerId: string; catalogUrl: string; forceNow?: boolean; paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK" | ""; actor?: string }) {
   const customerId = String(args.customerId || "").trim();
-  const catalogUrl = String(args.catalogUrl || "").trim();
+  const catalogUrl = normalizePublicUrl(args.catalogUrl);
   if (!customerId || !catalogUrl) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
 
   const cfg = await getNotificationsConfig();
@@ -458,7 +460,7 @@ export async function scheduleTokenizationLinkNotifications(args: {
   actor?: string;
 }) {
   const customerId = String(args.customerId || "").trim();
-  const tokenUrl = String(args.tokenUrl || "").trim();
+  const tokenUrl = normalizePublicUrl(args.tokenUrl);
   if (!customerId || !tokenUrl) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
 
   const cfg = await getNotificationsConfig();

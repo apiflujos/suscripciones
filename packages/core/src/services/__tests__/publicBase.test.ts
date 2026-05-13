@@ -1,5 +1,5 @@
 import { afterEach, test, expect } from "vitest";
-import { getCheckoutBaseUrlsFromEnv, getPublicBaseUrlFromEnv } from "../publicBase";
+import { getCheckoutBaseUrlsFromEnv, getPublicBaseUrlFromEnv, getSafePublicReturnUrl, normalizePublicUrl } from "../publicBase";
 
 const ORIGINAL_ENV = {
   APP_PUBLIC_BASE_URL: process.env.APP_PUBLIC_BASE_URL,
@@ -29,7 +29,7 @@ test("getPublicBaseUrlFromEnv usa NEXT_PUBLIC_PUBLIC_BASE_URL como fallback", ()
   expect(getPublicBaseUrlFromEnv()).toBe("https://public.example.com");
 });
 
-test("getCheckoutBaseUrlsFromEnv deriva rutas pÃºblicas desde el fallback resuelto", () => {
+test("getCheckoutBaseUrlsFromEnv deriva rutas públicas desde el fallback resuelto", () => {
   process.env.APP_PUBLIC_BASE_URL = "";
   process.env.NEXT_PUBLIC_PUBLIC_BASE_URL = "";
   process.env.NEXT_PUBLIC_API_BASE_URL = "https://admin.example.com/";
@@ -39,4 +39,18 @@ test("getCheckoutBaseUrlsFromEnv deriva rutas pÃºblicas desde el fallback resuel
     subscriptionBaseUrl: "https://admin.example.com/public/suscripcion",
     cartBaseUrl: "https://admin.example.com/public/cart"
   });
+});
+
+test("normalizePublicUrl agrega https si falta", () => {
+  expect(normalizePublicUrl("mdv.sus.apiflujos.com/public/suscripcion")).toBe(
+    "https://mdv.sus.apiflujos.com/public/suscripcion"
+  );
+});
+
+test("normalizePublicUrl rechaza localhost por defecto", () => {
+  expect(normalizePublicUrl("http://localhost:3008/public/suscripcion/x")).toBe("");
+});
+
+test("getSafePublicReturnUrl conserva rutas relativas válidas", () => {
+  expect(getSafePublicReturnUrl("/public/return")).toBe("/public/return");
 });

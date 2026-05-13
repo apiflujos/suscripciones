@@ -8,6 +8,7 @@ import { notificationJobPayloadSchema, type NotificationJobPayload } from "../..
 import { createPaymentLinkForSubscription } from "../../services/subscriptionBilling";
 import { systemLog } from "../../services/systemLog";
 import { createPublicCheckoutLink } from "../../services/publicCheckoutLinks";
+import { normalizeRenderablePublicUrl } from "../../services/urlSafety";
 import { sendChatwootMessage } from "./sendChatwootMessage";
 import { getDefaultTenantId } from "../../services/tenantContext";
 import { formatDateTimeEs } from "../../lib/dates";
@@ -692,27 +693,27 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   const centsToPesos = (value?: number | null) => Math.trunc(Number(value || 0) / 100);
   const tokenUrlFromPayload = parsed.data.trigger === "TOKENIZATION_LINK_CREATED" ? parsed.data.tokenUrl : "";
   const catalogUrlFromPayload = parsed.data.trigger === "CATALOG_LINK_CREATED" ? parsed.data.catalogUrl : "";
-  const autoPlanUrl = String(checkoutPublicUrl.AUTO_PLAN || "").trim();
-  const autoSubscriptionUrl = String(checkoutPublicUrl.AUTO_SUBSCRIPTION || "").trim();
-  const autoCartUrl = String(checkoutPublicUrl.AUTO_CART || "").trim();
-  const directPaymentLinkUrl = String(effectivePayment?.checkoutUrl || "").trim();
+  const autoPlanUrl = normalizeRenderablePublicUrl(checkoutPublicUrl.AUTO_PLAN);
+  const autoSubscriptionUrl = normalizeRenderablePublicUrl(checkoutPublicUrl.AUTO_SUBSCRIPTION);
+  const autoCartUrl = normalizeRenderablePublicUrl(checkoutPublicUrl.AUTO_CART);
+  const directPaymentLinkUrl = normalizeRenderablePublicUrl(effectivePayment?.checkoutUrl);
   const publicPaymentLinkUrl =
-    parsed.data.trigger === "PAYMENT_LINK_CREATED" ? String(parsed.data.paymentLinkUrl || "").trim() : "";
-  const directTokenizationLinkUrl = String(tokenUrlFromPayload || "").trim();
-  const directCatalogLinkUrl = String(catalogUrlFromPayload || "").trim();
+    parsed.data.trigger === "PAYMENT_LINK_CREATED" ? normalizeRenderablePublicUrl(parsed.data.paymentLinkUrl) : "";
+  const directTokenizationLinkUrl = normalizeRenderablePublicUrl(tokenUrlFromPayload);
+  const directCatalogLinkUrl = normalizeRenderablePublicUrl(catalogUrlFromPayload);
   const effectivePaymentLinkUrl =
     publicPaymentLinkUrl ||
     autoPlanUrl ||
     directPaymentLinkUrl ||
-    String(meta?.paymentLink?.url || "").trim();
+    normalizeRenderablePublicUrl(meta?.paymentLink?.url);
   const effectiveTokenizationLinkUrl =
     autoSubscriptionUrl ||
     directTokenizationLinkUrl ||
-    String(meta?.tokenizationLink?.url || "").trim();
+    normalizeRenderablePublicUrl(meta?.tokenizationLink?.url);
   const effectiveCartLinkUrl =
     autoCartUrl ||
     directCatalogLinkUrl ||
-    String(meta?.cartLink?.url || "").trim();
+    normalizeRenderablePublicUrl(meta?.cartLink?.url);
   const effectivePaymentLink = effectivePaymentLinkUrl
     ? {
         ...(meta?.paymentLink ?? {}),

@@ -51,6 +51,15 @@ vi.mock("../systemLog", () => ({
   SystemActor: { SYSTEM: "system" }
 }));
 
+vi.mock("../publicBase", () => ({
+  normalizePublicUrl: vi.fn((value?: string | null) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    if (/localhost|127\.0\.0\.1|0\.0\.0\.0/i.test(raw)) return "";
+    return /^https?:\/\//i.test(raw) ? raw : `https://${raw.replace(/^\/+/, "")}`;
+  })
+}));
+
 vi.mock("../../jobs/handlers/subscriptionReminder", () => ({
   subscriptionReminder: vi.fn(async () => ({ ok: true }))
 }));
@@ -272,6 +281,26 @@ describe("notificationsScheduler", () => {
     expect(vi.mocked(prisma.retryJob.create).mock.calls.every((call) => call[0]?.data?.type === RetryJobType.SUBSCRIPTION_REMINDER)).toBe(true);
   });
 
+  it("normaliza paymentLinkUrl antes de guardarlo en el payload", async () => {
+    vi.mocked(prisma.payment.findUnique).mockResolvedValue({
+      id: "pay-1",
+      customerId: "cus-1",
+      subscriptionId: null
+    } as any);
+
+    await schedulePaymentLinkNotifications({ paymentId: "pay-1", paymentLinkUrl: "mdv.sus.apiflujos.com/public/plan/abc" });
+
+    expect(prisma.retryJob.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          payload: expect.objectContaining({
+            paymentLinkUrl: "https://mdv.sus.apiflujos.com/public/plan/abc"
+          })
+        })
+      })
+    );
+  });
+
   it("marca tokenization forceNow sin entrega cuando no se envia nada", async () => {
     vi.mocked(subscriptionReminder).mockResolvedValue({ ok: false } as any);
 
@@ -292,6 +321,16 @@ describe("notificationsScheduler", () => {
     );
   });
 
+  it("descarta tokenUrl localhost antes de programar", async () => {
+    const result = await scheduleTokenizationLinkNotifications({
+      customerId: "cus-1",
+      tokenUrl: "http://localhost:3008/public/suscripcion/token"
+    });
+
+    expect(result.scheduled).toBe(0);
+    expect(prisma.retryJob.create).not.toHaveBeenCalled();
+  });
+
   it("envia catalogo forceNow una sola vez y devuelve errores", async () => {
     vi.mocked(subscriptionReminder).mockResolvedValue({ ok: false, error: "customer_phone_required" } as any);
 
@@ -305,5 +344,20 @@ describe("notificationsScheduler", () => {
     expect(vi.mocked(subscriptionReminder)).toHaveBeenCalledTimes(1);
     expect(result.sentNow).toBe(0);
     expect(result.errors).toEqual(["customer_phone_required"]);
+  });
+
+  it("normaliza catalogUrl antes del envio inmediato", async () => {
+    await scheduleCatalogLinkNotifications({
+      customerId: "cus-1",
+      catalogUrl: "mdv.sus.apiflujos.com/public/cart/abc",
+      paymentType: "PLAN",
+      forceNow: true
+    });
+
+    expect(vi.mocked(subscriptionReminder)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        catalogUrl: "https://mdv.sus.apiflujos.com/public/cart/abc"
+      })
+    );
   });
 });
