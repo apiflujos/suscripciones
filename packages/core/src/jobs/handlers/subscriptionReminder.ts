@@ -601,6 +601,7 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
         ? String(notificationLinkMeta.tenantId || "").trim()
         : "";
     for (const id of checkoutIds) {
+      const normalizedCheckoutId = String(id || "").trim().toUpperCase();
       const planId =
         subscription?.planId ||
         payment?.subscription?.planId ||
@@ -615,7 +616,10 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
         String((subscription as any)?.plan?.catalogProductId || (subscription as any)?.plan?.metadata?.catalog?.itemId || "") ||
         String((payment as any)?.subscription?.plan?.catalogProductId || (payment as any)?.subscription?.plan?.metadata?.catalog?.itemId || "");
       const targetId =
-        id === "AUTO"
+        normalizedCheckoutId === "AUTO" ||
+        normalizedCheckoutId === "AUTO_PLAN" ||
+        normalizedCheckoutId === "AUTO_SUBSCRIPTION" ||
+        normalizedCheckoutId === "AUTO_CART"
           ? await resolveAutoCheckoutTemplateId({
               tenantId:
                 subscription?.tenantId ||
