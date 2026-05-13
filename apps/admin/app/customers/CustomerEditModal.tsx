@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { UpdateCustomerActionResult } from "./actions";
 import { PendingButton } from "../ui/PendingButton";
 import { AppModal } from "../ui/AppModal";
 
@@ -29,7 +28,7 @@ export function CustomerEditModal({
   tenants: Array<{ id: string; name: string }>;
   csrfToken: string;
   returnTo: string;
-  updateCustomer: (formData: FormData) => Promise<UpdateCustomerActionResult>;
+  updateCustomer: (formData: FormData) => Promise<{ ok: boolean; error?: string; redirectTo?: string }>;
   open: boolean;
   onClose: () => void;
 }) {
@@ -109,12 +108,12 @@ export function CustomerEditModal({
     setError(null);
     try {
       const result = await updateCustomer(formData);
-      if (!result.ok) {
-        setError(result.error || "Error guardando el contacto");
+      if (!result?.ok) {
+        setError(String(result?.error || "Error guardando el contacto"));
         return;
       }
       onClose();
-      router.replace(result.redirectTo);
+      if (result.redirectTo) router.replace(result.redirectTo);
       router.refresh();
     } catch (err: any) {
       setError(err?.message || "Error guardando el contacto");
