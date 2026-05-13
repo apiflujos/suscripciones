@@ -153,7 +153,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
           ...(linkProductId ? { productId: linkProductId } : {}),
           ...(linkPlanId ? { planId: linkPlanId } : {}),
           tenantIds,
-          createPaymentLink: false
+          createPaymentLink: false,
+          suppressInitialCollection: true,
+          metadata: {
+            source: "PUBLIC_TOKENIZATION"
+          }
         });
         if (!subRes?.ok) {
           const errorCode = "error" in subRes && subRes.error ? String(subRes.error) : "subscription_create_failed";

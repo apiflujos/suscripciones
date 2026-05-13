@@ -130,6 +130,7 @@ export async function createSubscription(args: {
   paymentTiming?: string;
   createPaymentLink?: boolean;
   allowDuplicate?: boolean;
+  suppressInitialCollection?: boolean;
   metadata?: Record<string, unknown>;
 }) {
   const requestedPlanId = String(args.planId || "").trim();
@@ -286,11 +287,6 @@ export async function createSubscription(args: {
     logger.warn({ err, subscriptionId: subscription.id }, "Fallo generando ciclos iniciales de suscripción");
   });
 
-  if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
-    await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: dueAt, maxAttempts: 1 }).catch((err) => {
-      logger.warn({ err, subscriptionId: subscription.id }, "Fallo agendando cobro inicial de suscripción");
-    });
-  }
   await prisma.subscriptionTenant.createMany({
     data: effectiveTenantIds.map((t) => ({ subscriptionId: subscription.id, tenantId: t })),
     skipDuplicates: true
@@ -310,9 +306,12 @@ export async function createSubscription(args: {
     logger.warn({ err, subscriptionId: subscription.id }, "Fallo agendando recordatorios de suscripción");
   });
 
+  const shouldScheduleInitialCollection =
+    (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") &&
+    !args.suppressInitialCollection;
   const runAt = dueAt <= new Date(Date.now() + 5_000) ? new Date() : dueAt;
 
-  if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
+  if (shouldScheduleInitialCollection) {
     await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt, maxAttempts: 1 }).catch((err) => {
       logger.warn({ err, subscriptionId: subscription.id }, "Fallo agendando retry inmediato de suscripción");
     });
