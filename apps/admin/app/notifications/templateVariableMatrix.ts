@@ -41,6 +41,7 @@ const CORE_MESSAGE_VARIABLES: NotificationVariableOption[] = [
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
 const LINK_PAYMENT_VARIABLES: NotificationVariableOption[] = [
+  // Canonical public payment URL for WhatsApp templates.
   { label: "URL publica de pago", value: "{{paymentLink.url}}", recommended: true }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
