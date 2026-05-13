@@ -586,17 +586,19 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   const checkoutPublicName: Record<string, string> = {};
   const checkoutPublicUrl: Record<string, string> = {};
   if (checkoutIds.length) {
+    const tokenizationPayload =
+      parsed.data.trigger === "TOKENIZATION_LINK_CREATED" ? parsed.data : null;
     for (const id of checkoutIds) {
       const planId =
         subscription?.planId ||
         payment?.subscription?.planId ||
-        parsed.data.planId ||
+        tokenizationPayload?.planId ||
         notificationLinkMeta?.planId ||
         null;
       const productId =
         String((subscription as any)?.productId || "") ||
         String((payment as any)?.subscription?.productId || "") ||
-        String(parsed.data.productId || "") ||
+        String(tokenizationPayload?.productId || "") ||
         String(notificationLinkMeta?.productId || "") ||
         String((subscription as any)?.plan?.catalogProductId || (subscription as any)?.plan?.metadata?.catalog?.itemId || "") ||
         String((payment as any)?.subscription?.plan?.catalogProductId || (payment as any)?.subscription?.plan?.metadata?.catalog?.itemId || "");
@@ -606,7 +608,7 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
               tenantId:
                 subscription?.tenantId ||
                 payment?.tenantId ||
-                String(parsed.data.tenantId || "").trim() ||
+                String(tokenizationPayload?.tenantId || "").trim() ||
                 String(notificationLinkMeta?.tenantId || "").trim(),
               trigger: parsed.data.trigger,
               paymentType,
