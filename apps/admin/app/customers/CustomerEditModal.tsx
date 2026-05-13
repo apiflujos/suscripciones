@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PendingButton } from "../ui/PendingButton";
 import { AppModal } from "../ui/AppModal";
 
@@ -27,10 +28,11 @@ export function CustomerEditModal({
   tenants: Array<{ id: string; name: string }>;
   csrfToken: string;
   returnTo: string;
-  updateCustomer: (formData: FormData) => Promise<void>;
+  updateCustomer: (formData: FormData) => Promise<{ ok: true; redirectTo: string } | { ok: false; error: string }>;
   open: boolean;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -73,28 +75,46 @@ export function CustomerEditModal({
   }, [open, customer]);
 
   const handleSave = async () => {
+    const normalizedTenantIds = Array.from(new Set(tenantIds.map((value) => String(value || "").trim()).filter(Boolean)));
+    const nextPrimaryTenantId =
+      String(primaryTenantId || "").trim() && normalizedTenantIds.includes(String(primaryTenantId || "").trim())
+        ? String(primaryTenantId || "").trim()
+        : normalizedTenantIds[0] || "";
+
+    if (!normalizedTenantIds.length) {
+      setError("Selecciona al menos un canal");
+      return;
+    }
+
     const formData = new FormData();
     formData.set("csrf", csrfToken);
     formData.set("id", customer?.id || "");
     formData.set("name", name);
     formData.set("email", email);
     formData.set("phone", phone);
-    formData.set("identificacionTipo", idType);
-    formData.set("identificacionNumero", idNumber);
+    formData.set("idType", idType);
+    formData.set("idNumber", idNumber);
     formData.set("addressLine1", addressLine1);
     formData.set("dept", dept);
     formData.set("city", city);
     formData.set("code5", code5);
     formData.set("dane8", dane8);
-    formData.set("tenantIds", JSON.stringify(tenantIds));
-    formData.set("primaryTenantId", primaryTenantId);
+    formData.set("scopeTenantId", String(customer?.tenantId || normalizedTenantIds[0] || ""));
+    for (const tenantId of normalizedTenantIds) formData.append("tenantIds", tenantId);
+    formData.set("primaryTenantId", nextPrimaryTenantId);
     if (returnTo) formData.set("returnTo", returnTo);
 
     setSaving(true);
     setError(null);
     try {
-      await updateCustomer(formData);
+      const result = await updateCustomer(formData);
+      if (!result.ok) {
+        setError(result.error || "Error guardando el contacto");
+        return;
+      }
       onClose();
+      router.replace(result.redirectTo);
+      router.refresh();
     } catch (err: any) {
       setError(err?.message || "Error guardando el contacto");
     } finally {

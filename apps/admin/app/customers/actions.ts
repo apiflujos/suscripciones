@@ -121,8 +121,8 @@ export async function updateCustomer(formData: FormData) {
   const idType = String(formData.get("idType") || "").trim();
   const idNumber = String(formData.get("idNumber") || "").trim();
 
-  if (!id) return redirect(mergeQuery(returnTo, { error: "invalid_id" }));
-  if (!phone) return redirect(mergeQuery(returnTo, { error: "telefono_requerido", ...(scopeTenantId ? { tenantId: scopeTenantId } : {}) }));
+  if (!id) return { ok: false, error: "invalid_id" as const };
+  if (!phone) return { ok: false, error: "telefono_requerido" as const };
 
   try {
     const metadata = buildCustomerMetadata({ addressLine1, dept, city, code5, dane8, idType, idNumber });
@@ -137,11 +137,14 @@ export async function updateCustomer(formData: FormData) {
       phone: phone || "",
       ...(metadata ? { metadata } : {})
     });
-    if (!updated.ok) throw new Error(updated.error);
-    redirect(mergeQuery(returnTo, { updated: "1", ...(scopeTenantId ? { tenantId: scopeTenantId } : {}) }));
+    if (!updated.ok) return { ok: false, error: updated.error };
+    return {
+      ok: true as const,
+      redirectTo: mergeQuery(returnTo, { updated: "1", ...(scopeTenantId ? { tenantId: scopeTenantId } : {}) })
+    };
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(mergeQuery(returnTo, { error: String(err?.message || "update_customer_failed"), ...(scopeTenantId ? { tenantId: scopeTenantId } : {}) }));
+    return { ok: false, error: String(err?.message || "update_customer_failed") };
   }
 }
 
