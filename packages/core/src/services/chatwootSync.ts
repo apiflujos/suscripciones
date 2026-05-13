@@ -249,6 +249,7 @@ export async function ensureChatwootContactForCustomer(customerId: string, opts?
     inboxId: cfg.inboxId
   });
 
+  // Search first so repeated sends reuse the existing Chatwoot contact instead of racing contact creation.
   await ensureCustomAttributes(client);
 
   const queries = client.buildSearchQueries({ email: customer.email || undefined, phoneNumber: customer.phone || undefined });
