@@ -64,8 +64,9 @@ export class ChatwootClient {
       const defaultCode = String(
         process.env.CHATWOOT_DEFAULT_COUNTRY_CODE || process.env.DEFAULT_PHONE_COUNTRY_CODE || ""
       ).replace(/\D/g, "");
-      if (!defaultCode) return undefined;
-      e164 = `+${defaultCode}${digits}`;
+      const inferredCode = !defaultCode && digits.length === 10 && digits.startsWith("3") ? "57" : defaultCode;
+      if (!inferredCode) return undefined;
+      e164 = `+${inferredCode}${digits}`;
     }
 
     const len = e164.replace(/\D/g, "").length;
@@ -229,6 +230,12 @@ export class ChatwootClient {
     const rawPhone = String(input.phoneNumber ?? "").trim();
     const normalized = this.normalizePhoneNumber(rawPhone);
     if (normalized) out.push(normalized);
+    const digits = rawPhone.replace(/\D/g, "");
+    if (digits) {
+      out.push(digits);
+      if (digits.length === 10 && digits.startsWith("3")) out.push(`57${digits}`);
+      if (digits.length >= 10) out.push(digits.slice(-10));
+    }
     if (rawPhone && rawPhone !== normalized) out.push(rawPhone);
     return Array.from(new Set(out.filter((q) => q)));
   }

@@ -251,6 +251,53 @@ export async function ensureChatwootContactForCustomer(customerId: string, opts?
 
   await ensureCustomAttributes(client);
 
+  const queries = client.buildSearchQueries({ email: customer.email || undefined, phoneNumber: customer.phone || undefined });
+  for (const q of queries) {
+    const found = await client.searchContact(q).catch(() => null);
+    if (!found?.contactId) continue;
+    if (!opts?.skipUpdate && !snapshotEqual) {
+      await client
+        .updateContact(found.contactId, {
+          name: customer.name || undefined,
+          email: customer.email || undefined,
+          phoneNumber: customer.phone || undefined
+        })
+        .catch((err) => {
+          logger.warn({ err, customerId: customer.id, contactId: found.contactId }, "chatwoot.sync: failed to update searched contact");
+        });
+    }
+
+    let sourceId = existingSourceId;
+    if (!sourceId) {
+      try {
+        const contactInfo = await client.getContact(found.contactId);
+        sourceId = contactInfo.sourceId;
+      } catch {
+        // ignore
+      }
+    }
+    if (!sourceId) {
+      try {
+        const createdInbox = await client.createContactInbox(found.contactId);
+        sourceId = createdInbox.sourceId;
+      } catch {
+        // ignore
+      }
+    }
+
+    const merged = {
+      ...(meta && typeof meta === "object" ? meta : {}),
+      chatwoot: { ...(meta?.chatwoot || {}), contactId: found.contactId, sourceId, contactSnapshot: nextSnapshot }
+    };
+    await prisma.customer.update({
+      where: { id: customer.id },
+      data: { metadata: merged as Prisma.InputJsonValue }
+    }).catch((err) => {
+      logger.warn({ err, customerId: customer.id }, "chatwoot.sync: failed to update customer metadata");
+    });
+    return { ok: true as const, contactId: found.contactId, sourceId };
+  }
+
   let created: Awaited<ReturnType<ChatwootClient["createContact"]>> | null = null;
   try {
     created = await client.createContact({
@@ -259,8 +306,7 @@ export async function ensureChatwootContactForCustomer(customerId: string, opts?
       phoneNumber: customer.phone || undefined
     });
   } catch (err: any) {
-    // If contact exists already, try to search by normalized phone/email.
-    const queries = client.buildSearchQueries({ email: customer.email || undefined, phoneNumber: customer.phone || undefined });
+    // If contact exists already, retry search by normalized phone/email.
     const createError = err?.message ? String(err.message) : "unknown error";
     for (const q of queries) {
       const found = await client.searchContact(q).catch(() => null);
