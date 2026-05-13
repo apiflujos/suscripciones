@@ -221,6 +221,8 @@ export class ChatwootClient {
 
   public buildSearchQueries(input: { email?: string; phoneNumber?: string }) {
     const out: string[] = [];
+    const email = String(input.email ?? "").trim().toLowerCase();
+    if (email) out.push(email);
     const rawPhone = String(input.phoneNumber ?? "").trim();
     const normalized = this.normalizePhoneNumber(rawPhone);
     if (normalized) out.push(normalized);
