@@ -745,6 +745,10 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   const collectionCycleLabel = collectionCycle?.periodStartAt
     ? formatCycleLabel(collectionCycle.periodStartAt, timeZone)
     : activeCycleLabel;
+  const fallbackCollectionCycleLabel =
+    !subscription && parsed.data.trigger === "PAYMENT_LINK_CREATED"
+      ? formatCycleLabel(parsed.data.anchorAt || effectivePayment?.createdAt || new Date().toISOString(), timeZone)
+      : null;
   const subscriptionTemplate = subscription
       ? {
         ...subscription,
@@ -759,7 +763,21 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
         currentPeriodStartAt: activeCycle?.periodStartAt ?? null,
         currentPeriodEndAt: activeCycle?.periodEndAt ?? null
       }
-    : null;
+    : fallbackCollectionCycleLabel
+      ? {
+          status: null,
+          activeCycleNumber: null,
+          activeCycleLabel: null,
+          activeCycleStartAt: null,
+          activeCycleEndAt: null,
+          collectionCycleNumber: null,
+          collectionCycleLabel: fallbackCollectionCycleLabel,
+          nextBillingDate: parsed.data.anchorAt || effectivePayment?.createdAt || null,
+          currentCycle: null,
+          currentPeriodStartAt: null,
+          currentPeriodEndAt: null
+        }
+      : null;
   const planWithPesos = subscription?.plan
     ? { ...subscription.plan, priceInPesos: centsToPesos(subscription.plan.priceInCents) }
     : null;
