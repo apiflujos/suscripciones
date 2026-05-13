@@ -588,18 +588,30 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   if (checkoutIds.length) {
     const tokenizationPayload =
       parsed.data.trigger === "TOKENIZATION_LINK_CREATED" ? parsed.data : null;
+    const notificationPlanId =
+      notificationLinkMeta && "planId" in notificationLinkMeta
+        ? (notificationLinkMeta.planId ?? null)
+        : null;
+    const notificationProductId =
+      notificationLinkMeta && "productId" in notificationLinkMeta
+        ? String(notificationLinkMeta.productId || "")
+        : "";
+    const notificationTenantId =
+      notificationLinkMeta && "tenantId" in notificationLinkMeta
+        ? String(notificationLinkMeta.tenantId || "").trim()
+        : "";
     for (const id of checkoutIds) {
       const planId =
         subscription?.planId ||
         payment?.subscription?.planId ||
         tokenizationPayload?.planId ||
-        notificationLinkMeta?.planId ||
+        notificationPlanId ||
         null;
       const productId =
         String((subscription as any)?.productId || "") ||
         String((payment as any)?.subscription?.productId || "") ||
         String(tokenizationPayload?.productId || "") ||
-        String(notificationLinkMeta?.productId || "") ||
+        notificationProductId ||
         String((subscription as any)?.plan?.catalogProductId || (subscription as any)?.plan?.metadata?.catalog?.itemId || "") ||
         String((payment as any)?.subscription?.plan?.catalogProductId || (payment as any)?.subscription?.plan?.metadata?.catalog?.itemId || "");
       const targetId =
@@ -609,7 +621,7 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
                 subscription?.tenantId ||
                 payment?.tenantId ||
                 String(tokenizationPayload?.tenantId || "").trim() ||
-                String(notificationLinkMeta?.tenantId || "").trim(),
+                notificationTenantId,
               trigger: parsed.data.trigger,
               paymentType,
               planId,
