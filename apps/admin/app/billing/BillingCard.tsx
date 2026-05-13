@@ -76,7 +76,6 @@ export function BillingCard({ row, context }: BillingCardProps) {
       .join("") || "PR";
   const stateBadges = buildBillingStatusCards(row);
   const autoChargeEnabled = Boolean(row.autoChargeEnabled);
-  const retryAutomationEnabled = Boolean(row.retryAutomationEnabled);
   const nextChargeLabel = formatLongCivilDate(row.vencimientoAt);
   const currentCollectionDueLabel = formatLongCivilDate(row.currentCollectionDueAt || row.vencimientoAt);
   const nextRetryLabel = row.nextRetryAt ? formatLongCivilDate(row.nextRetryAt) : "Sin intento programado";
@@ -217,7 +216,7 @@ export function BillingCard({ row, context }: BillingCardProps) {
           <div className="billing-body-row billing-body-row-keyval">
             <span className="billing-body-label">Próx. intento</span>
             <div className="billing-body-value">
-              {isAutoDebit ? (autoChargeEnabled && retryAutomationEnabled ? nextRetryLabel : "No programado") : "No aplica"}
+              {isAutoDebit ? (autoChargeEnabled ? nextRetryLabel : "No programado") : "No aplica"}
             </div>
           </div>
           <div className="billing-body-row billing-body-row-keyval">

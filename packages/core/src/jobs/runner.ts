@@ -762,16 +762,14 @@ async function runOnce() {
           const cfg = subId
             ? await resolveEffectiveSubscriptionAutomationConfigById(subId).catch(() => getAutoDebitConfig())
             : await getAutoDebitConfig();
-          const canRetry = cfg.retryEnabled && attempts <= cfg.maxRetries;
-          status = canRetry ? RetryJobStatus.PENDING : RetryJobStatus.FAILED;
-          runAt = canRetry ? nextRunAtMinutes(cfg.retryEveryMinutes) : undefined;
-          
-          if (status === RetryJobStatus.FAILED) {
-            if (subId) {
-              await handleSubscriptionPaymentFailure(subId, errMsg).catch((err) => {
-                logger.warn({ err, subscriptionId: subId }, '[Jobs/Runner] Fallo manejando pago fallido');
-              });
-            }
+          const shouldRetryOnce = Boolean(cfg.retryEnabled) && attempts === 1;
+          status = shouldRetryOnce ? RetryJobStatus.PENDING : RetryJobStatus.FAILED;
+          runAt = shouldRetryOnce ? nextRunAtMinutes(cfg.retryEveryMinutes) : undefined;
+
+          if (subId && status === RetryJobStatus.FAILED) {
+            await handleSubscriptionPaymentFailure(subId, errMsg).catch((err) => {
+              logger.warn({ err, subscriptionId: subId }, '[Jobs/Runner] Fallo manejando pago fallido');
+            });
           }
         }
         await prisma.retryJob.update({

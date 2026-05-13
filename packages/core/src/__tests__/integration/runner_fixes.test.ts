@@ -104,3 +104,26 @@ describe("Webhook Route: Job deduplication (Fix #3)", () => {
     expect(content).toContain("deduplicado");
   });
 });
+
+describe("Runner: single payment retry scheduling", () => {
+  it("should only allow one automatic retry after the scheduled attempt fails", async () => {
+    const fs = await import("fs");
+    const path = await import("path");
+    const runnerPath = path.resolve(__dirname, "../../jobs/runner.ts");
+    const content = fs.readFileSync(runnerPath, "utf-8");
+
+    expect(content).toContain("const shouldRetryOnce = Boolean(cfg.retryEnabled) && attempts === 1;");
+    expect(content).not.toContain("attempts <= cfg.maxRetries");
+  });
+
+  it("should skip requeue when another pending auto charge already exists", async () => {
+    const fs = await import("fs");
+    const path = await import("path");
+    const handlerPath = path.resolve(__dirname, "../../jobs/handlers/paymentRetry.ts");
+    const content = fs.readFileSync(handlerPath, "utf-8");
+
+    expect(content).toContain('type: "payment_retry_skipped_pending"');
+    expect(content).toContain('status: "skipped"');
+    expect(content).not.toContain('type: "payment_retry_deferred_pending"');
+  });
+});
