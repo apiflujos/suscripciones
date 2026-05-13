@@ -696,9 +696,12 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   const autoSubscriptionUrl = String(checkoutPublicUrl.AUTO_SUBSCRIPTION || "").trim();
   const autoCartUrl = String(checkoutPublicUrl.AUTO_CART || "").trim();
   const directPaymentLinkUrl = String(effectivePayment?.checkoutUrl || "").trim();
+  const publicPaymentLinkUrl =
+    parsed.data.trigger === "PAYMENT_LINK_CREATED" ? String(parsed.data.paymentLinkUrl || "").trim() : "";
   const directTokenizationLinkUrl = String(tokenUrlFromPayload || "").trim();
   const directCatalogLinkUrl = String(catalogUrlFromPayload || "").trim();
   const effectivePaymentLinkUrl =
+    publicPaymentLinkUrl ||
     autoPlanUrl ||
     directPaymentLinkUrl ||
     String(meta?.paymentLink?.url || "").trim();

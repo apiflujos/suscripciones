@@ -40,7 +40,8 @@ export const paymentLinkCreatedJobPayloadSchema = baseNotificationJobPayloadSche
   customerId: z.string().uuid(),
   paymentId: z.string().uuid(),
   anchorAt: z.string().datetime(),
-  paymentType: z.enum(["PLAN", "SUBSCRIPTION", "LINK"]).optional()
+  paymentType: z.enum(["PLAN", "SUBSCRIPTION", "LINK"]).optional(),
+  paymentLinkUrl: z.string().url().optional()
 });
 
 export const catalogLinkCreatedJobPayloadSchema = baseNotificationJobPayloadSchema.extend({

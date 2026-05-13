@@ -127,6 +127,7 @@ export async function POST(req: Request) {
   }
   const schedule = await schedulePaymentLinkNotifications({
     paymentId,
+    paymentLinkUrl: publicUrl,
     forceNow: true,
     actor: auth.session.sub
   }).catch((err: any) => {

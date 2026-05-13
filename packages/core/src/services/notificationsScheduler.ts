@@ -255,7 +255,12 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
   return { scheduled, sentNow, rulesActive: rules.length > 0, errors };
 }
 
-export async function schedulePaymentLinkNotifications(args: { paymentId: string; forceNow?: boolean; actor?: string }) {
+export async function schedulePaymentLinkNotifications(args: {
+  paymentId: string;
+  paymentLinkUrl?: string;
+  forceNow?: boolean;
+  actor?: string;
+}) {
   const paymentId = String(args.paymentId || "").trim();
   if (!paymentId) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
 
@@ -302,6 +307,7 @@ export async function schedulePaymentLinkNotifications(args: { paymentId: string
         ...(payment.subscriptionId ? { subscriptionId: payment.subscriptionId } : {}),
         anchorAt: anchorIso,
         paymentType,
+        ...(String(args.paymentLinkUrl || "").trim() ? { paymentLinkUrl: String(args.paymentLinkUrl || "").trim() } : {}),
         ...(args.forceNow ? { immediateSend: true } : {})
       };
       if (!args.forceNow && runAt.getTime() > now.getTime()) {
