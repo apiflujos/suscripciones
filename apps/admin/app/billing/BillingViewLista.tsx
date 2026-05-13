@@ -117,38 +117,18 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
                   )
                 ) : null}
                 {isAutoDebit && !isInactive ? (
-                  (() => {
-                    const rowTokenUrl = context.helpers.resolveRowTokenUrl(
-                      row,
-                      context.state.checkoutCustomerId && context.state.checkoutCustomerId === row.customerId
-                        ? context.state.tokenUrl
-                        : ""
-                    );
-                    return rowTokenUrl ? (
-                      <a
-                        className="ghost btn-compact btn-send btn-highlight"
-                        href={rowTokenUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="Abrir link de tokenización"
-                      >
-                        Abrir link
-                      </a>
-                    ) : (
-                      <TokenizationLinkModalButton
-                        customerId={row.customerId}
-                        productId={row.productId || undefined}
-                        planId={row.planId}
-                        tenantId={row.tenantId}
-                        csrfToken={context.data.csrfToken}
-                        returnTo={context.data.returnTo}
-                        notificationTemplates={context.data.notificationsTemplates}
-                        notificationRules={context.data.notificationsRules}
-                        blockedReason={context.helpers.getTokenizationBlockedReason(row)}
-                        action={context.actions.sendWhatsAppTokenizationLink}
-                      />
-                    );
-                  })()
+                  <TokenizationLinkModalButton
+                    customerId={row.customerId}
+                    productId={row.productId || undefined}
+                    planId={row.planId}
+                    tenantId={row.tenantId}
+                    csrfToken={context.data.csrfToken}
+                    returnTo={context.data.returnTo}
+                    notificationTemplates={context.data.notificationsTemplates}
+                    notificationRules={context.data.notificationsRules}
+                    blockedReason={context.helpers.getTokenizationBlockedReason(row)}
+                    action={context.actions.sendWhatsAppTokenizationLink}
+                  />
                 ) : null}
               </div>
             </div>
@@ -159,3 +139,4 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
     </div>
   );
 }
+

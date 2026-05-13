@@ -38,14 +38,9 @@ export function buildSubscriptionDetail(row: BillingRow, context: BillingCardCon
 export function BillingCard({ row, context }: BillingCardProps) {
   const isAutoDebit = row.mode === "AUTO_DEBIT";
   const rowCheckoutUrl = context.helpers.resolveRowCheckoutUrl(row);
-  const scopedTokenUrl =
-    context.state.checkoutCustomerId && context.state.checkoutCustomerId === row.customerId
-      ? context.state.tokenUrl
-      : "";
-  const rowTokenUrl = context.helpers.resolveRowTokenUrl(row, scopedTokenUrl);
   const sentForRow = context.state.central === "sent" && context.helpers.matchesTransientSubscription(row);
   const createdPaymentForRow = context.state.central === "created" && Boolean(rowCheckoutUrl);
-  const sentTokenForRow = Boolean(sentForRow && rowTokenUrl && !rowCheckoutUrl);
+  const sentTokenForRow = Boolean(sentForRow && isAutoDebit);
   const sentPaymentForRow = Boolean(sentForRow && rowCheckoutUrl);
   const chargedForRow = context.state.chargeStatus === "ok" && context.state.actionSubscriptionId === row.id;
   const chargeDateScheduledForRow = context.state.chargeDateScheduled && context.state.actionSubscriptionId === row.id;
@@ -304,30 +299,18 @@ export function BillingCard({ row, context }: BillingCardProps) {
             />
           ) : null}
           {showTokenizationLink ? (
-            rowTokenUrl ? (
-              <a
-                className="ghost btn-compact btn-token contact-action-btn action-token"
-                href={rowTokenUrl}
-                target="_blank"
-                rel="noreferrer"
-                title="Abrir link de tokenización"
-              >
-                Abrir link
-              </a>
-            ) : (
-              <TokenizationLinkModalButton
-                customerId={row.customerId}
-                productId={row.productId || undefined}
-                planId={row.planId}
-                tenantId={row.tenantId}
-                csrfToken={context.data.csrfToken}
-                returnTo={context.data.returnTo}
-                notificationTemplates={context.data.notificationsTemplates}
-                notificationRules={context.data.notificationsRules}
-                blockedReason={tokenizationBlockedReason}
-                action={context.actions.sendWhatsAppTokenizationLink}
-              />
-            )
+            <TokenizationLinkModalButton
+              customerId={row.customerId}
+              productId={row.productId || undefined}
+              planId={row.planId}
+              tenantId={row.tenantId}
+              csrfToken={context.data.csrfToken}
+              returnTo={context.data.returnTo}
+              notificationTemplates={context.data.notificationsTemplates}
+              notificationRules={context.data.notificationsRules}
+              blockedReason={tokenizationBlockedReason}
+              action={context.actions.sendWhatsAppTokenizationLink}
+            />
           ) : null}
           {isAutoDebit && !isInactive ? (
             <a
@@ -394,7 +377,7 @@ export function BillingCard({ row, context }: BillingCardProps) {
             {createdPaymentForRow ? <span>Link de pago creado.</span> : null}
             {chargedForRow ? <span>Cobro manual en proceso.</span> : null}
             {chargeDateScheduledForRow ? <span>Fecha de pago actualizada.</span> : null}
-            {rowCheckoutUrl ? (
+            {!isAutoDebit && rowCheckoutUrl ? (
               <a
                 className="ghost btn-compact btn-send btn-highlight"
                 href={rowCheckoutUrl}
@@ -412,3 +395,4 @@ export function BillingCard({ row, context }: BillingCardProps) {
     </div>
   );
 }
+

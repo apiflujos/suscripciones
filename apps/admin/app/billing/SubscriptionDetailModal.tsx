@@ -498,29 +498,17 @@ export function SubscriptionDetailModal({
                 )
               ) : null}
               {showTokenizationLink ? (
-                subscription.currentTokenUrl ? (
-                  <a
-                    className="ghost btn-compact btn-send btn-highlight"
-                    href={subscription.currentTokenUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    title="Abrir link de tokenización"
-                  >
-                    Abrir link
-                  </a>
-                ) : (
-                  <TokenizationLinkModalButton
-                    customerId={subscription.customerId}
-                    productId={subscription.productId || undefined}
-                    planId={subscription.planId}
-                    tenantId={tenantId}
-                    csrfToken={csrfToken}
-                    returnTo={returnTo}
-                    notificationTemplates={notificationsTemplates}
-                    notificationRules={notificationsRules}
-                    action={sendWhatsAppTokenizationLink}
-                  />
-                )
+                <TokenizationLinkModalButton
+                  customerId={subscription.customerId}
+                  productId={subscription.productId || undefined}
+                  planId={subscription.planId}
+                  tenantId={tenantId}
+                  csrfToken={csrfToken}
+                  returnTo={returnTo}
+                  notificationTemplates={notificationsTemplates}
+                  notificationRules={notificationsRules}
+                  action={sendWhatsAppTokenizationLink}
+                />
               ) : null}
               {showTokenizationLink ? (
                 <a
@@ -589,3 +577,4 @@ export function SubscriptionDetailModal({
     </>
   );
 }
+
