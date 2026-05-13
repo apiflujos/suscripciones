@@ -30,36 +30,36 @@ export type RealtimeNotificationDefinition = {
 export const REALTIME_NOTIFICATION_DEFINITIONS: RealtimeNotificationDefinition[] = [
   {
     key: "catalog_link_created_plan",
-    label: "Checkout de catálogo enviado",
+    label: "Link de catalogo enviado",
     trigger: "CATALOG_LINK_CREATED",
     chatwootType: "PAYMENT_LINK",
     paymentType: "PLAN"
   },
   {
     key: "catalog_link_created_subscription",
-    label: "Checkout de catálogo enviado (suscripción)",
-    aliases: ["Checkout de catálogo enviado (alta de suscripción)"],
+    label: "Link de catalogo enviado (suscripcion)",
+    aliases: ["Link de catalogo enviado (alta de suscripcion)"],
     trigger: "CATALOG_LINK_CREATED",
     chatwootType: "PAYMENT_LINK",
     paymentType: "SUBSCRIPTION"
   },
   {
     key: "tokenization_link_created",
-    label: "Link de tokenización enviado (débito automático)",
-    aliases: ["Tokenización enviada"],
+    label: "Link de tokenizacion enviado (debito automatico)",
+    aliases: ["Tokenizacion enviada"],
     trigger: "TOKENIZATION_LINK_CREATED",
     chatwootType: "PAYMENT_LINK"
   },
   {
     key: "payment_link_created",
-    label: "Link de cobro enviado (link de pago)",
+    label: "Link de pago enviado",
     trigger: "PAYMENT_LINK_CREATED",
     chatwootType: "PAYMENT_LINK",
     paymentType: "LINK"
   },
   {
     key: "payment_link_created_subscription",
-    label: "Link de cobro enviado (suscripción · link de pago)",
+    label: "Link de pago enviado (suscripcion)",
     trigger: "PAYMENT_LINK_CREATED",
     chatwootType: "PAYMENT_LINK",
     paymentType: "SUBSCRIPTION"
@@ -72,14 +72,14 @@ export const REALTIME_NOTIFICATION_DEFINITIONS: RealtimeNotificationDefinition[]
   },
   {
     key: "payment_failed_link",
-    label: "Pago rechazado (link de pago)",
+    label: "Pago rechazado (link publico de pago)",
     trigger: "PAYMENT_DECLINED",
     chatwootType: "PAYMENT_FAILED",
     paymentType: "LINK"
   },
   {
     key: "payment_failed_subscription",
-    label: "Pago rechazado (débito automático)",
+    label: "Pago rechazado (debito automatico)",
     trigger: "PAYMENT_DECLINED",
     chatwootType: "PAYMENT_FAILED",
     paymentType: "SUBSCRIPTION"
