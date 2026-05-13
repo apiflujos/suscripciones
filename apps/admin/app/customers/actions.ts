@@ -141,7 +141,7 @@ export async function updateCustomer(formData: FormData): Promise<UpdateCustomer
       phone: phone || "",
       ...(metadata ? { metadata } : {})
     });
-    if (!updated.ok) return { ok: false, error: updated.error };
+    if (!updated.ok) return { ok: false as const, error: String(updated.error || "update_customer_failed") };
     return {
       ok: true as const,
       redirectTo: mergeQuery(returnTo, { updated: "1", ...(scopeTenantId ? { tenantId: scopeTenantId } : {}) })
