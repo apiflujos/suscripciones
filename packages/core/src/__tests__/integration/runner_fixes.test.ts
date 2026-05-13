@@ -106,15 +106,15 @@ describe("Webhook Route: Job deduplication (Fix #3)", () => {
 });
 
 describe("Runner: payment retry scheduling", () => {
-  it("should not auto-reschedule PAYMENT_RETRY after the scheduled attempt fails", async () => {
+  it("should honor configured PAYMENT_RETRY automation settings after a failed attempt", async () => {
     const fs = await import("fs");
     const path = await import("path");
     const runnerPath = path.resolve(__dirname, "../../jobs/runner.ts");
     const content = fs.readFileSync(runnerPath, "utf-8");
 
-    expect(content).toContain("status = RetryJobStatus.FAILED;");
-    expect(content).not.toContain("resolveEffectiveSubscriptionAutomationConfigById");
-    expect(content).not.toContain("attempts <= cfg.maxRetries");
+    expect(content).toContain("resolveEffectiveSubscriptionAutomationConfigById");
+    expect(content).toContain("const canRetry = Boolean(cfg.retryEnabled) && attempts <= cfg.maxRetries;");
+    expect(content).toContain("runAt = canRetry ? nextRunAtMinutes(cfg.retryEveryMinutes) : undefined;");
   });
 
   it("should skip requeue when another pending auto charge already exists", async () => {
