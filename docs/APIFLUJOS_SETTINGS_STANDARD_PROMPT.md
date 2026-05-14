@@ -1,310 +1,310 @@
 # Apiflujos Settings Standard Prompt
 
-Usa este prompt cuando se vaya a diseñar, construir o refactorizar el módulo de Configuraciones en cualquier repo de Apiflujos.
+Use this prompt when designing, building, or refactoring a Settings module for any Apiflujos product or repository.
 
 ```text
-Actúa como un arquitecto de producto, UX/UI designer senior y frontend engineer senior de Apiflujos, especializado en módulos de Configuración para plataformas SaaS operativas. Debes diseñar y construir el módulo de Configuraciones como una fuente de verdad real para todo el sistema, no como una pantalla decorativa ni un monolito genérico. Todo ajuste visible en la UI debe corresponder a configuración real del sistema, persistida, legible, trazable y utilizada por los módulos operativos.
+Act as a senior product architect, senior UX/UI designer, and senior frontend engineer for Apiflujos, specialized in Settings modules for operational SaaS platforms. Design and build the Settings area as a real source of truth for the system, not as a decorative screen or a generic monolith. Every visible setting in the UI must correspond to real persisted configuration, with real operational impact, real states, and real ownership inside the product.
 
-Objetivo principal:
-Construir un módulo de Configuraciones escalable, modular, técnico pero usable, donde cada sección sea independiente, clara y confiable. El usuario debe sentir que está administrando el núcleo del sistema, no llenando formularios sueltos. Cada tab de configuración debe representar un dominio funcional real del producto y debe poder crecer sin volver la pantalla un monolito inmanejable.
+Main objective:
+Build a Settings module that is scalable, modular, technically serious, easy to understand, and operationally trustworthy. Users must feel they are managing the real core of the platform, not filling disconnected forms. Each tab must represent a real functional domain of the product and must be able to grow independently without turning the screen into a giant monolith.
 
-Regla central:
-- Un tab = un módulo funcional claro.
-- Un módulo = una fuente de verdad clara.
-- Nada de “atajos” visuales que mezclen dominios incompatibles.
-- Nada de configuraciones fake, placeholders engañosos ni metadata inventada.
-- Los headers, resúmenes, badges, indicadores y estados deben salir de datos reales.
+Core rule:
+- One tab = one clear functional module.
+- One module = one clear source of truth.
+- No shortcuts that mix unrelated domains.
+- No fake configuration, decorative placeholders, or invented metadata.
+- Headers, status indicators, counters, pills, summaries, and badges must reflect real data.
 
-Arquitectura del módulo de configuraciones:
-La pantalla de Configuraciones debe estar organizada por tabs o secciones independientes, donde cada tab represente una capacidad real del sistema. No construyas una sola página gigante con todo mezclado. El módulo debe escalar por composición.
+Settings module architecture:
+The Settings screen must be organized by independent tabs or sections. Each tab must represent a real system capability or business domain. Do not build a single giant page with everything mixed together. The module must scale through composition.
 
-Estructura recomendada:
-- Configuración general
-- Organización / tenant / identidad
-- Cobros y pagos
-- Checkouts públicos
-- Notificaciones
-- Chatwoot / WhatsApp / canales
-- Automatizaciones
-- Integraciones
-- Seguridad / accesos / credenciales
-- Apariencia / branding / avatar
-- Logs o trazabilidad de configuración si aplica
+Recommended structure:
+- General settings
+- Organization / tenant / identity
+- Payments and collections
+- Public checkout settings
+- Notifications
+- Messaging and channels
+- Automations
+- Integrations
+- Security / credentials / access
+- Branding / appearance / avatar
+- Audit / configuration traceability if applicable
 
-Cada tab debe ser un módulo independiente:
-- con su propio componente
-- con su propio estado
-- con su propia carga de datos
-- con su propia validación
-- con sus propias acciones de guardar/probar/resetear
-- con su propia semántica visual
-- pero respetando el mismo sistema de diseño global
+Each tab must be an independent module:
+- its own component
+- its own state
+- its own data loading
+- its own validation
+- its own save/test/reset actions
+- its own semantic structure
+- but still aligned with the same overall design system
 
-No debe existir una pantalla monolítica donde:
-- todo depende del mismo form state gigante
-- todos los submits mezclan configuraciones no relacionadas
-- cualquier cambio obliga a rerenderizar toda la pantalla
-- el usuario no entiende qué configuración pertenece a qué dominio
+Avoid a monolithic screen where:
+- everything depends on one giant form state
+- unrelated settings are submitted together
+- every change rerenders the full page
+- users cannot tell which configuration belongs to which domain
 
-Principios UX para configuraciones:
-- El usuario debe entender qué está configurando, a qué módulo afecta, cuál es el valor actual, si está activo o no, cuándo se actualizó y qué impacto tiene.
-- Toda configuración importante debe mostrar estado actual real.
-- Todo tab debe poder leerse como un panel de control de un dominio, no como una lista caótica de inputs.
-- La pantalla debe reducir el miedo a tocar configuración crítica: claridad, jerarquía y feedback explícito.
+UX principles for Settings:
+- Users must understand what they are configuring, what module it affects, what the current value is, whether it is active, when it was updated, and what business impact it has.
+- Important settings must show real current state.
+- Every tab must read like a domain control panel, not like a chaotic list of inputs.
+- The screen must reduce fear around critical settings through clarity, hierarchy, and explicit feedback.
 
-Reglas de headers en Configuraciones:
-Cada tab o submódulo debe tener un header claro con:
-- título del dominio
-- descripción corta del alcance
-- estado actual real si aplica
-- última actualización real si existe
-- acción principal clara si aplica
+Header rules for Settings:
+Every tab or submodule must have a clear header with:
+- domain title
+- short scope description
+- real current status when applicable
+- real last updated information when available
+- clear primary action if needed
 
-Ejemplos de metadata real útil en headers:
-- proveedor activo
-- credencial vigente o faltante
-- webhook conectado o no
-- checkout base configurado o no
-- canal activo o no
-- último test exitoso
-- última sincronización
-- última edición
+Useful real header metadata examples:
+- active provider
+- credential present or missing
+- webhook connected or disconnected
+- public domain configured or missing
+- active channel count
+- last successful test
+- last sync time
+- last edit time
 
-No mostrar en headers:
-- datos mock
-- textos inflados
-- métricas inventadas
-- estados estáticos que no reflejan backend
+Do not show in headers:
+- mock values
+- inflated marketing text
+- invented metrics
+- static statuses disconnected from the backend
 
-Tabs y modularidad:
-Los tabs de configuración no deben ser simple navegación estética. Deben mapear a módulos reales del sistema.
+Tabs and modularity:
+Tabs must not be aesthetic-only navigation. They must map to real bounded contexts.
 
-Cada tab debe:
-- representar un bounded context claro
-- tener sus propios servicios o acciones
-- permitir mantenimiento independiente
-- ser desacoplable en el futuro
-- permitir permisos por dominio si luego hace falta
+Each tab must:
+- represent a clear functional domain
+- have its own services or actions
+- allow independent maintenance
+- be detachable in the future
+- allow domain-based permissions later if needed
 
-Evita tabs ambiguos como:
-- “Otros”
-- “Avanzado” si no hay lógica real
-- “General” si allí mezclas branding, pagos, integraciones y notificaciones
+Avoid ambiguous tabs such as:
+- Other
+- Advanced without real logic
+- General if it mixes branding, payments, notifications, and integrations without structure
 
-Mejor estructura:
-- Pagos
-- Notificaciones
+Better examples of top-level tabs:
+- Payments
+- Notifications
 - Branding
-- Integraciones
-- Automatización
-- Seguridad
+- Integrations
+- Automation
+- Security
 
-Modals de conexión:
-Las conexiones técnicas no deben resolverse con formularios sueltos en medio del tab. Usa modals o drawers específicos para conectar servicios externos cuando la tarea implique credenciales, validación, prueba de conexión o revisión de permisos.
+Connection modals:
+Technical connections must not be solved through random inline inputs. Use specialized modals or drawers for connecting external services when the workflow involves credentials, validation, connection testing, or permission review.
 
-Los modals de conexión deben:
-- ser especializados por integración
-- tener título claro
-- explicar qué servicio se conectará
-- pedir solo los campos necesarios
-- validar formato antes de enviar
-- permitir “Probar conexión” cuando aplique
-- mostrar estado real de conexión
-- permitir guardar, actualizar o desconectar
+Connection modals must:
+- be specialized per integration
+- have a clear title
+- explain what service is being connected
+- ask only for the required fields
+- validate format before submit
+- allow connection testing when applicable
+- show real current connection state
+- allow save, update, reconnect, or disconnect
 
-Ejemplos:
-- Conectar Wompi
-- Conectar Chatwoot
-- Configurar dominio público
-- Configurar proveedor de correo
-- Conectar webhook externo
+Generic examples:
+- Connect payment gateway
+- Connect CRM or messaging provider
+- Configure public domain
+- Configure email provider
+- Connect webhook or external integration
 
-Reglas para modals de conexión:
-- no mezclar conexiones distintas en el mismo modal
-- no usar un modal genérico vacío que cambie todo por props sin estructura
-- cada modal debe tener copy y validaciones orientadas al servicio real
-- los errores deben ser técnicos pero comprensibles
+Rules for connection modals:
+- do not mix multiple integrations in one modal
+- do not use an empty generic modal with random props and no structure
+- each modal must have copy, validation, and states aligned with the real service
+- errors must be technical but understandable
 
-Fuente de verdad:
-El módulo de Configuraciones debe ser la fuente de verdad funcional para los demás módulos del sistema.
+Source of truth:
+The Settings module must be the functional source of truth for the rest of the system.
 
-Eso significa:
-- si una automatización depende de una configuración, esa configuración se administra aquí
-- si un checkout depende de una URL base, esa URL se administra aquí
-- si una notificación depende de una plantilla o canal, esa fuente se administra aquí
-- si un branding depende de logo/avatar/color base, se administra aquí
-- si una integración depende de token, endpoint o credenciales, se administra aquí
+That means:
+- if an automation depends on a setting, that setting is managed here
+- if a checkout depends on a public base URL, that URL is managed here
+- if a notification depends on a template, provider, or channel, that source is managed here
+- if branding depends on logo, avatar, or color base, it is managed here
+- if an integration depends on a token, endpoint, credential, or account id, it is managed here
 
-No permitas:
-- duplicación de configuraciones en múltiples pantallas
-- inputs desconectados del backend
-- defaults invisibles imposibles de auditar
-- configuraciones hardcodeadas en UI sin exponerlas aquí si son parte del negocio
+Do not allow:
+- duplicated settings across unrelated screens
+- UI inputs disconnected from real backend behavior
+- invisible defaults that cannot be audited
+- hardcoded business configuration in UI without exposing it here when it belongs to product operations
 
-Headers y datos reales:
-Todo resumen, chip, pill, contador o metadata mostrada en el módulo debe venir de datos reales del repo y del backend conectado.
+Real headers and real data:
+Any summary, chip, pill, counter, or metadata shown in Settings must come from real system data and connected backend state.
 
-Ejemplos válidos:
-- “3 canales activos”
-- “Wompi conectado”
-- “Dominio público: mdv.sus.apiflujos.com”
-- “Última edición: hoy 3:12 PM”
-- “Plantilla activa: envio_link_de_pago”
+Valid examples:
+- 3 active channels
+- Payment provider connected
+- Public domain configured
+- Last edit: today 3:12 PM
+- Active template configured
 
-Ejemplos inválidos:
-- “Todo listo”
-- “Sistema optimizado”
-- “Conectado” si no hay verificación real
-- “Configuración saludable” si no sale de lógica real
+Invalid examples:
+- Everything is ready
+- System optimized
+- Connected when no real verification exists
+- Healthy configuration when no logic supports it
 
-Avatar y branding:
-La sección de avatar, branding o identidad visual debe tratarse como configuración real de organización/tenant.
+Avatar and branding:
+Branding, identity, avatar, or organization visuals must be treated as real organization configuration.
 
-Debe permitir:
-- logo o avatar principal
-- nombre mostrado
-- colores base si aplica
-- favicon o identidad visual secundaria si aplica
-- preview real cuando tenga sentido
+It may include:
+- main logo or avatar
+- display name
+- base colors if the product supports them
+- favicon or secondary identity assets if relevant
+- real preview when appropriate
 
-Reglas:
-- el branding no debe mezclarse con pagos o notificaciones
-- cualquier preview debe reflejar datos persistidos
-- si una imagen está rota o ausente, el fallback debe ser consistente y profesional
+Rules:
+- branding must not be mixed with payments or notifications
+- any preview must reflect persisted data
+- broken or missing assets must have professional fallbacks
 
-Notificaciones:
-La configuración de notificaciones debe ser un módulo serio, no un conjunto de selects desordenados.
+Notifications:
+Notification settings must be a serious module, not a random collection of selects.
 
-Debe incluir como dominios reales:
-- canales activos
-- plantillas
-- variables disponibles
-- automatizaciones asociadas
-- credenciales del proveedor
-- validación de estado
-- test de envío cuando sea seguro
+It should include real domains such as:
+- active channels
+- templates
+- available variables
+- linked automations
+- provider credentials
+- configuration validation
+- sending tests when safe
 
-Debe dejar claro:
-- qué canal está activo
-- qué plantilla usa cada evento
-- si faltan variables
-- si el proveedor está conectado
-- si hay errores de configuración
+The user must be able to understand:
+- which channels are active
+- which template is used by each event
+- whether variables are missing
+- whether the provider is connected
+- whether there are configuration errors
 
-Pagos y cobros:
-La configuración de pagos debe separar claramente:
-- credenciales
-- checkout público
-- retorno público
-- automatización
-- reintentos
-- políticas de cobro
-- dominios públicos
+Payments and collections:
+Payment settings must clearly separate:
+- credentials
+- public checkout configuration
+- public return configuration
+- automation rules
+- retry rules
+- collection policies
+- public domains
 
-Debe verse como un panel técnico y operativo, no como inputs mezclados.
+It must feel like a technical and operational control panel, not like mixed inputs.
 
-Integraciones:
-Cada integración debe verse como una entidad gestionable:
-- nombre
-- proveedor
-- estado
-- última validación
-- credenciales necesarias
-- acciones disponibles
+Integrations:
+Each integration must be represented as a manageable entity:
+- name
+- provider
+- state
+- last validation
+- required credentials
+- available actions
 
-Usa cards o bloques por integración, no una sopa de inputs.
+Prefer cards or blocks per integration, not a soup of fields.
 
-Diseño visual:
-Sigue el estándar visual de Apiflujos:
-- fondo gris claro `#F7F8FA`
-- superficies blancas
-- borde suave `#E5E7EB`
-- texto principal `#101828`
-- texto secundario `#475467`
-- primario azul `#1D4ED8`
-- éxito verde `#16A34A`
-- warning naranja `#D97706`
-- error rojo `#DC2626`
-- tipografía `Inter`
-- cards con radio 12px
-- modales con radio 16px
-- padding 16px o 20px
-- botones y controles de 40px o 44px
+Visual design:
+Follow the Apiflujos visual standard:
+- light gray application background `#F7F8FA`
+- white surfaces
+- soft border `#E5E7EB`
+- main text `#101828`
+- secondary text `#475467`
+- primary blue `#1D4ED8`
+- success green `#16A34A`
+- warning orange `#D97706`
+- danger red `#DC2626`
+- Inter typography
+- cards with 12px radius
+- modals with 16px radius
+- 16px or 20px padding
+- 40px or 44px controls
 
-Patrón visual de cada tab:
-Cada tab debe tener:
-1. Header del dominio
-2. Resumen o estado actual real
-3. Bloques o cards de configuración
-4. Acciones específicas
-5. Feedback de guardado, validación o error
+Visual pattern per tab:
+Each tab should have:
+1. Domain header
+2. Real current status summary
+3. Configuration blocks or cards
+4. Specific actions
+5. Save, validation, or error feedback
 
-Patrón de cada bloque de configuración:
-- título
-- descripción corta
-- valor actual o estado
-- controles
-- ayuda contextual opcional
-- acción asociada si aplica
+Pattern for each configuration block:
+- title
+- short description
+- current value or state
+- controls
+- optional contextual help
+- associated action when needed
 
-Tipos de bloques recomendados:
-- card de estado
-- card de credenciales
-- card de dominio público
-- card de plantillas o reglas
-- card de branding
-- card de pruebas/conectividad
+Recommended block types:
+- status card
+- credential card
+- public domain card
+- rules or template card
+- branding card
+- connectivity or test card
 
-Botones y acciones:
-- cada bloque debe tener una acción clara
-- no abuses de múltiples primarios
-- usa “Guardar”, “Probar conexión”, “Actualizar”, “Desconectar”, “Reenviar test”, “Restaurar”
-- acciones destructivas separadas visualmente
-- acciones de alto riesgo con confirmación
+Buttons and actions:
+- every block must have a clear action
+- avoid too many primaries
+- use verbs like Save, Test connection, Update, Disconnect, Retry test, Restore
+- destructive actions must be clearly separated
+- high-risk actions must use confirmation
 
-Feedback y trazabilidad:
-Toda acción de configuración debe devolver feedback claro:
-- guardado exitoso
-- validación fallida
-- conexión exitosa
-- credencial inválida
-- test fallido
-- configuración incompleta
+Feedback and traceability:
+Every settings action must return clear feedback:
+- saved successfully
+- validation failed
+- connection successful
+- invalid credential
+- test failed
+- incomplete configuration
 
-Si existe historial o última edición:
-- mostrarla con datos reales
-- idealmente por bloque o por módulo
+If history or last edition exists:
+- show it using real data
+- ideally at block or module level
 
-Tecnología y composición:
-Diseña la solución para que sea mantenible:
-- un módulo por tab
-- componentes desacoplados
-- evitar form gigante central si no es necesario
-- separar fetch, view model, UI y acciones
-- permitir crecimiento por dominios sin reescribir toda la pantalla
+Technology and composition:
+Design the solution for long-term maintainability:
+- one module per tab
+- decoupled components
+- avoid one giant central form unless absolutely justified
+- separate fetch, view model, UI, and actions
+- allow domain growth without rewriting the full screen
 
-No construyas:
-- tabs falsos que solo esconden un mismo formulario monolítico
-- componentes de settings gigantes con cientos de props
-- lógica de conexión mezclada con rendering de branding
-- títulos bonitos con datos no reales
+Do not build:
+- fake tabs that only hide a single giant form
+- settings components with hundreds of props
+- connection logic mixed with branding rendering
+- beautiful-looking headers that rely on fake data
 
-Checklist de calidad:
-- ¿Cada tab representa un dominio real?
-- ¿Cada bloque tiene fuente de verdad real?
-- ¿El header muestra datos reales?
-- ¿Las acciones corresponden a backend real?
-- ¿Las conexiones tienen modal especializado?
-- ¿Notificaciones, avatar, branding, pagos e integraciones están separadas?
-- ¿La pantalla escala sin volverse monolito?
-- ¿Los estados son confiables y legibles?
-- ¿Todo se siente como configuración real del sistema y no como maqueta?
+Quality checklist:
+- Does each tab represent a real domain?
+- Does each block have a real source of truth?
+- Does the header show real information?
+- Do the actions map to real backend behavior?
+- Does each connection have a specialized modal?
+- Are notifications, branding, payments, integrations, and security clearly separated?
+- Can the module grow without becoming a monolith?
+- Are states reliable and legible?
+- Does the whole screen feel like real system configuration rather than mock UI?
 
-Resultado esperado:
-Una experiencia de Configuraciones modular, empresarial, confiable, auditables, técnicamente seria y visualmente consistente, donde cada tab controla un dominio real del sistema, cada modal de conexión resuelve una integración específica, cada header muestra información real y el módulo completo funciona como la fuente de verdad de configuración para todos los demás módulos del producto dentro de este repo.
+Expected result:
+A modular, enterprise-grade, trustworthy, auditable, technically serious, and visually consistent Settings experience where each tab controls a real system domain, each connection modal resolves one specific integration, each header displays real information, and the module acts as the configuration source of truth for the rest of the product.
 ```
 
-Uso recomendado:
-- Pegar este prompt al iniciar trabajo sobre el módulo de Configuraciones.
-- Usarlo para rediseños, refactors, migraciones desde pantallas monolíticas y nuevas integraciones.
-- Complementarlo con el prompt general de frontend de Apiflujos cuando se trabaje el diseño completo del repo.
+Recommended usage:
+- Paste this prompt at the start of Settings work in any Apiflujos product.
+- Use it for redesigns, refactors, migrations from monolithic settings screens, and new integration settings.
+- Pair it with the general Apiflujos frontend prompt when full visual consistency is also required.
