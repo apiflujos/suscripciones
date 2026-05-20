@@ -196,13 +196,65 @@ describe("notificationsScheduler", () => {
       id: "sub-1",
       customerId: "cus-1"
     } as any);
+    vi.mocked(resolveSubscriptionBillingState).mockResolvedValue({
+      subscription: { plan: { metadata: { collectionMode: "AUTO_DEBIT" } } },
+      collectionCycle: {
+        cycleNumber: 1,
+        periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
+        dueAt: new Date("2026-05-20T20:00:00.000Z")
+      }
+    } as any);
+    vi.mocked(getNotificationsConfig).mockResolvedValue({
+      rules: [
+        { id: "rule-sub", enabled: true, trigger: "SUBSCRIPTION_DUE", offsetsSeconds: [60], conditions: { requirePaymentTypeIn: ["SUBSCRIPTION"] } }
+      ],
+      templates: []
+    } as any);
 
     await scheduleSubscriptionDueNotifications({ subscriptionId: "sub-1" });
 
     expect(prisma.retryJob.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          type: RetryJobType.SUBSCRIPTION_REMINDER
+          type: RetryJobType.SUBSCRIPTION_REMINDER,
+          payload: expect.objectContaining({
+            ruleId: "rule-sub"
+          })
+        })
+      })
+    );
+  });
+
+  it("filtra SUBSCRIPTION_DUE por tipo LINK cuando la suscripción no usa AUTO_DEBIT", async () => {
+    vi.mocked(prisma.subscription.findUnique).mockResolvedValue({
+      id: "sub-1",
+      customerId: "cus-1"
+    } as any);
+    vi.mocked(resolveSubscriptionBillingState).mockResolvedValue({
+      subscription: { plan: { metadata: { collectionMode: "MANUAL_LINK" } } },
+      collectionCycle: {
+        cycleNumber: 1,
+        periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
+        dueAt: new Date("2026-05-20T20:00:00.000Z")
+      }
+    } as any);
+    vi.mocked(getNotificationsConfig).mockResolvedValue({
+      rules: [
+        { id: "rule-link", enabled: true, trigger: "SUBSCRIPTION_DUE", offsetsSeconds: [60], conditions: { requirePaymentTypeIn: ["LINK"] } },
+        { id: "rule-sub", enabled: true, trigger: "SUBSCRIPTION_DUE", offsetsSeconds: [60], conditions: { requirePaymentTypeIn: ["SUBSCRIPTION"] } }
+      ],
+      templates: []
+    } as any);
+
+    await scheduleSubscriptionDueNotifications({ subscriptionId: "sub-1" });
+
+    expect(prisma.retryJob.create).toHaveBeenCalledTimes(1);
+    expect(prisma.retryJob.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          payload: expect.objectContaining({
+            ruleId: "rule-link"
+          })
         })
       })
     );

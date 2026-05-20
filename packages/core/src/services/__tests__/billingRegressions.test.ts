@@ -86,6 +86,37 @@ describe("Regression: bugs de producción corregidos", () => {
     expect(result?.id).toBe("may");
   });
 
+  it("REG-004B: un ciclo SKIPPED viejo no desplaza al ciclo vigente ni marca mora falsa", () => {
+    const cycles = [
+      {
+        id: "apr-skipped",
+        cycleNumber: 1,
+        periodStartAt: new Date("2026-04-01T00:00:00.000Z"),
+        periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
+        dueAt: new Date("2026-04-20T00:00:00.000Z"),
+        paymentId: null,
+        status: "SKIPPED"
+      },
+      {
+        id: "may",
+        cycleNumber: 2,
+        periodStartAt: new Date("2026-05-01T00:00:00.000Z"),
+        periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
+        dueAt: new Date("2026-05-20T20:00:00.000Z"),
+        paymentId: null,
+        status: "PENDING"
+      }
+    ];
+
+    const result = resolveConfiguredCollectionCycle({
+      cycles,
+      asOf: new Date("2026-05-20T14:56:31.000Z"),
+      paymentTiming: "EN_CURSO"
+    });
+
+    expect(result?.id).toBe("may");
+  });
+
   it("REG-005: la conciliación prioriza el ciclo cuyo período contiene el pago", () => {
     const result = findBestBillingCycleForPayment({
       paymentAt: new Date("2026-05-20T12:00:00.000Z"),

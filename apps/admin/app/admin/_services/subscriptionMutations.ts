@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@suscripciones/database";
 import { BillingCycleStatus, LogLevel, PaymentOrigin, PaymentStatus, PlanIntervalUnit, Prisma, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
+import { resolvePaymentRetryRunAt } from "@suscripciones/core/services/retryJobScheduler";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
 import { addIntervalUtc, toUtc } from "@suscripciones/core/lib/dates";
@@ -309,7 +310,7 @@ export async function createSubscription(args: {
   const shouldScheduleInitialCollection =
     (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") &&
     !args.suppressInitialCollection;
-  const runAt = dueAt <= new Date(Date.now() + 5_000) ? new Date() : dueAt;
+  const runAt = await resolvePaymentRetryRunAt({ dueAt });
 
   if (shouldScheduleInitialCollection) {
     await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt, maxAttempts: 1 }).catch((err) => {
@@ -649,7 +650,7 @@ export async function changeSubscriptionPlan(args: {
   if (updatedMode === "AUTO_LINK" || updatedMode === "AUTO_DEBIT") {
     await ensurePaymentRetryJob({
       subscriptionId,
-      runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
+      runAt: await resolvePaymentRetryRunAt({ dueAt: cutoffAt }),
       maxAttempts: 1
     }).catch((err) => {
       logger.warn({ err, subscriptionId, runAt: cutoffAt }, "Fallo reprogramando retry al cambiar plan");
@@ -796,7 +797,7 @@ export async function updateSubscriptionStatus(args: {
     if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
       await ensurePaymentRetryJob({
         subscriptionId,
-        runAt: explicitDueAt,
+        runAt: await resolvePaymentRetryRunAt({ dueAt: explicitDueAt }),
         maxAttempts: 1
       }).catch((err) => {
         logger.warn({ err, subscriptionId }, "Fallo reprogramando cobro al reactivar suscripcion");

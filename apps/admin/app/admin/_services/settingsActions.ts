@@ -19,6 +19,7 @@ import { logger } from "@suscripciones/core/lib/logger";
 import { scheduleSubscriptionDueNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
+import { resolvePaymentRetryRunAt } from "@suscripciones/core/services/retryJobScheduler";
 import {
   envOnlySchema,
   wompiTestSchema,
@@ -141,7 +142,11 @@ async function rebuildOperationalSchedulesAfterConfigChange(subscriptions: Billi
     if (collectionMode === "AUTO_DEBIT" && (!autoDebitConfig?.enabled || !autoDebitConfig?.chargeAtCutoffEnabled)) continue;
 
     const runAtBase = new Date(collectionCycle.dueAt || collectionCycle.periodEndAt);
-    const runAt = runAtBase.getTime() > now.getTime() ? runAtBase : now;
+    const runAt = await resolvePaymentRetryRunAt({
+      dueAt: runAtBase,
+      now,
+      config: autoDebitConfig
+    });
     await ensurePaymentRetryJob({
       subscriptionId: subscription.id,
       runAt,

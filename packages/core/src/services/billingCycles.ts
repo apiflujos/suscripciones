@@ -315,7 +315,7 @@ export function resolveConfiguredCollectionCycle(args: {
 }) {
   const asOfTs = new Date(args.asOf).getTime();
   const unpaid = args.cycles
-    .filter((cycle) => !isBillingCyclePaid(cycle))
+    .filter((cycle) => isBillingCycleCollectible(cycle))
     .sort((a, b) => a.cycleNumber - b.cycleNumber);
   if (!unpaid.length) return null;
 
@@ -355,6 +355,19 @@ export function resolveConfiguredCollectionCycle(args: {
 export function isBillingCyclePaid(cycle: { status?: BillingCycleStatus | string | null; paymentId?: string | null } | null | undefined) {
   if (!cycle) return false;
   return String(cycle.status || "").toUpperCase() === BillingCycleStatus.PAID;
+}
+
+function isBillingCycleSkipped(cycle: { status?: BillingCycleStatus | string | null } | null | undefined) {
+  if (!cycle) return false;
+  return String(cycle.status || "").toUpperCase() === BillingCycleStatus.SKIPPED;
+}
+
+function isBillingCycleRelevant(cycle: BillingCycleLike | null | undefined) {
+  return Boolean(cycle) && !isBillingCycleSkipped(cycle);
+}
+
+function isBillingCycleCollectible(cycle: BillingCycleLike | null | undefined) {
+  return isBillingCycleRelevant(cycle) && !isBillingCyclePaid(cycle);
 }
 
 export function resolveCollectionDelinquency(args: {
@@ -502,8 +515,17 @@ function canRescheduleExistingCycle(cycle: BillingCycleLike | null | undefined, 
   if (!cycle) return true;
   if (cycle.paymentId) return false;
   const status = String(cycle.status || "").trim().toUpperCase();
-  if (status === "PAID" || status === "FAILED" || status === "SKIPPED") return false;
+  if (status === "PAID") return false;
+  if (status === "FAILED" || status === "SKIPPED") return true;
   return new Date(cycle.dueAt).getTime() >= now.getTime();
+}
+
+function sameBillingWindow(a: BillingCycleLike | null | undefined, b: BillingCycleLike | null | undefined) {
+  if (!a || !b) return false;
+  return (
+    new Date(a.periodStartAt).getTime() === new Date(b.periodStartAt).getTime() &&
+    new Date(a.periodEndAt).getTime() === new Date(b.periodEndAt).getTime()
+  );
 }
 
 function pickAuthoritativeCycleSeed(args: {
@@ -518,16 +540,30 @@ function pickAuthoritativeCycleSeed(args: {
   if (hasExplicitAnchor) {
     return normalizeBillingSeed(args.sub);
   }
-  if (!args.existingCycles.length) return normalizeBillingSeed(args.sub);
-  const activeCycle = resolveActiveCycle({ cycles: args.existingCycles, asOf: args.asOf });
-  const latestCycle = [...args.existingCycles].sort((a, b) => b.cycleNumber - a.cycleNumber)[0] || null;
-  const anchor = activeCycle || latestCycle;
-  if (!anchor) return normalizeBillingSeed(args.sub);
+  const normalized = normalizeBillingSeed(args.sub);
+  const relevantExistingCycles = args.existingCycles.filter((cycle) => isBillingCycleRelevant(cycle));
+  if (!relevantExistingCycles.length) return normalized;
+  const projectedCurrentCycle = resolveActiveCycle({
+    cycles: buildBillingCyclesForSubscription(normalized, 0, 2),
+    asOf: args.asOf
+  });
+  const matchingProjectedCycle =
+    relevantExistingCycles.find((cycle) => sameBillingWindow(cycle, projectedCurrentCycle)) || null;
+  const activeCycle = resolveActiveCycle({ cycles: relevantExistingCycles, asOf: args.asOf });
+  const activeCycleStillOpen =
+    activeCycle &&
+    new Date(activeCycle.periodStartAt).getTime() <= args.asOf.getTime() &&
+    args.asOf.getTime() < new Date(activeCycle.periodEndAt).getTime()
+      ? activeCycle
+      : null;
+  const anchor = matchingProjectedCycle || activeCycleStillOpen;
+  if (!anchor) return normalized;
   return normalizeBillingSeed({
     ...args.sub,
     anchorCycleNumber: anchor.cycleNumber,
     anchorPeriodStartAt: new Date(anchor.periodStartAt),
-    anchorPeriodEndAt: new Date(anchor.periodEndAt)
+    anchorPeriodEndAt: new Date(anchor.periodEndAt),
+    anchorDueAt: new Date(anchor.dueAt)
   });
 }
 
@@ -603,7 +639,8 @@ function resolveActiveCycle(args: {
   asOf: Date;
 }) {
   const asOfTs = new Date(args.asOf).getTime();
-  const sorted = [...args.cycles].sort((a, b) => a.cycleNumber - b.cycleNumber);
+  const relevantCycles = args.cycles.filter((cycle) => isBillingCycleRelevant(cycle));
+  const sorted = (relevantCycles.length ? relevantCycles : args.cycles).slice().sort((a, b) => a.cycleNumber - b.cycleNumber);
   const exact = sorted.find((cycle) => {
     const startTs = new Date(cycle.periodStartAt).getTime();
     const endTs = new Date(cycle.periodEndAt).getTime();
@@ -630,7 +667,7 @@ export function resolveBillingStateFromCycles(args: {
     asOf: args.asOf,
     paymentTiming: args.paymentTiming
   });
-  const oldestUnpaidCycle = args.cycles.find((cycle) => !isBillingCyclePaid(cycle)) || null;
+  const oldestUnpaidCycle = args.cycles.find((cycle) => isBillingCycleCollectible(cycle)) || null;
   return {
     activeCycle,
     collectionCycle,
@@ -812,7 +849,7 @@ export function findBestBillingCycleForPayment(args: {
   const toleranceMs = toleranceDays * 24 * 60 * 60 * 1000;
   const paymentTs = args.paymentAt.getTime();
   const unpaidCycles = args.cycles
-    .filter((cycle) => !isBillingCyclePaid(cycle))
+    .filter((cycle) => isBillingCycleCollectible(cycle))
     .map((cycle) => ({
       ...cycle,
       periodStartMs: new Date(cycle.periodStartAt).getTime(),

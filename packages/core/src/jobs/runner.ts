@@ -19,6 +19,7 @@ import { reconcileRecentChatwootDeliveries } from "../services/chatwootDelivery"
 import { reconcileWompiByReference, reconcileWompiTransaction } from "../services/wompiReconcile";
 import { resolveSubscriptionCollectionMode } from "../services/subscriptionMode";
 import { ensurePaymentRetryJob } from "../services/retryJobScheduler";
+import { resolvePaymentRetryRunAt } from "../services/retryJobScheduler";
 import { handleSubscriptionPaymentFailure, ensureExpiredSubscriptions } from "../services/subscriptionBilling";
 import { runWithActor } from "../services/actorStore";
 import { publishRealtime } from "../services/realtimePublisher";
@@ -467,8 +468,13 @@ async function ensureDueCutoffRetries() {
       }
 
       const dueAt = collectionCycle ? new Date(collectionCycle.dueAt || collectionCycle.periodEndAt) : null;
-      const runAtMs = dueAt?.getTime?.() ?? 0;
-      const runAt = runAtMs > now + futureToleranceMs ? new Date(runAtMs) : nowDate;
+      const runAt = dueAt
+        ? await resolvePaymentRetryRunAt({
+            dueAt,
+            now: nowDate,
+            config: autoDebitConfig
+          })
+        : nowDate;
 
       // ensurePaymentRetryJob internamente revisa si ya existe uno pendiente.
       const job = await ensurePaymentRetryJob({ subscriptionId: sub.id, runAt, maxAttempts: 1 }).catch((err) => {

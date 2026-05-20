@@ -24,6 +24,7 @@ import { consumeApp } from "@suscripciones/core/services/superAdminApp";
 import { extractCustomerPaymentSourceId } from "@suscripciones/core/lib/customerMetadata";
 import { getEffectiveTenantId, getEffectiveTenantIds, readTenantIdsFromReq } from "@suscripciones/core/services/tenantContext";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
+import { resolvePaymentRetryRunAt } from "@suscripciones/core/services/retryJobScheduler";
 import { validateWompiCurrency } from "@suscripciones/core/lib/wompiSignature";
 import { computeBillingCycleDueAt, ensureBillingCyclesForSubscription, resolveSubscriptionBillingState } from "@suscripciones/core/services/billingCycles";
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
@@ -363,7 +364,7 @@ export async function POST(req: Request) {
       }, "[Subscriptions/Create] Fallo programando notificaciones");
     });
 
-    const runAt = dueAt <= new Date(Date.now() + 5_000) ? new Date() : dueAt;
+    const runAt = await resolvePaymentRetryRunAt({ dueAt });
 
     if (collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") {
       await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt, maxAttempts: 1 }).catch((err) => {

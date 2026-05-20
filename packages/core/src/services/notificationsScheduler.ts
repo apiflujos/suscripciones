@@ -79,7 +79,13 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
   if (!collectionCycle) return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] };
 
   const cfg = await getNotificationsConfig();
-  const rules = cfg.rules.filter((r) => r.enabled && r.trigger === "SUBSCRIPTION_DUE");
+  const resolvedMode = billingState?.subscription ? resolveSubscriptionCollectionMode(billingState.subscription as any) : null;
+  const paymentType = resolvedMode === "AUTO_DEBIT" ? "SUBSCRIPTION" : "LINK";
+  const rules = filterNotificationRules({
+    rules: cfg.rules,
+    trigger: "SUBSCRIPTION_DUE",
+    paymentType
+  });
   if (!rules.length) {
     return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] };
   }

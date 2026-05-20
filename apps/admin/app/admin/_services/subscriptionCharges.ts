@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@suscripciones/database";
 import { BillingCycleStatus, LogLevel, PaymentAssociationReason, PaymentOrigin, PaymentStatus, Prisma, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
 import { ensurePaymentRetryJob } from "@suscripciones/core/services/retryJobScheduler";
+import { resolvePaymentRetryRunAt } from "@suscripciones/core/services/retryJobScheduler";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
 import { resolveEffectiveSubscriptionAutomationConfig } from "@suscripciones/core/services/subscriptionAutomationConfig";
@@ -642,7 +643,12 @@ export async function unmarkSubscriptionPaidManual(args: {
 
   const collectionMode = resolveSubscriptionCollectionMode(subscription);
   if (collectionMode === "AUTO_DEBIT" || collectionMode === "AUTO_LINK") {
-    const retryAt = collectionCycle ? new Date(collectionCycle.dueAt || collectionCycle.periodEndAt) : now;
+    const retryAt = collectionCycle
+      ? await resolvePaymentRetryRunAt({
+          dueAt: new Date(collectionCycle.dueAt || collectionCycle.periodEndAt),
+          now
+        })
+      : now;
     await ensurePaymentRetryJob({ subscriptionId: subscription.id, runAt: retryAt, maxAttempts: 1 }).catch((err) => {
       logger.warn({ err, subscriptionId: subscription.id, runAt: retryAt }, "Fallo reprogramando retry tras desmarcar pago manual");
     });
@@ -733,7 +739,7 @@ export async function scheduleSubscriptionCutoff(args: { subscriptionId: string;
 
   await ensurePaymentRetryJob({
     subscriptionId,
-    runAt: cutoffAt <= new Date(Date.now() + 5_000) ? new Date() : cutoffAt,
+    runAt: await resolvePaymentRetryRunAt({ dueAt: cutoffAt }),
     maxAttempts: 1
   }).catch((err) => {
     logger.warn({ err, subscriptionId, cutoffAt }, "Fallo reprogramando retry tras cambiar cutoff");
@@ -828,7 +834,7 @@ export async function recalcSubscriptionCutoff(args: { subscriptionId: string; t
   if ((collectionMode === "AUTO_LINK" || collectionMode === "AUTO_DEBIT") && nextCollectionDueAt) {
     await ensurePaymentRetryJob({
       subscriptionId,
-      runAt: nextCollectionDueAt <= new Date(Date.now() + 5_000) ? new Date() : nextCollectionDueAt,
+      runAt: await resolvePaymentRetryRunAt({ dueAt: nextCollectionDueAt }),
       maxAttempts: 1
     }).catch((err) => {
       logger.warn({ err, subscriptionId, runAt: nextCollectionDueAt }, "Fallo reprogramando retry al recalcular cutoff");
