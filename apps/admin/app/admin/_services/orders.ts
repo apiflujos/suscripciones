@@ -14,11 +14,13 @@ import { readCheckoutConfig } from "@suscripciones/core/services/checkoutConfig"
 import { getCredential } from "@suscripciones/core/services/credentials";
 import { schedulePaymentLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { firstNotificationDeliveryError } from "@suscripciones/core/services/notificationDelivery";
+import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { getEffectiveTenantId } from "@suscripciones/core/services/tenantContext";
 import { DEFAULT_CURRENCY, isSupportedCurrency, normalizeCurrencyCode } from "@suscripciones/core/lib/currencies";
 import { logger } from "@suscripciones/core/lib/logger";
 import { reqToCompat } from "../_lib/reqCompat";
+import { findCheckoutTemplateForProductOrDefault } from "./checkoutTemplates";
 
 const currencyCodeSchema = z
   .preprocess((v) => normalizeCurrencyCode(v), z.string().min(3).max(3))
@@ -66,6 +68,33 @@ const EMPTY_NOTIFICATION_RESULT = {
   rulesActive: false,
   errors: [] as string[]
 };
+
+async function createPublicPaymentLinkForManualOrder(args: {
+  customerId: string;
+  tenantId: string;
+  checkoutUrl?: string | null;
+  defaultTemplateId?: string | null;
+}) {
+  const customerId = String(args.customerId || "").trim();
+  const tenantId = String(args.tenantId || "").trim();
+  const checkoutUrl = String(args.checkoutUrl || "").trim();
+  const defaultTemplateId = String(args.defaultTemplateId || "").trim();
+  if (!customerId || !tenantId || !checkoutUrl || !defaultTemplateId) return "";
+
+  const template = await findCheckoutTemplateForProductOrDefault({
+    tenantId,
+    kind: "PLAN",
+    defaultTemplateId
+  }).catch(() => null);
+  if (!template?.id) return "";
+
+  const publicCheckout = await createPublicCheckoutLink({
+    customerId,
+    templateId: String(template.id),
+    checkoutUrl
+  }).catch(() => null);
+  return String(publicCheckout?.url || "").trim();
+}
 
 export async function createManualOrder(args: { req: Request; body: any }) {
   const parsed = createOrderSchema.safeParse(args.body);
@@ -189,11 +218,24 @@ export async function createManualOrder(args: { req: Request; body: any }) {
       checkoutUrl: created.checkoutUrl
     }
   });
+  const publicUrl = await createPublicPaymentLinkForManualOrder({
+    customerId: customer.id,
+    tenantId,
+    checkoutUrl: updated.checkoutUrl,
+    defaultTemplateId: cfg?.defaultPlanTemplateId || null
+  }).catch((err: any) => {
+    logger.warn({ err, paymentId: updated.id, customerId: customer.id, tenantId }, "Fallo creando checkout publico para orden manual");
+    return "";
+  });
 
   const scheduledInfo =
     parsed.data.sendChatwoot === false
       ? EMPTY_NOTIFICATION_RESULT
-      : await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch((err: any) => {
+      : await schedulePaymentLinkNotifications({
+          paymentId: updated.id,
+          paymentLinkUrl: publicUrl || undefined,
+          forceNow: true
+        }).catch((err: any) => {
           logger.warn({ err, paymentId: updated.id }, "Fallo programando notificaciones de payment link en orden manual");
           return EMPTY_NOTIFICATION_RESULT;
         });
@@ -359,11 +401,24 @@ export async function createManualOrderForAdmin(args: {
       checkoutUrl: created.checkoutUrl
     }
   });
+  const publicUrl = await createPublicPaymentLinkForManualOrder({
+    customerId: customer.id,
+    tenantId,
+    checkoutUrl: updated.checkoutUrl,
+    defaultTemplateId: cfg?.defaultPlanTemplateId || null
+  }).catch((err: any) => {
+    logger.warn({ err, paymentId: updated.id, customerId: customer.id, tenantId }, "Fallo creando checkout publico para orden manual admin");
+    return "";
+  });
 
   const scheduledInfo =
     parsed.data.sendChatwoot === false
       ? EMPTY_NOTIFICATION_RESULT
-      : await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch((err: any) => {
+      : await schedulePaymentLinkNotifications({
+          paymentId: updated.id,
+          paymentLinkUrl: publicUrl || undefined,
+          forceNow: true
+        }).catch((err: any) => {
           logger.warn({ err, paymentId: updated.id }, "Fallo programando notificaciones de payment link en orden manual admin");
           return EMPTY_NOTIFICATION_RESULT;
         });

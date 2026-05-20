@@ -333,7 +333,11 @@ export async function sendProductToCustomer(formData: FormData) {
       return redirect(mergeQuery(returnTo, { error: "request_failed" }));
     }
 
-    const scheduled = await schedulePaymentLinkNotifications({ paymentId, forceNow: true }).catch((err: any) => {
+    const scheduled = await schedulePaymentLinkNotifications({
+      paymentId,
+      paymentLinkUrl: String(created?.url || "").trim() || undefined,
+      forceNow: true
+    }).catch((err: any) => {
       logger.error({ err, customerId, productId, paymentId }, "Fallo programando notificación de payment link desde productos");
       throw err;
     });

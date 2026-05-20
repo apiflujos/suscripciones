@@ -701,11 +701,12 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
     parsed.data.trigger === "PAYMENT_LINK_CREATED" ? normalizeRenderablePublicUrl(parsed.data.paymentLinkUrl) : "";
   const directTokenizationLinkUrl = normalizeRenderablePublicUrl(tokenUrlFromPayload);
   const directCatalogLinkUrl = normalizeRenderablePublicUrl(catalogUrlFromPayload);
+  const storedPublicPaymentLinkUrl = normalizeRenderablePublicUrl(meta?.paymentLink?.url);
   const effectivePaymentLinkUrl =
     publicPaymentLinkUrl ||
     autoPlanUrl ||
-    directPaymentLinkUrl ||
-    normalizeRenderablePublicUrl(meta?.paymentLink?.url);
+    storedPublicPaymentLinkUrl ||
+    directPaymentLinkUrl;
   const effectiveTokenizationLinkUrl =
     autoSubscriptionUrl ||
     directTokenizationLinkUrl ||

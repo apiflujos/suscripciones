@@ -762,7 +762,11 @@ export async function createPaymentLinkForSubscription(args: {
     throw new Error("public_checkout_create_failed");
   }
 
-  const scheduledInfo = await schedulePaymentLinkNotifications({ paymentId: updated.id, forceNow: true }).catch((err) => {
+  const scheduledInfo = await schedulePaymentLinkNotifications({
+    paymentId: updated.id,
+    paymentLinkUrl: String(publicCheckout?.url || "").trim() || undefined,
+    forceNow: true
+  }).catch((err) => {
     logIgnored(err, "payment link: failed to schedule notifications", { paymentId: updated.id });
     return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
   });
