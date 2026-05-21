@@ -28,6 +28,18 @@ function inferButtonType(components: unknown, index: number, fallback?: unknown)
   return inferred || "url";
 }
 
+function stripUrlOrigin(raw: string): string {
+  const value = normalizeText(raw);
+  if (!value) return "";
+  if (!/^https?:\/\//i.test(value)) return value;
+  try {
+    const parsed = new URL(value);
+    return `${parsed.pathname || ""}${parsed.search || ""}${parsed.hash || ""}`;
+  } catch {
+    return value;
+  }
+}
+
 function normalizeButtonParameter(components: unknown, index: number, parameter: string): string {
   const value = normalizeText(parameter);
   if (!value) return "";
@@ -39,14 +51,22 @@ function normalizeButtonParameter(components: unknown, index: number, parameter:
   if (!match) return value;
   const prefix = match[1] || "";
   const suffix = match[2] || "";
-  if (!/^https?:\/\//i.test(value)) return value;
-  if (prefix && !value.startsWith(prefix)) return value;
-  if (suffix && !value.endsWith(suffix)) return value;
+  const candidates = [
+    { source: value, sourcePrefix: prefix, sourceSuffix: suffix },
+    { source: stripUrlOrigin(value), sourcePrefix: stripUrlOrigin(prefix), sourceSuffix: stripUrlOrigin(suffix) }
+  ];
 
-  let extracted = value;
-  if (prefix) extracted = extracted.slice(prefix.length);
-  if (suffix) extracted = extracted.slice(0, extracted.length - suffix.length);
-  return extracted || value;
+  for (const candidate of candidates) {
+    if (!candidate.source) continue;
+    if (candidate.sourcePrefix && !candidate.source.startsWith(candidate.sourcePrefix)) continue;
+    if (candidate.sourceSuffix && !candidate.source.endsWith(candidate.sourceSuffix)) continue;
+    let extracted = candidate.source;
+    if (candidate.sourcePrefix) extracted = extracted.slice(candidate.sourcePrefix.length);
+    if (candidate.sourceSuffix) extracted = extracted.slice(0, extracted.length - candidate.sourceSuffix.length);
+    if (extracted) return extracted;
+  }
+
+  return value;
 }
 
 function isHeaderMediaObject(value: Record<string, unknown>) {
