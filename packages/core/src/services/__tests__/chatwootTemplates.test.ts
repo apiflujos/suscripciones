@@ -68,7 +68,7 @@ describe("normalizeProcessedTemplateParams", () => {
     });
   });
 
-  it("reduces public checkout paths even when local template metadata only uses the domain root", () => {
+  it("keeps public checkout paths when the approved template uses the domain root", () => {
     const processed = normalizeProcessedTemplateParams(
       {
         buttons: [
@@ -85,6 +85,39 @@ describe("normalizeProcessedTemplateParams", () => {
             {
               type: "URL",
               url: "https://mdv.sus.apiflujos.com/{{1}}"
+            }
+          ]
+        }
+      ]
+    );
+
+    expect(processed).toEqual({
+      buttons: [
+        {
+          type: "url",
+          parameter: "public/plan/eyJhbGciOiJIUzI1NiJ9.token?utm_source=apiflujos"
+        }
+      ]
+    });
+  });
+
+  it("reduces public checkout paths when the approved template already includes the public checkout path", () => {
+    const processed = normalizeProcessedTemplateParams(
+      {
+        buttons: [
+          {
+            type: "url",
+            parameter: "public/plan/eyJhbGciOiJIUzI1NiJ9.token?utm_source=apiflujos"
+          }
+        ]
+      },
+      [
+        {
+          type: "BUTTONS",
+          buttons: [
+            {
+              type: "URL",
+              url: "https://mdv.sus.apiflujos.com/public/plan/{{1}}"
             }
           ]
         }

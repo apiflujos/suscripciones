@@ -51,11 +51,15 @@ function extractPublicCheckoutToken(raw: string): string {
 function normalizeButtonParameter(components: unknown, index: number, parameter: string): string {
   const value = normalizeText(parameter);
   if (!value) return "";
-  const publicToken = extractPublicCheckoutToken(value);
-  if (publicToken) return publicToken;
 
   const button = getButtonComponents(components)[index] || null;
   const templateUrl = normalizeText(button?.url);
+  const templateExpectsPublicToken = /\/public\/(?:plan|suscripcion|cart)\/\{\{\s*\d+\s*\}\}/i.test(templateUrl);
+  const templateExpectsPath = /\{\{\s*\d+\s*\}\}/.test(templateUrl) && !templateExpectsPublicToken;
+  const publicToken = extractPublicCheckoutToken(value);
+  if (publicToken && templateExpectsPublicToken) return publicToken;
+  if (publicToken && templateExpectsPath) return stripUrlOrigin(value).replace(/^\/+/, "");
+
   if (!templateUrl || !/\{\{\s*\d+\s*\}\}/.test(templateUrl)) return value;
 
   const match = templateUrl.match(/^(.*)\{\{\s*\d+\s*\}\}(.*)$/);
