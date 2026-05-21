@@ -27,7 +27,7 @@ import { resolveEffectiveSubscriptionAutomationConfig } from "./subscriptionAuto
 import { reconcileWompiTransaction } from "./wompiReconcile";
 import { getExpectedSubscriptionTotalInCents, getPlanCollectionMode } from "../lib/metadataSchemas";
 import { isBillingCyclePaid, resolveSubscriptionBillingState } from "./billingCycles";
-import { createPublicCheckoutLink } from "./publicCheckoutLinks";
+import { createPublicCheckoutLink, persistPublicPaymentLinkForPayment } from "./publicCheckoutLinks";
 import { extractCustomerPaymentSourceId } from "../lib/customerMetadata";
 
 const PAYMENT_LINK_LOCK_PREFIX = "payment-link";
@@ -758,9 +758,24 @@ export async function createPaymentLinkForSubscription(args: {
     });
     return null;
   });
-  if (!String(publicCheckout?.url || "").trim()) {
+  if (!publicCheckout?.url) {
     throw new Error("public_checkout_create_failed");
   }
+  await persistPublicPaymentLinkForPayment({
+    paymentId: updated.id,
+    publicCheckout,
+    checkoutUrl: updated.checkoutUrl,
+    productId:
+      String((sub as any)?.productId || "") ||
+      String((sub as any)?.plan?.catalogProductId || (sub as any)?.plan?.metadata?.catalog?.itemId || "") ||
+      null,
+    amountInCents: updated.amountInCents
+  }).catch((err) => {
+    logIgnored(err, "payment link: failed to persist public checkout on payment", {
+      subscriptionId: sub.id,
+      paymentId: updated.id
+    });
+  });
 
   const scheduledInfo = await schedulePaymentLinkNotifications({
     paymentId: updated.id,

@@ -7,7 +7,7 @@ import { getNotificationsConfig, notificationTriggerSchema } from "../../service
 import { notificationJobPayloadSchema, type NotificationJobPayload } from "../../services/notificationJobPayloads";
 import { createPaymentLinkForSubscription } from "../../services/subscriptionBilling";
 import { systemLog } from "../../services/systemLog";
-import { createPublicCheckoutLink } from "../../services/publicCheckoutLinks";
+import { createPublicCheckoutLink, persistPublicPaymentLinkForPayment } from "../../services/publicCheckoutLinks";
 import { normalizeRenderablePublicUrl } from "../../services/urlSafety";
 import { sendChatwootMessage } from "./sendChatwootMessage";
 import { getDefaultTenantId } from "../../services/tenantContext";
@@ -609,7 +609,7 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
       String((payment as any)?.subscription?.productId || "") ||
       String((subscription as any)?.plan?.catalogProductId || (subscription as any)?.plan?.metadata?.catalog?.itemId || "") ||
       String((payment as any)?.subscription?.plan?.catalogProductId || (payment as any)?.subscription?.plan?.metadata?.catalog?.itemId || "");
-    return createPublicCheckoutLink({
+    const created = await createPublicCheckoutLink({
       customerId: customer.id,
       templateId: targetId,
       checkoutUrl: effectivePayment?.checkoutUrl || meta?.paymentLink?.checkoutUrl || null,
@@ -619,6 +619,19 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
       logger.warn({ err, customerId: customer.id, templateId: targetId }, "subscriptionReminder: fallo creando checkout publico de pago");
       return null;
     });
+    if (created?.url && effectivePayment?.id) {
+      await persistPublicPaymentLinkForPayment({
+        paymentId: effectivePayment.id,
+        publicCheckout: created,
+        checkoutUrl: effectivePayment.checkoutUrl || meta?.paymentLink?.checkoutUrl || null,
+        productId: productId || null,
+        amountInCents: effectivePayment.amountInCents,
+        currency: effectivePayment.currency
+      }).catch((err: any) => {
+        logger.warn({ err, paymentId: effectivePayment.id, customerId: customer.id }, "subscriptionReminder: fallo persistiendo checkout publico en pago");
+      });
+    }
+    return created;
   };
   if (checkoutIds.length) {
     for (const id of checkoutIds) {
@@ -675,6 +688,18 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
         return null;
       });
       if (created?.url) {
+        if (effectivePayment?.id && created.kind === PublicCheckoutKind.PLAN) {
+          await persistPublicPaymentLinkForPayment({
+            paymentId: effectivePayment.id,
+            publicCheckout: created,
+            checkoutUrl: effectivePayment.checkoutUrl || meta?.paymentLink?.checkoutUrl || null,
+            productId: productId || null,
+            amountInCents: effectivePayment.amountInCents,
+            currency: effectivePayment.currency
+          }).catch((err: any) => {
+            logger.warn({ err, paymentId: effectivePayment.id, customerId: customer.id }, "subscriptionReminder: fallo persistiendo checkout publico en pago");
+          });
+        }
         checkoutPublicToken[id] = created.token;
         checkoutPublicName[id] = created.templateName;
         checkoutPublicUrl[id] = created.url;
@@ -710,7 +735,9 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
       }
     }
   }
-  if (wantsPaymentPublicLink && !checkoutPublicUrl.AUTO_PLAN && effectivePayment?.checkoutUrl) {
+  const payloadPaymentLinkUrl =
+    parsed.data.trigger === "PAYMENT_LINK_CREATED" ? normalizeRenderablePublicUrl(parsed.data.paymentLinkUrl) : "";
+  if (wantsPaymentPublicLink && !payloadPaymentLinkUrl && !checkoutPublicUrl.AUTO_PLAN && effectivePayment?.checkoutUrl) {
     const targetId = await resolveAutoCheckoutTemplateId({
       tenantId: subscription?.tenantId || payment?.tenantId || notificationTenantId,
       trigger: "PAYMENT_LINK_CREATED",
@@ -737,8 +764,7 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   const autoPlanUrl = normalizeRenderablePublicUrl(checkoutPublicUrl.AUTO_PLAN);
   const autoSubscriptionUrl = normalizeRenderablePublicUrl(checkoutPublicUrl.AUTO_SUBSCRIPTION);
   const autoCartUrl = normalizeRenderablePublicUrl(checkoutPublicUrl.AUTO_CART);
-  const publicPaymentLinkUrl =
-    parsed.data.trigger === "PAYMENT_LINK_CREATED" ? normalizeRenderablePublicUrl(parsed.data.paymentLinkUrl) : "";
+  const publicPaymentLinkUrl = payloadPaymentLinkUrl;
   const directTokenizationLinkUrl = normalizeRenderablePublicUrl(tokenUrlFromPayload);
   const directCatalogLinkUrl = normalizeRenderablePublicUrl(catalogUrlFromPayload);
   const storedPublicPaymentLinkUrl = normalizeRenderablePublicUrl(meta?.paymentLink?.url);

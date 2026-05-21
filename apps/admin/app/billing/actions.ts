@@ -29,7 +29,7 @@ import { findCheckoutTemplateForProductOrDefault } from "../admin/_services/chec
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { schedulePaymentLinkNotifications, scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { firstNotificationDeliveryError } from "@suscripciones/core/services/notificationDelivery";
-import { createPublicCheckoutLink } from "@suscripciones/core/services/publicCheckoutLinks";
+import { createPublicCheckoutLink, persistPublicPaymentLinkForPayment } from "@suscripciones/core/services/publicCheckoutLinks";
 import { logger } from "@suscripciones/core/lib/logger";
 import { isNotificationTemplateConfigured, resolveNotificationTemplateForTrigger } from "../lib/notificationTemplate";
 import type { NotificationTrigger, NotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
@@ -1298,9 +1298,22 @@ export async function sendWhatsAppPaymentLink(formData: FormData) {
       templateId: planCheckout.templateId,
       checkoutUrl
     });
-    const publicUrl = String(publicLink?.url || "").trim();
-    if (!publicUrl) {
+    if (!publicLink?.url) {
       return redirect(mergeQuery(returnTo, { error: "public_checkout_create_failed", ...(tenantId ? { tenantId } : {}) }));
+    }
+    const publicUrl = String(publicLink.url).trim();
+    const paymentId =
+      "paymentId" in res && typeof res.paymentId === "string" && res.paymentId.trim()
+        ? res.paymentId.trim()
+        : "";
+    if (paymentId) {
+      await persistPublicPaymentLinkForPayment({
+        paymentId,
+        publicCheckout: publicLink,
+        checkoutUrl
+      }).catch((err: any) => {
+        logger.warn({ err, paymentId, subscriptionId }, "billing.actions: fallo persistiendo checkout publico en pago");
+      });
     }
 
     if (sendNow) {
@@ -1311,10 +1324,6 @@ export async function sendWhatsAppPaymentLink(formData: FormData) {
       if (rulesActive !== true) {
         return redirect(mergeQuery(returnTo, { error: "missing_template", ...(tenantId ? { tenantId } : {}) }));
       }
-      const paymentId =
-        "paymentId" in res && typeof res.paymentId === "string" && res.paymentId.trim()
-          ? res.paymentId.trim()
-          : "";
       const scheduled = paymentId
         ? await schedulePaymentLinkNotifications({ paymentId, paymentLinkUrl: publicUrl, forceNow: true })
         : null;

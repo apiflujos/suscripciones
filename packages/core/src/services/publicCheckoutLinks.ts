@@ -154,3 +154,58 @@ export async function createPublicCheckoutLink(args: {
     utmParams: utm || null
   };
 }
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+export async function persistPublicPaymentLinkForPayment(args: {
+  paymentId: string;
+  publicCheckout: {
+    url: string;
+    token: string;
+    templateId: string;
+    templateName?: string | null;
+    kind?: PublicCheckoutKind | string | null;
+    expiresAt?: string | null;
+    utmParams?: string | null;
+  };
+  checkoutUrl?: string | null;
+  productId?: string | null;
+  amountInCents?: number | null;
+  currency?: string | null;
+}) {
+  const paymentId = String(args.paymentId || "").trim();
+  const url = normalizePublicUrl(args.publicCheckout?.url);
+  const token = String(args.publicCheckout?.token || "").trim();
+  if (!paymentId || !url || !token) return null;
+
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    select: { providerResponse: true, checkoutUrl: true, amountInCents: true, currency: true }
+  });
+  if (!payment) return null;
+
+  return prisma.payment.update({
+    where: { id: paymentId },
+    data: {
+      providerResponse: {
+        ...asRecord(payment.providerResponse),
+        publicPaymentLink: {
+          token,
+          url,
+          kind: args.publicCheckout.kind || PublicCheckoutKind.PLAN,
+          checkoutUrl: normalizePublicUrl(args.checkoutUrl) || normalizePublicUrl(payment.checkoutUrl) || null,
+          templateId: String(args.publicCheckout.templateId || "").trim() || null,
+          templateName: String(args.publicCheckout.templateName || "").trim() || null,
+          productId: String(args.productId || "").trim() || null,
+          amountInCents: Number.isFinite(Number(args.amountInCents)) ? Number(args.amountInCents) : payment.amountInCents,
+          currency: String(args.currency || payment.currency || "COP"),
+          createdAt: new Date().toISOString(),
+          expiresAt: args.publicCheckout.expiresAt || null,
+          utmParams: args.publicCheckout.utmParams || null
+        }
+      } as any
+    }
+  });
+}
