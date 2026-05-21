@@ -199,6 +199,10 @@ function dateForDayInMonth(year: number, month0: number, day: number) {
   return new Date(Date.UTC(year, month0, d, 0, 0, 0, 0));
 }
 
+function preserveUtcCivilDate(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 12, 0, 0, 0));
+}
+
 function resolveCycleStartAnchor(sub: BillingComputationSeed) {
   const base = sub.anchorPeriodStartAt ? new Date(sub.anchorPeriodStartAt) : resolveCycleAnchorFromStart(sub);
   const day = Math.max(1, Math.min(31, Math.trunc(sub.cycleStartDay || 1)));
@@ -517,7 +521,7 @@ async function applyConfiguredExecutionSchedule<T extends { dueAt: Date }>(cycle
   const timeZone = String(cfg?.timeZone || "America/Bogota").trim() || "America/Bogota";
   return cycles.map((cycle) => ({
     ...cycle,
-    dueAt: applyClockTimeInZone(new Date(cycle.dueAt), executionHour, timeZone)
+    dueAt: applyClockTimeInZone(preserveUtcCivilDate(new Date(cycle.dueAt)), executionHour, timeZone)
   }));
 }
 

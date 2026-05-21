@@ -15,7 +15,17 @@ type PaymentLinkMeta = {
   templateId?: string;
   checkoutUrl?: string;
   tenantId?: string;
+  amountInCents?: number;
+  currency?: string;
 };
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function stringValue(value: unknown) {
+  return String(value || "").trim();
+}
 
 export async function GET(req: Request, ctx: { params: Promise<{ token: string }> }) {
   const params = await ctx.params;
@@ -27,9 +37,14 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
 
   const ip = String(req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
 
-  const customer = await prisma.customer.findFirst({
+  const customerFromMetadata = await prisma.customer.findFirst({
     where: { metadata: { path: ["paymentLink", "token"], equals: token } as any }
   });
+  const paymentFromToken = await prisma.payment.findFirst({
+    where: { providerResponse: { path: ["publicPaymentLink", "token"], equals: token } as any },
+    include: { customer: true }
+  });
+  const customer = customerFromMetadata || paymentFromToken?.customer || null;
   if (!customer) {
     void systemLog(LogLevel.WARN, "public.payment_link", "payment_link_not_found", {
       ...tokenMeta(token),
@@ -45,7 +60,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
   }
 
   const meta = (customer.metadata ?? {}) as { paymentLink?: PaymentLinkMeta };
-  const link = meta?.paymentLink || {};
+  const metadataLink = meta?.paymentLink || {};
+  const persistedLink = asRecord(asRecord(paymentFromToken?.providerResponse).publicPaymentLink) as PaymentLinkMeta;
+  const link = stringValue(persistedLink?.token) === token ? persistedLink : metadataLink;
   const expiresAt = link?.expiresAt ? new Date(String(link.expiresAt)) : null;
   if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
     void systemLog(LogLevel.WARN, "public.payment_link", "payment_link_expired", {
@@ -82,7 +99,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
   return new Response(
     JSON.stringify({
       ok: true,
-      checkoutUrl: String(link?.checkoutUrl || ""),
+      checkoutUrl: String(link?.checkoutUrl || paymentFromToken?.checkoutUrl || ""),
+      amountInCents: Number(link?.amountInCents || paymentFromToken?.amountInCents || 0) || null,
+      currency: String(link?.currency || paymentFromToken?.currency || "COP"),
       customer: {
         id: customer.id,
         name: customer.name || "",

@@ -9,6 +9,7 @@ import { firstNotificationDeliveryError } from "@suscripciones/core/services/not
 import { getNotificationsConfig, type NotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
 import { schedulePaymentLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
 import { logger } from "@suscripciones/core/lib/logger";
+import { prisma } from "@suscripciones/database";
 import { isNotificationTemplateConfigured, resolveNotificationTemplateForTrigger } from "../../../lib/notificationTemplate";
 
 function pesosToCents(input: string): number {
@@ -17,6 +18,10 @@ function pesosToCents(input: string): number {
   const pesos = Number(digits);
   if (!Number.isFinite(pesos)) return 0;
   return Math.trunc(pesos) * 100;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
 export async function POST(req: Request) {
@@ -98,6 +103,14 @@ export async function POST(req: Request) {
   }
 
   const checkoutUrl = String(orderResult.checkoutUrl || "").trim();
+  const paymentId =
+    orderResult && typeof orderResult === "object" && "payment" in orderResult
+      ? String((orderResult as { payment?: { id?: string } }).payment?.id || "").trim()
+      : "";
+  if (!paymentId) {
+    return NextResponse.json({ ok: false, error: "request_failed" }, { status: 500 });
+  }
+
   let publicUrl: string | null = null;
   try {
     const customer = await getCustomerById(customerId);
@@ -108,9 +121,31 @@ export async function POST(req: Request) {
       checkoutUrl
     });
     publicUrl = String(created?.url || "").trim() || null;
+    if (created?.token && publicUrl) {
+      const payment = await prisma.payment.findUnique({ where: { id: paymentId }, select: { providerResponse: true, currency: true } });
+      await prisma.payment.update({
+        where: { id: paymentId },
+        data: {
+          providerResponse: {
+            ...asRecord(payment?.providerResponse),
+            publicPaymentLink: {
+              token: created.token,
+              url: publicUrl,
+              checkoutUrl,
+              templateId: resolvedTemplateId,
+              productId,
+              amountInCents,
+              currency: payment?.currency || "COP",
+              createdAt: new Date().toISOString(),
+              expiresAt: created.expiresAt || null
+            }
+          }
+        }
+      });
+    }
   } catch (err: any) {
     logger.warn(
-      { err, customerId, tenantId, productId, checkoutUrl, resolvedTemplateId },
+      { err, customerId, tenantId, productId, paymentId, checkoutUrl, resolvedTemplateId },
       "Fallo generando o guardando public payment link"
     );
   }
@@ -118,13 +153,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "public_checkout_create_failed" }, { status: 500 });
   }
 
-  const paymentId =
-    orderResult && typeof orderResult === "object" && "payment" in orderResult
-      ? String((orderResult as { payment?: { id?: string } }).payment?.id || "").trim()
-      : "";
-  if (!paymentId) {
-    return NextResponse.json({ ok: false, error: "request_failed" }, { status: 500 });
-  }
   const schedule = await schedulePaymentLinkNotifications({
     paymentId,
     paymentLinkUrl: publicUrl,

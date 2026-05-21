@@ -7,6 +7,16 @@ import { logger } from "@suscripciones/core/lib/logger";
 
 export const dynamic = "force-dynamic";
 
+function formatMoneyFromCents(value: unknown, currency: unknown) {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount) || amount <= 0) return "";
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: String(currency || "COP"),
+    maximumFractionDigits: 0
+  }).format(Math.trunc(amount / 100));
+}
+
 export default async function PublicPlanPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const apiBases = await getPublicApiBases();
@@ -65,6 +75,7 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
 
   const customer = linkRes.json?.customer || {};
   const checkoutUrl = String(linkRes.json?.checkoutUrl || "").trim();
+  const amountLabel = formatMoneyFromCents(linkRes.json?.amountInCents, linkRes.json?.currency);
 
   return (
     <PublicCheckoutLayout
@@ -104,6 +115,7 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
       ) : null}
       <div className="payment-point">
         <div className="payment-point-title">Punto de pago</div>
+        {amountLabel ? <div className="payment-point-amount">Valor a pagar: {amountLabel}</div> : null}
         <div className="payment-point-provider">
           <img src="/brand/wompi-icon.svg" alt="" />
           Procesado por Wompi

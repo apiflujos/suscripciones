@@ -218,15 +218,18 @@ export async function createManualOrder(args: { req: Request; body: any }) {
       checkoutUrl: created.checkoutUrl
     }
   });
-  const publicUrl = await createPublicPaymentLinkForManualOrder({
-    customerId: customer.id,
-    tenantId,
-    checkoutUrl: updated.checkoutUrl,
-    defaultTemplateId: cfg?.defaultPlanTemplateId || null
-  }).catch((err: any) => {
-    logger.warn({ err, paymentId: updated.id, customerId: customer.id, tenantId }, "Fallo creando checkout publico para orden manual");
-    return "";
-  });
+  const publicUrl =
+    parsed.data.sendChatwoot === false
+      ? ""
+      : await createPublicPaymentLinkForManualOrder({
+          customerId: customer.id,
+          tenantId,
+          checkoutUrl: updated.checkoutUrl,
+          defaultTemplateId: cfg?.defaultPlanTemplateId || null
+        }).catch((err: any) => {
+          logger.warn({ err, paymentId: updated.id, customerId: customer.id, tenantId }, "Fallo creando checkout publico para orden manual");
+          return "";
+        });
 
   const scheduledInfo =
     parsed.data.sendChatwoot === false
@@ -401,15 +404,18 @@ export async function createManualOrderForAdmin(args: {
       checkoutUrl: created.checkoutUrl
     }
   });
-  const publicUrl = await createPublicPaymentLinkForManualOrder({
-    customerId: customer.id,
-    tenantId,
-    checkoutUrl: updated.checkoutUrl,
-    defaultTemplateId: cfg?.defaultPlanTemplateId || null
-  }).catch((err: any) => {
-    logger.warn({ err, paymentId: updated.id, customerId: customer.id, tenantId }, "Fallo creando checkout publico para orden manual admin");
-    return "";
-  });
+  const publicUrl =
+    parsed.data.sendChatwoot === false
+      ? ""
+      : await createPublicPaymentLinkForManualOrder({
+          customerId: customer.id,
+          tenantId,
+          checkoutUrl: updated.checkoutUrl,
+          defaultTemplateId: cfg?.defaultPlanTemplateId || null
+        }).catch((err: any) => {
+          logger.warn({ err, paymentId: updated.id, customerId: customer.id, tenantId }, "Fallo creando checkout publico para orden manual admin");
+          return "";
+        });
 
   const scheduledInfo =
     parsed.data.sendChatwoot === false
