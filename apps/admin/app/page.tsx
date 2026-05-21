@@ -392,6 +392,12 @@ export default async function Home({
     g,
     ...(tenantId ? { tenantId } : {})
   });
+  const dailySummaryParams = new URLSearchParams({
+    date: toDate,
+    period: g,
+    ...(tenantId ? { tenantId } : {})
+  });
+  const dailySummaryHref = `/api/metrics/daily-summary?${dailySummaryParams.toString()}`;
   const viewHref = (nextView: string) => {
     const params = new URLSearchParams(baseParams);
     params.set("view", nextView);
@@ -666,7 +672,14 @@ export default async function Home({
                 maxDate={maxDate}
               />
             )}
-            summary={<span className="muted">{rangeLabel} · {periodLabel} · {tenantLabel}</span>}
+            summary={(
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span className="muted">{rangeLabel} · {periodLabel} · {tenantLabel}</span>
+                <a className="ghost btn-compact btn-noicon btn-export" href={dailySummaryHref} data-loader="off">
+                  Descargar resumen
+                </a>
+              </div>
+            )}
           />
         </div>
 
