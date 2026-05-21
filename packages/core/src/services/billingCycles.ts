@@ -1,6 +1,6 @@
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
-import { BillingCycleStatus, PlanIntervalUnit, PaymentAssociationReason, PaymentOrigin } from "@prisma/client";
+import { BillingCycleStatus, PlanIntervalUnit, PaymentAssociationReason, PaymentOrigin, SubscriptionStatus } from "@prisma/client";
 import { getAutoDebitConfig } from "./runtimeConfig";
 import { applyClockTimeInZone } from "../lib/timeZoneScheduling";
 
@@ -955,4 +955,114 @@ export async function attachPaymentToMatchingCycle(args: {
     associationReason: args.associationReason,
     associatedBy: args.associatedBy
   });
+}
+
+export async function reconcileApprovedPaymentWithSubscription(args: {
+  subscriptionId: string;
+  paymentId: string;
+  paymentAt: Date;
+  cycleId?: string | null;
+  cycleNumberHint?: number | null;
+  origin?: PaymentOrigin | null;
+  associationReason?: PaymentAssociationReason | null;
+  associatedBy?: string | null;
+  asOf?: Date;
+}) {
+  const asOf = args.asOf ? new Date(args.asOf) : new Date(args.paymentAt);
+  let linkedCycle = await prisma.subscriptionBillingCycle.findFirst({
+    where: { paymentId: args.paymentId },
+    select: { id: true, cycleNumber: true }
+  });
+
+  if (!linkedCycle) {
+    const attachResult = args.cycleId
+      ? await attachPaymentToCycle({
+          paymentId: args.paymentId,
+          subscriptionId: args.subscriptionId,
+          cycleId: args.cycleId,
+          paymentAt: args.paymentAt,
+          origin: args.origin,
+          associationReason: args.associationReason,
+          associatedBy: args.associatedBy
+        })
+      : await attachPaymentToMatchingCycle({
+          subscriptionId: args.subscriptionId,
+          paymentId: args.paymentId,
+          paymentAt: args.paymentAt,
+          origin: args.origin,
+          associationReason: args.associationReason,
+          associatedBy: args.associatedBy,
+          cycleNumberHint: args.cycleNumberHint ?? null
+        });
+    if (!attachResult.ok) {
+      logger.warn(
+        {
+          subscriptionId: args.subscriptionId,
+          paymentId: args.paymentId,
+          cycleId: args.cycleId ?? null,
+          cycleNumberHint: args.cycleNumberHint ?? null,
+          error: attachResult.error
+        },
+        "billingCycles: no se pudo adjuntar pago aprobado a un ciclo"
+      );
+    }
+    linkedCycle = await prisma.subscriptionBillingCycle.findFirst({
+      where: { paymentId: args.paymentId },
+      select: { id: true, cycleNumber: true }
+    });
+  }
+
+  if (linkedCycle) {
+    const desiredKey = `${args.subscriptionId}:${linkedCycle.cycleNumber}`;
+    await prisma.payment.update({
+      where: { id: args.paymentId },
+      data: {
+        subscriptionId: args.subscriptionId,
+        cycleNumber: linkedCycle.cycleNumber,
+        subscriptionCycleKey: desiredKey,
+        ...(args.associationReason ? { associationReason: args.associationReason } : {}),
+        ...(args.associatedBy ? { associatedBy: args.associatedBy } : {})
+      }
+    }).catch((err) => {
+      logger.warn(
+        { err, subscriptionId: args.subscriptionId, paymentId: args.paymentId, cycleNumber: linkedCycle?.cycleNumber },
+        "billingCycles: fallo sincronizando llaves de ciclo del pago aprobado"
+      );
+    });
+  }
+
+  const state = await resolveSubscriptionBillingState({ subscriptionId: args.subscriptionId, asOf }).catch((err) => {
+    logger.warn({ err, subscriptionId: args.subscriptionId, paymentId: args.paymentId }, "billingCycles: fallo resolviendo estado tras pago aprobado");
+    return null;
+  });
+  const collectionCycle = state?.collectionCycle || state?.activeCycle || null;
+  const delinquency = resolveCollectionDelinquency({
+    cycle: collectionCycle,
+    graceDays: state?.subscription?.graceDays ?? 0,
+    asOf,
+    fallbackSubscriptionStatus: state?.subscription?.status ?? null
+  });
+  const nextStatus = delinquency.status === "EN_MORA" ? SubscriptionStatus.PAST_DUE : SubscriptionStatus.ACTIVE;
+
+  await prisma.subscription.update({
+    where: { id: args.subscriptionId },
+    data: {
+      status: nextStatus,
+      ...(nextStatus === SubscriptionStatus.ACTIVE
+        ? { retryCount: 0, suspendedAt: null, canceledAt: null }
+        : {})
+    }
+  }).catch((err) => {
+    logger.warn(
+      { err, subscriptionId: args.subscriptionId, paymentId: args.paymentId, nextStatus },
+      "billingCycles: fallo reconciliando estado de suscripcion tras pago aprobado"
+    );
+  });
+
+  return {
+    linkedCycle,
+    state,
+    delinquency,
+    nextStatus
+  };
 }

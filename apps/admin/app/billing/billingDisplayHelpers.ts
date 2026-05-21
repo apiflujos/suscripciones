@@ -42,7 +42,8 @@ export function getActivo(status: any) {
 
 export function getEstadoSimple(status: any): EstadoSimpleInfo {
   const s = String(status || "");
-  if (s === "ACTIVE" || s === "PAST_DUE") return { label: "Activa", class: "pill-ok" };
+  if (s === "ACTIVE") return { label: "Activa", class: "pill-ok" };
+  if (s === "PAST_DUE") return { label: "En mora", class: "pill-bad" };
   if (s === "SUSPENDED") return { label: "Suspendida", class: "pill-warn" };
   if (s === "CANCELED") return { label: "Cancelada", class: "pill-muted" };
   if (s === "EXPIRED") return { label: "Expirada", class: "pill-muted" };
@@ -52,7 +53,8 @@ export function getEstadoSimple(status: any): EstadoSimpleInfo {
 export function getEstado(status: any): EstadoInfo {
   const s = String(status || "");
   const base = getEstadoSimple(status);
-  if (s === "ACTIVE" || s === "PAST_DUE") return { key: "si", ...base };
+  if (s === "ACTIVE") return { key: "si", ...base };
+  if (s === "PAST_DUE") return { key: "mora", ...base };
   return { key: "no", ...base };
 }
 

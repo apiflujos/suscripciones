@@ -4,7 +4,7 @@ import { systemLog } from "../../services/systemLog";
 import { BillingCycleStatus, GamificationEntityType, LogLevel, PaymentAssociationReason, Prisma, type Subscription } from "@prisma/client";
 import { classifyReference } from "../../webhooks/wompi/classifyReference";
 import { postJson } from "../../lib/http";
-import { PaymentLinkStatus, PaymentStatus, SubscriptionStatus, WebhookProcessStatus } from "@prisma/client";
+import { PaymentLinkStatus, PaymentStatus, WebhookProcessStatus } from "@prisma/client";
 import { addIntervalUtc } from "../../lib/dates";
 import { getPaymentsConfig, getShopifyForward, getWompiCheckoutLinkBaseUrl } from "../../services/runtimeConfig";
 import { schedulePaymentStatusNotifications, scheduleSubscriptionDueNotifications } from "../../services/notificationsScheduler";
@@ -18,7 +18,7 @@ import { GAMIFICATION_WEIGHTS, moneyToPoints } from "../../services/gamification
 import { resolveSubscriptionCollectionMode } from "../../services/subscriptionMode";
 import { publishRealtime } from "../../services/realtimePublisher";
 import { ensurePaymentRetryJob } from "../../services/retryJobScheduler";
-import { attachPaymentToCycle, attachPaymentToMatchingCycle, buildBillingSeed, computeBillingCycleDueAt, ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "../../services/billingCycles";
+import { attachPaymentToCycle, attachPaymentToMatchingCycle, buildBillingSeed, computeBillingCycleDueAt, ensureBillingCyclesForSubscriptions, findBestBillingCycleForPayment, reconcileApprovedPaymentWithSubscription, resolveSubscriptionBillingState, syncSubscriptionBillingSnapshot } from "../../services/billingCycles";
 import { getExpectedSubscriptionTotalInCents, getPlanCollectionMode } from "../../lib/metadataSchemas";
 
 type WompiCustomerData = {
@@ -1290,6 +1290,26 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
     }
   }
 
+  let approvedBillingReconciliation:
+    | Awaited<ReturnType<typeof reconcileApprovedPaymentWithSubscription>>
+    | null = null;
+  if (paymentRecord.subscriptionId && paymentRecord.paidAt) {
+    approvedBillingReconciliation = await reconcileApprovedPaymentWithSubscription({
+      subscriptionId: paymentRecord.subscriptionId,
+      paymentId: paymentRecord.id,
+      paymentAt: paymentRecord.paidAt,
+      cycleId: associationCycleId,
+      cycleNumberHint: paymentRecord.cycleNumber ?? null,
+      origin: paymentRecord.origin,
+      associationReason: paymentRecord.associationReason as any,
+      associatedBy: paymentRecord.associatedBy || "system",
+      asOf: paymentRecord.paidAt
+    }).catch((err) => {
+      logger.warn({ err, paymentId: paymentRecord.id, subscriptionId: paymentRecord.subscriptionId }, "processWompiEvent: fallo reconciliando pago aprobado con ciclos");
+      return null;
+    });
+  }
+
   if (paymentRecord.subscriptionId && paymentRecord.wompiPaymentLinkId && paymentRecord.checkoutUrl) {
     const planId =
       subscription?.planId ??
@@ -1515,19 +1535,13 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
   }
 
   if (nextStatus === PaymentStatus.APPROVED && subscription) {
-    await db.subscription.update({
-      where: { id: subscription.id },
-      data: {
-        status: SubscriptionStatus.ACTIVE,
-        retryCount: 0
-      }
-    }).catch(() => null);
-
     await syncSubscriptionBillingSnapshot({ subscriptionId: subscription.id, asOf: paidAt ?? undefined }).catch((err) => {
       logger.warn({ err, subscriptionId: subscription.id }, "processWompiEvent: fallo sincronizando snapshot tras pago");
     });
 
-    const state = await resolveSubscriptionBillingState({ subscriptionId: subscription.id, asOf: paidAt ?? undefined }).catch(() => null);
+    const state =
+      approvedBillingReconciliation?.state ??
+      (await resolveSubscriptionBillingState({ subscriptionId: subscription.id, asOf: paidAt ?? undefined }).catch(() => null));
     const nextRunAt = state?.collectionCycle?.dueAt ? new Date(state.collectionCycle.dueAt) : null;
     const collectionMode = resolveSubscriptionCollectionMode(subscription);
     const advancedTo = nextRunAt ? { nextRunAt } : null;
