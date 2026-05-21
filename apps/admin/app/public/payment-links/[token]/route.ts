@@ -27,6 +27,12 @@ function stringValue(value: unknown) {
   return String(value || "").trim();
 }
 
+function dateFromUnixSeconds(value: unknown, offsetMs = 0) {
+  const seconds = Number(value || 0);
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  return new Date(seconds * 1000 + offsetMs);
+}
+
 export async function GET(req: Request, ctx: { params: Promise<{ token: string }> }) {
   const params = await ctx.params;
   const token = String(params?.token || "").trim();
@@ -44,7 +50,27 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
     where: { providerResponse: { path: ["publicPaymentLink", "token"], equals: token } as any },
     include: { customer: true }
   });
-  const customer = customerFromMetadata || paymentFromToken?.customer || null;
+  const customerFromJwt = !customerFromMetadata && !paymentFromToken?.customer && jwt?.sub
+    ? await prisma.customer.findUnique({ where: { id: String(jwt.sub) } }).catch(() => null)
+    : null;
+  const fallbackPayment =
+    !paymentFromToken && jwt?.sub
+      ? await prisma.payment.findFirst({
+          where: {
+            customerId: String(jwt.sub),
+            subscriptionId: null,
+            checkoutUrl: { not: null },
+            createdAt: {
+              gte: dateFromUnixSeconds(jwt.iat, -10 * 60 * 1000) || undefined,
+              lte: dateFromUnixSeconds(jwt.iat, 60 * 60 * 1000) || undefined
+            }
+          },
+          orderBy: { createdAt: "desc" },
+          include: { customer: true }
+        })
+      : null;
+  const payment = paymentFromToken || fallbackPayment || null;
+  const customer = customerFromMetadata || payment?.customer || customerFromJwt || null;
   if (!customer) {
     void systemLog(LogLevel.WARN, "public.payment_link", "payment_link_not_found", {
       ...tokenMeta(token),
@@ -61,8 +87,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
 
   const meta = (customer.metadata ?? {}) as { paymentLink?: PaymentLinkMeta };
   const metadataLink = meta?.paymentLink || {};
-  const persistedLink = asRecord(asRecord(paymentFromToken?.providerResponse).publicPaymentLink) as PaymentLinkMeta;
-  const link = stringValue(persistedLink?.token) === token ? persistedLink : metadataLink;
+  const persistedLink = asRecord(asRecord(payment?.providerResponse).publicPaymentLink) as PaymentLinkMeta;
+  const link =
+    stringValue(persistedLink?.token) === token
+      ? persistedLink
+      : stringValue(metadataLink?.token) === token
+        ? metadataLink
+        : {};
   const expiresAt = link?.expiresAt ? new Date(String(link.expiresAt)) : null;
   if (expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
     void systemLog(LogLevel.WARN, "public.payment_link", "payment_link_expired", {
@@ -99,9 +130,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
   return new Response(
     JSON.stringify({
       ok: true,
-      checkoutUrl: String(link?.checkoutUrl || paymentFromToken?.checkoutUrl || ""),
-      amountInCents: Number(link?.amountInCents || paymentFromToken?.amountInCents || 0) || null,
-      currency: String(link?.currency || paymentFromToken?.currency || "COP"),
+      checkoutUrl: String(link?.checkoutUrl || payment?.checkoutUrl || ""),
+      amountInCents: Number(link?.amountInCents || payment?.amountInCents || 0) || null,
+      currency: String(link?.currency || payment?.currency || "COP"),
       customer: {
         id: customer.id,
         name: customer.name || "",
