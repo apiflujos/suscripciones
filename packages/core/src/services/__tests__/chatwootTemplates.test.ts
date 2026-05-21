@@ -68,6 +68,39 @@ describe("normalizeProcessedTemplateParams", () => {
     });
   });
 
+  it("reduces public checkout paths even when local template metadata only uses the domain root", () => {
+    const processed = normalizeProcessedTemplateParams(
+      {
+        buttons: [
+          {
+            type: "url",
+            parameter: "public/plan/eyJhbGciOiJIUzI1NiJ9.token?utm_source=apiflujos"
+          }
+        ]
+      },
+      [
+        {
+          type: "BUTTONS",
+          buttons: [
+            {
+              type: "URL",
+              url: "https://mdv.sus.apiflujos.com/{{1}}"
+            }
+          ]
+        }
+      ]
+    );
+
+    expect(processed).toEqual({
+      buttons: [
+        {
+          type: "url",
+          parameter: "eyJhbGciOiJIUzI1NiJ9.token?utm_source=apiflujos"
+        }
+      ]
+    });
+  });
+
   it("reduces public payment, subscription, and catalog URLs to their dynamic token", () => {
     const cases = [
       {

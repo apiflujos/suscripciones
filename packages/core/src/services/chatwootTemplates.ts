@@ -40,9 +40,20 @@ function stripUrlOrigin(raw: string): string {
   }
 }
 
+function extractPublicCheckoutToken(raw: string): string {
+  const value = normalizeText(raw);
+  if (!value) return "";
+  const withoutOrigin = stripUrlOrigin(value).replace(/^\/+/, "");
+  const match = withoutOrigin.match(/^public\/(?:plan|suscripcion|cart)\/(.+)$/i);
+  return match?.[1] ? match[1] : "";
+}
+
 function normalizeButtonParameter(components: unknown, index: number, parameter: string): string {
   const value = normalizeText(parameter);
   if (!value) return "";
+  const publicToken = extractPublicCheckoutToken(value);
+  if (publicToken) return publicToken;
+
   const button = getButtonComponents(components)[index] || null;
   const templateUrl = normalizeText(button?.url);
   if (!templateUrl || !/\{\{\s*\d+\s*\}\}/.test(templateUrl)) return value;
