@@ -575,6 +575,9 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
         ? meta?.cartLink
         : meta?.paymentLink;
   const templatePaths = extractTemplatePaths([template.content || "", template.chatwootTemplate || null]);
+  const wantsPaymentPublicLink = templatePaths.some(
+    (p) => p === "paymentLink.url" || p === "paymentLink.checkoutUrl" || p === "payment.checkoutUrl"
+  );
   const checkoutIds = Array.from(
     new Set(
       templatePaths
@@ -586,21 +589,38 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   const checkoutPublicToken: Record<string, string> = {};
   const checkoutPublicName: Record<string, string> = {};
   const checkoutPublicUrl: Record<string, string> = {};
+  const tokenizationPayload =
+    parsed.data.trigger === "TOKENIZATION_LINK_CREATED" ? parsed.data : null;
+  const notificationPlanId =
+    notificationLinkMeta && "planId" in notificationLinkMeta
+      ? (notificationLinkMeta.planId ?? null)
+      : null;
+  const notificationProductId =
+    notificationLinkMeta && "productId" in notificationLinkMeta
+      ? String(notificationLinkMeta.productId || "")
+      : "";
+  const notificationTenantId =
+    notificationLinkMeta && "tenantId" in notificationLinkMeta
+      ? String(notificationLinkMeta.tenantId || "").trim()
+      : "";
+  const createPublicPaymentCheckout = async (targetId: string) => {
+    const productId =
+      String((subscription as any)?.productId || "") ||
+      String((payment as any)?.subscription?.productId || "") ||
+      String((subscription as any)?.plan?.catalogProductId || (subscription as any)?.plan?.metadata?.catalog?.itemId || "") ||
+      String((payment as any)?.subscription?.plan?.catalogProductId || (payment as any)?.subscription?.plan?.metadata?.catalog?.itemId || "");
+    return createPublicCheckoutLink({
+      customerId: customer.id,
+      templateId: targetId,
+      checkoutUrl: effectivePayment?.checkoutUrl || meta?.paymentLink?.checkoutUrl || null,
+      planId: subscription?.planId || payment?.subscription?.planId || null,
+      productId: productId || null
+    }).catch((err: any) => {
+      logger.warn({ err, customerId: customer.id, templateId: targetId }, "subscriptionReminder: fallo creando checkout publico de pago");
+      return null;
+    });
+  };
   if (checkoutIds.length) {
-    const tokenizationPayload =
-      parsed.data.trigger === "TOKENIZATION_LINK_CREATED" ? parsed.data : null;
-    const notificationPlanId =
-      notificationLinkMeta && "planId" in notificationLinkMeta
-        ? (notificationLinkMeta.planId ?? null)
-        : null;
-    const notificationProductId =
-      notificationLinkMeta && "productId" in notificationLinkMeta
-        ? String(notificationLinkMeta.productId || "")
-        : "";
-    const notificationTenantId =
-      notificationLinkMeta && "tenantId" in notificationLinkMeta
-        ? String(notificationLinkMeta.tenantId || "").trim()
-        : "";
     for (const id of checkoutIds) {
       const normalizedCheckoutId = String(id || "").trim().toUpperCase();
       const planId =
@@ -690,13 +710,33 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
       }
     }
   }
+  if (wantsPaymentPublicLink && !checkoutPublicUrl.AUTO_PLAN && effectivePayment?.checkoutUrl) {
+    const targetId = await resolveAutoCheckoutTemplateId({
+      tenantId: subscription?.tenantId || payment?.tenantId || notificationTenantId,
+      trigger: "PAYMENT_LINK_CREATED",
+      paymentType: "LINK",
+      planId: subscription?.planId || payment?.subscription?.planId || null,
+      productId:
+        String((subscription as any)?.productId || "") ||
+        String((payment as any)?.subscription?.productId || "") ||
+        String((subscription as any)?.plan?.catalogProductId || (subscription as any)?.plan?.metadata?.catalog?.itemId || "") ||
+        String((payment as any)?.subscription?.plan?.catalogProductId || (payment as any)?.subscription?.plan?.metadata?.catalog?.itemId || "")
+    });
+    if (targetId) {
+      const created = await createPublicPaymentCheckout(targetId);
+      if (created?.url) {
+        checkoutPublicToken.AUTO_PLAN = created.token;
+        checkoutPublicName.AUTO_PLAN = created.templateName;
+        checkoutPublicUrl.AUTO_PLAN = created.url;
+      }
+    }
+  }
   const centsToPesos = (value?: number | null) => Math.trunc(Number(value || 0) / 100);
   const tokenUrlFromPayload = parsed.data.trigger === "TOKENIZATION_LINK_CREATED" ? parsed.data.tokenUrl : "";
   const catalogUrlFromPayload = parsed.data.trigger === "CATALOG_LINK_CREATED" ? parsed.data.catalogUrl : "";
   const autoPlanUrl = normalizeRenderablePublicUrl(checkoutPublicUrl.AUTO_PLAN);
   const autoSubscriptionUrl = normalizeRenderablePublicUrl(checkoutPublicUrl.AUTO_SUBSCRIPTION);
   const autoCartUrl = normalizeRenderablePublicUrl(checkoutPublicUrl.AUTO_CART);
-  const directPaymentLinkUrl = normalizeRenderablePublicUrl(effectivePayment?.checkoutUrl);
   const publicPaymentLinkUrl =
     parsed.data.trigger === "PAYMENT_LINK_CREATED" ? normalizeRenderablePublicUrl(parsed.data.paymentLinkUrl) : "";
   const directTokenizationLinkUrl = normalizeRenderablePublicUrl(tokenUrlFromPayload);
@@ -706,7 +746,7 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
     publicPaymentLinkUrl ||
     autoPlanUrl ||
     storedPublicPaymentLinkUrl ||
-    directPaymentLinkUrl;
+    "";
   const effectiveTokenizationLinkUrl =
     autoSubscriptionUrl ||
     directTokenizationLinkUrl ||
@@ -719,9 +759,22 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
     ? {
         ...(meta?.paymentLink ?? {}),
         url: effectivePaymentLinkUrl,
-        checkoutUrl: directPaymentLinkUrl || meta?.paymentLink?.checkoutUrl || null
+        checkoutUrl: effectivePaymentLinkUrl
       }
     : (meta?.paymentLink ?? null);
+  if (wantsPaymentPublicLink && !effectivePaymentLinkUrl) {
+    await systemLog(LogLevel.WARN, "notifications.dispatch", "Link publico de pago no disponible", {
+      ruleId: rule.id,
+      templateId: template.id,
+      trigger: parsed.data.trigger,
+      customerId: customer.id,
+      subscriptionId: subscription?.id ?? null,
+      paymentId: effectivePayment?.id ?? null
+    }, "job:subscriptionReminder").catch((err: any) => {
+      logger.warn({ err, customerId: customer.id }, "subscriptionReminder: fallo escribiendo systemLog de link publico faltante");
+    });
+    return { ok: false, skipped: true, error: "payment_public_link_missing" };
+  }
   const effectiveTokenizationLink = effectiveTokenizationLinkUrl
     ? {
         ...(meta?.tokenizationLink ?? {}),
@@ -783,7 +836,7 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
     ? { ...subscription.plan, priceInPesos: centsToPesos(subscription.plan.priceInCents) }
     : null;
   const paymentWithPesos = effectivePayment
-    ? { ...effectivePayment, amountInPesos: centsToPesos(effectivePayment.amountInCents) }
+    ? { ...effectivePayment, checkoutUrl: effectivePaymentLinkUrl || null, amountInPesos: centsToPesos(effectivePayment.amountInCents) }
     : null;
   const ctx = {
     __tz: timeZone,

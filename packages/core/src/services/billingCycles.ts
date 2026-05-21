@@ -264,8 +264,18 @@ export function normalizeBillingSeed(sub: BillingComputationSeed): BillingComput
     sub.anchorPeriodStartAt instanceof Date &&
     !Number.isNaN(sub.anchorPeriodStartAt.getTime());
   if (hasExplicitAnchor) {
-    const anchorCycleNumber = Math.max(1, Math.trunc(Number(sub.anchorCycleNumber || 1)));
+    const rawAnchorCycleNumber = Math.max(1, Math.trunc(Number(sub.anchorCycleNumber || 1)));
     const anchorPeriodStartAt = new Date(sub.anchorPeriodStartAt as Date);
+    const inferredCycleNumber = countElapsedIntervals({
+      startAt: resolveCycleAnchorFromStart(sub),
+      endAt: anchorPeriodStartAt,
+      unit,
+      count
+    }) + 1;
+    const anchorCycleNumber =
+      rawAnchorCycleNumber <= 1 && inferredCycleNumber > rawAnchorCycleNumber
+        ? inferredCycleNumber
+        : rawAnchorCycleNumber;
     const anchorPeriodEndAt =
       sub.anchorPeriodEndAt instanceof Date && !Number.isNaN(sub.anchorPeriodEndAt.getTime())
         ? new Date(sub.anchorPeriodEndAt)
@@ -859,11 +869,6 @@ export function findBestBillingCycleForPayment(args: {
 
   if (!unpaidCycles.length) return null;
 
-  if (args.cycleNumberHint != null) {
-    const direct = unpaidCycles.find((cycle) => cycle.cycleNumber === args.cycleNumberHint);
-    if (direct) return direct;
-  }
-
   const strictPeriodMatch = unpaidCycles.filter((cycle) => {
     return paymentTs >= cycle.periodStartMs && paymentTs < cycle.periodEndMs;
   });
@@ -880,6 +885,15 @@ export function findBestBillingCycleForPayment(args: {
   if (withinWindow.length) {
     withinWindow.sort((a, b) => a.periodStartMs - b.periodStartMs || a.cycleNumber - b.cycleNumber);
     return withinWindow[0];
+  }
+
+  if (args.cycleNumberHint != null) {
+    const direct = unpaidCycles.find((cycle) => cycle.cycleNumber === args.cycleNumberHint);
+    if (direct) {
+      const start = direct.periodStartMs - toleranceMs;
+      const end = direct.periodEndMs + toleranceMs;
+      if (paymentTs >= start && paymentTs <= end) return direct;
+    }
   }
 
   const overdue = unpaidCycles.filter((cycle) => cycle.dueAtMs <= paymentTs);

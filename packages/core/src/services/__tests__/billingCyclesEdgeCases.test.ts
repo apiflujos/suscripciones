@@ -378,6 +378,20 @@ describe("findBestBillingCycleForPayment", () => {
     // Payment is within cycle window (Apr 15 is within Apr 1 - May 1 + tolerance)
     expect(result?.id).toBe("c3");
   });
+
+  it("ignores a stale cycle hint when the payment date belongs to an earlier period", () => {
+    const result = findBestBillingCycleForPayment({
+      paymentAt: new Date("2026-03-20T00:00:00.000Z"),
+      cycleNumberHint: 5,
+      toleranceDays: 14,
+      cycles: [
+        cycle({ id: "c1", cycleNumber: 1, start: "2026-03-01", end: "2026-04-01", due: "2026-03-20" }),
+        cycle({ id: "c5", cycleNumber: 5, start: "2026-05-01", end: "2026-06-01", due: "2026-05-20" })
+      ]
+    });
+
+    expect(result?.id).toBe("c1");
+  });
 });
 
 describe("resolveConfiguredCollectionCycle business rule", () => {

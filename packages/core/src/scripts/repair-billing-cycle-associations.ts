@@ -1,6 +1,8 @@
-import { BillingCycleStatus, PaymentStatus, SubscriptionStatus, type PaymentAssociationReason } from "@prisma/client";
+import fs from "fs";
+import path from "path";
+import { BillingCycleStatus, PaymentStatus, type PaymentAssociationReason } from "@prisma/client";
 import { prisma } from "../db/prisma";
-import { attachPaymentToCycle, ensureBillingCyclesForSubscription, findBestBillingCycleForPayment } from "../services/billingCycles";
+import { attachPaymentToCycle, ensureBillingCyclesForSubscription, findBestBillingCycleForPayment, resolveCollectionDelinquency, resolveSubscriptionBillingState } from "../services/billingCycles";
 import { ensureExpiredSubscriptions } from "../services/subscriptionBilling";
 import { classifyReference } from "../webhooks/wompi/classifyReference";
 import {
@@ -57,10 +59,43 @@ function hasSubscriptionPricing(metadata: unknown) {
   return Number.isFinite(getSubscriptionPricingTotal(metadata, Number.NaN));
 }
 
+function loadEnvFileIfPresent(filePath: string) {
+  if (!fs.existsSync(filePath)) return;
+  const content = fs.readFileSync(filePath, "utf8");
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIndex = trimmed.indexOf("=");
+    if (eqIndex === -1) continue;
+    const key = trimmed.slice(0, eqIndex).trim();
+    let value = trimmed.slice(eqIndex + 1).trim();
+    if (!key || process.env[key] != null) continue;
+    if ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  }
+}
+
+function ensureEnvLoaded() {
+  if (process.env.DATABASE_URL) return;
+  const repoRoot = path.resolve(__dirname, "../../../..");
+  loadEnvFileIfPresent(path.join(repoRoot, ".env"));
+  loadEnvFileIfPresent(path.join(repoRoot, "apps/admin/.env.local"));
+}
+
+function parseCycleHintFromManualReference(reference: string) {
+  const match = /^MANUAL_([a-f0-9-]+)_(\d+)_\d+$/i.exec(reference.trim());
+  if (!match) return null;
+  const cycle = Number(match[2]);
+  return Number.isFinite(cycle) ? cycle : null;
+}
+
 function parseCycleHint(payment: CandidatePayment) {
-  if (payment.cycleNumber != null) return payment.cycleNumber;
   const classified = classifyReference(payment.reference);
   if (classified.kind === "subscription" && classified.cycle != null) return classified.cycle;
+  const manualRefCycle = parseCycleHintFromManualReference(payment.reference);
+  if (manualRefCycle != null) return manualRefCycle;
   return null;
 }
 
@@ -195,28 +230,22 @@ function planAssignments(args: {
 }
 
 async function reconcileSubscriptionStatus(subscriptionId: string) {
-  const latestCycle = await prisma.subscriptionBillingCycle.findFirst({
-    where: { subscriptionId },
-    orderBy: [{ cycleNumber: "desc" }],
-    select: { paymentId: true, dueAt: true }
+  const state = await resolveSubscriptionBillingState({ subscriptionId }).catch(() => null);
+  if (!state?.subscription) return;
+  const cycle = state.collectionCycle || state.activeCycle || null;
+  const delinquency = resolveCollectionDelinquency({
+    cycle,
+    graceDays: state.subscription.graceDays ?? 0,
+    fallbackSubscriptionStatus: state.subscription.status
   });
-  if (!latestCycle) return;
-
-  const now = Date.now();
-  const dueAt = latestCycle.dueAt ? new Date(latestCycle.dueAt).getTime() : now;
-  const nextStatus = latestCycle.paymentId
-    ? SubscriptionStatus.ACTIVE
-    : dueAt < now
-      ? SubscriptionStatus.PAST_DUE
-      : SubscriptionStatus.ACTIVE;
-
   await prisma.subscription.update({
     where: { id: subscriptionId },
-    data: { status: nextStatus }
+    data: { status: delinquency.status === "EN_MORA" ? "PAST_DUE" : "ACTIVE" }
   });
 }
 
 async function main() {
+  ensureEnvLoaded();
   const apply = envFlag("APPLY");
   const subscriptionIdFilter = String(process.env.SUBSCRIPTION_ID || "").trim();
   const tenantIdFilter = String(process.env.TENANT_ID || "").trim();
