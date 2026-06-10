@@ -102,7 +102,7 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
+      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeBogota ?? rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const payload: SubscriptionDueJobPayload = {
         trigger: "SUBSCRIPTION_DUE",
@@ -216,7 +216,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
+      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeBogota ?? rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload: PaymentStatusJobPayload = {
         trigger,
@@ -304,7 +304,7 @@ export async function schedulePaymentLinkNotifications(args: {
       const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
       for (const offsetSeconds of offsetsSeconds) {
         const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
+      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeBogota ?? rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload: PaymentLinkCreatedJobPayload = {
         trigger: "PAYMENT_LINK_CREATED",
@@ -395,7 +395,7 @@ export async function scheduleCatalogLinkNotifications(args: { customerId: strin
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
+      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeBogota ?? rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload: CatalogLinkCreatedJobPayload = {
         trigger: "CATALOG_LINK_CREATED",
@@ -487,7 +487,7 @@ export async function scheduleTokenizationLinkNotifications(args: {
     const offsetsSeconds = args.forceNow ? [0] : offsetsSecondsBase;
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
-      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeUtc });
+      const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeBogota ?? rule.atTimeUtc });
       const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
       const jobPayload: TokenizationLinkCreatedJobPayload = {
         trigger: "TOKENIZATION_LINK_CREATED",

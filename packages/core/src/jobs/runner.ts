@@ -18,8 +18,8 @@ import { dataTrainer } from "./handlers/dataTrainer";
 import { reconcileRecentChatwootDeliveries } from "../services/chatwootDelivery";
 import { reconcileWompiByReference, reconcileWompiTransaction } from "../services/wompiReconcile";
 import { resolveSubscriptionCollectionMode } from "../services/subscriptionMode";
-import { ensurePaymentRetryJob } from "../services/retryJobScheduler";
-import { resolvePaymentRetryRunAt } from "../services/retryJobScheduler";
+import { ensurePaymentRetryJob, resolvePaymentRetryRunAt } from "../services/retryJobScheduler";
+import { getZonedParts, applyClockTimeInZone } from "../lib/timeZoneScheduling";
 import { handleSubscriptionPaymentFailure, ensureExpiredSubscriptions } from "../services/subscriptionBilling";
 import { runWithActor } from "../services/actorStore";
 import { publishRealtime } from "../services/realtimePublisher";
@@ -49,7 +49,7 @@ const workerHeartbeatKey = String(process.env.JOBS_HEARTBEAT_KEY || "wompi-subs-
 let lastShopifyForwardRetryAt = 0;
 let lastHeartbeatAtMs = 0;
 
-const BOGOTA_UTC_OFFSET_MS = -5 * 60 * 60 * 1000;
+const BOGOTA_TZ = "America/Bogota";
 const MAX_SUBSCRIPTIONS_PER_CUTOFF_CYCLE = Number(
   process.env.MAX_SUBSCRIPTIONS_PER_CUTOFF_CYCLE ?? "2000"
 );
@@ -59,21 +59,21 @@ function monthKeyUtc(y: number, m0: number) {
 }
 
 function computeNextMonthlyReportJob(nowMs: number) {
-  const bogotaNow = new Date(nowMs + BOGOTA_UTC_OFFSET_MS);
-  const y = bogotaNow.getUTCFullYear();
-  const m = bogotaNow.getUTCMonth();
-  const d = bogotaNow.getUTCDate();
-  const hh = bogotaNow.getUTCHours();
-  const mm = bogotaNow.getUTCMinutes();
+  // Use real timezone parts instead of a hardcoded UTC-5 offset
+  const { year, month, day, hour, minute } = getZonedParts(new Date(nowMs), BOGOTA_TZ);
+  // month is 1-indexed (1=Jan, 12=Dec)
 
-  const isDay1Before005 = d === 1 && hh === 0 && mm < 5;
-  const runY = isDay1Before005 ? y : m === 11 ? y + 1 : y;
-  const runM = isDay1Before005 ? m : (m + 1) % 12;
-  const runAt = new Date(Date.UTC(runY, runM, 1, 5, 5, 0, 0)); // 00:05 Bogotá = 05:05 UTC
+  const isDay1Before005 = day === 1 && hour === 0 && minute < 5;
+  const runYear = isDay1Before005 ? year : month === 12 ? year + 1 : year;
+  const runMonth1 = isDay1Before005 ? month : month === 12 ? 1 : month + 1;
 
-  const prevM = runM === 0 ? 11 : runM - 1;
-  const prevY = runM === 0 ? runY - 1 : runY;
-  const periodKey = monthKeyUtc(prevY, prevM);
+  // Schedule at 00:05 Bogotá on the 1st of the target month
+  const firstOfMonth = new Date(Date.UTC(runYear, runMonth1 - 1, 1, 12, 0, 0));
+  const runAt = applyClockTimeInZone(firstOfMonth, "00:05", BOGOTA_TZ);
+
+  const prevMonth1 = runMonth1 === 1 ? 12 : runMonth1 - 1;
+  const prevYear = runMonth1 === 1 ? runYear - 1 : runYear;
+  const periodKey = monthKeyUtc(prevYear, prevMonth1 - 1);
 
   return { runAt, periodKey };
 }
@@ -735,6 +735,7 @@ async function runOnce() {
           job.type === RetryJobType.PAYMENT_RETRY &&
           (
             errMsg === "subscription_canceled" ||
+            errMsg === "subscription_suspended" ||
             errMsg === "subscription_not_found" ||
             errMsg === "auto_debit_not_allowed_for_collection_mode" ||
             errMsg === "wompi_reference_already_used_guard" ||
