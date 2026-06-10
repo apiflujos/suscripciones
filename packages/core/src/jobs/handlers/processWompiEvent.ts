@@ -730,7 +730,11 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         email: email || null,
         phone: phone || null,
         hasName: !!name,
-        reason: !email && !phone ? "sin_email_ni_telefono" : "sin_coincidencia_exacta"
+        reason: !email && !phone
+          ? "sin_email_ni_telefono"
+          : !amountInCents
+            ? "sin_monto"
+            : "multiples_suscripciones_activas_o_sin_coincidencia"
       }, "webhook:wompi").catch((err: any) => {
         logger.warn({ err, reference }, "processWompiEvent: fallo escribiendo systemLog de identidad fallida");
       });

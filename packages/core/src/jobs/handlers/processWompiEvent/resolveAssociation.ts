@@ -6,7 +6,7 @@
 import { PaymentAssociationReason } from "@prisma/client";
 import type { prisma } from "../../../db/prisma";
 import { logger } from "../../../lib/logger";
-import { getSubscriptionPricingTotal } from "../../../lib/metadataSchemas";
+import { getExpectedSubscriptionTotalInCents } from "../../../lib/metadataSchemas";
 import { classifyReference } from "../../../webhooks/wompi/classifyReference";
 import type { AssociationDecision } from "./types";
 
@@ -150,47 +150,91 @@ export async function resolveAssociationByScore(args: {
     orderBy: [{ updatedAt: "desc" }]
   });
 
-  // Filter by exact amount match
-  const withExactAmount = candidates.filter((s: any) => {
-    const planAmount = getSubscriptionPricingTotal(s?.metadata, s?.plan?.priceInCents || 0);
-    const planCurrency = String(s?.plan?.currency || "").trim().toUpperCase();
-    if (!incomingAmount) return false;
-    if (incomingCurrency && planCurrency && incomingCurrency !== planCurrency) return false;
-    return planAmount === incomingAmount;
-  });
+  // Compute expected amounts using the same path as createPaymentLinkForSubscription:
+  // subscription.metadata.pricing.totalInCents → plan.metadata.pricing.totalInCents → plan.priceInCents
+  // This ensures shipping stored in plan metadata is included.
+  type CandidateWithAmounts = { sub: any; expectedTotal: number; planCurrency: string };
+  const candidatesWithAmounts: CandidateWithAmounts[] = candidates
+    .filter((s: any) => {
+      const planCurrency = String(s?.plan?.currency || "").trim().toUpperCase();
+      return !(incomingCurrency && planCurrency && incomingCurrency !== planCurrency);
+    })
+    .map((s: any) => ({
+      sub: s,
+      expectedTotal: getExpectedSubscriptionTotalInCents({
+        subscriptionMetadata: s.metadata,
+        planMetadata: s.plan?.metadata,
+        fallback: s.plan?.priceInCents || 0
+      }),
+      planCurrency: String(s?.plan?.currency || "").trim().toUpperCase()
+    }));
 
-  if (!withExactAmount.length) return null;
+  // Tier 1: exact amount match
+  const withExactAmount = candidatesWithAmounts.filter(({ expectedTotal }) => expectedTotal === incomingAmount);
 
   const score = identitySource === "name" ? 70 : 80;
 
-  // Single match — return it
   if (withExactAmount.length === 1) {
-    const winner = withExactAmount[0];
+    const { sub } = withExactAmount[0];
     return {
-      subscriptionId: winner.id,
-      customerId: winner.customerId ?? undefined,
+      subscriptionId: sub.id,
+      customerId: sub.customerId ?? undefined,
       score,
       reason: "IDENTITY_MATCH" as any,
+      criteria: { method: "identity", source: identitySource, amountInCents: incomingAmount, currency: incomingCurrency || null }
+    };
+  }
+
+  if (withExactAmount.length > 1) {
+    logger.warn(
+      { tenantId: args.tenantId || null, customerIds: Array.from(customerIds), subscriptionIds: withExactAmount.map(({ sub }) => sub.id), amountInCents: incomingAmount, source: identitySource },
+      "resolveAssociation: coincidencia ambigua por identidad+monto; se omite autoasignacion"
+    );
+    return null;
+  }
+
+  // Tier 2: no exact match — try active subscriptions only (status ACTIVE or PAST_DUE)
+  const activeOnly = candidatesWithAmounts.filter(({ sub }) => sub.status === "ACTIVE" || sub.status === "PAST_DUE");
+
+  // If there's exactly one active subscription for this customer, associate it with lower
+  // confidence — amount mismatch is often caused by shipping costs that changed or were stored
+  // separately in plan vs subscription metadata.
+  if (activeOnly.length === 1) {
+    const { sub, expectedTotal } = activeOnly[0];
+    logger.warn(
+      {
+        tenantId: args.tenantId || null,
+        subscriptionId: sub.id,
+        customerId: sub.customerId,
+        incomingAmount,
+        expectedAmount: expectedTotal,
+        currency: incomingCurrency || null,
+        source: identitySource
+      },
+      "resolveAssociation: asociando por identidad con diferencia de monto (posible flete)"
+    );
+    return {
+      subscriptionId: sub.id,
+      customerId: sub.customerId ?? undefined,
+      score: identitySource === "name" ? 55 : 65,
+      reason: "IDENTITY_MATCH" as any,
       criteria: {
-        method: "identity",
+        method: "identity_amount_mismatch",
         source: identitySource,
-        amountInCents: incomingAmount,
+        incomingAmount,
+        expectedAmount: expectedTotal,
         currency: incomingCurrency || null
       }
     };
   }
 
-  logger.warn(
-    {
-      tenantId: args.tenantId || null,
-      customerIds: Array.from(customerIds),
-      subscriptionIds: withExactAmount.map((sub: any) => sub.id),
-      amountInCents: incomingAmount,
-      currency: incomingCurrency || null,
-      source: identitySource
-    },
-    "resolveAssociation: coincidencia ambigua por identidad+monto; se omite autoasignacion"
-  );
+  if (activeOnly.length > 1) {
+    logger.warn(
+      { tenantId: args.tenantId || null, customerIds: Array.from(customerIds), subscriptionIds: activeOnly.map(({ sub }) => sub.id), amountInCents: incomingAmount, source: identitySource },
+      "resolveAssociation: multiples suscripciones activas sin coincidencia exacta de monto; se omite autoasignacion"
+    );
+  }
+
   return null;
 }
 
