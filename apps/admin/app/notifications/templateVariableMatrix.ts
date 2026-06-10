@@ -80,6 +80,11 @@ const CATALOG_BUTTON_VARIABLES: NotificationVariableOption[] = [
   { label: "URL publica de catalogo", value: "{{catalog.url}}", recommended: true }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
+const LINK_CYCLE_VARIABLES: NotificationVariableOption[] = [
+  { label: "Mes del ciclo de cobro", value: "{{subscription.collectionCycleLabel}}" },
+  { label: "Mes del ciclo activo", value: "{{subscription.activeCycleLabel}}" }
+].sort((a, b) => a.label.localeCompare(b.label, "es"));
+
 type TemplateVariableMatrix = {
   bodyVariables: NotificationVariableOption[];
   buttonVariables: NotificationVariableOption[];
@@ -116,7 +121,7 @@ const SUBSCRIPTION_CORE = [...GENERIC_MESSAGE_VARIABLES, ...SUBSCRIPTION_MESSAGE
 const REALTIME_VARIABLE_MATRIX: Record<RealtimeNotificationKey, TemplateVariableMatrix> = {
   catalog_link_created_plan: buildMatrix({
     core: GENERIC_MESSAGE_VARIABLES,
-    body: CATALOG_VARIABLES,
+    body: [...CATALOG_VARIABLES, ...LINK_CYCLE_VARIABLES],
     button: CATALOG_BUTTON_VARIABLES,
     helpText: "Usa solo la URL publica de catalogo de este evento. No mezcles tokenizacion ni links de pago.",
     recommendedButtonLabel: "Link de catalogo"
@@ -137,7 +142,7 @@ const REALTIME_VARIABLE_MATRIX: Record<RealtimeNotificationKey, TemplateVariable
   }),
   payment_link_created: buildMatrix({
     core: GENERIC_MESSAGE_VARIABLES,
-    body: LINK_PAYMENT_VARIABLES,
+    body: [...LINK_PAYMENT_VARIABLES, ...LINK_CYCLE_VARIABLES],
     button: PLAN_BUTTON_VARIABLES,
     helpText: "Usa solo la URL publica de pago creada para este evento. No uses variantes crudas ni checkouts generales.",
     recommendedButtonLabel: "Link para pagar"
@@ -158,7 +163,7 @@ const REALTIME_VARIABLE_MATRIX: Record<RealtimeNotificationKey, TemplateVariable
   }),
   payment_failed_link: buildMatrix({
     core: GENERIC_MESSAGE_VARIABLES,
-    body: LINK_PAYMENT_VARIABLES,
+    body: [...LINK_PAYMENT_VARIABLES, ...LINK_CYCLE_VARIABLES],
     button: PLAN_BUTTON_VARIABLES,
     helpText: "Si el mensaje pide reintentar el pago, usa solo la URL publica de pago.",
     recommendedButtonLabel: "Link para pagar"
@@ -175,7 +180,7 @@ const REALTIME_VARIABLE_MATRIX: Record<RealtimeNotificationKey, TemplateVariable
 const REMINDER_VARIABLE_MATRIX: Record<ReminderNotificationKey, TemplateVariableMatrix> = {
   reminder_due_link: buildMatrix({
     core: GENERIC_MESSAGE_VARIABLES,
-    body: LINK_PAYMENT_VARIABLES,
+    body: [...LINK_PAYMENT_VARIABLES, ...LINK_CYCLE_VARIABLES],
     button: PLAN_BUTTON_VARIABLES,
     helpText: "Recordatorio previo de pago. Usa solo la URL publica de pago.",
     recommendedButtonLabel: "Link para pagar"
@@ -189,7 +194,7 @@ const REMINDER_VARIABLE_MATRIX: Record<ReminderNotificationKey, TemplateVariable
   }),
   reminder_mora_link: buildMatrix({
     core: GENERIC_MESSAGE_VARIABLES,
-    body: LINK_PAYMENT_VARIABLES,
+    body: [...LINK_PAYMENT_VARIABLES, ...LINK_CYCLE_VARIABLES],
     button: PLAN_BUTTON_VARIABLES,
     helpText: "Recordatorio en mora. Usa solo la URL publica de pago.",
     recommendedButtonLabel: "Link para pagar"

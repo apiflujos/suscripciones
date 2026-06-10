@@ -302,11 +302,20 @@ export class ChatwootClient {
         .filter((tpl: any) => tpl.name);
     };
 
+    let anyEndpointOk = false;
+    let lastErrorStatus: number | null = null;
+    let lastErrorBody: unknown = null;
+
     const primaryPath = `/api/v1/accounts/${this.opts.accountId}/whatsapp_templates`;
     const res = await this.request(primaryPath, { method: "GET" });
     if (res.ok) {
       const payload = (res.json && (res.json.payload ?? res.json.data ?? res.json)) || [];
-      return normalizeList(payload);
+      const result = normalizeList(payload);
+      if (result.length) return result;
+      anyEndpointOk = true;
+    } else {
+      lastErrorStatus = res.status;
+      lastErrorBody = res.json;
     }
 
     if (this.opts.inboxId) {
@@ -315,7 +324,12 @@ export class ChatwootClient {
       });
       if (fallback.ok) {
         const payload = (fallback.json && (fallback.json.payload ?? fallback.json.data ?? fallback.json)) || [];
-        return normalizeList(payload);
+        const result = normalizeList(payload);
+        if (result.length) return result;
+        anyEndpointOk = true;
+      } else {
+        lastErrorStatus = fallback.status;
+        lastErrorBody = fallback.json;
       }
 
       // Final fallback: read templates from inbox details if exposed there.
@@ -332,10 +346,12 @@ export class ChatwootClient {
           [];
         const normalized = normalizeList(inboxTemplates);
         if (normalized.length) return normalized;
+        anyEndpointOk = true;
       }
     }
 
-    throw new Error(`Chatwoot list templates failed: ${res.status} ${JSON.stringify(res.json)}`);
+    if (anyEndpointOk) return [];
+    throw new Error(`Chatwoot list templates failed: ${lastErrorStatus} ${JSON.stringify(lastErrorBody)}`);
   }
 
   async syncWhatsappTemplates() {

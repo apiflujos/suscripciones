@@ -64,11 +64,15 @@ export async function GET(req: Request) {
   if (op === "whatsapp_templates") {
     try {
       const client = await getChatwootClient();
-      await client.syncWhatsappTemplates().catch((err) => {
+      const syncResult = await client.syncWhatsappTemplates().catch((err) => {
         logIgnored(err, "comms: fallo sincronizando plantillas WhatsApp", {});
+        return { ok: false as const, error: String(err?.message || "sync_error") };
       });
       const templates = await client.listWhatsappTemplates();
-      return Response.json({ ok: true, templates });
+      const sync = syncResult.ok
+        ? { ok: true as const }
+        : { ok: false as const, error: (syncResult as any).error, details: (syncResult as any).details };
+      return Response.json({ ok: true, templates, sync });
     } catch (err: any) {
       return Response.json({ ok: false, error: String(err?.message || "chatwoot_templates_failed") }, { status: 400 });
     }

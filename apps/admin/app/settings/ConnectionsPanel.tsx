@@ -72,18 +72,21 @@ export function ConnectionsPanel({
   const [shopifyTestStatus, setShopifyTestStatus] = useState<"idle" | "pending" | "ok" | "fail">("idle");
   const [shopifyTestError, setShopifyTestError] = useState("");
   const shopifyFormRef = useRef<HTMLFormElement | null>(null);
-  const [templatesSync, setTemplatesSync] = useState<{ running: boolean; count: number; error: string }>({ running: false, count: 0, error: "" });
+  const [templatesSync, setTemplatesSync] = useState<{ running: boolean; count: number; error: string; syncWarning: string }>({ running: false, count: 0, error: "", syncWarning: "" });
 
   const syncWhatsappTemplates = async () => {
-    setTemplatesSync({ running: true, count: 0, error: "" });
+    setTemplatesSync({ running: true, count: 0, error: "", syncWarning: "" });
     try {
       const res = await fetch("/admin/comms?op=whatsapp_templates", { cache: "no-store" });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.ok) throw new Error(json?.error || "sync_failed");
       const count = Array.isArray(json?.templates) ? json.templates.length : 0;
-      setTemplatesSync({ running: false, count, error: "" });
+      const syncWarning = json?.sync?.ok === false
+        ? `La sincronizacion con WhatsApp fallo: ${json.sync.error || "sync_failed"}. Las plantillas mostradas pueden estar desactualizadas.`
+        : "";
+      setTemplatesSync({ running: false, count, error: "", syncWarning });
     } catch (err: any) {
-      setTemplatesSync({ running: false, count: 0, error: String(err?.message || "sync_failed") });
+      setTemplatesSync({ running: false, count: 0, error: String(err?.message || "sync_failed"), syncWarning: "" });
     }
   };
 
@@ -230,6 +233,10 @@ export function ConnectionsPanel({
         {templatesSync.error ? (
           <div className="field-hint" style={{ color: "var(--danger)" }}>
             Error: {templatesSync.error}
+          </div>
+        ) : templatesSync.syncWarning ? (
+          <div className="field-hint" style={{ color: "var(--warning, #b45309)" }}>
+            {templatesSync.syncWarning}
           </div>
         ) : null}
       </div>
