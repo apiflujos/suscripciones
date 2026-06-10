@@ -557,6 +557,16 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
         const fresh = await client.createConversation({ contactId, sourceId, inboxId: selectedInboxId ?? cfg.inboxId, message: undefined });
         conversationId = fresh.conversationId;
         sent = await doSend(conversationId);
+        const refreshedSubMeta = {
+          ...(cleanedSubMeta || {}),
+          chatwoot: { ...(cleanedSubMeta?.chatwoot || {}), conversationId, contactId }
+        };
+        await prisma.subscription.update({
+          where: { id: msg.subscriptionId! },
+          data: { metadata: refreshedSubMeta as Prisma.InputJsonValue }
+        }).catch((updateErr) => {
+          logger.warn({ err: updateErr, subscriptionId: msg.subscriptionId }, "chatwoot.send: failed to save new conversationId after recovery");
+        });
         await systemLog(LogLevel.WARN, "chatwoot.send", "Conversacion obsoleta recreada y mensaje enviado", {
           actor: "job:sendChatwootMessage",
           chatwootMessageId,

@@ -722,6 +722,18 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
           logger.warn({ err, reference, subscriptionId: decision.subscriptionId }, "processWompiEvent: fallo escribiendo systemLog de inferencia por scoring");
         });
       }
+    } else if (canTryIdentity) {
+      await systemLog(LogLevel.WARN, "processWompiEvent", "identity_match_failed: pago no asociado automaticamente", {
+        reference,
+        amountInCents,
+        currency,
+        email: email || null,
+        phone: phone || null,
+        hasName: !!name,
+        reason: !email && !phone ? "sin_email_ni_telefono" : "sin_coincidencia_exacta"
+      }, "webhook:wompi").catch((err: any) => {
+        logger.warn({ err, reference }, "processWompiEvent: fallo escribiendo systemLog de identidad fallida");
+      });
     } else if (hasStructuredReference) {
       await systemLog(LogLevel.INFO, "processWompiEvent", "Payment no encontrado, se usará referencia estructurada", {
         reference,
