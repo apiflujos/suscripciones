@@ -77,7 +77,10 @@ export function getCollectionStatusLabel(args: CollectionStatusArgs) {
   if (!dueAt || Number.isNaN(dueAt.getTime())) return status === "PAST_DUE" || status === "EXPIRED" ? "En mora" : "Al día";
   const dueKey = getCivilDateKey(dueAt);
   const nowKey = getCivilDateKey(nowDate);
-  if (nowKey <= dueKey) return "Al día";
+  if (nowKey <= dueKey) {
+    if (status === "PAST_DUE" || status === "EXPIRED") return "En mora";
+    return "Al día";
+  }
   const dueAnchor = getCivilDateAnchorUtc(dueAt);
   const nowAnchor = getCivilDateAnchorUtc(nowDate);
   const daysLate = Math.ceil((nowAnchor.getTime() - dueAnchor.getTime()) / (24 * 60 * 60 * 1000));
