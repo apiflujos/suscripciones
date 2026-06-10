@@ -965,15 +965,18 @@ export async function createPlanAndSubscription(formData: FormData) {
             .filter(Boolean)
         )
       );
-      const invalidCustomerTenant = tenantIds.find((requestedTenantId) => !allowedCustomerTenants.includes(requestedTenantId));
-      if (invalidCustomerTenant) {
-        return redirect(
-          mergeQuery(returnTo, {
-            error: "El contacto no pertenece al canal seleccionado.",
-            customerId: resolvedCustomerId,
-            ...(tenantId ? { tenantId } : {})
-          })
-        );
+      // Customers with no tenant assigned belong to all tenants — skip validation
+      if (allowedCustomerTenants.length > 0) {
+        const invalidCustomerTenant = tenantIds.find((requestedTenantId) => !allowedCustomerTenants.includes(requestedTenantId));
+        if (invalidCustomerTenant) {
+          return redirect(
+            mergeQuery(returnTo, {
+              error: "El contacto no pertenece al canal seleccionado.",
+              customerId: resolvedCustomerId,
+              ...(tenantId ? { tenantId } : {})
+            })
+          );
+        }
       }
     }
     const meta = customer?.metadata || {};
