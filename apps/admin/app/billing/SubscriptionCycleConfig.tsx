@@ -7,14 +7,10 @@ export function SubscriptionCycleConfig({
   paymentDay,
   useGlobalConfig,
   graceDays,
-  suspendDays,
-  cancelDays,
   onCycleStartDayChange,
   onPaymentDayChange,
   onUseGlobalConfigChange,
   onGraceDaysChange,
-  onSuspendDaysChange,
-  onCancelDaysChange,
   nextChargeDate,
   periodStartAt
 }: {
@@ -22,14 +18,10 @@ export function SubscriptionCycleConfig({
   paymentDay: number;
   useGlobalConfig: boolean;
   graceDays: number;
-  suspendDays: number;
-  cancelDays: number;
   onCycleStartDayChange: (day: number) => void;
   onPaymentDayChange: (day: number) => void;
   onUseGlobalConfigChange: (use: boolean) => void;
   onGraceDaysChange: (days: number) => void;
-  onSuspendDaysChange: (days: number) => void;
-  onCancelDaysChange: (days: number) => void;
   nextChargeDate?: Date | null;
   periodStartAt?: string | null;
 }) {
@@ -97,11 +89,11 @@ export function SubscriptionCycleConfig({
             checked={useGlobalConfig}
             onChange={(e) => onUseGlobalConfigChange(e.target.checked)}
           />
-          <span>Usar configuración global (días de gracia, suspensión, cancelación)</span>
+          <span>Usar configuración global de días de gracia</span>
         </label>
 
         {!useGlobalConfig && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, padding: 12, background: "var(--panel-soft)", borderRadius: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, padding: 12, background: "var(--panel-soft)", borderRadius: 8 }}>
             <div className="field">
               <label className="field-label">Días de gracia</label>
               <select
@@ -110,30 +102,6 @@ export function SubscriptionCycleConfig({
                 onChange={(e) => onGraceDaysChange(Number(e.target.value))}
               >
                 {Array.from({ length: 16 }, (_, i) => i).map((days) => (
-                  <option key={days} value={days}>{days} días</option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label className="field-label">Suspender después de</label>
-              <select
-                className="select"
-                value={suspendDays}
-                onChange={(e) => onSuspendDaysChange(Number(e.target.value))}
-              >
-                {Array.from({ length: 31 }, (_, i) => i + 15).map((days) => (
-                  <option key={days} value={days}>{days} días</option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label className="field-label">Cancelar después de</label>
-              <select
-                className="select"
-                value={cancelDays}
-                onChange={(e) => onCancelDaysChange(Number(e.target.value))}
-              >
-                {Array.from({ length: 31 }, (_, i) => i + 30).map((days) => (
                   <option key={days} value={days}>{days} días</option>
                 ))}
               </select>

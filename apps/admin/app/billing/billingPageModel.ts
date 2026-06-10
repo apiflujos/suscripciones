@@ -119,8 +119,6 @@ export function buildBillingRows(args: BuildBillingRowsArgs): BillingRow[] {
         paymentDay: Number(s.paymentDay || 1),
         paymentTiming: String(s.paymentTiming || "EN_CURSO"),
         graceDays: Number(s.graceDays || 5),
-        suspendDays: Number(s.suspendDays || 15),
-        cancelDays: Number(s.cancelDays || 30),
         daysLate,
         inGrace,
         inArrears,

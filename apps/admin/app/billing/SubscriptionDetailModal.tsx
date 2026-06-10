@@ -53,8 +53,6 @@ type SubscriptionDetail = {
   paymentDay: number;
   paymentTiming: string;
   graceDays: number;
-  suspendDays: number;
-  cancelDays: number;
   currentCollectionDueAt?: string | null;
   duplicateCount?: number;
   canManualCharge?: boolean;
@@ -366,14 +364,6 @@ export function SubscriptionDetailModal({
                   <div className="field-hint">Días de gracia</div>
                   <div className="contact-value">{subscription.graceDays} días</div>
                 </div>
-                <div>
-                  <div className="field-hint">Suspender después de</div>
-                  <div className="contact-value">{subscription.suspendDays} días</div>
-                </div>
-                <div>
-                  <div className="field-hint">Cancelar después de</div>
-                  <div className="contact-value">{subscription.cancelDays} días</div>
-                </div>
               </div>
             </div>
 
@@ -534,16 +524,10 @@ export function SubscriptionDetailModal({
           paymentDay={subscription.paymentDay}
           paymentTiming={subscription.paymentTiming}
           graceDays={subscription.graceDays}
-          suspendDays={subscription.suspendDays}
-          cancelDays={subscription.cancelDays}
           collectionMode={subscription.mode || undefined}
           updateSubscriptionBillingSettings={updateSubscriptionBillingSettings}
           deleteSubscription={deleteSubscription}
-          globalConfig={{
-            graceDays: subscription.graceDays,
-            suspendDays: subscription.suspendDays,
-            cancelDays: subscription.cancelDays
-          }}
+          globalConfig={{ graceDays: subscription.graceDays }}
         />
       )}
       <PaymentHistoryButton

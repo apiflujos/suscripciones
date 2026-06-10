@@ -144,12 +144,10 @@ export function BillingCard({ row, context }: BillingCardProps) {
               paymentDay={row.paymentDay}
               paymentTiming={row.paymentTiming}
               graceDays={row.graceDays}
-              suspendDays={row.suspendDays}
-              cancelDays={row.cancelDays}
               collectionMode={row.mode}
               updateSubscriptionBillingSettings={context.actions.updateSubscriptionBillingSettings}
               deleteSubscription={context.actions.deleteSubscription}
-              globalConfig={{ graceDays: row.graceDays, suspendDays: row.suspendDays, cancelDays: row.cancelDays }}
+              globalConfig={{ graceDays: row.graceDays }}
               CyclesModal={PaymentCyclesModal}
             />
             <PaymentHistoryButton subscriptionId={row.id} tenantId={row.tenantId} />

@@ -45,7 +45,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const tenantName = await resolveTenantName(session?.tenantId ?? null);
   const fallbackTenantName = String(process.env.SA_DEFAULT_TENANT_NAME || process.env.DEFAULT_TENANT_NAME || "").trim();
   const resolvedName = tenantName || fallbackTenantName;
-  const title = resolvedName ? `CRM ${resolvedName}` : "CRM";
+  const title = resolvedName ? `Suscripciones ${resolvedName}` : "Suscripciones";
 
   return {
     title,

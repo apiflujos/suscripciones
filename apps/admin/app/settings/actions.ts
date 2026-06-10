@@ -841,15 +841,9 @@ export async function updateSubscriptionConfig(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
   const graceDays = Number(formData.get("graceDays") || 5);
-  const suspendDays = Number(formData.get("suspendDays") || 15);
-  const cancelDays = Number(formData.get("cancelDays") || 30);
 
   try {
-    const res = await updateAutoDebitConfigAction({
-      graceDays,
-      suspendDays,
-      cancelDays
-    });
+    const res = await updateAutoDebitConfigAction({ graceDays });
     assertOk(res as any);
     redirectWith("subscription_config", "ok", undefined, returnTo);
   } catch (err) {

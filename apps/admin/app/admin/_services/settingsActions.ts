@@ -449,9 +449,6 @@ export async function updateAutoDebitConfig(input: unknown) {
   const maxRetriesRaw = parsed.data.maxRetries != null ? toInt(parsed.data.maxRetries, 0, 0, 20) : toInt(current?.maxRetries, 0, 0, 20);
   const maxRetries = retryEnabled ? Math.max(1, maxRetriesRaw) : maxRetriesRaw;
   const graceDays = parsed.data.graceDays != null ? toInt(parsed.data.graceDays, 5, 1, 30) : toInt(current?.graceDays, 5, 1, 30);
-  const suspendDays = parsed.data.suspendDays != null ? toInt(parsed.data.suspendDays, 15, 1, 180) : toInt(current?.suspendDays, 15, 1, 180);
-  const cancelDays = parsed.data.cancelDays != null ? toInt(parsed.data.cancelDays, 30, 1, 365) : toInt(current?.cancelDays, 30, 1, 365);
-
   await setCredential(
     CredentialProvider.WOMPI,
     "AUTO_DEBIT_CONFIG",
@@ -466,9 +463,7 @@ export async function updateAutoDebitConfig(input: unknown) {
       retryEveryUnit: derived.retryEveryUnit,
       retryEveryMinutes,
       maxRetries,
-      graceDays,
-      suspendDays,
-      cancelDays
+      graceDays
     })
   );
   await prisma.subscription.updateMany({
@@ -502,9 +497,7 @@ export async function updateAutoDebitConfig(input: unknown) {
     retryEveryUnit: derived.retryEveryUnit,
     retryEveryMinutes,
     maxRetries,
-    graceDays,
-    suspendDays,
-    cancelDays
+    graceDays
   }).catch((err: any) => {
     logger.warn({ err }, "Fallo escribiendo systemLog al actualizar configuracion de debito automatico");
   });

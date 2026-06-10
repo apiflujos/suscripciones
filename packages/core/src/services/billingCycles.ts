@@ -1056,7 +1056,7 @@ export async function reconcileApprovedPaymentWithSubscription(args: {
   const collectionCycle = state?.collectionCycle || state?.activeCycle || null;
   const delinquency = resolveCollectionDelinquency({
     cycle: collectionCycle,
-    graceDays: state?.subscription?.graceDays ?? 0,
+    graceDays: state?.subscription?.graceDays ?? 5,
     asOf,
     fallbackSubscriptionStatus: state?.subscription?.status ?? null
   });

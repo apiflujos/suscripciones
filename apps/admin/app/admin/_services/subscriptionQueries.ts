@@ -147,12 +147,6 @@ export async function listSubscriptions(args: {
   const configuredGraceDays = Number.isFinite(Number(autoDebitCfg?.graceDays))
     ? Math.max(1, Math.trunc(Number(autoDebitCfg?.graceDays)))
     : 5;
-  const configuredSuspendDays = Number.isFinite(Number(autoDebitCfg?.suspendDays))
-    ? Math.max(1, Math.trunc(Number(autoDebitCfg?.suspendDays)))
-    : 15;
-  const configuredCancelDays = Number.isFinite(Number(autoDebitCfg?.cancelDays))
-    ? Math.max(1, Math.trunc(Number(autoDebitCfg?.cancelDays)))
-    : 30;
   const billingAsOf = getCivilDateAnchorUtc(new Date());
   const billingStateBySubscription = await buildSubscriptionBillingStateIndex({
     subscriptions: items.map((s) => ({
@@ -252,9 +246,7 @@ export async function listSubscriptions(args: {
       autoChargeEnabled,
       retryAutomationEnabled,
       nextRetryAtEffective: effectiveRetryAt || null,
-      graceDays: configuredGraceDays,
-      suspendDays: configuredSuspendDays,
-      cancelDays: configuredCancelDays
+      graceDays: configuredGraceDays
     };
   });
 

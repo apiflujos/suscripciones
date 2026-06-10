@@ -106,8 +106,6 @@ export type BillingRow = {
   tenantName: string;
   currentShippingInCents: number;
   currentRequiresShipping: boolean;
-  suspendDays: number;
-  cancelDays: number;
 };
 
 export type BillingAction = (formData: FormData) => void | Promise<void>;

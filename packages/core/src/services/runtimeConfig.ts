@@ -123,8 +123,6 @@ export type AutoDebitConfig = {
   retryEveryMinutes: number;
   maxRetries: number;
   graceDays: number;
-  suspendDays: number;
-  cancelDays: number;
 };
 
 export type PaymentsConfig = {
@@ -208,8 +206,6 @@ export async function getAutoDebitConfig(): Promise<AutoDebitConfig> {
   const maxRetriesRaw = toInt(String(parsed?.maxRetries ?? ""), envMaxRetries, 0, 20);
   const maxRetries = retryEnabled ? Math.max(1, maxRetriesRaw) : maxRetriesRaw;
   const graceDays = toInt(String(parsed?.graceDays ?? ""), 5, 1, 30);
-  const suspendDays = toInt(String(parsed?.suspendDays ?? ""), 15, 1, 180);
-  const cancelDays = toInt(String(parsed?.cancelDays ?? ""), 30, 1, 365);
 
   return {
     enabled,
@@ -222,9 +218,7 @@ export async function getAutoDebitConfig(): Promise<AutoDebitConfig> {
     retryEveryUnit: derived.retryEveryUnit,
     retryEveryMinutes,
     maxRetries,
-    graceDays,
-    suspendDays,
-    cancelDays
+    graceDays
   };
 }
 

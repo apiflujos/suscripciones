@@ -19,8 +19,6 @@ type AutomationOverrides = Partial<Pick<
   | "retryEveryMinutes"
   | "maxRetries"
   | "graceDays"
-  | "suspendDays"
-  | "cancelDays"
 >>;
 
 function asRecord(input: unknown): Record<string, any> {
@@ -41,9 +39,7 @@ function readOverrides(metadata: unknown): AutomationOverrides {
     retryEveryUnit: nested.retryEveryUnit ?? legacy.retryEveryUnit,
     retryEveryMinutes: nested.retryEveryMinutes ?? legacy.retryEveryMinutes,
     maxRetries: nested.maxRetries ?? legacy.maxRetries,
-    graceDays: nested.graceDays ?? legacy.graceDays,
-    suspendDays: nested.suspendDays ?? legacy.suspendDays,
-    cancelDays: nested.cancelDays ?? legacy.cancelDays
+    graceDays: nested.graceDays ?? legacy.graceDays
   };
 }
 
@@ -95,9 +91,7 @@ export async function resolveEffectiveSubscriptionAutomationConfig(
         : base.retryEveryUnit),
     retryEveryMinutes: toIntInRange(retryEveryMinutesFromOverride, base.retryEveryMinutes, 1, 10080),
     maxRetries: toIntInRange(overrides.maxRetries ?? subscription.maxRetries, base.maxRetries, 0, 20),
-    graceDays: toIntInRange(overrides.graceDays ?? subscription.graceDays, base.graceDays, 1, 30),
-    suspendDays: toIntInRange(overrides.suspendDays, base.suspendDays, 1, 180),
-    cancelDays: toIntInRange(overrides.cancelDays, base.cancelDays, 1, 365)
+    graceDays: toIntInRange(overrides.graceDays ?? subscription.graceDays, base.graceDays, 1, 30)
   };
 }
 

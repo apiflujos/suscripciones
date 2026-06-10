@@ -51,9 +51,7 @@ export const autoDebitUpdateSchema = z.object({
   retryEveryUnit: z.enum(["MINUTES", "HOURS", "DAYS"]).optional(),
   retryEveryMinutes: z.coerce.number().int().min(1).max(10080).optional(),
   maxRetries: z.coerce.number().int().min(0).max(20).optional(),
-  graceDays: z.coerce.number().int().min(1).max(30).optional(),
-  suspendDays: z.coerce.number().int().min(1).max(180).optional(),
-  cancelDays: z.coerce.number().int().min(1).max(365).optional()
+  graceDays: z.coerce.number().int().min(1).max(30).optional()
 });
 
 export const paymentsConfigUpdateSchema = z.object({

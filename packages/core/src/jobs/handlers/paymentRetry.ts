@@ -79,6 +79,7 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
     const sub = await prisma.subscription.findUnique({ where: { id: subscriptionId }, include: { plan: true, customer: true } });
     if (!sub) throw new Error("subscription_not_found");
     if (sub.status === "CANCELED") throw new Error("subscription_canceled");
+    if (sub.status === "SUSPENDED") return { status: "skipped", mode: "MANUAL_LINK" as const, reason: "subscription_suspended", subscriptionId };
     await syncSubscriptionBillingSnapshot({ subscriptionId }).catch(() => null);
     const billingState = await resolveSubscriptionBillingState({ subscriptionId }).catch(() => null);
 

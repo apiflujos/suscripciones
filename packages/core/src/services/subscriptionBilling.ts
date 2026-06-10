@@ -245,8 +245,6 @@ export async function ensureExpiredSubscriptions() {
     }
   });
   let toPastDue = 0;
-  let toSuspended = 0;
-  let toCanceled = 0;
   let recoveredToActive = 0;
 
   for (const sub of candidates) {
@@ -297,19 +295,12 @@ export async function ensureExpiredSubscriptions() {
     }
   }
 
-  if (toPastDue > 0 || toSuspended > 0 || toCanceled > 0 || recoveredToActive > 0) {
+  if (toPastDue > 0 || recoveredToActive > 0) {
     await systemLog(LogLevel.INFO, "subscriptions.lifecycle", "Limpieza de estados de suscripciones", {
       markedPastDue: toPastDue,
-      markedSuspended: toSuspended,
-      markedCanceled: toCanceled,
       recoveredToActive
     }).catch((err: any) => {
-      logIgnored(err, "subscription lifecycle: failed to write cleanup log", {
-        toPastDue,
-        toSuspended,
-        toCanceled,
-        recoveredToActive
-      });
+      logIgnored(err, "subscription lifecycle: failed to write cleanup log", { toPastDue, recoveredToActive });
     });
   }
 }

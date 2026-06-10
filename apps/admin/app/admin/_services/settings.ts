@@ -211,9 +211,7 @@ export async function getAdminSettings() {
     retryEveryValue: deriveRetryUnitAndValue(toInt(autoDebitConfigRaw?.retryEveryMinutes, 60, 1, 10080)).retryEveryValue,
     retryEveryUnit: deriveRetryUnitAndValue(toInt(autoDebitConfigRaw?.retryEveryMinutes, 60, 1, 10080)).retryEveryUnit,
     maxRetries: toInt(autoDebitConfigRaw?.maxRetries, 0, 0, 20),
-    graceDays: toInt(autoDebitConfigRaw?.graceDays, 5, 1, 30),
-    suspendDays: toInt(autoDebitConfigRaw?.suspendDays, 15, 1, 180),
-    cancelDays: toInt(autoDebitConfigRaw?.cancelDays, 30, 1, 365)
+    graceDays: toInt(autoDebitConfigRaw?.graceDays, 5, 1, 30)
   };
 
   let paymentsConfigRaw: any = {};

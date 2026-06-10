@@ -20,8 +20,6 @@ export function SubscriptionEditModal({
   paymentDay,
   paymentTiming,
   graceDays,
-  suspendDays,
-  cancelDays,
   collectionMode,
   updateSubscriptionBillingSettings,
   deleteSubscription,
@@ -48,15 +46,11 @@ export function SubscriptionEditModal({
   paymentDay: number;
   paymentTiming: string;
   graceDays: number;
-  suspendDays: number;
-  cancelDays: number;
   collectionMode?: string;
   updateSubscriptionBillingSettings: (formData: FormData) => void | Promise<void>;
   deleteSubscription: (formData: FormData) => void | Promise<void>;
   globalConfig?: {
     graceDays: number;
-    suspendDays: number;
-    cancelDays: number;
   };
   CyclesModal?: React.ComponentType<{ subscriptionId: string; csrfToken: string; returnTo: string; tenantId?: string | null }>;
   cyclesTrigger?: () => void;
@@ -257,11 +251,9 @@ export function SubscriptionEditModal({
                   <div className="field">
                     <label className="field-label">
                       Configuración global de cobro
-                      <HelpTip text="Los días de gracia, suspensión y cancelación se definen solo en Configuración." />
+                      <HelpTip text="Los días de gracia se definen solo en Configuración." />
                     </label>
                     <div className="field-hint">Gracia: {globalConfig?.graceDays ?? graceDays} días.</div>
-                    <div className="field-hint">Suspender: {globalConfig?.suspendDays ?? suspendDays} días.</div>
-                    <div className="field-hint">Cancelar: {globalConfig?.cancelDays ?? cancelDays} días.</div>
                   </div>
 
                   {nextChargeDate && (

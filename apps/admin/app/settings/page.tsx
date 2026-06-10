@@ -901,32 +901,6 @@ export default async function SettingsPage({
                   </select>
                   <div className="field-hint">Durante este período el badge es NARANJA "En gracia"</div>
                 </div>
-
-                <div className="field">
-                  <label className="field-label">
-                    Suspender después de
-                    <HelpTip text="Días después del vencimiento cuando se suspende la suscripción" />
-                  </label>
-                  <select className="select" name="suspendDays" defaultValue={String(autoDebit?.suspendDays ?? 15)} data-auto-submit="true">
-                    {Array.from({ length: 180 }, (_, i) => i + 1).map((days) => (
-                      <option key={days} value={days}>{days} días</option>
-                    ))}
-                  </select>
-                  <div className="field-hint">Después de los días de gracia,badge ROJO "En mora"</div>
-                </div>
-
-                <div className="field">
-                  <label className="field-label">
-                    Cancelar después de
-                    <HelpTip text="Días después de suspendido cuando se cancela la suscripción" />
-                  </label>
-                  <select className="select" name="cancelDays" defaultValue={String(autoDebit?.cancelDays ?? 30)} data-auto-submit="true">
-                    {Array.from({ length: 365 }, (_, i) => i + 1).map((days) => (
-                      <option key={days} value={days}>{days} días</option>
-                    ))}
-                  </select>
-                  <div className="field-hint">Badge GRIS "Cancelada"</div>
-                </div>
               </div>
             </form>
           </div>
