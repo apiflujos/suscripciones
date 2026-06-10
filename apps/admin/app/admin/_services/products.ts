@@ -507,7 +507,14 @@ export async function listCatalogProducts(args: {
   const where: any = { metadata: { path: ["kind"], equals: "CATALOG_ITEM" } } as any;
   if (!includeInactive) where.active = true;
   if (tenantId) {
-    const tenantFilter = { OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }] };
+    // Include products assigned to this tenant, AND global products (no tenant assigned)
+    const tenantFilter = {
+      OR: [
+        { tenantId },
+        { tenantLinks: { some: { tenantId } } },
+        { AND: [{ tenantId: null }, { tenantLinks: { none: {} } }] }
+      ]
+    };
     where.AND = Array.isArray(where.AND) ? [...where.AND, tenantFilter] : [tenantFilter];
   }
   if (q) {
