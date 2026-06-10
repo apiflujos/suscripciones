@@ -135,7 +135,8 @@ async function listAvailableWhatsappTemplates() {
     inboxId: cfg.inboxId
   });
   await client.syncWhatsappTemplates().catch(() => null);
-  return client.listWhatsappTemplates();
+  const { templates } = await client.listWhatsappTemplates();
+  return templates;
 }
 
 function countBodyParams(components: any[], currentCount: number) {

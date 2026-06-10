@@ -68,11 +68,11 @@ export async function GET(req: Request) {
         logIgnored(err, "comms: fallo sincronizando plantillas WhatsApp", {});
         return { ok: false as const, error: String(err?.message || "sync_error") };
       });
-      const templates = await client.listWhatsappTemplates();
+      const { templates, _diag } = await client.listWhatsappTemplates();
       const sync = syncResult.ok
         ? { ok: true as const }
         : { ok: false as const, error: (syncResult as any).error, details: (syncResult as any).details };
-      return Response.json({ ok: true, templates, sync });
+      return Response.json({ ok: true, templates, sync, _diag });
     } catch (err: any) {
       return Response.json({ ok: false, error: String(err?.message || "chatwoot_templates_failed") }, { status: 400 });
     }

@@ -281,7 +281,7 @@ export class ChatwootClient {
     return { ok: res.ok, status: res.status, json };
   }
 
-  async listWhatsappTemplates() {
+  async listWhatsappTemplates(): Promise<{ templates: any[]; _diag: Record<string, unknown> }> {
     const normalizeList = (payload: any) => {
       const list = Array.isArray(payload?.whatsapp_templates)
         ? payload.whatsapp_templates
@@ -302,16 +302,25 @@ export class ChatwootClient {
         .filter((tpl: any) => tpl.name);
     };
 
+    const rawShape = (json: unknown) => {
+      if (json === null || json === undefined) return null;
+      if (Array.isArray(json)) return `array[${(json as any[]).length}]`;
+      if (typeof json === "object") return Object.keys(json as object);
+      return typeof json;
+    };
+
+    const diag: Record<string, unknown> = {};
     let anyEndpointOk = false;
     let lastErrorStatus: number | null = null;
     let lastErrorBody: unknown = null;
 
     const primaryPath = `/api/v1/accounts/${this.opts.accountId}/whatsapp_templates`;
     const res = await this.request(primaryPath, { method: "GET" });
+    diag.primary = { status: res.status, ok: res.ok, shape: rawShape(res.json) };
     if (res.ok) {
       const payload = (res.json && (res.json.payload ?? res.json.data ?? res.json)) || [];
       const result = normalizeList(payload);
-      if (result.length) return result;
+      if (result.length) return { templates: result, _diag: { ...diag, usedEndpoint: "primary" } };
       anyEndpointOk = true;
     } else {
       lastErrorStatus = res.status;
@@ -322,10 +331,11 @@ export class ChatwootClient {
       const fallback = await this.request(`/api/v1/accounts/${this.opts.accountId}/inboxes/${this.opts.inboxId}/whatsapp_templates`, {
         method: "GET"
       });
+      diag.standard = { status: fallback.status, ok: fallback.ok, shape: rawShape(fallback.json) };
       if (fallback.ok) {
         const payload = (fallback.json && (fallback.json.payload ?? fallback.json.data ?? fallback.json)) || [];
         const result = normalizeList(payload);
-        if (result.length) return result;
+        if (result.length) return { templates: result, _diag: { ...diag, usedEndpoint: "standard" } };
         anyEndpointOk = true;
       } else {
         lastErrorStatus = fallback.status;
@@ -334,6 +344,7 @@ export class ChatwootClient {
 
       // Final fallback: read templates from inbox details if exposed there.
       const inboxRes = await this.request(`/api/v1/accounts/${this.opts.accountId}/inboxes/${this.opts.inboxId}`, { method: "GET" });
+      diag.inbox = { status: inboxRes.status, ok: inboxRes.ok, shape: rawShape(inboxRes.json) };
       if (inboxRes.ok) {
         const data = inboxRes.json?.payload ?? inboxRes.json?.data ?? inboxRes.json ?? {};
         const inboxTemplates =
@@ -345,12 +356,13 @@ export class ChatwootClient {
           data?.templates ||
           [];
         const normalized = normalizeList(inboxTemplates);
-        if (normalized.length) return normalized;
+        if (normalized.length) return { templates: normalized, _diag: { ...diag, usedEndpoint: "inbox" } };
         anyEndpointOk = true;
+        diag.inboxChannelKeys = typeof data?.channel === "object" && data?.channel ? Object.keys(data.channel) : null;
       }
     }
 
-    if (anyEndpointOk) return [];
+    if (anyEndpointOk) return { templates: [], _diag: { ...diag, usedEndpoint: "none_empty" } };
     throw new Error(`Chatwoot list templates failed: ${lastErrorStatus} ${JSON.stringify(lastErrorBody)}`);
   }
 
