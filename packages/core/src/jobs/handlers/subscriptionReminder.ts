@@ -636,12 +636,13 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
   if (checkoutIds.length) {
     for (const id of checkoutIds) {
       const normalizedCheckoutId = String(id || "").trim().toUpperCase();
-      const planId =
+      const planId = (
         subscription?.planId ||
         payment?.subscription?.planId ||
         tokenizationPayload?.planId ||
         notificationPlanId ||
-        null;
+        null
+      ) as string | null;
       const productId =
         String((subscription as any)?.productId || "") ||
         String((payment as any)?.subscription?.productId || "") ||

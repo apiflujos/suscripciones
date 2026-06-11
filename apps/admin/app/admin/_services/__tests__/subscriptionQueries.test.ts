@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const prisma = {
   subscription: { findMany: vi.fn(), count: vi.fn() },
@@ -49,6 +49,13 @@ vi.mock("@suscripciones/core/services/billingCycles", () => ({
 }));
 
 describe("subscriptionQueries listSubscriptions", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let listSubscriptions: (args: any) => Promise<{ items: any[]; total: number }>;
+
+  beforeAll(async () => {
+    ({ listSubscriptions } = await import("../subscriptionQueries"));
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -100,7 +107,6 @@ describe("subscriptionQueries listSubscriptions", () => {
       }
     ]);
 
-    const { listSubscriptions } = await import("../subscriptionQueries");
     const result = await listSubscriptions({});
 
     expect(result.items[0]?.lastPaidInCurrentPeriod).toBe(true);
@@ -122,7 +128,6 @@ describe("subscriptionQueries listSubscriptions", () => {
       }
     ]);
 
-    const { listSubscriptions } = await import("../subscriptionQueries");
     const result = await listSubscriptions({});
 
     expect(result.items[0]?.lastPaidInCurrentPeriod).toBe(true);
@@ -155,7 +160,6 @@ describe("subscriptionQueries listSubscriptions", () => {
       }
     ]);
 
-    const { listSubscriptions } = await import("../subscriptionQueries");
     const result = await listSubscriptions({});
 
     expect(result.items[0]?.canManualUnmarkPaid).toBe(false);

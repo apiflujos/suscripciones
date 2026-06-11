@@ -396,6 +396,7 @@ export async function createPaymentLinkForSubscription(args: {
   if (!tenantId) throw new Error("tenant_required");
   if (sub.status === SubscriptionStatus.CANCELED) throw new Error("subscription_canceled");
   if (sub.status === SubscriptionStatus.SUSPENDED) throw new Error("subscription_suspended");
+  if (sub.status === SubscriptionStatus.EXPIRED) throw new Error("subscription_expired");
 
   // FIX: Validar moneda antes de crear payment link
   const currency = validateWompiCurrency(sub.plan.currency);
@@ -628,7 +629,7 @@ export async function createPaymentLinkForSubscription(args: {
         attemptNo: 0,
         status: "PAYMENT_LINK_CREATED",
         provider: "wompi",
-        response: created.raw
+        response: created.raw as any
       }
     });
 
@@ -813,6 +814,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
   if (!tenantId) throw new Error("tenant_required");
   if (sub.status === SubscriptionStatus.CANCELED) throw new Error("subscription_canceled");
   if (sub.status === SubscriptionStatus.SUSPENDED) throw new Error("subscription_suspended");
+  if (sub.status === SubscriptionStatus.EXPIRED) throw new Error("subscription_expired");
 
   const collectionMode = resolveSubscriptionCollectionMode(sub);
   if (collectionMode !== "AUTO_DEBIT") {
@@ -880,6 +882,13 @@ export async function createAutoDebitTransactionForSubscription(args: {
         return { paymentId: existingByCycle.id, wompiTransactionId: existingByCycle.wompiTransactionId };
       }
     }
+
+    // If previous transaction was DECLINED/ERROR, compute a unique retry reference to avoid Wompi duplicate errors
+    if (existingByCycle?.wompiTransactionId && existingByCycle.status !== PaymentStatus.PENDING && existingByCycle.status !== PaymentStatus.APPROVED) {
+      const attemptCount = await prisma.paymentAttempt.count({ where: { paymentId: existingByCycle.id } });
+      const retrySuffix = `R${Math.max(1, attemptCount + 1)}`;
+      reference = `${reference}_${retrySuffix}`;
+    }
   }
 
   let payment:
@@ -929,6 +938,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
         currency,
         reference,
         status: PaymentStatus.PENDING,
+        wompiTransactionId: null,
         failedAt: null
       },
       select: { id: true, wompiTransactionId: true, status: true, reference: true }
@@ -1164,13 +1174,13 @@ export async function createAutoDebitTransactionForSubscription(args: {
       attemptNo: 0,
       status: "TRANSACTION_CREATED",
       provider: "wompi",
-      response: created.raw
+      response: created.raw as any
     }
   });
 
   const updated = await prisma.payment.update({
     where: { id: payment.id },
-    data: { reference: usedReference, wompiTransactionId: created.id, providerResponse: created.raw }
+    data: { reference: usedReference, wompiTransactionId: created.id, providerResponse: created.raw as any }
   });
 
   await systemLog(LogLevel.INFO, "subscriptions.auto_debit", "Transaction created", {

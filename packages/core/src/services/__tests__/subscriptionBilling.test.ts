@@ -545,27 +545,29 @@ describe("Subscription Billing: Payment link creation", () => {
       customerId: "cust-link-advance",
       planId: "plan-advance",
       status: "ACTIVE",
-      startAt: new Date("2026-03-19T07:24:55.034Z"),
+      startAt: new Date("2026-05-19T07:24:55.034Z"),
       cycleStartDay: 1,
       paymentDay: 20,
       paymentTiming: "ANTICIPADO",
       graceDays: 3
     };
+    // Cycle 2: current active period (June 2026 — contains today 2026-06-10), already paid via dueAt May 20
     seedCycle(store, {
       id: "cycle-link-advance-2",
       subscriptionId: "sub-link-advance",
       cycleNumber: 2,
-      periodStartAt: new Date("2026-04-01T00:00:00.000Z"),
-      periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
-      dueAt: new Date("2026-03-20T00:00:00.000Z")
+      periodStartAt: new Date("2026-06-01T00:00:00.000Z"),
+      periodEndAt: new Date("2026-07-01T00:00:00.000Z"),
+      dueAt: new Date("2026-05-20T00:00:00.000Z")
     });
+    // Cycle 3: next period (July 2026), dueAt June 20 = upcoming ANTICIPADO collection target
     seedCycle(store, {
       id: "cycle-link-advance-3",
       subscriptionId: "sub-link-advance",
       cycleNumber: 3,
-      periodStartAt: new Date("2026-05-01T00:00:00.000Z"),
-      periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
-      dueAt: new Date("2026-04-20T00:00:00.000Z")
+      periodStartAt: new Date("2026-07-01T00:00:00.000Z"),
+      periodEndAt: new Date("2026-08-01T00:00:00.000Z"),
+      dueAt: new Date("2026-06-20T00:00:00.000Z")
     });
 
     const { createPaymentLinkForSubscription } = await import("../../services/subscriptionBilling");
@@ -794,7 +796,7 @@ describe("ensureExpiredSubscriptions", () => {
     expect(store.subscription["sub-paid-no-id"].status).toBe("ACTIVE");
   });
 
-  it("should mark PAST_DUE as SUSPENDED after configured suspend window", async () => {
+  it("should keep PAST_DUE subscription in PAST_DUE (suspend automation removed)", async () => {
     const { store } = await import("../../db/prisma");
     const now = Date.now();
     const dueAt = new Date(now - 25 * 24 * 60 * 60 * 1000);
@@ -828,11 +830,11 @@ describe("ensureExpiredSubscriptions", () => {
     const { ensureExpiredSubscriptions } = await import("../../services/subscriptionBilling");
     await ensureExpiredSubscriptions();
 
-    expect(store.subscription["sub-suspend"].status).toBe("SUSPENDED");
-    expect(store.subscription["sub-suspend"].suspendedAt).toBeTruthy();
+    // Suspend automation is disabled — PAST_DUE stays PAST_DUE regardless of days overdue
+    expect(store.subscription["sub-suspend"].status).toBe("PAST_DUE");
   });
 
-  it("should mark SUSPENDED as CANCELED after configured cancel window", async () => {
+  it("should recover SUSPENDED subscription back into billing flow (cancel automation removed)", async () => {
     const { store } = await import("../../db/prisma");
     const now = Date.now();
     const dueAt = new Date(now - 60 * 24 * 60 * 60 * 1000);
@@ -867,8 +869,7 @@ describe("ensureExpiredSubscriptions", () => {
     const { ensureExpiredSubscriptions } = await import("../../services/subscriptionBilling");
     await ensureExpiredSubscriptions();
 
-    expect(store.subscription["sub-cancel"].status).toBe("CANCELED");
-    expect(store.subscription["sub-cancel"].canceledAt).toBeTruthy();
-    expect(store.subscription["sub-cancel"].suspendedAt).toBeNull();
+    // Cancel automation is disabled — SUSPENDED subscriptions are recovered back to PAST_DUE
+    expect(store.subscription["sub-cancel"].status).toBe("PAST_DUE");
   });
 });

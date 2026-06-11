@@ -224,7 +224,7 @@ export async function schedulePaymentStatusNotifications(args: { paymentId: stri
         offsetSeconds,
         paymentId: payment.id,
         customerId: payment.customerId,
-        subscriptionId: payment.subscriptionId,
+        subscriptionId: payment.subscriptionId ?? undefined,
         paymentStatus: payment.status,
         anchorAt: anchorIso,
         paymentType

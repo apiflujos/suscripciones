@@ -370,19 +370,48 @@ async function resolveAssociationByScore(args: {
     orderBy: [{ updatedAt: "desc" }]
   });
 
-  const withExactAmount = candidates.filter((s: any) => {
-    const planAmount = getExpectedSubscriptionTotalInCents({
-      subscriptionMetadata: s?.metadata,
-      planMetadata: s?.plan?.metadata,
-      fallback: s?.plan?.priceInCents || 0
-    });
-    const planCurrency = String(s?.plan?.currency || "").trim().toUpperCase();
-    if (!incomingAmount) return false;
-    if (incomingCurrency && planCurrency && incomingCurrency !== planCurrency) return false;
-    return planAmount === incomingAmount;
-  });
+  type CandidateWithAmounts = { sub: any; expectedTotal: number; planCurrency: string };
+  const candidatesWithAmounts: CandidateWithAmounts[] = candidates
+    .filter((s: any) => {
+      const planCurrency = String(s?.plan?.currency || "").trim().toUpperCase();
+      return !(incomingCurrency && planCurrency && incomingCurrency !== planCurrency);
+    })
+    .map((s: any) => ({
+      sub: s,
+      expectedTotal: getExpectedSubscriptionTotalInCents({
+        subscriptionMetadata: s?.metadata,
+        planMetadata: s?.plan?.metadata,
+        fallback: s?.plan?.priceInCents || 0
+      }),
+      planCurrency: String(s?.plan?.currency || "").trim().toUpperCase()
+    }));
+  const withExactAmount = candidatesWithAmounts.filter(({ expectedTotal }) => expectedTotal === incomingAmount).map(({ sub }) => sub);
 
-  if (!withExactAmount.length) return null;
+  if (!withExactAmount.length) {
+    // Tier 2: single active subscription fallback for shipping/fee discrepancies
+    const activeOnly = candidatesWithAmounts.filter(({ sub }) => sub.status === "ACTIVE" || sub.status === "PAST_DUE");
+    if (activeOnly.length === 1) {
+      const { sub, expectedTotal } = activeOnly[0];
+      logger.warn(
+        { tenantId: args.tenantId || null, subscriptionId: sub.id, customerId: sub.customerId, incomingAmount, expectedAmount: expectedTotal, currency: incomingCurrency || null, source: identitySource },
+        "processWompiEvent/resolveAssociation: asociando por identidad con diferencia de monto (posible flete)"
+      );
+      return {
+        subscriptionId: sub.id,
+        customerId: sub.customerId ?? undefined,
+        score: identitySource === "name" ? 55 : 65,
+        reason: "IDENTITY_MATCH" as any,
+        criteria: { method: "identity_amount_mismatch", source: identitySource, incomingAmount, expectedAmount: expectedTotal, currency: incomingCurrency || null }
+      };
+    }
+    if (activeOnly.length > 1) {
+      logger.warn(
+        { tenantId: args.tenantId || null, customerIds: Array.from(customerIds), subscriptionIds: activeOnly.map(({ sub }) => sub.id), amountInCents: incomingAmount, source: identitySource },
+        "processWompiEvent/resolveAssociation: multiples suscripciones activas sin coincidencia exacta de monto; se omite autoasignacion"
+      );
+    }
+    return null;
+  }
 
   const score = identitySource === "name" ? 70 : 80;
 

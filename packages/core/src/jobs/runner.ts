@@ -347,7 +347,7 @@ async function hasRecentPendingPaymentLink(subscriptionId: string, windowMs: num
     where: {
       subscriptionId,
       status: PaymentStatus.PENDING,
-      origin: { in: ["AUTO_LINK"] as any },
+      origin: { in: ["AUTO_LINK", "MANUAL_LINK"] as any },
       createdAt: { gte: new Date(Date.now() - windowMs) }
     },
     select: { id: true }
@@ -682,7 +682,8 @@ async function runOnce() {
           await billingMonthlyReport(p);
         } else if (job.type === RetryJobType.SEND_CAMPAIGN) {
           const p = job.payload as SendCampaignPayload;
-          await sendCampaign(p);
+          if (!p.campaignId) throw new Error("campaign_id_missing");
+          await sendCampaign(p as { campaignId: string });
         } else if (job.type === RetryJobType.SYNC_SMART_LISTS) {
           const _p = job.payload as SyncSmartListsPayload;
           await syncSmartLists();
