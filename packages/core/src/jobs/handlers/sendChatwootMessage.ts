@@ -264,7 +264,10 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     selectedInboxId = requestedInboxId;
   }
 
-  if (wantsTemplate && (!selectedChannel || !isWhatsappChannel(selectedChannel))) {
+  // selectedChannel may have no channelType/medium/provider if Chatwoot's contactable-inboxes API
+  // omits that metadata. The secondary check below calls getInbox() for a fresh authoritative read,
+  // so here we only fail when no inbox was selected at all.
+  if (wantsTemplate && !selectedInboxId) {
     const errorMessage = "whatsapp_inbox_required";
     await prisma.chatwootMessage.update({
       where: { id: chatwootMessageId },
