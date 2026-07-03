@@ -45,7 +45,12 @@ vi.mock("@suscripciones/core/services/billingCycles", () => ({
       ]
     ]);
   }),
-  isBillingCyclePaid: vi.fn((cycle: { status?: string } | null | undefined) => cycle?.status === "PAID")
+  isBillingCyclePaid: vi.fn((cycle: { status?: string } | null | undefined) => cycle?.status === "PAID"),
+  resolveCollectionDelinquency: vi.fn(({ cycle, fallbackSubscriptionStatus }: { cycle?: { status?: string; dueAt?: Date } | null; fallbackSubscriptionStatus?: string }) => {
+    if (cycle?.status === "PAID") return { status: "AL_DIA", dueAt: cycle.dueAt || null, dueWithGraceAt: null, daysPastDue: 0 };
+    if (fallbackSubscriptionStatus === "PAST_DUE") return { status: "EN_MORA", dueAt: cycle?.dueAt || null, dueWithGraceAt: null, daysPastDue: 1 };
+    return { status: "AL_DIA", dueAt: cycle?.dueAt || null, dueWithGraceAt: null, daysPastDue: 0 };
+  })
 }));
 
 describe("subscriptionQueries listSubscriptions", () => {
@@ -164,4 +169,57 @@ describe("subscriptionQueries listSubscriptions", () => {
 
     expect(result.items[0]?.canManualUnmarkPaid).toBe(false);
   });
+
+  it("uses paid current EN_CURSO cycle as the effective status even when persisted status is stale", async () => {
+    prisma.subscription.findMany.mockResolvedValue([
+      {
+        id: "sub-1",
+        tenantId: "tenant-1",
+        tenantLinks: [],
+        customerId: "cust-1",
+        status: "PAST_DUE",
+        startAt: new Date("2026-03-01T00:00:00Z"),
+        cycleStartDay: 1,
+        paymentDay: 20,
+        paymentTiming: "EN_CURSO",
+        graceDays: 5,
+        productId: "prod-1",
+        metadata: {},
+        customer: { metadata: {}, name: "Cliente", email: "cliente@test.com", phone: "3000000000" },
+        product: { name: "Producto" },
+        plan: {
+          id: "plan-1",
+          tenantId: "tenant-1",
+          tenantLinks: [],
+          name: "Plan 1",
+          intervalUnit: "MONTH",
+          intervalCount: 1,
+          metadata: {},
+          currency: "COP"
+        }
+      }
+    ]);
+    prisma.payment.findMany.mockResolvedValue([
+      {
+        subscriptionId: "sub-1",
+        cycleNumber: 2,
+        createdAt: new Date("2026-04-20T10:00:00Z"),
+        paidAt: new Date("2026-04-20T10:00:00Z"),
+        amountInCents: 1000,
+        currency: "COP",
+        wompiTransactionId: "tx-1",
+        reference: "SUB_sub-1_2",
+        providerResponse: { manual: false }
+      }
+    ]);
+
+    const activeResult = await listSubscriptions({ estado: "si" });
+    const overdueResult = await listSubscriptions({ estado: "mora" });
+
+    expect(activeResult.items[0]?.status).toBe("ACTIVE");
+    expect(activeResult.items[0]?.persistedStatus).toBe("PAST_DUE");
+    expect(activeResult.items[0]?.collectionCyclePaid).toBe(true);
+    expect(overdueResult.items).toHaveLength(0);
+  });
+
 });

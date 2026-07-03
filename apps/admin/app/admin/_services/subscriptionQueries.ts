@@ -5,7 +5,7 @@ import { PaymentStatus, Prisma, RetryJobStatus, RetryJobType, SubscriptionStatus
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { getAutoDebitConfig } from "@suscripciones/core/services/runtimeConfig";
 import { getCivilDateAnchorUtc } from "@suscripciones/core/lib/dates";
-import { buildSubscriptionBillingStateIndex, isBillingCyclePaid } from "@suscripciones/core/services/billingCycles";
+import { buildSubscriptionBillingStateIndex, isBillingCyclePaid, resolveCollectionDelinquency } from "@suscripciones/core/services/billingCycles";
 import { extractCustomerPaymentSourceId } from "@suscripciones/core/lib/customerMetadata";
 import { collectionModePlanWhere, stringContainsJsonFilter, subscriptionIdJsonFilter } from "./subscriptionShared";
 
@@ -37,9 +37,7 @@ export async function listSubscriptions(args: {
     const tenantFilter = { OR: [{ tenantId }, { tenantLinks: { some: { tenantId } } }] };
     where.AND = Array.isArray(where.AND) ? [...where.AND, tenantFilter] : [tenantFilter];
   }
-  if (estado === "mora") where.status = SubscriptionStatus.PAST_DUE;
-  else if (estado === "si") where.status = SubscriptionStatus.ACTIVE;
-  else if (estado === "no") where.status = { notIn: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE] };
+  const shouldFilterByEffectiveStatus = ["mora", "si", "no"].includes(estado);
 
   if (customerId) {
     where.customerId = customerId;
@@ -179,7 +177,12 @@ export async function listSubscriptions(args: {
     const customerTokenized = extractCustomerPaymentSourceId(s.customer?.metadata) !== null;
     const billingState = billingStateBySubscription.get(String(s.id)) || null;
     const activeCycle = billingState?.activeCycle || null;
-    const collectionCycle = billingState?.collectionCycle || activeCycle;
+    const paymentTiming = s.paymentTiming === "ANTICIPADO" ? "ANTICIPADO" : "EN_CURSO";
+    const rawCollectionCycle = billingState?.collectionCycle || activeCycle;
+    const collectionCycle =
+      paymentTiming === "EN_CURSO" && isBillingCyclePaid(activeCycle)
+        ? activeCycle
+        : rawCollectionCycle;
     const periodStartAt = activeCycle?.periodStartAt ? new Date(activeCycle.periodStartAt) : null;
     const periodEndAt = activeCycle?.periodEndAt ? new Date(activeCycle.periodEndAt) : null;
     const collectionCyclePaid = isBillingCyclePaid(collectionCycle);
@@ -190,6 +193,19 @@ export async function listSubscriptions(args: {
         : null;
     const canManualUnmarkPaid = Boolean(lastPaidInCurrentPeriod && currentCycleApprovedPayment?.isManual);
     const dueAt = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : periodEndAt;
+    const delinquency = resolveCollectionDelinquency({
+      cycle: collectionCycle,
+      graceDays: configuredGraceDays,
+      asOf: billingAsOf,
+      fallbackSubscriptionStatus: s.status
+    });
+    const isInactiveStatus =
+      s.status === SubscriptionStatus.CANCELED || s.status === SubscriptionStatus.EXPIRED || s.status === SubscriptionStatus.SUSPENDED;
+    const effectiveStatus = isInactiveStatus
+      ? s.status
+      : delinquency.status === "EN_MORA"
+        ? SubscriptionStatus.PAST_DUE
+        : SubscriptionStatus.ACTIVE;
     // Use the oldest unresolved cycle shape exposed by ResolvedBillingState.
     const nextOpenCycle =
       collectionCycle && !isBillingCyclePaid(collectionCycle)
@@ -218,6 +234,9 @@ export async function listSubscriptions(args: {
 
     return {
       ...s,
+      status: effectiveStatus,
+      persistedStatus: s.status,
+      collectionStatus: delinquency.status,
       productId:
         s.productId ||
         String(planRecord.catalogProductId || planCatalog.itemId || "").trim() ||
@@ -250,5 +269,13 @@ export async function listSubscriptions(args: {
     };
   });
 
-  return { items: mapped, total };
+  const filtered = shouldFilterByEffectiveStatus
+    ? mapped.filter((item) => {
+        if (estado === "mora") return item.status === SubscriptionStatus.PAST_DUE;
+        if (estado === "si") return item.status === SubscriptionStatus.ACTIVE;
+        return item.status !== SubscriptionStatus.ACTIVE && item.status !== SubscriptionStatus.PAST_DUE;
+      })
+    : mapped;
+
+  return { items: filtered, total: shouldFilterByEffectiveStatus ? filtered.length : total };
 }
