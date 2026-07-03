@@ -69,6 +69,7 @@ export function buildBillingRows(args: BuildBillingRowsArgs): BillingRow[] {
         dueAt: dueAtDate ? dueAtDate.toISOString() : null,
         graceDays,
         collectionCyclePaid,
+        collectionStatus: String((s as any)?.collectionStatus || ""),
         nowDate: renderNowDate
       });
       const inGrace = paymentCollectionState === "En gracia";

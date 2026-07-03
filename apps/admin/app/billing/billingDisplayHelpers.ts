@@ -69,6 +69,10 @@ export function subscriptionRank(status: any) {
 }
 
 export function getCollectionStatusLabel(args: CollectionStatusArgs) {
+  const collectionStatus = String(args.collectionStatus || "").toUpperCase();
+  if (collectionStatus === "AL_DIA") return "Al día";
+  if (collectionStatus === "EN_GRACIA") return "En gracia";
+  if (collectionStatus === "EN_MORA") return "En mora";
   if (args.collectionCyclePaid) return "Al día";
   const status = String(args.status || "").toUpperCase();
   const graceDays = Number.isFinite(Number(args.graceDays)) ? Math.max(0, Math.trunc(Number(args.graceDays))) : 5;
@@ -121,7 +125,8 @@ export function buildBillingStatusCards(r: any) {
     status: r.status,
     dueAt: r.vencimientoAt,
     graceDays: r.graceDays,
-    collectionCyclePaid: r.collectionCyclePaid
+    collectionCyclePaid: r.collectionCyclePaid,
+    collectionStatus: r.collectionStatus
   });
   const subscriptionState = getEstadoSimple(r.status);
   badges.push({ heading: "Suscripción", value: subscriptionState.label, className: subscriptionState.class });

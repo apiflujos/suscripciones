@@ -17,6 +17,7 @@ export type CollectionStatusArgs = {
   graceDays?: number;
   collectionCyclePaid?: boolean;
   nowDate?: Date;
+  collectionStatus?: string;
 };
 
 export type CardCollectionStateArgs = {
@@ -25,6 +26,7 @@ export type CardCollectionStateArgs = {
   graceDays?: number;
   collectionCyclePaid?: boolean;
   nowTs?: number;
+  collectionStatus?: string;
 };
 
 export type BadgeInfo = {
@@ -103,6 +105,7 @@ export type BillingRow = {
   chargeDue?: boolean;
   lastPaidInCurrentPeriod: boolean;
   collectionCyclePaid: boolean;
+  collectionStatus?: string;
   tenantName: string;
   currentShippingInCents: number;
   currentRequiresShipping: boolean;
