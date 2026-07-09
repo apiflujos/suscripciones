@@ -193,8 +193,16 @@ export async function listSubscriptions(args: {
         : null;
     const canManualUnmarkPaid = Boolean(lastPaidInCurrentPeriod && currentCycleApprovedPayment?.isManual);
     const dueAt = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : periodEndAt;
+    // La mora se mide por el ciclo más antiguo SIN pagar (que puede estar vencido),
+    // no por el collectionCycle (que puede ser el ciclo en curso aún no vencido).
+    // Si no hay ciclo viejo sin pagar, se cae al collectionCycle. Mismo criterio que
+    // scripts/audit-subscription-states.ts.
+    const delinquencyCycle =
+      billingState?.oldestUnpaidCycle && !isBillingCyclePaid(billingState.oldestUnpaidCycle)
+        ? billingState.oldestUnpaidCycle
+        : collectionCycle;
     const delinquency = resolveCollectionDelinquency({
-      cycle: collectionCycle,
+      cycle: delinquencyCycle,
       graceDays: configuredGraceDays,
       asOf: billingAsOf,
       fallbackSubscriptionStatus: s.status
