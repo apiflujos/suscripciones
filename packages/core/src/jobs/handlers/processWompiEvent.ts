@@ -263,7 +263,7 @@ type AssociationDecision = {
   cycleNumber?: number | null;
 };
 
-async function resolveAssociationByScore(args: {
+export async function resolveAssociationByScore(args: {
   db: typeof prisma;
   tenantId?: string | null;
   amountInCents?: number | null;
@@ -340,17 +340,27 @@ async function resolveAssociationByScore(args: {
     matched.forEach((c) => customerIds.add(c.id));
   }
 
-  if (!customerIds.size) {
+  // Siempre intentamos también por nombre y UNIMOS candidatos (no solo cuando
+  // email/teléfono no encontraron nada). Si el email del pago apunta a un Customer
+  // DUPLICADO creado por el webhook (mismo cliente, otra fila, sin la suscripción),
+  // el match por nombre recupera al cliente real que sí tiene la suscripción.
+  // La asociación sigue exigiendo monto EXACTO (o Tier-2 de única sub activa), así
+  // que ampliar candidatos no relaja la seguridad. Ver memoria webhook-duplica-clientes.
+  {
     const nameNorm = normalizeNameForMatch(args.name);
     if (nameNorm.length >= 4) {
+      // No usamos `contains` en SQL: es sensible a tildes y la BD guarda nombres
+      // con acentos distintos (mojibake SQL_ASCII), así que "Tomas" no encontraría
+      // "Tomás". Traemos un lote acotado del tenant y filtramos por nombre
+      // normalizado (sin tildes) en JS. Mismo enfoque que el match por teléfono.
       const byName = await args.db.customer.findMany({
-        where: { name: { contains: String(args.name || "").trim(), mode: "insensitive" }, ...tenantScope },
+        where: { ...tenantScope },
         select: { id: true, name: true },
         orderBy: { updatedAt: "desc" },
-        take: 100
+        take: 500
       });
       const matched = byName.filter((c) => normalizeNameForMatch(c.name) === nameNorm);
-      if (matched.length) identitySource = "name";
+      if (matched.length && !identitySource) identitySource = "name";
       matched.forEach((c) => customerIds.add(c.id));
     }
   }
