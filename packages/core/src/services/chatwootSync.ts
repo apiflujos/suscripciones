@@ -2,7 +2,7 @@ import { LogLevel, Prisma } from "@prisma/client";
 import { createHash } from "crypto";
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
-import { resolveCollectionDelinquency, resolveSubscriptionBillingState } from "./billingCycles";
+import { resolveCollectionDelinquency, resolveSubscriptionBillingState, isBillingCyclePaid } from "./billingCycles";
 import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "./runtimeConfig";
 import { systemLog } from "./systemLog";
@@ -439,8 +439,14 @@ export async function syncChatwootAttributesForCustomer(customerId: string) {
     }
   };
 
+  // La mora se mide por el ciclo más antiguo SIN pagar (vencido), no por el
+  // collectionCycle (en curso, aún no vencido). Igual que subscriptionQueries.ts.
+  const delinquencyCycle =
+    billingState?.oldestUnpaidCycle && !isBillingCyclePaid(billingState.oldestUnpaidCycle)
+      ? billingState.oldestUnpaidCycle
+      : collectionCycle;
   const collectionState = resolveCollectionDelinquency({
-    cycle: collectionCycle,
+    cycle: delinquencyCycle,
     graceDays: sub?.graceDays,
     fallbackSubscriptionStatus: sub?.status ?? null
   });

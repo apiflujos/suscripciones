@@ -14,7 +14,7 @@ import {
   moneyToPoints
 } from "./gamificationConfig";
 import { getGamificationConfig } from "./gamificationSettings";
-import { buildSubscriptionBillingStateIndex, resolveCollectionDelinquency } from "./billingCycles";
+import { buildSubscriptionBillingStateIndex, resolveCollectionDelinquency, isBillingCyclePaid } from "./billingCycles";
 
 export const GAMIFICATION_EVENT_KINDS = {
   PAYMENT_APPROVED: "payment.approved",
@@ -556,8 +556,14 @@ async function recomputeCustomerScores(
     const sub = globalSubByCustomer.get(String(customer.id)) || null;
     const billingState = sub ? billingStateBySubscription.get(String(sub.id)) || null : null;
     const collectionCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
+    // La mora se mide por el ciclo más antiguo SIN pagar (vencido), no por el
+    // collectionCycle (en curso, aún no vencido). Igual que subscriptionQueries.ts.
+    const delinquencyCycle =
+      billingState?.oldestUnpaidCycle && !isBillingCyclePaid(billingState.oldestUnpaidCycle)
+        ? billingState.oldestUnpaidCycle
+        : collectionCycle;
     const collectionState = resolveCollectionDelinquency({
-      cycle: collectionCycle,
+      cycle: delinquencyCycle,
       graceDays: sub?.graceDays,
       fallbackSubscriptionStatus: sub?.status || null
     });
@@ -639,8 +645,14 @@ async function recomputeCustomerScores(
       const sub = subByKey.get(`${tId}:${customer.id}`) || null;
       const billingState = sub ? billingStateBySubscription.get(String(sub.id)) || null : null;
       const collectionCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
+      // La mora se mide por el ciclo más antiguo SIN pagar (vencido), no por el
+      // collectionCycle (en curso, aún no vencido). Igual que subscriptionQueries.ts.
+      const delinquencyCycle =
+        billingState?.oldestUnpaidCycle && !isBillingCyclePaid(billingState.oldestUnpaidCycle)
+          ? billingState.oldestUnpaidCycle
+          : collectionCycle;
       const collectionState = resolveCollectionDelinquency({
-        cycle: collectionCycle,
+        cycle: delinquencyCycle,
         graceDays: sub?.graceDays,
         fallbackSubscriptionStatus: sub?.status || null
       });

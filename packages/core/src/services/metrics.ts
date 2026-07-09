@@ -1,7 +1,7 @@
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
 import { PaymentStatus, PlanType, SubscriptionStatus, PlanIntervalUnit, Prisma } from "@prisma/client";
-import { buildSubscriptionBillingStateIndex, resolveCollectionDelinquency } from "./billingCycles";
+import { buildSubscriptionBillingStateIndex, resolveCollectionDelinquency, isBillingCyclePaid } from "./billingCycles";
 import { getPaymentsConfig } from "./runtimeConfig";
 
 type Granularity = "day" | "week" | "month";
@@ -622,9 +622,15 @@ export async function getMetricsOverview(args: { from: Date; to: Date; granulari
     const pastDue = new Set<string>();
     for (const sub of metricSubscriptions) {
       const billingState = billingStateBySubscription.get(String(sub.id)) || null;
-      const collectionCycle = billingState?.collectionCycle || billingState?.activeCycle || null;
+      // La mora se mide por el ciclo más antiguo SIN pagar (que puede estar vencido),
+      // no por el collectionCycle (ciclo en curso, aún no vencido). Mismo criterio que
+      // subscriptionQueries.ts y scripts/audit-subscription-states.ts.
+      const delinquencyCycle =
+        billingState?.oldestUnpaidCycle && !isBillingCyclePaid(billingState.oldestUnpaidCycle)
+          ? billingState.oldestUnpaidCycle
+          : billingState?.collectionCycle || billingState?.activeCycle || null;
       const collectionState = resolveCollectionDelinquency({
-        cycle: collectionCycle,
+        cycle: delinquencyCycle,
         graceDays: sub.graceDays,
         asOf: to,
         fallbackSubscriptionStatus: sub.status

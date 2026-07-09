@@ -1,7 +1,7 @@
 import { prisma } from "../db/prisma";
 import { SubscriptionStatus, PaymentStatus, GamificationEntityType } from "@prisma/client";
 import { formatLevelName } from "./gamification";
-import { buildSubscriptionBillingStateIndex, resolveCollectionDelinquency } from "./billingCycles";
+import { buildSubscriptionBillingStateIndex, resolveCollectionDelinquency, isBillingCyclePaid } from "./billingCycles";
 
 export type SmartListRule =
   | {
@@ -238,8 +238,14 @@ export async function computeSmartListRecipients(rules: SmartListRule) {
     const activeCycle = billingState?.activeCycle || null;
     const collectionCycle = billingState?.collectionCycle || activeCycle;
     const nextBillingDate = collectionCycle?.dueAt ? new Date(collectionCycle.dueAt) : activeCycle?.periodEndAt ? new Date(activeCycle.periodEndAt) : null;
+    // La mora se mide por el ciclo más antiguo SIN pagar (vencido), no por el
+    // collectionCycle (en curso, aún no vencido). Igual que subscriptionQueries.ts.
+    const delinquencyCycle =
+      billingState?.oldestUnpaidCycle && !isBillingCyclePaid(billingState.oldestUnpaidCycle)
+        ? billingState.oldestUnpaidCycle
+        : collectionCycle;
     const collectionState = resolveCollectionDelinquency({
-      cycle: collectionCycle,
+      cycle: delinquencyCycle,
       graceDays: sub?.graceDays,
       asOf: new Date(now),
       fallbackSubscriptionStatus: sub?.status ?? null
