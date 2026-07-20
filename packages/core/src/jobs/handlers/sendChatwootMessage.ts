@@ -262,6 +262,12 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     if (!sourceId && prefer?.sourceId) sourceId = prefer.sourceId;
   } else if (hasRequestedInbox) {
     selectedInboxId = requestedInboxId;
+  } else if (wantsTemplate && cfg.inboxId) {
+    // Contacto sin inboxes contactables todavía (recibe su PRIMER mensaje de WhatsApp).
+    // Caemos al inbox de WhatsApp configurado para que createContactInbox()/getContact()
+    // de abajo creen el source_id. La validación getInbox() en el bloque de plantilla
+    // confirma que ese inbox sea realmente WhatsApp (si no, falla con whatsapp_channel_required).
+    selectedInboxId = cfg.inboxId;
   }
 
   // selectedChannel may have no channelType/medium/provider if Chatwoot's contactable-inboxes API
