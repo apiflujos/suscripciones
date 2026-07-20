@@ -58,11 +58,22 @@ function splitSqlStatements(input: string) {
   let inDouble = false;
   let inLineComment = false;
   let inBlockComment = false;
+  let dollarTag = "";
 
   for (let i = 0; i < input.length; i += 1) {
     const ch = input[i];
     const next = input[i + 1] || "";
 
+    if (dollarTag) {
+      if (input.startsWith(dollarTag, i)) {
+        cur += dollarTag;
+        i += dollarTag.length - 1;
+        dollarTag = "";
+      } else {
+        cur += ch;
+      }
+      continue;
+    }
     if (inLineComment) {
       cur += ch;
       if (ch === "\n") inLineComment = false;
@@ -88,6 +99,15 @@ function splitSqlStatements(input: string) {
       i += 1;
       inBlockComment = true;
       continue;
+    }
+    if (!inSingle && !inDouble && ch === "$") {
+      const match = input.slice(i).match(/^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/);
+      if (match) {
+        dollarTag = match[0];
+        cur += dollarTag;
+        i += dollarTag.length - 1;
+        continue;
+      }
     }
     if (ch === "'" && !inDouble) {
       cur += ch;
@@ -171,8 +191,8 @@ export async function executeSqlConsole(body: any) {
   if (!statements.length) {
     return { ok: false, status: 400, error: "sql_vacio", message: "No se encontró SQL válido para ejecutar." };
   }
-  if (statements.length > 30) {
-    return { ok: false, status: 400, error: "demasiadas_sentencias", max: 30 };
+  if (statements.length > 100) {
+    return { ok: false, status: 400, error: "demasiadas_sentencias", max: 100 };
   }
   const invalid = statements.find((s) => !SQL_FIRST_TOKENS.has(firstToken(s)));
   if (invalid) {
