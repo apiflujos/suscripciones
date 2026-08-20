@@ -79,9 +79,11 @@ export function getCollectionStatusLabel(args: CollectionStatusArgs) {
   const dueAt = args.dueAt ? new Date(args.dueAt as any) : null;
   const nowDate = args.nowDate instanceof Date ? args.nowDate : getCivilDateAnchorUtc(new Date());
   if (!dueAt || Number.isNaN(dueAt.getTime())) return status === "PAST_DUE" || status === "EXPIRED" ? "En mora" : "Al día";
-  const dueKey = getCivilDateKey(dueAt);
-  const nowKey = getCivilDateKey(nowDate);
-  if (nowKey <= dueKey) {
+  // Comparar por instante y no por día civil: el corte vence a una hora concreta,
+  // así que el mismo día del vencimiento ya cuenta como vencido una vez pasada esa
+  // hora. Comparando sólo la fecha, un cobro vencido a las 09:00 seguía figurando
+  // "Al día" el resto del día y no se distinguía de quien sí había pagado.
+  if (nowDate.getTime() <= dueAt.getTime()) {
     if (status === "PAST_DUE" || status === "EXPIRED") return "En mora";
     return "Al día";
   }
