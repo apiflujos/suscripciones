@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listTenants } from "./admin/_services/tenants";
 import { getMetricsOverviewCached } from "./admin/_services/metrics";
 import { getDailyCollectionReport } from "./admin/_services/dailyCollectionReport";
+import { getScheduledJobsReport } from "./admin/_services/scheduledJobsReport";
 import { listPaymentLogs } from "./admin/_services/logs";
 import { listSubscriptions } from "./admin/_services/subscriptions";
 import { getAdminSettings } from "./admin/_services/settings";
@@ -10,6 +11,7 @@ import { resolveTenantId } from "./admin/_services/tenantResolver";
 import { MetricsFilters } from "./ui/MetricsFilters";
 import { PageToolbar } from "./ui/PageToolbar";
 import { DailyCollectionReportPanel } from "./ui/DailyCollectionReport";
+import { ScheduledJobsPanel } from "./ui/ScheduledJobsReport";
 import { AiAssistant } from "./logs/AiAssistant";
 import {
   alignSeries,
@@ -409,14 +411,15 @@ export default async function Home({
   const periodMs = Math.max(24 * 60 * 60 * 1000, new Date(toIso).getTime() - new Date(fromIso).getTime());
   const prevFromIso = new Date(new Date(fromIso).getTime() - periodMs).toISOString();
   const prevToIso = new Date(fromIso).toISOString();
-  const [metrics, prevMetrics, paymentsRes, subscriptionsRes, settingsRes, companiesCount, collectionReport] = await Promise.all([
+  const [metrics, prevMetrics, paymentsRes, subscriptionsRes, settingsRes, companiesCount, collectionReport, jobsReport] = await Promise.all([
     getMetricsOverviewCached({ from: fromIso, to: toIso, granularity: g, tenantId: resolvedTenantId || undefined }),
     getMetricsOverviewCached({ from: prevFromIso, to: prevToIso, granularity: g, tenantId: resolvedTenantId || undefined }),
     listPaymentLogs({ take: 6, status: "APPROVED", tenantId: resolvedTenantId || undefined }),
     listSubscriptions({ take: 500, tenantId: resolvedTenantId || undefined }),
     getAdminSettings(),
     countEmpresasAndContactos(resolvedTenantId || null),
-    getDailyCollectionReport({ tenantId: resolvedTenantId || null })
+    getDailyCollectionReport({ tenantId: resolvedTenantId || null }),
+    getScheduledJobsReport()
   ]);
   const aiConfig = settingsRes?.ai || null;
   const aiProviders = aiConfig?.providers || null;
@@ -954,6 +957,7 @@ export default async function Home({
                   </div>
 
                   <DailyCollectionReportPanel report={collectionReport} />
+                  <ScheduledJobsPanel report={jobsReport} />
                 </>
               ) : null}
 
