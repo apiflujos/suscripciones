@@ -105,13 +105,15 @@ export async function resolveAssociationByScore(args: {
     byEmail.forEach((c) => customerIds.add(c.id));
   }
 
-  // Match by phone
+  // Match by phone.
+  // Sin paginar: los teléfonos se guardan con formatos mezclados ("3104362040",
+  // "+573104362040", "321 8123241"), así que la comparación tiene que hacerse sobre
+  // los dígitos normalizados. Limitar la consulta a los N clientes más recientes
+  // dejaba fuera al titular de la suscripción y el pago quedaba sin asociar.
   if (args.phone) {
     const byPhone = await args.db.customer.findMany({
       where: { phone: { not: null }, ...tenantScope },
-      select: { id: true, phone: true },
-      orderBy: { updatedAt: "desc" },
-      take: 500
+      select: { id: true, phone: true }
     });
     const matched = byPhone.filter((c) => phonesMatch(c.phone, args.phone));
     if (matched.length) identitySource = identitySource ? "email_phone" : "phone";
