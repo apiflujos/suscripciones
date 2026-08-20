@@ -5,7 +5,7 @@ import { reconcileChatwootMessageDelivery } from "../../services/chatwootDeliver
 import { getChatwootConfig } from "../../services/runtimeConfig";
 import { consumeApp } from "../../services/superAdminApp";
 import { systemLog } from "../../services/systemLog";
-import { ensureChatwootContactForCustomer, syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
+import { ensureChatwootContactForCustomer, isValidWhatsappSourceId, syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
 import { logger } from "../../lib/logger";
 
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
@@ -165,7 +165,17 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   const knownSourceId = customerMeta?.chatwoot?.sourceId;
   if (typeof knownContactId === "number" && Number.isFinite(knownContactId)) {
     contactId = knownContactId;
-    if (typeof knownSourceId === "string" && knownSourceId.trim()) sourceId = knownSourceId.trim();
+    if (isValidWhatsappSourceId(knownSourceId)) sourceId = knownSourceId.trim();
+  }
+
+  // Un contactId cacheado sin source_id válido produce el 422 "contact phone number"
+  // de Chatwoot. Re-sincronizar aquí crea el contact_inbox de WhatsApp que falta.
+  if (contactId && !sourceId) {
+    const repaired = await ensureChatwootContactForCustomer(msg.customerId);
+    if (repaired.ok && isValidWhatsappSourceId(repaired.sourceId)) {
+      contactId = repaired.contactId;
+      sourceId = repaired.sourceId;
+    }
   }
 
   if (!contactId) {

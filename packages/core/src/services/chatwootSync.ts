@@ -7,6 +7,21 @@ import { ChatwootClient } from "../providers/chatwoot/client";
 import { getChatwootConfig } from "./runtimeConfig";
 import { systemLog } from "./systemLog";
 
+// Chatwoot valida el source_id de un inbox de WhatsApp contra /\A\d{1,15}\z/.
+// Los source_id con formato UUID vienen de otros canales (widget/API) y ahí son inválidos.
+export function isValidWhatsappSourceId(value: unknown): value is string {
+  return typeof value === "string" && /^\d{1,15}$/.test(value.trim());
+}
+
+// Convierte el teléfono del CRM a E.164 sin '+'. Los celulares colombianos llegan
+// en 10 dígitos empezando por 3, así que se les antepone el indicativo 57.
+export function normalizeWhatsappSourceId(rawPhone: unknown): string | undefined {
+  const digits = String(rawPhone ?? "").replace(/\D/g, "");
+  if (!digits) return undefined;
+  const candidate = digits.length === 10 && digits.startsWith("3") ? `57${digits}` : digits;
+  return isValidWhatsappSourceId(candidate) ? candidate : undefined;
+}
+
 export const CHATWOOT_CUSTOM_ATTR_DEFS: Array<{
   key: string;
   displayName: string;
@@ -199,20 +214,26 @@ export async function ensureChatwootContactForCustomer(customerId: string, opts?
         });
     }
     // Ensure we have a sourceId tied to the inbox.
-    let sourceId = existingSourceId;
+    // Un inbox de WhatsApp exige source_id (E.164 sin '+'); sin él Chatwoot responde
+    // 422 "param is missing: contact phone number" al crear la conversación.
+    const whatsappSourceId = normalizeWhatsappSourceId(customer.phone);
+    let sourceId = isValidWhatsappSourceId(existingSourceId) ? existingSourceId : undefined;
     if (!sourceId) {
       try {
         const contactInfo = await client.getContact(existingContactId);
-        sourceId = contactInfo.sourceId;
-      } catch {
-        // ignore
+        if (isValidWhatsappSourceId(contactInfo.sourceId)) sourceId = contactInfo.sourceId;
+      } catch (err) {
+        logger.warn({ err, customerId: customer.id, contactId: existingContactId }, "chatwoot.sync: getContact falló resolviendo sourceId");
       }
       if (!sourceId) {
         try {
-          const createdInbox = await client.createContactInbox(existingContactId);
+          const createdInbox = await client.createContactInbox(existingContactId, whatsappSourceId);
           sourceId = createdInbox.sourceId;
-        } catch {
-          // ignore
+        } catch (err) {
+          logger.warn(
+            { err, customerId: customer.id, contactId: existingContactId, whatsappSourceId },
+            "chatwoot.sync: createContactInbox falló; el contacto quedará sin canal de WhatsApp"
+          );
         }
       }
     }
