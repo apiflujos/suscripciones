@@ -17413,3 +17413,125 @@ strong {
   font-weight: 600;
   color: var(--text);
 }
+
+/* ── Reporte de cobros ────────────────────────────────────────────────
+   Una sola columna a propósito: el reporte se lee de corrido para
+   auditar un corte, y a dos columnas se pierde el hilo entre el cobro
+   y el mensaje que lo acompaña. */
+.collection-report {
+  display: block;
+  max-width: 900px;
+}
+
+.collection-report > h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.collection-report-section {
+  margin-top: 28px;
+}
+
+.collection-report-section-head h3 {
+  margin: 0;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.collection-report-tally {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
+.collection-report-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.collection-report-row {
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--surface, #fff);
+}
+
+.collection-report-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.collection-report-row-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.collection-report-amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.collection-report-tx {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.collection-report-nomsg {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #92400e;
+}
+
+.collection-report-message {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--stroke);
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 0 8px 8px 0;
+}
+
+.collection-report-message-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+/* El mensaje se muestra tal cual salió, con sus saltos de línea, para poder
+   verificar monto, nombre y link sin abrir Chatwoot. */
+.collection-report-message-body {
+  margin: 8px 0 0;
+  padding: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  background: none;
+  border: 0;
+}
+
+.collection-report-message-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #991b1b;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .collection-report-row-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
