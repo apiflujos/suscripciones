@@ -18,6 +18,20 @@ function pct(part: number, total: number) {
   return `${Math.round((part / total) * 100)}%`;
 }
 
+function shortDateTime(iso: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("es-CO", {
+    timeZone: TZ,
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(d);
+}
+
 function shortDate(iso: string | null) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -35,6 +49,18 @@ const MODE_HINT: Record<string, string> = {
   AUTO_DEBIT: "Se cobra la tarjeta guardada en el corte.",
   AUTO_LINK: "Se genera el link y se envía por WhatsApp.",
   MANUAL_LINK: "El sistema no los contacta: hay que enviarles el link a mano."
+};
+
+const STATE_TILES = [
+  { id: "AL_DIA", label: "Al día", tone: "ok", count: "current", money: "currentInCents" },
+  { id: "EN_GRACIA", label: "En gracia", tone: "warn", count: "inGrace", money: "inGraceInCents" },
+  { id: "EN_MORA", label: "En mora", tone: "bad", count: "overdue", money: "overdueInCents" }
+] as const;
+
+const NEXT_CHARGE_HINT: Record<string, string> = {
+  RETRY: "reintento agendado",
+  DUE: "fecha de corte",
+  NEXT_CYCLE: "siguiente corte"
 };
 
 const DELINQUENCY = {
@@ -110,8 +136,8 @@ function ModeBlock({
               <th className="sb-num">Monto</th>
               <th>Ciclo</th>
               <th>Vence</th>
-              <th>Cobranza</th>
-              <th>Pago</th>
+              <th>Estado del ciclo</th>
+              <th>Próximo cobro</th>
               <th>Aviso</th>
               <th />
             </tr>
@@ -134,7 +160,19 @@ function ModeBlock({
                   </td>
                   <td className="muted">{row.planName}</td>
                   <td className="sb-num">{money(row.amountInCents)}</td>
-                  <td className="sb-num">{row.cycleNumber ?? "—"}</td>
+                  <td>
+                    <span className="sb-cycle-n">{row.cycleNumber != null ? `#${row.cycleNumber}` : "—"}</span>
+                    {row.cyclePaid ? (
+                      <span className="sb-sub-flag is-ok">pagado {shortDate(row.cyclePaidAt)}</span>
+                    ) : (
+                      <span className="sb-sub-flag is-warn">sin pagar</span>
+                    )}
+                    {row.chargeFailure ? (
+                      <span className="sb-sub-flag is-bad" title={row.chargeFailure.reason}>
+                        cobro rechazado
+                      </span>
+                    ) : null}
+                  </td>
                   <td>{shortDate(row.cycleDueAt)}</td>
                   <td>
                     <span className={`pill ${d.cls}`}>{d.label}</span>
@@ -143,21 +181,31 @@ function ModeBlock({
                     ) : null}
                   </td>
                   <td>
-                    {row.lastPaymentStatus === "APPROVED" ? (
-                      <span className="sb-ok">Pagado {shortDate(row.lastPaymentAt)}</span>
-                    ) : row.lastPaymentStatus === "DECLINED" ? (
-                      <span className="sb-bad">Rechazado</span>
-                    ) : row.lastPaymentStatus === "PENDING" ? (
-                      <span className="muted">Esperando pago</span>
+                    {row.nextCharge ? (
+                      <>
+                        <span>{shortDateTime(row.nextCharge.at)}</span>
+                        <span className="sb-sub-flag">{NEXT_CHARGE_HINT[row.nextCharge.kind]}</span>
+                      </>
                     ) : (
-                      <span className="muted">Sin intento</span>
+                      <span className="sb-warn">Sin cobro programado</span>
                     )}
                   </td>
                   <td>
-                    {row.messageDelivered === true ? (
-                      <span className="sb-ok" title={row.messageContent || undefined}>Entregado</span>
+                    {row.notice ? (
+                      row.notice.status === "SENT" ? (
+                        <span className="sb-ok" title={row.notice.content || undefined}>
+                          {row.notice.kind} enviado
+                        </span>
+                      ) : row.notice.status === "FAILED" ? (
+                        <>
+                          <span className="sb-bad">{row.notice.kind} falló</span>
+                          <span className="sb-sub-flag is-bad">{row.notice.reason}</span>
+                        </>
+                      ) : (
+                        <span className="sb-warn">{row.notice.kind} en cola</span>
+                      )
                     ) : (
-                      <span className="sb-warn">Sin entregar</span>
+                      <span className="muted">Sin aviso</span>
                     )}
                   </td>
                   <td className="sb-row-more">
@@ -223,22 +271,26 @@ export function SubscriptionsBoardPanel({
         <p className="muted">Ninguna suscripción coincide con el filtro.</p>
       ) : (
         <>
+          {/* Cada tile es el atajo a su lista: un clic y quedan solo esos clientes. */}
           <div className="sb-states">
-            <div className="sb-state is-ok">
-              <span className="sb-state-n">{t.current}</span>
-              <span className="sb-state-l">Al día</span>
-              <span className="sb-state-m">{money(t.currentInCents)}</span>
-            </div>
-            <div className="sb-state is-warn">
-              <span className="sb-state-n">{t.inGrace}</span>
-              <span className="sb-state-l">En gracia</span>
-              <span className="sb-state-m">{money(t.inGraceInCents)}</span>
-            </div>
-            <div className="sb-state is-bad">
-              <span className="sb-state-n">{t.overdue}</span>
-              <span className="sb-state-l">En mora</span>
-              <span className="sb-state-m">{money(t.overdueInCents)}</span>
-            </div>
+            {STATE_TILES.map((tile) => {
+              const params = new URLSearchParams(baseParams);
+              if (filters.state === tile.id) params.delete("state");
+              else params.set("state", tile.id);
+              params.delete("open");
+              return (
+                <Link
+                  key={tile.id}
+                  href={`/?${params.toString()}`}
+                  prefetch={false}
+                  className={`sb-state is-${tile.tone}${filters.state === tile.id ? " is-active" : ""}`}
+                >
+                  <span className="sb-state-n">{t[tile.count]}</span>
+                  <span className="sb-state-l">{tile.label}</span>
+                  <span className="sb-state-m">{money(t[tile.money])}</span>
+                </Link>
+              );
+            })}
           </div>
 
           <div className="sb-kpis">

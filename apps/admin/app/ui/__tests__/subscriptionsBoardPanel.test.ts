@@ -17,8 +17,8 @@ vi.mock("@suscripciones/core/lib/customerMetadata", () => ({
   hasActiveCustomerPaymentSource: vi.fn(() => true)
 }));
 vi.mock("next/link", () => ({
-  default: ({ href, children }: { href: string; children: unknown }) =>
-    createElement("a", { href }, children as never)
+  default: ({ href, children, className }: { href: string; children: unknown; className?: string }) =>
+    createElement("a", { href, className }, children as never)
 }));
 
 type Row = import("../../admin/_services/subscriptionsBoard").SubscriptionBoardRow;
@@ -33,8 +33,9 @@ beforeAll(async () => {
 });
 
 function row(over: Partial<Row>): Row {
-  return {
+  const merged: Row = {
     subscriptionId: "sub-1",
+    customerId: "cus-1",
     customerName: "Ana Gómez",
     customerPhone: "+573001112233",
     planName: "Plan Mensual",
@@ -44,15 +45,18 @@ function row(over: Partial<Row>): Row {
     cycleNumber: 3,
     cycleDueAt: "2026-08-15T05:00:00.000Z",
     cycleStatus: "PAID",
+    cyclePaid: true,
+    cyclePaidAt: "2026-08-14T05:00:00.000Z",
     delinquency: "AL_DIA",
     daysPastDue: 0,
     hasCard: true,
-    lastPaymentStatus: "APPROVED",
-    lastPaymentAt: "2026-08-15T06:00:00.000Z",
-    messageDelivered: true,
-    messageContent: "Tu cobro fue exitoso",
+    nextCharge: { at: "2026-09-15T05:00:00.000Z", kind: "NEXT_CYCLE" },
+    notice: { kind: "Link de pago", status: "SENT", at: "2026-08-10T05:00:00.000Z", reason: null, content: "Tu cobro fue exitoso" },
+    chargeFailure: null,
     ...over
   };
+  // Que el fixture no pueda mentir: un ciclo está pagado si su estado lo dice.
+  return { ...merged, cyclePaid: over.cyclePaid ?? String(merged.cycleStatus).toUpperCase() === "PAID" };
 }
 
 function boardOf(rows: Row[]): Board {
@@ -87,8 +91,8 @@ function render(
 
 const cartera = [
   row({ subscriptionId: "a", customerName: "Ana Gómez", delinquency: "AL_DIA", cycleStatus: "PAID", amountInCents: 100_000 }),
-  row({ subscriptionId: "b", customerName: "Beto Ruiz", delinquency: "EN_MORA", cycleStatus: "PENDING", amountInCents: 30_000, messageDelivered: null }),
-  row({ subscriptionId: "c", customerName: "Carla Díaz", delinquency: "EN_GRACIA", cycleStatus: "PENDING", amountInCents: 20_000, messageDelivered: false })
+  row({ subscriptionId: "b", customerName: "Beto Ruiz", delinquency: "EN_MORA", cycleStatus: "PENDING", amountInCents: 30_000, notice: null }),
+  row({ subscriptionId: "c", customerName: "Carla Díaz", delinquency: "EN_GRACIA", cycleStatus: "PENDING", amountInCents: 20_000, notice: { kind: "Link de pago", status: "FAILED", at: "2026-08-16T05:00:00.000Z", reason: "La central de comunicaciones no pudo enviar el mensaje.", content: null } })
 ];
 
 describe("SubscriptionsBoardPanel", () => {
@@ -112,8 +116,8 @@ describe("SubscriptionsBoardPanel", () => {
     expect(html).toContain('<div class="sb-kpi-value">1</div>');
     expect(html).toContain("$300 por ciclo");
     // Los tiles de estado: nadie al día ni en gracia dentro del recorte.
-    expect(html).toMatch(/sb-state is-ok"><span class="sb-state-n">0</);
-    expect(html).toMatch(/sb-state is-bad"><span class="sb-state-n">1</);
+    expect(html).toMatch(/sb-state is-ok[^"]*"><span class="sb-state-n">0</);
+    expect(html).toMatch(/sb-state is-bad[^"]*"><span class="sb-state-n">1</);
   });
 
   it("un filtro sin resultados deja la barra para poder quitarlo", () => {
@@ -131,7 +135,7 @@ describe("SubscriptionsBoardPanel", () => {
   });
 
   it("el cuerpo del WhatsApp entregado viaja como tooltip", () => {
-    const html = render(boardOf([row({ messageDelivered: true, messageContent: "Tu cobro fue exitoso" })]), {});
+    const html = render(boardOf([row({ notice: { kind: "Link de pago", status: "SENT", at: "2026-08-10T05:00:00.000Z", reason: null, content: "Tu cobro fue exitoso" }, cyclePaid: true })]), {});
     expect(html).toContain('title="Tu cobro fue exitoso"');
   });
 
@@ -140,7 +144,7 @@ describe("SubscriptionsBoardPanel", () => {
     // El chip de modo conserva el estado ya filtrado…
     expect(html).toContain('href="/?g=day&amp;state=EN_MORA&amp;mode=AUTO_DEBIT"');
     // …y "Quitar filtros" devuelve la URL limpia, sin perder el período.
-    expect(html).toContain('href="/?g=day">Quitar filtros</a>');
+    expect(html).toMatch(/href="\/\?g=day"[^>]*>Quitar filtros<\/a>/);
     // La búsqueda arrastra los filtros activos como campos ocultos.
     expect(html).toContain('<input type="hidden" name="state" value="EN_MORA"/>');
   });
@@ -175,5 +179,68 @@ describe("SubscriptionsBoardPanel", () => {
     // React serializa el atributo tal cual se escribe; el HTML no distingue
     // mayúsculas, así que se compara sin sensibilidad a la caja.
     expect(html.toLowerCase()).toContain(`colspan="${columnas}"`);
+  });
+
+  it("cada tile de estado lleva a su lista de clientes", () => {
+    const html = render(boardOf(cartera), {});
+    expect(html).toContain('href="/?g=day&amp;state=AL_DIA"');
+    expect(html).toContain('href="/?g=day&amp;state=EN_GRACIA"');
+    expect(html).toContain('href="/?g=day&amp;state=EN_MORA"');
+  });
+
+  it("el tile activo se marca y sirve para volver a verlos todos", () => {
+    const html = render(boardOf(cartera), { state: "EN_MORA" });
+    expect(html).toMatch(/sb-state is-bad is-active/);
+    // El de mora, ya activo, apunta al tablero sin el filtro.
+    expect(html).toMatch(/href="\/\?g=day" class="sb-state is-bad is-active"/);
+  });
+
+  it("la fila habla del ciclo: número, si está pagado y cuándo vence", () => {
+    const html = render(boardOf([
+      row({ subscriptionId: "a", cycleNumber: 7, cycleStatus: "PENDING", delinquency: "EN_MORA" })
+    ]), {});
+    expect(html).toContain("#7");
+    expect(html).toContain("sin pagar");
+    expect(html).toContain("Estado del ciclo");
+  });
+
+  it("muestra cuándo es el próximo cobro y avisa si no hay ninguno", () => {
+    const conCobro = render(boardOf([
+      row({ subscriptionId: "a", nextCharge: { at: "2026-08-25T14:00:00.000Z", kind: "RETRY" } })
+    ]), {});
+    expect(conCobro).toContain("reintento agendado");
+
+    const sinCobro = render(boardOf([row({ subscriptionId: "a", nextCharge: null })]), {});
+    expect(sinCobro).toContain("Sin cobro programado");
+  });
+
+  it("un aviso que falló muestra el motivo, no el código", () => {
+    const html = render(boardOf([
+      row({
+        subscriptionId: "a",
+        notice: {
+          kind: "Link de pago",
+          status: "FAILED",
+          at: "2026-08-16T05:00:00.000Z",
+          reason: "La central de comunicaciones no pudo enviar el mensaje.",
+          content: null
+        }
+      })
+    ]), {});
+    expect(html).toContain("Link de pago falló");
+    expect(html).toContain("La central de comunicaciones no pudo enviar el mensaje.");
+  });
+
+  it("un cobro rechazado se marca junto al ciclo que no se pagó", () => {
+    const html = render(boardOf([
+      row({
+        subscriptionId: "a",
+        cycleStatus: "PENDING",
+        delinquency: "EN_MORA",
+        chargeFailure: { at: "2026-08-16T05:00:00.000Z", reason: "El débito automático fue rechazado." }
+      })
+    ]), {});
+    expect(html).toContain("cobro rechazado");
+    expect(html).toContain('title="El débito automático fue rechazado."');
   });
 });

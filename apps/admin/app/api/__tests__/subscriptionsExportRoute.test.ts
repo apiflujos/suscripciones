@@ -50,8 +50,9 @@ async function get(url: string) {
 }
 
 function row(over: Record<string, unknown> = {}) {
-  return {
+  const merged = {
     subscriptionId: "sub-1",
+    customerId: "cus-1",
     customerName: "Ana Gómez",
     customerPhone: "+573001112233",
     planName: "Plan Mensual",
@@ -61,15 +62,17 @@ function row(over: Record<string, unknown> = {}) {
     cycleNumber: 3,
     cycleDueAt: "2026-08-15T05:00:00.000Z",
     cycleStatus: "PAID",
+    cyclePaid: true,
+    cyclePaidAt: "2026-08-14T05:00:00.000Z",
     delinquency: "AL_DIA",
     daysPastDue: 0,
     hasCard: true,
-    lastPaymentStatus: "APPROVED",
-    lastPaymentAt: "2026-08-15T06:00:00.000Z",
-    messageDelivered: true,
-    messageContent: "Tu cobro fue exitoso",
+    nextCharge: { at: "2026-09-15T05:00:00.000Z", kind: "NEXT_CYCLE" },
+    notice: { kind: "Link de pago", status: "SENT", at: "2026-08-10T05:00:00.000Z", reason: null, content: "Tu cobro fue exitoso" },
+    chargeFailure: null,
     ...over
   };
+  return { ...merged, cyclePaid: merged.cycleStatus === "PAID" };
 }
 
 const AHORA = Math.floor(Date.parse("2026-08-20T20:00:00Z") / 1000);
@@ -107,14 +110,14 @@ describe("GET /api/subscriptions/export", () => {
     expect([bytes[0], bytes[1], bytes[2]]).toEqual([0xef, 0xbb, 0xbf]);
   });
 
-  it("lleva las 15 columnas acordadas", async () => {
+  it("lleva las 17 columnas acordadas", async () => {
     const csv = await (await get("http://localhost/api/subscriptions/export")).text();
     const [header] = csv.split("\r\n");
-    expect(header.replace("﻿", "").split(",")).toHaveLength(15);
+    expect(header.replace("﻿", "").split(",")).toHaveLength(17);
     expect(header).toContain("Mensaje enviado");
     expect(header).toContain("Teléfono");
-    // Los errores no viajan al Excel: viven en el log.
-    expect(header).not.toContain("Error");
+    expect(header).toContain("Ciclo pagado");
+    expect(header).toContain("Próximo cobro");
   });
 
   it("aplica el mismo filtro que la pantalla", async () => {

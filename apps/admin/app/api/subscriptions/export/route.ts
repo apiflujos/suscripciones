@@ -55,9 +55,15 @@ export async function GET(req: Request) {
 
   const header = [
     "Cliente", "Teléfono", "Plan", "Modo de cobro", "Monto",
-    "Ciclo", "Vence", "Estado del ciclo", "Cobranza", "Días de atraso",
-    "Tiene tarjeta", "Último pago", "Fecha de pago", "Aviso enviado", "Mensaje enviado"
+    "Ciclo", "Ciclo pagado", "Fecha de pago", "Vence", "Estado del ciclo", "Días de atraso",
+    "Próximo cobro", "Tiene tarjeta", "Aviso", "Estado del aviso", "Detalle del aviso", "Mensaje enviado"
   ];
+
+  const NOTICE_STATUS_LABEL: Record<string, string> = {
+    SENT: "Enviado",
+    FAILED: "Falló",
+    PENDING: "En cola"
+  };
 
   const rowsCsv = rows.map((r) => [
     r.customerName,
@@ -67,15 +73,17 @@ export async function GET(req: Request) {
     // Sin separador de miles: así entra como número en Excel.
     Math.round(r.amountInCents / 100),
     r.cycleNumber ?? "",
+    r.cyclePaid ? "Sí" : "No",
+    dateOnly(r.cyclePaidAt),
     dateOnly(r.cycleDueAt),
-    r.cycleStatus ?? "",
     DELINQUENCY_LABEL[r.delinquency] ?? r.delinquency,
     r.delinquency === "EN_MORA" ? r.daysPastDue : "",
+    r.nextCharge ? dateOnly(r.nextCharge.at) : "Sin cobro programado",
     r.hasCard ? "Sí" : "No",
-    r.lastPaymentStatus ?? "Sin intento",
-    dateOnly(r.lastPaymentAt),
-    r.messageDelivered === true ? "Entregado" : "Sin entregar",
-    r.messageContent ?? ""
+    r.notice?.kind ?? "",
+    r.notice ? NOTICE_STATUS_LABEL[r.notice.status] ?? r.notice.status : "Sin aviso",
+    r.notice?.reason ?? "",
+    r.notice?.content ?? ""
   ]);
 
   const stamp = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());

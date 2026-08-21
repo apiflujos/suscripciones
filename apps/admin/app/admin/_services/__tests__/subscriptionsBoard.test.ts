@@ -25,8 +25,9 @@ beforeAll(async () => {
 });
 
 function row(over: Partial<Row>): Row {
-  return {
+  const merged: Row = {
     subscriptionId: "sub-1",
+    customerId: "cus-1",
     customerName: "Ana Gómez",
     customerPhone: "+573001112233",
     planName: "Plan Mensual",
@@ -36,22 +37,25 @@ function row(over: Partial<Row>): Row {
     cycleNumber: 3,
     cycleDueAt: "2026-08-15T05:00:00.000Z",
     cycleStatus: "PAID",
+    cyclePaid: true,
+    cyclePaidAt: "2026-08-14T05:00:00.000Z",
     delinquency: "AL_DIA",
     daysPastDue: 0,
     hasCard: true,
-    lastPaymentStatus: "APPROVED",
-    lastPaymentAt: "2026-08-15T06:00:00.000Z",
-    messageDelivered: true,
-    messageContent: "Tu cobro fue exitoso",
+    nextCharge: { at: "2026-09-15T05:00:00.000Z", kind: "NEXT_CYCLE" },
+    notice: { kind: "Link de pago", status: "SENT", at: "2026-08-10T05:00:00.000Z", reason: null, content: "Tu cobro fue exitoso" },
+    chargeFailure: null,
     ...over
   };
+  // Que el fixture no pueda mentir: un ciclo está pagado si su estado lo dice.
+  return { ...merged, cyclePaid: over.cyclePaid ?? String(merged.cycleStatus).toUpperCase() === "PAID" };
 }
 
 describe("filterBoardRows", () => {
   const rows = [
     row({ subscriptionId: "a", mode: "AUTO_DEBIT", delinquency: "AL_DIA" }),
-    row({ subscriptionId: "b", mode: "MANUAL_LINK", delinquency: "EN_MORA", customerName: "Beto Ruiz", messageDelivered: null }),
-    row({ subscriptionId: "c", mode: "AUTO_LINK", delinquency: "EN_GRACIA", customerName: "Carla Díaz", messageDelivered: false })
+    row({ subscriptionId: "b", mode: "MANUAL_LINK", delinquency: "EN_MORA", customerName: "Beto Ruiz", notice: null }),
+    row({ subscriptionId: "c", mode: "AUTO_LINK", delinquency: "EN_GRACIA", customerName: "Carla Díaz", notice: { kind: "Link de pago", status: "FAILED", at: "2026-08-16T05:00:00.000Z", reason: "La central de comunicaciones no pudo enviar el mensaje.", content: null } })
   ];
 
   it("sin filtros devuelve todo", () => {
@@ -117,8 +121,8 @@ describe("summarizeBoardRows", () => {
 
   it("cuenta como riesgo lo que no se cobró y no se avisó, y las tarjetas faltantes", () => {
     const { totals } = mod.summarizeBoardRows([
-      row({ subscriptionId: "a", cycleStatus: "PENDING", messageDelivered: null, hasCard: false }),
-      row({ subscriptionId: "b", cycleStatus: "PAID", messageDelivered: null, hasCard: true })
+      row({ subscriptionId: "a", cycleStatus: "PENDING", notice: null, hasCard: false }),
+      row({ subscriptionId: "b", cycleStatus: "PAID", notice: null, hasCard: true })
     ]);
 
     // El ciclo ya pagado no necesita aviso: no suma riesgo.
@@ -130,7 +134,7 @@ describe("summarizeBoardRows", () => {
     const { totals, byMode } = mod.summarizeBoardRows([
       row({ subscriptionId: "a", mode: "AUTO_DEBIT", cycleStatus: "PAID", amountInCents: 100_000 }),
       row({ subscriptionId: "b", mode: "AUTO_LINK", cycleStatus: "PENDING", amountInCents: 50_000, delinquency: "EN_GRACIA" }),
-      row({ subscriptionId: "c", mode: "MANUAL_LINK", cycleStatus: "PENDING", amountInCents: 20_000, delinquency: "EN_MORA", messageDelivered: null })
+      row({ subscriptionId: "c", mode: "MANUAL_LINK", cycleStatus: "PENDING", amountInCents: 20_000, delinquency: "EN_MORA", notice: null })
     ]);
 
     const sum = (key: "expectedInCents" | "collectedInCents" | "pendingInCents" | "notNotified" | "withoutCard") =>

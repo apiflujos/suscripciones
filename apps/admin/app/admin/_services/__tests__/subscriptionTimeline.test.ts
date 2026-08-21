@@ -99,40 +99,50 @@ describe("getSubscriptionTimeline", () => {
     expect(t.cycles.map((c) => c.cycleNumber)).toEqual([3, 2, 1]);
   });
 
-  it("un intento rechazado no se muestra: solo el pago que sí entró", async () => {
+  it("un débito automático rechazado queda como pendiente, y se dice cuál falló", async () => {
     prisma.payment.findMany.mockResolvedValue([
-      { id: "p1", status: "DECLINED", amountInCents: 100_000, cycleNumber: 2, paidAt: null, createdAt: new Date("2026-08-16T11:00:00Z") },
-      { id: "p2", status: "APPROVED", amountInCents: 100_000, cycleNumber: 1, paidAt: new Date("2026-07-14T10:00:00Z"), createdAt: new Date("2026-07-14T09:00:00Z") }
+      { id: "p1", status: "DECLINED", origin: "AUTO_DEBIT", amountInCents: 100_000, cycleNumber: 2, paidAt: null, failedAt: new Date("2026-08-16T12:00:00Z"), createdAt: new Date("2026-08-16T11:00:00Z") },
+      { id: "p2", status: "APPROVED", origin: "AUTO_DEBIT", amountInCents: 100_000, cycleNumber: 1, paidAt: new Date("2026-07-14T10:00:00Z"), failedAt: null, createdAt: new Date("2026-07-14T09:00:00Z") }
     ]);
     const t = (await getSubscriptionTimeline("sub-1"))!;
     expect(t.done.map((e) => e.title)).toContain("Pago aprobado");
-    expect([...t.done, ...t.pending].map((e) => e.title)).not.toContain("Pago rechazado");
+    expect(t.pending.map((e) => e.title)).toContain("El débito automático fue rechazado.");
   });
 
   it("un pago en curso sí es un pendiente", async () => {
     prisma.payment.findMany.mockResolvedValue([
-      { id: "p1", status: "PENDING", amountInCents: 100_000, cycleNumber: 2, paidAt: null, createdAt: new Date("2026-08-16T11:00:00Z") }
+      { id: "p1", status: "PENDING", origin: "AUTO_LINK", amountInCents: 100_000, cycleNumber: 2, paidAt: null, failedAt: null, createdAt: new Date("2026-08-16T11:00:00Z") }
     ]);
     const t = (await getSubscriptionTimeline("sub-1"))!;
     expect(t.pending.map((e) => e.title)).toContain("Pago en curso");
   });
 
-  it("un aviso que no llegó se cuenta sin el motivo técnico", async () => {
+  it("un link que falló se muestra con el motivo traducido", async () => {
     prisma.chatwootMessage.findMany.mockResolvedValue([
-      { id: "m1", type: "PAYMENT_LINK", status: "FAILED", content: "hola", sentAt: null, createdAt: new Date("2026-08-16T12:00:00Z") },
-      { id: "m2", type: "PAYMENT_REMINDER", status: "SENT", content: "recordatorio", sentAt: new Date("2026-08-10T12:00:00Z"), createdAt: new Date("2026-08-10T12:00:00Z") }
+      { id: "m1", type: "PAYMENT_LINK", status: "FAILED", errorMessage: "chatwoot_send_failed", content: "hola", sentAt: null, createdAt: new Date("2026-08-16T12:00:00Z") },
+      { id: "m2", type: "EXPIRY_WARNING", status: "SENT", errorMessage: null, content: "recordatorio", sentAt: new Date("2026-08-10T12:00:00Z"), createdAt: new Date("2026-08-10T12:00:00Z") }
     ]);
     const t = (await getSubscriptionTimeline("sub-1"))!;
-    const noEntregado = t.pending.find((e) => e.title === "Link de pago sin entregar");
-    expect(noEntregado).toBeTruthy();
-    expect(noEntregado?.detail).toBeNull();
-    expect(t.done.map((e) => e.title)).toContain("Recordatorio de pago entregado");
+    const fallo = t.pending.find((e) => e.title === "Link de pago falló");
+    expect(fallo?.detail).toBe("La central de comunicaciones no pudo enviar el mensaje.");
+    expect(t.done.map((e) => e.title)).toContain("Aviso de vencimiento entregado");
   });
 
-  it("no consulta el detalle de los errores", async () => {
+  it("un aviso todavía en cola no se cuenta como fallo", async () => {
+    prisma.chatwootMessage.findMany.mockResolvedValue([
+      { id: "m1", type: "PAYMENT_LINK", status: "PENDING", errorMessage: null, content: "hola", sentAt: null, createdAt: new Date("2026-08-16T12:00:00Z") }
+    ]);
+    const t = (await getSubscriptionTimeline("sub-1"))!;
+    expect(t.pending.map((e) => e.title)).toContain("Link de pago en cola");
+  });
+
+  it("incluye los avisos del cliente sin suscripción, como la tokenización", async () => {
     await getSubscriptionTimeline("sub-1");
-    const select = prisma.chatwootMessage.findMany.mock.calls[0][0].select;
-    expect(select).not.toHaveProperty("errorMessage");
+    const where = prisma.chatwootMessage.findMany.mock.calls[0][0].where;
+    expect(where.OR).toEqual([
+      { subscriptionId: "sub-1" },
+      { subscriptionId: null, customerId: "cus-1" }
+    ]);
   });
 
   it("el débito automático sin tarjeta es un pendiente explícito", async () => {

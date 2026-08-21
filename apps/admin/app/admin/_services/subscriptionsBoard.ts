@@ -5,28 +5,57 @@ import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/
 import { readSubscriptionTotalInCents } from "@suscripciones/core/services/subscriptionBilling";
 import { resolveCollectionDelinquency } from "@suscripciones/core/services/billingCycles";
 import { hasActiveCustomerPaymentSource } from "@suscripciones/core/lib/customerMetadata";
+import { describeChargeFailure, humanizeNotificationError } from "../../lib/humanizeErrors";
 
 export type CollectionMode = "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK";
 export type DelinquencyStatus = "AL_DIA" | "EN_GRACIA" | "EN_MORA";
 
+/** El último aviso que salió (o intentó salir) hacia el cliente. */
+export type BoardNotice = {
+  kind: string;
+  status: "SENT" | "FAILED" | "PENDING";
+  at: string | null;
+  /** Solo cuando falló, y ya traducido a por qué no llegó. */
+  reason: string | null;
+  content: string | null;
+};
+
+/**
+ * Cuándo se vuelve a intentar cobrar. `RETRY` es un reintento agendado,
+ * `DUE` es la fecha de corte del ciclo y `NEXT_CYCLE` el corte siguiente.
+ * Si no hay ninguno, nadie va a cobrar: eso también hay que poder verlo.
+ */
+export type BoardNextCharge = {
+  at: string;
+  kind: "RETRY" | "DUE" | "NEXT_CYCLE";
+};
+
+export type BoardChargeFailure = {
+  at: string | null;
+  reason: string;
+};
+
 export type SubscriptionBoardRow = {
   subscriptionId: string;
+  customerId: string | null;
   customerName: string;
   customerPhone: string | null;
   planName: string;
   mode: CollectionMode;
   subscriptionStatus: string;
   amountInCents: number;
+  /** El ciclo que gobierna el cobro: es lo que está al día, en gracia o en mora. */
   cycleNumber: number | null;
   cycleDueAt: string | null;
   cycleStatus: string | null;
+  cyclePaid: boolean;
+  cyclePaidAt: string | null;
   delinquency: DelinquencyStatus;
   daysPastDue: number;
   hasCard: boolean;
-  lastPaymentStatus: string | null;
-  lastPaymentAt: string | null;
-  messageDelivered: boolean | null;
-  messageContent: string | null;
+  nextCharge: BoardNextCharge | null;
+  notice: BoardNotice | null;
+  chargeFailure: BoardChargeFailure | null;
 };
 
 export type ModeSummary = {
@@ -100,7 +129,7 @@ export function filterBoardRows(rows: SubscriptionBoardRow[], filter: BoardFilte
     if (state && row.delinquency !== state) return false;
     // "failed" se acepta por los enlaces viejos: un aviso que falló es, para
     // quien opera, un aviso que no llegó.
-    if ((notified === "no" || notified === "failed") && row.messageDelivered === true) return false;
+    if ((notified === "no" || notified === "failed") && row.notice?.status === "SENT") return false;
     if (q) {
       const haystack = normalizeText([row.customerName, row.planName, row.customerPhone ?? ""].join(" "));
       if (haystack.includes(q)) return true;
@@ -113,6 +142,23 @@ export function filterBoardRows(rows: SubscriptionBoardRow[], filter: BoardFilte
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MODES: CollectionMode[] = ["AUTO_DEBIT", "AUTO_LINK", "MANUAL_LINK"];
+/** Ventana de avisos que se considera vigente para la cartera actual. */
+const NOTICE_WINDOW_DAYS = 30;
+/** Tope de reintentos que se leen de una vez para cruzarlos con la cartera. */
+const RETRY_SCAN_LIMIT = 500;
+
+const NOTICE_KIND_LABEL: Record<string, string> = {
+  PAYMENT_LINK: "Link de pago",
+  PAYMENT_CONFIRMED: "Confirmación de pago",
+  EXPIRY_WARNING: "Aviso de vencimiento",
+  PAYMENT_FAILED: "Aviso de cobro fallido"
+};
+
+function readPayloadSubscriptionId(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const value = (payload as Record<string, unknown>).subscriptionId;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
 
 function emptySummary(mode: CollectionMode): ModeSummary {
   return {
@@ -132,12 +178,12 @@ function emptySummary(mode: CollectionMode): ModeSummary {
 
 /** El ciclo que gobierna la fila ya está cobrado. */
 function isRowCyclePaid(row: SubscriptionBoardRow) {
-  return String(row.cycleStatus || "").toUpperCase() === "PAID";
+  return row.cyclePaid;
 }
 
-/** Hay plata por cobrar y el cliente no se enteró. */
+/** Hay plata por cobrar y el aviso no llegó. */
 function isRowNotNotified(row: SubscriptionBoardRow) {
-  return !isRowCyclePaid(row) && row.messageDelivered !== true;
+  return !row.cyclePaid && row.notice?.status !== "SENT";
 }
 
 /** Se le va a cobrar solo, pero no hay tarjeta que cobrar. */
@@ -246,38 +292,90 @@ export async function getSubscriptionsBoard(args?: {
   });
 
   const subscriptionIds = subscriptions.map((s) => s.id);
+  const customerIds = Array.from(new Set(subscriptions.map((s) => s.customerId).filter(Boolean) as string[]));
 
-  const [payments, messages] = await Promise.all([
+  const [payments, messages, retries] = await Promise.all([
     subscriptionIds.length
       ? prisma.payment.findMany({
           where: { subscriptionId: { in: subscriptionIds } },
           orderBy: [{ createdAt: "desc" }],
-          select: { subscriptionId: true, cycleNumber: true, status: true, paidAt: true, createdAt: true }
+          select: {
+            subscriptionId: true,
+            cycleNumber: true,
+            status: true,
+            origin: true,
+            paidAt: true,
+            failedAt: true,
+            createdAt: true
+          }
         })
       : Promise.resolve([]),
+    // Los avisos de tokenización cuelgan del cliente y no de la suscripción,
+    // así que se traen por ambos lados: que no se haya podido pedir la tarjeta
+    // es justamente lo que explica que el débito automático no cobre.
     subscriptionIds.length
       ? prisma.chatwootMessage.findMany({
           where: {
-            subscriptionId: { in: subscriptionIds },
-            createdAt: { gte: new Date(asOf.getTime() - 7 * DAY_MS) }
+            createdAt: { gte: new Date(asOf.getTime() - NOTICE_WINDOW_DAYS * DAY_MS) },
+            OR: [
+              { subscriptionId: { in: subscriptionIds } },
+              ...(customerIds.length ? [{ subscriptionId: null, customerId: { in: customerIds } }] : [])
+            ]
           },
           orderBy: [{ createdAt: "desc" }],
-          select: { subscriptionId: true, status: true, content: true }
+          select: {
+            subscriptionId: true,
+            customerId: true,
+            type: true,
+            status: true,
+            errorMessage: true,
+            content: true,
+            sentAt: true,
+            createdAt: true
+          }
+        })
+      : Promise.resolve([]),
+    // Un reintento agendado es la respuesta a "¿cuándo le vuelven a cobrar?".
+    subscriptionIds.length
+      ? prisma.retryJob.findMany({
+          where: { status: { in: ["PENDING", "RUNNING"] }, type: "PAYMENT_RETRY" },
+          orderBy: [{ runAt: "asc" }],
+          take: RETRY_SCAN_LIMIT,
+          select: { runAt: true, payload: true }
         })
       : Promise.resolve([])
   ]);
 
   const paymentByCycle = new Map<string, (typeof payments)[number]>();
+  const failedPaymentBySub = new Map<string, (typeof payments)[number]>();
   for (const p of payments) {
-    if (p.cycleNumber == null) continue;
-    const key = `${p.subscriptionId}:${p.cycleNumber}`;
-    if (!paymentByCycle.has(key)) paymentByCycle.set(key, p);
+    if (p.cycleNumber != null) {
+      const key = `${p.subscriptionId}:${p.cycleNumber}`;
+      if (!paymentByCycle.has(key)) paymentByCycle.set(key, p);
+    }
+    const status = String(p.status);
+    if ((status === "DECLINED" || status === "ERROR") && p.subscriptionId && !failedPaymentBySub.has(p.subscriptionId)) {
+      failedPaymentBySub.set(p.subscriptionId, p);
+    }
   }
 
-  const lastMessage = new Map<string, (typeof messages)[number]>();
+  // El aviso que importa es el último: por suscripción si lo tiene, y si no,
+  // el del cliente (tokenización), que aplica a todas sus suscripciones.
+  const lastMessageBySub = new Map<string, (typeof messages)[number]>();
+  const lastMessageByCustomer = new Map<string, (typeof messages)[number]>();
   for (const m of messages) {
-    if (!m.subscriptionId) continue;
-    if (!lastMessage.has(m.subscriptionId)) lastMessage.set(m.subscriptionId, m);
+    if (m.subscriptionId) {
+      if (!lastMessageBySub.has(m.subscriptionId)) lastMessageBySub.set(m.subscriptionId, m);
+    } else if (m.customerId && !lastMessageByCustomer.has(m.customerId)) {
+      lastMessageByCustomer.set(m.customerId, m);
+    }
+  }
+
+  const nextRetryBySub = new Map<string, Date>();
+  for (const job of retries) {
+    const subId = readPayloadSubscriptionId(job.payload);
+    if (!subId || nextRetryBySub.has(subId)) continue;
+    nextRetryBySub.set(subId, job.runAt);
   }
 
   const rows: SubscriptionBoardRow[] = [];
@@ -298,11 +396,27 @@ export async function getSubscriptionsBoard(args?: {
     const mode = resolveSubscriptionCollectionMode(sub) as CollectionMode;
     const amountInCents = readSubscriptionTotalInCents(sub.metadata, sub.plan?.priceInCents ?? 0, sub.plan?.metadata);
     const payment = cycle ? paymentByCycle.get(`${sub.id}:${cycle.cycleNumber}`) ?? null : null;
-    const message = lastMessage.get(sub.id) ?? null;
+    const message = lastMessageBySub.get(sub.id) ?? (sub.customerId ? lastMessageByCustomer.get(sub.customerId) ?? null : null);
     const hasCard = hasActiveCustomerPaymentSource(sub.customer?.metadata);
+    const cyclePaid = cycle ? String(cycle.status) === "PAID" : false;
+
+    // El siguiente cobro: primero un reintento agendado, después la fecha de
+    // corte del ciclo sin pagar y, si ya está cobrado, el corte siguiente.
+    const retryAt = nextRetryBySub.get(sub.id) ?? null;
+    const nextCycle = cycle ? sub.billingCycles.find((c) => c.cycleNumber > cycle.cycleNumber) ?? null : null;
+    const nextCharge: BoardNextCharge | null = retryAt
+      ? { at: retryAt.toISOString(), kind: "RETRY" }
+      : !cyclePaid && cycle?.dueAt
+        ? { at: cycle.dueAt.toISOString(), kind: "DUE" }
+        : nextCycle?.dueAt
+          ? { at: nextCycle.dueAt.toISOString(), kind: "NEXT_CYCLE" }
+          : null;
+
+    const failedPayment = cyclePaid ? null : failedPaymentBySub.get(sub.id) ?? null;
 
     const row: SubscriptionBoardRow = {
       subscriptionId: sub.id,
+      customerId: sub.customerId ?? null,
       customerName: sub.customer?.name || "(sin nombre)",
       customerPhone: sub.customer?.phone ?? null,
       planName: sub.plan?.name || "(sin plan)",
@@ -312,13 +426,27 @@ export async function getSubscriptionsBoard(args?: {
       cycleNumber: cycle?.cycleNumber ?? null,
       cycleDueAt: cycle?.dueAt ? cycle.dueAt.toISOString() : null,
       cycleStatus: cycle ? String(cycle.status) : null,
+      cyclePaid,
+      cyclePaidAt: cycle?.paidAt ? cycle.paidAt.toISOString() : payment?.paidAt?.toISOString() ?? null,
       delinquency: delinquencyInfo.status,
       daysPastDue: delinquencyInfo.daysPastDue ?? 0,
       hasCard,
-      lastPaymentStatus: payment ? String(payment.status) : null,
-      lastPaymentAt: payment?.paidAt ? payment.paidAt.toISOString() : null,
-      messageDelivered: message ? String(message.status) === "SENT" : null,
-      messageContent: message?.content ?? null
+      nextCharge,
+      notice: message
+        ? {
+            kind: NOTICE_KIND_LABEL[String(message.type)] ?? String(message.type),
+            status: String(message.status) === "SENT" ? "SENT" : String(message.status) === "FAILED" ? "FAILED" : "PENDING",
+            at: (message.sentAt ?? message.createdAt)?.toISOString() ?? null,
+            reason: String(message.status) === "FAILED" ? humanizeNotificationError(message.errorMessage || "") : null,
+            content: message.content ?? null
+          }
+        : null,
+      chargeFailure: failedPayment
+        ? {
+            at: (failedPayment.failedAt ?? failedPayment.createdAt)?.toISOString() ?? null,
+            reason: describeChargeFailure(String(failedPayment.status), String(failedPayment.origin))
+          }
+        : null
     };
     rows.push(row);
   }

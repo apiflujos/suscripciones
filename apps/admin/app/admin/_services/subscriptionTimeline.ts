@@ -5,6 +5,7 @@ import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/
 import { readSubscriptionTotalInCents } from "@suscripciones/core/services/subscriptionBilling";
 import { hasActiveCustomerPaymentSource } from "@suscripciones/core/lib/customerMetadata";
 import { JOB_LABEL, TRIGGER_LABEL } from "./scheduledJobsReport";
+import { describeChargeFailure, humanizeNotificationError } from "../../lib/humanizeErrors";
 
 export type TimelineTone = "ok" | "warn" | "bad" | "muted";
 
@@ -52,10 +53,9 @@ export type SubscriptionTimeline = {
 
 const MESSAGE_TYPE_LABEL: Record<string, string> = {
   PAYMENT_LINK: "Link de pago",
-  PAYMENT_REMINDER: "Recordatorio de pago",
-  PAYMENT_CONFIRMATION: "Confirmación de pago",
-  TOKENIZATION_LINK: "Link para registrar tarjeta",
-  CAMPAIGN: "Campaña"
+  PAYMENT_CONFIRMED: "Confirmación de pago",
+  EXPIRY_WARNING: "Aviso de vencimiento",
+  PAYMENT_FAILED: "Aviso de cobro fallido"
 };
 
 const PAYMENT_STATUS_LABEL: Record<string, string> = {
@@ -115,13 +115,17 @@ export async function getSubscriptionTimeline(subscriptionId: string): Promise<S
       where: { subscriptionId: id },
       orderBy: [{ createdAt: "desc" }],
       take: HISTORY_LIMIT,
-      select: { id: true, status: true, amountInCents: true, cycleNumber: true, paidAt: true, createdAt: true }
+      select: { id: true, status: true, amountInCents: true, cycleNumber: true, origin: true, paidAt: true, failedAt: true, createdAt: true }
     }),
+    // Los avisos de tokenización cuelgan del cliente, no de la suscripción:
+    // sin ellos no se ve por qué el débito automático se quedó sin tarjeta.
     prisma.chatwootMessage.findMany({
-      where: { subscriptionId: id },
+      where: sub.customerId
+        ? { OR: [{ subscriptionId: id }, { subscriptionId: null, customerId: sub.customerId }] }
+        : { subscriptionId: id },
       orderBy: [{ createdAt: "desc" }],
       take: HISTORY_LIMIT,
-      select: { id: true, type: true, status: true, content: true, sentAt: true, createdAt: true }
+      select: { id: true, type: true, status: true, errorMessage: true, content: true, sentAt: true, createdAt: true }
     }),
     prisma.retryJob.findMany({
       where: {
@@ -183,9 +187,14 @@ export async function getSubscriptionTimeline(subscriptionId: string): Promise<S
       done.push({ at: iso(p.paidAt) ?? iso(p.createdAt), title: PAYMENT_STATUS_LABEL.APPROVED, detail, tone: "ok" });
     } else if (status === "PENDING") {
       pending.push({ at: iso(p.createdAt), title: PAYMENT_STATUS_LABEL.PENDING, detail, tone: "warn" });
+    } else if (status === "DECLINED" || status === "ERROR") {
+      pending.push({
+        at: iso(p.failedAt) ?? iso(p.createdAt),
+        title: describeChargeFailure(status, String(p.origin)),
+        detail,
+        tone: "bad"
+      });
     }
-    // Un intento rechazado no se muestra: el motivo técnico está en el log y
-    // el ciclo sin cobrar ya aparece como pendiente.
   }
 
   for (const m of messages) {
@@ -198,9 +207,15 @@ export async function getSubscriptionTimeline(subscriptionId: string): Promise<S
         detail: m.content ? m.content.slice(0, 280) : null,
         tone: "ok"
       });
+    } else if (status === "FAILED") {
+      pending.push({
+        at: iso(m.createdAt),
+        title: `${kind} falló`,
+        detail: humanizeNotificationError(m.errorMessage || ""),
+        tone: "bad"
+      });
     } else {
-      // Que no llegara es lo único accionable; por qué falló está en el log.
-      pending.push({ at: iso(m.createdAt), title: `${kind} sin entregar`, detail: null, tone: "warn" });
+      pending.push({ at: iso(m.createdAt), title: `${kind} en cola`, detail: null, tone: "warn" });
     }
   }
 

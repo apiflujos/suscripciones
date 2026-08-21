@@ -18042,3 +18042,29 @@ strong {
 .sb-detail-buttons form {
   display: inline-flex;
 }
+
+/* ---- El tile de estado es el atajo a su lista ---- */
+a.sb-state {
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+a.sb-state:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.sb-state.is-active {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+
+.sb-cycle-n {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.sb-sub-flag.is-ok {
+  color: #15803d;
+}
+.sb-sub-flag.is-bad {
+  color: #b91c1c;
+}
