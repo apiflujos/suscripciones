@@ -105,6 +105,10 @@ export type BillingRow = {
   chargeDue?: boolean;
   lastPaidInCurrentPeriod: boolean;
   collectionCyclePaid: boolean;
+  /** El ciclo que se está cobrando: es lo que está al día, en gracia o en mora. */
+  cycleNumber: number | null;
+  /** Último aviso al cliente, ya traducido a por qué no llegó si falló. */
+  notice: { kind: string; status: string; at: string | null; reason: string | null } | null;
   collectionStatus?: string;
   tenantName: string;
   currentShippingInCents: number;

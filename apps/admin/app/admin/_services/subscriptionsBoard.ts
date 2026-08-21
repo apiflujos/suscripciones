@@ -444,7 +444,7 @@ export async function getSubscriptionsBoard(args?: {
       nextCharge,
       notice: message
         ? {
-            kind: NOTICE_KIND_LABEL[String(message.type)] ?? String(message.type),
+            kind: NOTICE_KIND_LABEL[String(message.type)] ?? "Aviso",
             status: String(message.status) === "SENT" ? "SENT" : String(message.status) === "FAILED" ? "FAILED" : "PENDING",
             at: (message.sentAt ?? message.createdAt)?.toISOString() ?? null,
             reason: String(message.status) === "FAILED" ? humanizeNotificationError(message.errorMessage || "") : null,

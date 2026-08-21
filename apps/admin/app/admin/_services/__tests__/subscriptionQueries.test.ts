@@ -4,7 +4,8 @@ const prisma = {
   subscription: { findMany: vi.fn(), count: vi.fn() },
   payment: { findMany: vi.fn() },
   paymentLink: { findMany: vi.fn() },
-  retryJob: { findMany: vi.fn() }
+  retryJob: { findMany: vi.fn() },
+  chatwootMessage: { findMany: vi.fn() }
 };
 
 vi.mock("server-only", () => ({}));
@@ -95,6 +96,7 @@ describe("subscriptionQueries listSubscriptions", () => {
     prisma.subscription.count.mockResolvedValue(1);
     prisma.paymentLink.findMany.mockResolvedValue([]);
     prisma.retryJob.findMany.mockResolvedValue([]);
+    prisma.chatwootMessage.findMany.mockResolvedValue([]);
   });
 
   it("does not allow manual unmark when current paid cycle was automatic", async () => {
@@ -222,4 +224,48 @@ describe("subscriptionQueries listSubscriptions", () => {
     expect(overdueResult.items).toHaveLength(0);
   });
 
+});
+
+describe("subscriptionQueries: el aviso al cliente", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let listSubscriptions: (args: any) => Promise<{ items: any[]; total: number }>;
+
+  beforeAll(async () => {
+    ({ listSubscriptions } = await import("../subscriptionQueries"));
+  });
+
+  it("expone el último aviso, traducido cuando falló", async () => {
+    prisma.chatwootMessage.findMany.mockResolvedValue([
+      {
+        subscriptionId: "sub-1",
+        type: "PAYMENT_LINK",
+        status: "FAILED",
+        errorMessage: "chatwoot_send_failed",
+        sentAt: null,
+        createdAt: new Date("2026-08-16T12:00:00Z")
+      },
+      {
+        subscriptionId: "sub-1",
+        type: "EXPIRY_WARNING",
+        status: "SENT",
+        errorMessage: null,
+        sentAt: new Date("2026-08-10T12:00:00Z"),
+        createdAt: new Date("2026-08-10T12:00:00Z")
+      }
+    ]);
+
+    const res = await listSubscriptions({ take: 10 });
+    const notice = res.items[0]?.lastNotice;
+
+    expect(notice?.kind).toBe("Link de pago");
+    expect(notice?.status).toBe("FAILED");
+    // Nunca el código crudo.
+    expect(notice?.reason).toBe("La central de comunicaciones no pudo enviar el mensaje.");
+  });
+
+  it("sin avisos la fila no inventa ninguno", async () => {
+    prisma.chatwootMessage.findMany.mockResolvedValue([]);
+    const res = await listSubscriptions({ take: 10 });
+    expect(res.items[0]?.lastNotice).toBeNull();
+  });
 });

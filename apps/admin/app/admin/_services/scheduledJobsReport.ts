@@ -130,13 +130,13 @@ export async function getScheduledJobsReport(args?: { take?: number }): Promise<
       (message?.name ?? null);
 
     let detail: string | null = null;
-    if (trigger) detail = TRIGGER_LABEL[trigger] ?? trigger;
+    if (trigger) detail = TRIGGER_LABEL[trigger] ?? null;
     else if (message) detail = message.type;
 
     return {
       id: job.id,
       type,
-      label: JOB_LABEL[type] ?? type,
+      label: JOB_LABEL[type] ?? "Proceso programado",
       status: String(job.status),
       runAt: job.runAt.toISOString(),
       attempts: job.attempts,

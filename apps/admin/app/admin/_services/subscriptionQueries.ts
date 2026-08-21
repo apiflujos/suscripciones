@@ -1,4 +1,13 @@
 import "server-only";
+import { humanizeNotificationError } from "../../lib/humanizeErrors";
+
+const NOTICE_KIND_LABEL: Record<string, string> = {
+  PAYMENT_LINK: "Link de pago",
+  PAYMENT_CONFIRMED: "Confirmación de pago",
+  EXPIRY_WARNING: "Aviso de vencimiento",
+  PAYMENT_FAILED: "Aviso de cobro fallido"
+};
+
 
 import { prisma } from "@suscripciones/database";
 import { PaymentStatus, Prisma, RetryJobStatus, RetryJobType, SubscriptionStatus } from "@prisma/client";
@@ -93,6 +102,28 @@ export async function listSubscriptions(args: {
       providerResponse: true
     }
   });
+
+  // Cuál fue el último aviso al cliente: sin esto la lista dice que hay que
+  // cobrar pero no si el cliente llegó a enterarse.
+  const notices = subscriptionIds.length
+    ? await prisma.chatwootMessage.findMany({
+        where: { subscriptionId: { in: subscriptionIds } },
+        orderBy: [{ createdAt: "desc" }],
+        take: Math.max(subscriptionIds.length * 3, 60),
+        select: { subscriptionId: true, type: true, status: true, errorMessage: true, sentAt: true, createdAt: true }
+      })
+    : [];
+  const lastNoticeBySub = new Map<string, { kind: string; status: string; at: Date; reason: string | null }>();
+  for (const n of notices) {
+    if (!n.subscriptionId || lastNoticeBySub.has(n.subscriptionId)) continue;
+    const status = String(n.status);
+    lastNoticeBySub.set(n.subscriptionId, {
+      kind: NOTICE_KIND_LABEL[String(n.type)] ?? "Aviso",
+      status,
+      at: n.sentAt ?? n.createdAt,
+      reason: status === "FAILED" ? humanizeNotificationError(n.errorMessage || "") : null
+    });
+  }
 
   const lastPaymentBySub = new Map<string, { paidAt: Date; amountInCents: number; currency: string; wompiTransactionId: string | null }>();
   const approvedPaymentByCycle = new Map<string, { createdAt: Date; isManual: boolean }>();
@@ -273,6 +304,7 @@ export async function listSubscriptions(args: {
       autoChargeEnabled,
       retryAutomationEnabled,
       nextRetryAtEffective: effectiveRetryAt || null,
+      lastNotice: lastNoticeBySub.get(s.id) ?? null,
       graceDays: configuredGraceDays
     };
   });

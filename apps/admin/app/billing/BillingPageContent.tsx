@@ -58,7 +58,9 @@ export async function BillingPageContent({
   const estado = typeof sp.estado === "string" ? sp.estado : "todos";
   const q = typeof sp.q === "string" ? sp.q : "";
   const ordenar = typeof sp.ordenar === "string" ? sp.ordenar : "vencimiento";
-  const vistaRaw = typeof sp.vista === "string" ? sp.vista : "cards";
+  // La lista es la vista que deja ver qué pasa con cada ciclo; las tarjetas
+  // muestran menos por pantalla y obligan a rastrear fila por fila.
+  const vistaRaw = typeof sp.vista === "string" ? sp.vista : "lista";
   const resolvedTenantId = tenantId ? await resolveTenantId(tenantId) : null;
   const vista = ["cards", "lista", "kanban"].includes(vistaRaw) ? vistaRaw : "cards";
   const vistaTyped = vista as "cards" | "lista" | "kanban";

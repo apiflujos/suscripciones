@@ -15,11 +15,13 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
   return (
     <div className="billing-list">
       <div className="billing-list-header">
-        <span>Datos personales</span>
+        <span>Cliente</span>
         <span>Producto</span>
-        <span>Suscripción</span>
-        <span>Fecha de corte</span>
-        <span>Estado</span>
+        <span>Ciclo</span>
+        <span>Vence</span>
+        <span>Estado del ciclo</span>
+        <span>Próximo cobro</span>
+        <span>Aviso</span>
         <span>Acciones</span>
       </div>
       {rows.map((row) => {
@@ -30,6 +32,8 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
           collectionCyclePaid: row.collectionCyclePaid
         });
         const isAutoDebit = row.mode === "AUTO_DEBIT";
+        // El cobro que viene para ESTE ciclo: el reintento agendado o su corte.
+        const nextChargeAt = row.nextRetryAt || row.vencimientoAt || null;
         const isCanceled = row.status === "CANCELED";
         const isSuspended = row.status === "SUSPENDED";
         const isExpired = row.status === "EXPIRED";
@@ -52,10 +56,18 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
             <div className="billing-list-cell billing-list-product">
               <a className="billing-list-link" href={productHref}>{row.productName || row.planName || "—"}</a>
             </div>
-            <div className="billing-list-cell billing-list-product">
-              <div className="billing-list-sub">{row.tipoTx || "—"} · {row.cada}</div>
+            <div className="billing-list-cell billing-list-cycle">
+              <span className="billing-list-cycle-n">{row.cycleNumber != null ? `#${row.cycleNumber}` : "—"}</span>
+              <span className={`billing-list-sub ${row.collectionCyclePaid ? "is-ok" : "is-warn"}`}>
+                {row.collectionCyclePaid ? "pagado" : "sin pagar"}
+              </span>
             </div>
-            <div className="billing-list-cell billing-list-cutoff">{formatCivilDate(row.vencimientoAt)}</div>
+            <div className="billing-list-cell billing-list-cutoff">
+              {formatCivilDate(row.vencimientoAt)}
+              {!row.collectionCyclePaid && row.daysLate > 0 ? (
+                <span className="billing-list-sub is-bad">{row.daysLate} días de atraso</span>
+              ) : null}
+            </div>
             <div className="billing-list-cell billing-list-status">
               <span
                 className={`pill pill-sm ${paymentStatus === "Al día" ? "pill-ok" : paymentStatus === "En mora" ? "pill-bad" : "pill-warn"}`}
@@ -63,6 +75,39 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
               >
                 {paymentStatus}
               </span>
+            </div>
+            <div className="billing-list-cell billing-list-next">
+              {row.collectionCyclePaid ? (
+                <span className="muted">Ciclo cobrado</span>
+              ) : nextChargeAt ? (
+                <>
+                  {formatCivilDate(nextChargeAt)}
+                  <span className="billing-list-sub">{row.nextRetryAt ? "reintento agendado" : "fecha de corte"}</span>
+                </>
+              ) : (
+                <span className="billing-list-sub is-bad">Sin cobro programado</span>
+              )}
+            </div>
+            <div className="billing-list-cell billing-list-notice">
+              {row.notice ? (
+                row.notice.status === "SENT" ? (
+                  <>
+                    <span className="is-ok">{row.notice.kind}</span>
+                    <span className="billing-list-sub">enviado {formatCivilDate(row.notice.at)}</span>
+                  </>
+                ) : row.notice.status === "FAILED" ? (
+                  <>
+                    <span className="is-bad">{row.notice.kind} falló</span>
+                    <span className="billing-list-sub is-bad" title={row.notice.reason || undefined}>
+                      {row.notice.reason}
+                    </span>
+                  </>
+                ) : (
+                  <span className="is-warn">{row.notice.kind} en cola</span>
+                )
+              ) : (
+                <span className="muted">Sin aviso</span>
+              )}
             </div>
             <div className="billing-list-cell billing-list-more">
               <div className="billing-list-actions">

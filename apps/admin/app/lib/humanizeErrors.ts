@@ -31,7 +31,8 @@ export function humanizeNotificationError(raw: string) {
   if (msg === "missing_template") return "Falta una plantilla activa para este envío.";
   if (msg === "notification_not_delivered") return "La notificación no se pudo entregar.";
   if (msg === "chatwoot_send_failed") return "La central de comunicaciones no pudo enviar el mensaje.";
-  return msg;
+  // Nunca se devuelve el código crudo: quien opera no lee identificadores.
+  return "No se pudo enviar la notificación.";
 }
 
 const CHARGE_ORIGIN_LABEL: Record<string, string> = {

@@ -125,6 +125,15 @@ export function buildBillingRows(args: BuildBillingRowsArgs): BillingRow[] {
         inArrears,
         nextRetryAt: s.nextRetryAtEffective || s.nextRetryJob?.runAt || (s.metadata as any)?.manualRetry?.nextRetryAt || (s.metadata as any)?.autoRetry?.nextRetryAt || null,
         nextRetryAtEffective: s.nextRetryAtEffective || null,
+        cycleNumber: typeof s?.collectionCycleNumber === "number" ? s.collectionCycleNumber : null,
+        notice: s?.lastNotice
+          ? {
+              kind: String(s.lastNotice.kind),
+              status: String(s.lastNotice.status),
+              at: s.lastNotice.at ? new Date(s.lastNotice.at).toISOString() : null,
+              reason: s.lastNotice.reason ?? null
+            }
+          : null,
         mode: collectionMode,
         autoChargeEnabled: typeof s?.autoChargeEnabled === "boolean" ? s.autoChargeEnabled : undefined,
         retryAutomationEnabled: typeof s?.retryAutomationEnabled === "boolean" ? s.retryAutomationEnabled : undefined,
