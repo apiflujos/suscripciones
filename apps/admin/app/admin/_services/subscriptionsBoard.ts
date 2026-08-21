@@ -37,6 +37,7 @@ export type ModeSummary = {
   collectedInCents: number;
   pendingInCents: number;
   paid: number;
+  current: number;
   overdue: number;
   inGrace: number;
   withoutCard: number;
@@ -50,7 +51,11 @@ export type SubscriptionsBoard = {
     expectedInCents: number;
     collectedInCents: number;
     pendingInCents: number;
+    current: number;
+    inGrace: number;
     overdue: number;
+    currentInCents: number;
+    inGraceInCents: number;
     overdueInCents: number;
     notNotified: number;
     withoutCard: number;
@@ -70,6 +75,7 @@ function emptySummary(mode: CollectionMode): ModeSummary {
     collectedInCents: 0,
     pendingInCents: 0,
     paid: 0,
+    current: 0,
     overdue: 0,
     inGrace: 0,
     withoutCard: 0,
@@ -194,7 +200,8 @@ export async function getSubscriptionsBoard(args?: {
       summary.pendingInCents += amountInCents;
     }
     if (row.delinquency === "EN_MORA") summary.overdue += 1;
-    if (row.delinquency === "EN_GRACIA") summary.inGrace += 1;
+    else if (row.delinquency === "EN_GRACIA") summary.inGrace += 1;
+    else summary.current += 1;
     if (!hasCard && mode === "AUTO_DEBIT") summary.withoutCard += 1;
     if (!cyclePaid && row.messageDelivered !== true) summary.notNotified += 1;
   }
@@ -214,7 +221,15 @@ export async function getSubscriptionsBoard(args?: {
       expectedInCents: byMode.reduce((acc, s) => acc + s.expectedInCents, 0),
       collectedInCents: byMode.reduce((acc, s) => acc + s.collectedInCents, 0),
       pendingInCents: byMode.reduce((acc, s) => acc + s.pendingInCents, 0),
+      current: rows.filter((r) => r.delinquency === "AL_DIA").length,
+      inGrace: rows.filter((r) => r.delinquency === "EN_GRACIA").length,
       overdue: rows.filter((r) => r.delinquency === "EN_MORA").length,
+      currentInCents: rows
+        .filter((r) => r.delinquency === "AL_DIA")
+        .reduce((acc, r) => acc + r.amountInCents, 0),
+      inGraceInCents: rows
+        .filter((r) => r.delinquency === "EN_GRACIA")
+        .reduce((acc, r) => acc + r.amountInCents, 0),
       overdueInCents: rows
         .filter((r) => r.delinquency === "EN_MORA")
         .reduce((acc, r) => acc + r.amountInCents, 0),

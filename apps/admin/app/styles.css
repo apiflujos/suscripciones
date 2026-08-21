@@ -17801,3 +17801,51 @@ strong {
   max-width: 520px;
   line-height: 1.5;
 }
+
+/* Estado de los ciclos: el primer dato que se busca al abrir el tablero
+   es cuánto está al día y cuánto no, con su plata al lado. */
+.sb-states {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sb-state {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--stroke);
+}
+
+.sb-state.is-ok { background: rgba(22, 163, 74, 0.08); border-color: rgba(22, 163, 74, 0.28); }
+.sb-state.is-warn { background: rgba(245, 158, 11, 0.10); border-color: rgba(245, 158, 11, 0.35); }
+.sb-state.is-bad { background: rgba(220, 38, 38, 0.08); border-color: rgba(220, 38, 38, 0.30); }
+
+.sb-state-n {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.sb-state-l {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sb-state.is-ok .sb-state-n, .sb-state.is-ok .sb-state-l { color: #166534; }
+.sb-state.is-warn .sb-state-n, .sb-state.is-warn .sb-state-l { color: #92400e; }
+.sb-state.is-bad .sb-state-n, .sb-state.is-bad .sb-state-l { color: #991b1b; }
+
+.sb-state-m {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .sb-states { grid-template-columns: 1fr; }
+}

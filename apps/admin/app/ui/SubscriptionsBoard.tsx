@@ -77,6 +77,8 @@ function ModeBlock({ summary, rows }: { summary: ModeSummary; rows: Subscription
             <strong>{money(summary.collectedInCents)}</strong> cobrado ({pct(summary.paid, summary.subscriptions)})
           </span>
           <span className="is-pending"><strong>{money(summary.pendingInCents)}</strong> pendiente</span>
+          <span className="is-ok"><strong>{summary.current}</strong> al día</span>
+          {summary.inGrace ? <span className="is-warn"><strong>{summary.inGrace}</strong> en gracia</span> : null}
           {summary.overdue ? <span className="is-bad"><strong>{summary.overdue}</strong> en mora</span> : null}
           {summary.notNotified ? <span className="is-warn"><strong>{summary.notNotified}</strong> sin avisar</span> : null}
           {summary.withoutCard ? <span className="is-warn"><strong>{summary.withoutCard}</strong> sin tarjeta</span> : null}
@@ -159,6 +161,24 @@ export function SubscriptionsBoardPanel({ board }: { board: SubscriptionsBoard }
 
   return (
     <div className="sb">
+      <div className="sb-states">
+        <div className="sb-state is-ok">
+          <span className="sb-state-n">{t.current}</span>
+          <span className="sb-state-l">Al día</span>
+          <span className="sb-state-m">{money(t.currentInCents)}</span>
+        </div>
+        <div className="sb-state is-warn">
+          <span className="sb-state-n">{t.inGrace}</span>
+          <span className="sb-state-l">En gracia</span>
+          <span className="sb-state-m">{money(t.inGraceInCents)}</span>
+        </div>
+        <div className="sb-state is-bad">
+          <span className="sb-state-n">{t.overdue}</span>
+          <span className="sb-state-l">En mora</span>
+          <span className="sb-state-m">{money(t.overdueInCents)}</span>
+        </div>
+      </div>
+
       <div className="sb-kpis">
         <Kpi
           label="Cartera activa"
