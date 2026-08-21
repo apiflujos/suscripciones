@@ -64,6 +64,37 @@ export type SubscriptionsBoard = {
   rows: SubscriptionBoardRow[];
 };
 
+export type BoardFilter = {
+  mode?: string | null;
+  state?: string | null;
+  notified?: string | null;
+  q?: string | null;
+};
+
+/**
+ * Filtra las filas del tablero. Vive junto al servicio para que la vista y la
+ * exportación apliquen exactamente el mismo criterio: un Excel que no coincide
+ * con lo que se ve en pantalla es peor que no tener Excel.
+ */
+export function filterBoardRows(rows: SubscriptionBoardRow[], filter: BoardFilter): SubscriptionBoardRow[] {
+  const mode = String(filter.mode || "").trim().toUpperCase();
+  const state = String(filter.state || "").trim().toUpperCase();
+  const notified = String(filter.notified || "").trim().toLowerCase();
+  const q = String(filter.q || "").trim().toLowerCase();
+
+  return rows.filter((row) => {
+    if (mode && row.mode !== mode) return false;
+    if (state && row.delinquency !== state) return false;
+    if (notified === "no" && row.messageDelivered === true) return false;
+    if (notified === "failed" && row.messageDelivered !== false) return false;
+    if (q) {
+      const haystack = [row.customerName, row.planName, row.customerPhone ?? ""].join(" ").toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MODES: CollectionMode[] = ["AUTO_DEBIT", "AUTO_LINK", "MANUAL_LINK"];
 

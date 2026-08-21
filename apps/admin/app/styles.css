@@ -17849,3 +17849,67 @@ strong {
 @media (max-width: 640px) {
   .sb-states { grid-template-columns: 1fr; }
 }
+
+/* ── Filtros del tablero ────────────────────────────────────────────── */
+.sb-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.sb-search {
+  display: flex;
+  gap: 8px;
+}
+
+.sb-search input[type="search"] {
+  flex: 1;
+  max-width: 380px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--surface, #fff);
+  color: inherit;
+}
+
+.sb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sb-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  font-size: 12px;
+  text-decoration: none;
+  color: var(--muted);
+  background: var(--surface, #fff);
+  white-space: nowrap;
+}
+
+.sb-chip:hover {
+  color: inherit;
+}
+
+.sb-chip.is-active {
+  border-color: var(--brand, #6b4fe0);
+  color: var(--brand, #6b4fe0);
+  background: rgba(107, 79, 224, 0.08);
+  font-weight: 600;
+}
+
+.sb-filters-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}

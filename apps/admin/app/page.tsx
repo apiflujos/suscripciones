@@ -1,6 +1,6 @@
 import { listTenants } from "./admin/_services/tenants";
 import { getMetricsOverviewCached } from "./admin/_services/metrics";
-import { getSubscriptionsBoard } from "./admin/_services/subscriptionsBoard";
+import { getSubscriptionsBoard, filterBoardRows } from "./admin/_services/subscriptionsBoard";
 import { getScheduledJobsReport } from "./admin/_services/scheduledJobsReport";
 import { listPaymentLogs } from "./admin/_services/logs";
 import { listSubscriptions } from "./admin/_services/subscriptions";
@@ -360,7 +360,7 @@ function Pie({ a, b, aLabel, bLabel }: { a: number; b: number; aLabel: string; b
 export default async function Home({
   searchParams
 }: {
-  searchParams?: Promise<{ from?: string; to?: string; g?: string; tenantId?: string; view?: string }>;
+  searchParams?: Promise<{ from?: string; to?: string; g?: string; tenantId?: string; view?: string; mode?: string; state?: string; notified?: string; q?: string }>;
 }) {
   const now = new Date();
   const defaultTo = isoDateUtc(now);
@@ -371,6 +371,12 @@ export default async function Home({
   const fromDate = sp.from || defaultFrom;
   const toDate = sp.to || defaultTo;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
+  const boardFilters = {
+    mode: typeof sp.mode === "string" ? sp.mode : "",
+    state: typeof sp.state === "string" ? sp.state : "",
+    notified: typeof sp.notified === "string" ? sp.notified : "",
+    q: typeof sp.q === "string" ? sp.q : ""
+  };
   const viewRaw = typeof sp.view === "string" ? sp.view : "";
   const view = ["overview", "revenue", "conversion", "subscriptions"].includes(viewRaw) ? viewRaw : "overview";
   const fromIso = toUtcIsoStart(fromDate) || toUtcIsoStart(defaultFrom)!;
@@ -394,6 +400,20 @@ export default async function Home({
     ...(tenantId ? { tenantId } : {})
   });
   const dailySummaryHref = `/api/metrics/daily-summary?${dailySummaryParams.toString()}`;
+
+  // Los filtros del tablero viajan en la URL para que un enlace compartido
+  // reproduzca exactamente la misma vista, y para que el Excel salga con el
+  // mismo recorte que se está viendo.
+  const boardParams = new URLSearchParams(baseParams);
+  Object.entries(boardFilters).forEach(([k, v]) => {
+    if (v) boardParams.set(k, v);
+  });
+  const boardExportParams = new URLSearchParams();
+  if (tenantId) boardExportParams.set("tenantId", tenantId);
+  Object.entries(boardFilters).forEach(([k, v]) => {
+    if (v) boardExportParams.set(k, v);
+  });
+  const boardExportHref = `/api/subscriptions/export?${boardExportParams.toString()}`;
 
   const periodMs = Math.max(24 * 60 * 60 * 1000, new Date(toIso).getTime() - new Date(fromIso).getTime());
   const prevFromIso = new Date(new Date(fromIso).getTime() - periodMs).toISOString();
@@ -810,7 +830,13 @@ export default async function Home({
 
 
 
-                  <SubscriptionsBoardPanel board={subscriptionsBoard} />
+                  <SubscriptionsBoardPanel
+                    board={subscriptionsBoard}
+                    rows={filterBoardRows(subscriptionsBoard.rows, boardFilters)}
+                    filters={boardFilters}
+                    baseParams={boardParams}
+                    exportHref={boardExportHref}
+                  />
 
                   <div className="grid2">
                     <div className="card cardPad chart-card">

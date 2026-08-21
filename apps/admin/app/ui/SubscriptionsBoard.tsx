@@ -3,6 +3,7 @@ import type {
   SubscriptionBoardRow,
   SubscriptionsBoard
 } from "../admin/_services/subscriptionsBoard";
+import { SubscriptionsBoardFilters, type BoardFilters } from "./SubscriptionsBoardFilters";
 
 const TZ = "America/Bogota";
 
@@ -63,6 +64,7 @@ function Kpi({
 
 function ModeBlock({ summary, rows }: { summary: ModeSummary; rows: SubscriptionBoardRow[] }) {
   const mine = rows.filter((r) => r.mode === summary.mode);
+  if (!mine.length) return null;
   return (
     <section className="sb-mode">
       <header className="sb-mode-head">
@@ -153,7 +155,19 @@ function ModeBlock({ summary, rows }: { summary: ModeSummary; rows: Subscription
   );
 }
 
-export function SubscriptionsBoardPanel({ board }: { board: SubscriptionsBoard }) {
+export function SubscriptionsBoardPanel({
+  board,
+  rows,
+  filters,
+  baseParams,
+  exportHref
+}: {
+  board: SubscriptionsBoard;
+  rows: SubscriptionBoardRow[];
+  filters: BoardFilters;
+  baseParams: URLSearchParams;
+  exportHref: string;
+}) {
   const t = board.totals;
   if (!t.subscriptions) {
     return <p className="muted">No hay suscripciones activas.</p>;
@@ -161,6 +175,14 @@ export function SubscriptionsBoardPanel({ board }: { board: SubscriptionsBoard }
 
   return (
     <div className="sb">
+      <SubscriptionsBoardFilters
+        filters={filters}
+        base={baseParams}
+        exportHref={exportHref}
+        shown={rows.length}
+        total={board.rows.length}
+      />
+
       <div className="sb-states">
         <div className="sb-state is-ok">
           <span className="sb-state-n">{t.current}</span>
@@ -205,7 +227,7 @@ export function SubscriptionsBoardPanel({ board }: { board: SubscriptionsBoard }
       </div>
 
       {board.byMode.map((summary) => (
-        <ModeBlock key={summary.mode} summary={summary} rows={board.rows} />
+        <ModeBlock key={summary.mode} summary={summary} rows={rows} />
       ))}
     </div>
   );
