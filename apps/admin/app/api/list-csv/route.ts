@@ -3,19 +3,11 @@ import { prisma } from "@suscripciones/database";
 import { listChatwootMessages } from "../../admin/_services/logs";
 import { listSubscriptions } from "../../admin/_services/subscriptions";
 import { requireApiSession } from "../_lib/requireApiSession";
-
-function escapeCsv(value: unknown) {
-  const raw = String(value ?? "");
-  if (!raw.includes(",") && !raw.includes('"') && !raw.includes("\n") && !raw.includes("\r")) return raw;
-  return `"${raw.replace(/"/g, '""')}"`;
-}
+import { csvLine } from "../../lib/csv";
 
 function toCsv(headers: string[], rows: Array<Record<string, unknown>>) {
-  const header = headers.join(",");
-  const body = rows
-    .map((row) => headers.map((h) => escapeCsv(row[h])).join(","))
-    .join("\n");
-  return `${header}\n${body}\n`;
+  const body = rows.map((row) => csvLine(headers.map((h) => row[h]))).join("\n");
+  return `${csvLine(headers)}\n${body}\n`;
 }
 
 export async function GET(req: Request) {
