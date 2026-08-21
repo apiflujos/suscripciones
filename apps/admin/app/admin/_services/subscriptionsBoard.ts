@@ -3,7 +3,7 @@ import "server-only";
 import { prisma } from "@suscripciones/database";
 import { resolveSubscriptionCollectionMode } from "@suscripciones/core/services/subscriptionMode";
 import { readSubscriptionTotalInCents } from "@suscripciones/core/services/subscriptionBilling";
-import { resolveCollectionDelinquency, isBillingCyclePaid } from "@suscripciones/core/services/billingCycles";
+import { resolveCollectionDelinquency } from "@suscripciones/core/services/billingCycles";
 import { hasActiveCustomerPaymentSource } from "@suscripciones/core/lib/customerMetadata";
 
 export type CollectionMode = "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK";
@@ -71,6 +71,16 @@ export type BoardFilter = {
   q?: string | null;
 };
 
+/** Sin acentos ni mayúsculas: así "Gomez" encuentra a "Gómez". */
+function normalizeText(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+/** Solo los dígitos: así "300 111 22 33" encuentra a "+573001112233". */
+function digitsOf(value: string) {
+  return value.replace(/\D+/g, "");
+}
+
 /**
  * Filtra las filas del tablero. Vive junto al servicio para que la vista y la
  * exportación apliquen exactamente el mismo criterio: un Excel que no coincide
@@ -80,7 +90,11 @@ export function filterBoardRows(rows: SubscriptionBoardRow[], filter: BoardFilte
   const mode = String(filter.mode || "").trim().toUpperCase();
   const state = String(filter.state || "").trim().toUpperCase();
   const notified = String(filter.notified || "").trim().toLowerCase();
-  const q = String(filter.q || "").trim().toLowerCase();
+  const q = normalizeText(String(filter.q || ""));
+  // Un teléfono se busca por dígitos; tres es el mínimo para que la búsqueda
+  // de un nombre con un número suelto no arrastre media cartera.
+  const qDigits = digitsOf(String(filter.q || ""));
+  const phoneSearch = qDigits.length >= 3;
 
   return rows.filter((row) => {
     if (mode && row.mode !== mode) return false;
@@ -88,8 +102,10 @@ export function filterBoardRows(rows: SubscriptionBoardRow[], filter: BoardFilte
     if (notified === "no" && row.messageDelivered === true) return false;
     if (notified === "failed" && row.messageDelivered !== false) return false;
     if (q) {
-      const haystack = [row.customerName, row.planName, row.customerPhone ?? ""].join(" ").toLowerCase();
-      if (!haystack.includes(q)) return false;
+      const haystack = normalizeText([row.customerName, row.planName, row.customerPhone ?? ""].join(" "));
+      if (haystack.includes(q)) return true;
+      if (phoneSearch && digitsOf(row.customerPhone ?? "").includes(qDigits)) return true;
+      return false;
     }
     return true;
   });
@@ -112,6 +128,94 @@ function emptySummary(mode: CollectionMode): ModeSummary {
     withoutCard: 0,
     notNotified: 0
   };
+}
+
+/** El ciclo que gobierna la fila ya está cobrado. */
+function isRowCyclePaid(row: SubscriptionBoardRow) {
+  return String(row.cycleStatus || "").toUpperCase() === "PAID";
+}
+
+/** Hay plata por cobrar y el cliente no se enteró. */
+function isRowNotNotified(row: SubscriptionBoardRow) {
+  return !isRowCyclePaid(row) && row.messageDelivered !== true;
+}
+
+/** Se le va a cobrar solo, pero no hay tarjeta que cobrar. */
+function isRowWithoutCard(row: SubscriptionBoardRow) {
+  return row.mode === "AUTO_DEBIT" && !row.hasCard;
+}
+
+/**
+ * Resumen (totales y desglose por modo) derivado de las filas que se van a
+ * mostrar. Al calcularse sobre las mismas filas, el encabezado no puede
+ * contradecir a la tabla que tiene debajo, ni siquiera con un filtro puesto.
+ */
+export function summarizeBoardRows(rows: SubscriptionBoardRow[]): Omit<SubscriptionsBoard, "rows"> {
+  const summaries = new Map<CollectionMode, ModeSummary>(MODES.map((m) => [m, emptySummary(m)]));
+
+  for (const row of rows) {
+    let summary = summaries.get(row.mode);
+    if (!summary) {
+      summary = emptySummary(row.mode);
+      summaries.set(row.mode, summary);
+    }
+    const paid = isRowCyclePaid(row);
+    summary.subscriptions += 1;
+    summary.expectedInCents += row.amountInCents;
+    if (paid) {
+      summary.paid += 1;
+      summary.collectedInCents += row.amountInCents;
+    } else {
+      summary.pendingInCents += row.amountInCents;
+    }
+    if (row.delinquency === "EN_MORA") summary.overdue += 1;
+    else if (row.delinquency === "EN_GRACIA") summary.inGrace += 1;
+    else summary.current += 1;
+    if (isRowWithoutCard(row)) summary.withoutCard += 1;
+    if (isRowNotNotified(row)) summary.notNotified += 1;
+  }
+
+  // Los modos conocidos primero y en orden fijo; si apareciera uno inesperado
+  // se muestra igual, para que ninguna suscripción quede fuera del desglose.
+  const extraModes = Array.from(summaries.keys()).filter((m) => !MODES.includes(m));
+  const byMode = [...MODES, ...extraModes]
+    .map((m) => summaries.get(m))
+    .filter((s): s is ModeSummary => Boolean(s && s.subscriptions > 0));
+
+  const sumCents = (subset: SubscriptionBoardRow[]) => subset.reduce((acc, r) => acc + r.amountInCents, 0);
+  const paidRows = rows.filter(isRowCyclePaid);
+  const unpaidRows = rows.filter((r) => !isRowCyclePaid(r));
+  // Partición exacta —igual que el bucle de arriba—: las tres cifras de estado
+  // siempre suman el total, sin filas que se pierdan por el camino.
+  const overdue = rows.filter((r) => r.delinquency === "EN_MORA");
+  const inGrace = rows.filter((r) => r.delinquency === "EN_GRACIA");
+  const current = rows.filter((r) => r.delinquency !== "EN_MORA" && r.delinquency !== "EN_GRACIA");
+
+  // Todo sale de `rows`: ningún total puede quedar desalineado del desglose.
+  return {
+    totals: {
+      subscriptions: rows.length,
+      mrrInCents: sumCents(rows),
+      expectedInCents: sumCents(rows),
+      collectedInCents: sumCents(paidRows),
+      pendingInCents: sumCents(unpaidRows),
+      current: current.length,
+      inGrace: inGrace.length,
+      overdue: overdue.length,
+      currentInCents: sumCents(current),
+      inGraceInCents: sumCents(inGrace),
+      overdueInCents: sumCents(overdue),
+      notNotified: rows.filter(isRowNotNotified).length,
+      withoutCard: rows.filter(isRowWithoutCard).length
+    },
+    byMode
+  };
+}
+
+/** El tablero recortado a un filtro: filas y resumen calculados sobre lo mismo. */
+export function applyBoardFilter(board: SubscriptionsBoard, filter: BoardFilter): SubscriptionsBoard {
+  const rows = filterBoardRows(board.rows, filter);
+  return { ...summarizeBoardRows(rows), rows };
 }
 
 /**
@@ -177,7 +281,6 @@ export async function getSubscriptionsBoard(args?: {
   }
 
   const rows: SubscriptionBoardRow[] = [];
-  const summaries = new Map<CollectionMode, ModeSummary>(MODES.map((m) => [m, emptySummary(m)]));
 
   for (const sub of subscriptions) {
     // El ciclo que gobierna el cobro es el más antiguo sin pagar; si están todos
@@ -196,7 +299,6 @@ export async function getSubscriptionsBoard(args?: {
     const amountInCents = readSubscriptionTotalInCents(sub.metadata, sub.plan?.priceInCents ?? 0, sub.plan?.metadata);
     const payment = cycle ? paymentByCycle.get(`${sub.id}:${cycle.cycleNumber}`) ?? null : null;
     const message = lastMessage.get(sub.id) ?? null;
-    const cyclePaid = isBillingCyclePaid(cycle);
     const hasCard = hasActiveCustomerPaymentSource(sub.customer?.metadata);
 
     const row: SubscriptionBoardRow = {
@@ -220,21 +322,6 @@ export async function getSubscriptionsBoard(args?: {
       messageContent: message?.content ?? null
     };
     rows.push(row);
-
-    const summary = summaries.get(mode)!;
-    summary.subscriptions += 1;
-    summary.expectedInCents += amountInCents;
-    if (cyclePaid) {
-      summary.paid += 1;
-      summary.collectedInCents += amountInCents;
-    } else {
-      summary.pendingInCents += amountInCents;
-    }
-    if (row.delinquency === "EN_MORA") summary.overdue += 1;
-    else if (row.delinquency === "EN_GRACIA") summary.inGrace += 1;
-    else summary.current += 1;
-    if (!hasCard && mode === "AUTO_DEBIT") summary.withoutCard += 1;
-    if (!cyclePaid && row.messageDelivered !== true) summary.notNotified += 1;
   }
 
   rows.sort((a, b) => {
@@ -243,31 +330,5 @@ export async function getSubscriptionsBoard(args?: {
     return a.customerName.localeCompare(b.customerName, "es");
   });
 
-  const byMode = MODES.map((m) => summaries.get(m)!).filter((s) => s.subscriptions > 0);
-
-  return {
-    totals: {
-      subscriptions: rows.length,
-      mrrInCents: rows.reduce((acc, r) => acc + r.amountInCents, 0),
-      expectedInCents: byMode.reduce((acc, s) => acc + s.expectedInCents, 0),
-      collectedInCents: byMode.reduce((acc, s) => acc + s.collectedInCents, 0),
-      pendingInCents: byMode.reduce((acc, s) => acc + s.pendingInCents, 0),
-      current: rows.filter((r) => r.delinquency === "AL_DIA").length,
-      inGrace: rows.filter((r) => r.delinquency === "EN_GRACIA").length,
-      overdue: rows.filter((r) => r.delinquency === "EN_MORA").length,
-      currentInCents: rows
-        .filter((r) => r.delinquency === "AL_DIA")
-        .reduce((acc, r) => acc + r.amountInCents, 0),
-      inGraceInCents: rows
-        .filter((r) => r.delinquency === "EN_GRACIA")
-        .reduce((acc, r) => acc + r.amountInCents, 0),
-      overdueInCents: rows
-        .filter((r) => r.delinquency === "EN_MORA")
-        .reduce((acc, r) => acc + r.amountInCents, 0),
-      notNotified: byMode.reduce((acc, s) => acc + s.notNotified, 0),
-      withoutCard: byMode.reduce((acc, s) => acc + s.withoutCard, 0)
-    },
-    byMode,
-    rows
-  };
+  return { ...summarizeBoardRows(rows), rows };
 }

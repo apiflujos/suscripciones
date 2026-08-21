@@ -23,7 +23,6 @@ export function MetricsFilters({
   g,
   tenantId,
   tenants,
-  view,
   minDate,
   maxDate
 }: {
@@ -32,7 +31,6 @@ export function MetricsFilters({
   g: "day" | "week" | "month";
   tenantId: string;
   tenants: Tenant[];
-  view?: string;
   minDate?: string;
   maxDate?: string;
 }) {
@@ -69,7 +67,6 @@ export function MetricsFilters({
 
   return (
     <form method="get" className="filtersForm">
-      {view ? <input type="hidden" name="view" value={view} /> : null}
       
       {/* Izquierda: Botones de acción (Periodo y Canal) */}
       <div className="metricsFiltersGroup">

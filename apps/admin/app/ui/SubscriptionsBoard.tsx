@@ -138,7 +138,7 @@ function ModeBlock({ summary, rows }: { summary: ModeSummary; rows: Subscription
                   </td>
                   <td>
                     {row.messageDelivered === true ? (
-                      <span className="sb-ok">Entregado</span>
+                      <span className="sb-ok" title={row.messageContent || undefined}>Entregado</span>
                     ) : row.messageDelivered === false ? (
                       <span className="sb-bad" title={row.messageError || undefined}>Falló</span>
                     ) : (
@@ -157,21 +157,24 @@ function ModeBlock({ summary, rows }: { summary: ModeSummary; rows: Subscription
 
 export function SubscriptionsBoardPanel({
   board,
-  rows,
+  filtered,
   filters,
   baseParams,
   exportHref
 }: {
   board: SubscriptionsBoard;
-  rows: SubscriptionBoardRow[];
+  filtered: SubscriptionsBoard;
   filters: BoardFilters;
   baseParams: URLSearchParams;
   exportHref: string;
 }) {
-  const t = board.totals;
-  if (!t.subscriptions) {
+  if (!board.rows.length) {
     return <p className="muted">No hay suscripciones activas.</p>;
   }
+
+  // Los totales salen del recorte visible: si se filtra por mora, la cabecera
+  // habla de los morosos y no de una cartera que no se está viendo.
+  const t = filtered.totals;
 
   return (
     <div className="sb">
@@ -179,56 +182,62 @@ export function SubscriptionsBoardPanel({
         filters={filters}
         base={baseParams}
         exportHref={exportHref}
-        shown={rows.length}
+        shown={filtered.rows.length}
         total={board.rows.length}
       />
 
-      <div className="sb-states">
-        <div className="sb-state is-ok">
-          <span className="sb-state-n">{t.current}</span>
-          <span className="sb-state-l">Al día</span>
-          <span className="sb-state-m">{money(t.currentInCents)}</span>
-        </div>
-        <div className="sb-state is-warn">
-          <span className="sb-state-n">{t.inGrace}</span>
-          <span className="sb-state-l">En gracia</span>
-          <span className="sb-state-m">{money(t.inGraceInCents)}</span>
-        </div>
-        <div className="sb-state is-bad">
-          <span className="sb-state-n">{t.overdue}</span>
-          <span className="sb-state-l">En mora</span>
-          <span className="sb-state-m">{money(t.overdueInCents)}</span>
-        </div>
-      </div>
+      {!filtered.rows.length ? (
+        <p className="muted">Ninguna suscripción coincide con el filtro.</p>
+      ) : (
+        <>
+          <div className="sb-states">
+            <div className="sb-state is-ok">
+              <span className="sb-state-n">{t.current}</span>
+              <span className="sb-state-l">Al día</span>
+              <span className="sb-state-m">{money(t.currentInCents)}</span>
+            </div>
+            <div className="sb-state is-warn">
+              <span className="sb-state-n">{t.inGrace}</span>
+              <span className="sb-state-l">En gracia</span>
+              <span className="sb-state-m">{money(t.inGraceInCents)}</span>
+            </div>
+            <div className="sb-state is-bad">
+              <span className="sb-state-n">{t.overdue}</span>
+              <span className="sb-state-l">En mora</span>
+              <span className="sb-state-m">{money(t.overdueInCents)}</span>
+            </div>
+          </div>
 
-      <div className="sb-kpis">
-        <Kpi
-          label="Cartera activa"
-          value={`${t.subscriptions}`}
-          detail={`${money(t.mrrInCents)} por ciclo`}
-        />
-        <Kpi
-          label="Cobrado del ciclo"
-          value={money(t.collectedInCents)}
-          detail={`de ${money(t.expectedInCents)} · ${pct(t.collectedInCents, t.expectedInCents)}`}
-        />
-        <Kpi
-          label="Pendiente de cobro"
-          value={money(t.pendingInCents)}
-          detail={t.overdue ? `${t.overdue} en mora · ${money(t.overdueInCents)}` : "nadie en mora"}
-          tone={t.overdue ? "bad" : undefined}
-        />
-        <Kpi
-          label="Riesgo operativo"
-          value={`${t.notNotified}`}
-          detail={`sin avisar${t.withoutCard ? ` · ${t.withoutCard} sin tarjeta` : ""}`}
-          tone={t.notNotified ? "warn" : undefined}
-        />
-      </div>
+          <div className="sb-kpis">
+            <Kpi
+              label="Cartera activa"
+              value={`${t.subscriptions}`}
+              detail={`${money(t.mrrInCents)} por ciclo`}
+            />
+            <Kpi
+              label="Cobrado del ciclo"
+              value={money(t.collectedInCents)}
+              detail={`de ${money(t.expectedInCents)} · ${pct(t.collectedInCents, t.expectedInCents)}`}
+            />
+            <Kpi
+              label="Pendiente de cobro"
+              value={money(t.pendingInCents)}
+              detail={t.overdue ? `${t.overdue} en mora · ${money(t.overdueInCents)}` : "nadie en mora"}
+              tone={t.overdue ? "bad" : undefined}
+            />
+            <Kpi
+              label="Riesgo operativo"
+              value={`${t.notNotified}`}
+              detail={`sin avisar${t.withoutCard ? ` · ${t.withoutCard} sin tarjeta` : ""}`}
+              tone={t.notNotified ? "warn" : undefined}
+            />
+          </div>
 
-      {board.byMode.map((summary) => (
-        <ModeBlock key={summary.mode} summary={summary} rows={rows} />
-      ))}
+          {filtered.byMode.map((summary) => (
+            <ModeBlock key={summary.mode} summary={summary} rows={filtered.rows} />
+          ))}
+        </>
+      )}
     </div>
   );
 }

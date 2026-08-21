@@ -1,6 +1,6 @@
 import { listTenants } from "./admin/_services/tenants";
 import { getMetricsOverviewCached } from "./admin/_services/metrics";
-import { getSubscriptionsBoard, filterBoardRows } from "./admin/_services/subscriptionsBoard";
+import { getSubscriptionsBoard, applyBoardFilter } from "./admin/_services/subscriptionsBoard";
 import { getScheduledJobsReport } from "./admin/_services/scheduledJobsReport";
 import { listPaymentLogs } from "./admin/_services/logs";
 import { listSubscriptions } from "./admin/_services/subscriptions";
@@ -16,7 +16,6 @@ import {
   alignSeries,
   avg,
   fmtBucketLabel,
-  fmtDateTimeShort,
   fmtDelta,
   fmtDeltaPp,
   fmtMoneyCop,
@@ -24,89 +23,11 @@ import {
   fmtShortDate,
   isoDateFromTimestamp,
   isoDateUtc,
-  paymentStatusPill,
   pctChange,
   sum,
   toUtcIsoEndExclusive,
   toUtcIsoStart
 } from "./lib/metricsFormat";
-
-function ChartLine({
-  values,
-  labels,
-  tooltipLabel,
-  height = 120
-}: {
-  values: number[];
-  labels?: string[];
-  tooltipLabel?: (value: number, index: number) => string;
-  height?: number;
-}) {
-  const w = 520;
-  const h = height;
-  const pad = 10;
-  const max = Math.max(1, ...values);
-  const gridCount = 4;
-  const fmtAxis = (v: number) => new Intl.NumberFormat("es-CO").format(Math.round(v));
-  const pts = values.map((v, i) => {
-    const x = pad + (i * (w - pad * 2)) / Math.max(1, values.length - 1);
-    const y = h - pad - (Math.max(0, v) * (h - pad * 2)) / max;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  });
-  const labelIdxs = values.length > 1 ? Array.from(new Set([0, Math.floor((values.length - 1) / 2), values.length - 1])) : [0];
-  const step = Math.max(1, Math.ceil(values.length / 12));
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} aria-hidden="true">
-      {Array.from({ length: gridCount + 1 }).map((_, i) => {
-        const y = pad + (i * (h - pad * 2)) / gridCount;
-        const value = max - (i * max) / gridCount;
-        const showLabel = i === 0 || i === Math.floor(gridCount / 2) || i === gridCount;
-        return (
-          <g key={`grid-${i}`}>
-            <line x1="0" y1={y} x2={w} y2={y} stroke="var(--chart-track)" />
-            {showLabel ? (
-              <text x={2} y={y - 2} fontSize="9" fill="var(--text-faint)">
-                {fmtAxis(value)}
-              </text>
-            ) : null}
-          </g>
-        );
-      })}
-      <polyline points={pts.join(" ")} fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-      <line x1="0" y1={h - 0.5} x2={w} y2={h - 0.5} stroke="var(--chart-axis)" />
-      {values.map((v, i) => {
-        if (i % step !== 0 && i !== values.length - 1) return null;
-        const x = pad + (i * (w - pad * 2)) / Math.max(1, values.length - 1);
-        const y = h - pad - (Math.max(0, v) * (h - pad * 2)) / max;
-        const tip = tooltipLabel ? tooltipLabel(v, i) : `${labels?.[i] || ""} · ${v}`;
-        return (
-          <g key={`pt-${i}`}>
-            <circle cx={x} cy={y} r="3" fill="var(--primary)" />
-            <title>{tip}</title>
-          </g>
-        );
-      })}
-      {labels
-        ? labelIdxs.map((i) => {
-            const x = pad + (i * (w - pad * 2)) / Math.max(1, values.length - 1);
-            const textAnchor = i === 0 ? "start" : i === values.length - 1 ? "end" : "middle";
-            return (
-              <text
-                key={`label-${i}`}
-                x={x}
-                y={h - 2}
-                textAnchor={textAnchor}
-                fontSize="10"
-                fill="var(--text-faint)"
-              >
-                {labels[i] || ""}
-              </text>
-            );
-          })
-        : null}
-    </svg>
-  );
-}
 
 function ChartLines({
   series,
@@ -321,46 +242,10 @@ function ChartBars({
   );
 }
 
-function Pie({ a, b, aLabel, bLabel }: { a: number; b: number; aLabel: string; bLabel: string }) {
-  const total = Math.max(0, a) + Math.max(0, b);
-  const aFrac = total > 0 ? Math.max(0, a) / total : 0;
-  const r = 36;
-  const c = 2 * Math.PI * r;
-  const aLen = aFrac * c;
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "96px 1fr", gap: 12, alignItems: "center" }}>
-      <svg viewBox="0 0 100 100" width="96" height="96" aria-hidden="true">
-        <circle cx="50" cy="50" r={r} fill="none" stroke="var(--chart-track)" strokeWidth="18" />
-        <circle
-          cx="50"
-          cy="50"
-          r={r}
-          fill="none"
-          stroke="var(--chart-a)"
-          strokeWidth="18"
-          strokeDasharray={`${aLen} ${c - aLen}`}
-          transform="rotate(-90 50 50)"
-          strokeLinecap="round"
-        />
-      </svg>
-      <div style={{ display: "grid", gap: 6, fontSize: 13 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-          <span style={{ color: "var(--muted)" }}>{aLabel}</span>
-          <strong>{fmtMoneyCop(a)}</strong>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-          <span style={{ color: "var(--muted)" }}>{bLabel}</span>
-          <strong>{fmtMoneyCop(b)}</strong>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default async function Home({
   searchParams
 }: {
-  searchParams?: Promise<{ from?: string; to?: string; g?: string; tenantId?: string; view?: string; mode?: string; state?: string; notified?: string; q?: string }>;
+  searchParams?: Promise<{ from?: string; to?: string; g?: string; tenantId?: string; mode?: string; state?: string; notified?: string; q?: string }>;
 }) {
   const now = new Date();
   const defaultTo = isoDateUtc(now);
@@ -377,8 +262,6 @@ export default async function Home({
     notified: typeof sp.notified === "string" ? sp.notified : "",
     q: typeof sp.q === "string" ? sp.q : ""
   };
-  const viewRaw = typeof sp.view === "string" ? sp.view : "";
-  const view = ["overview", "revenue", "conversion", "subscriptions"].includes(viewRaw) ? viewRaw : "overview";
   const fromIso = toUtcIsoStart(fromDate) || toUtcIsoStart(defaultFrom)!;
   const toIso = toUtcIsoEndExclusive(toDate) || toUtcIsoEndExclusive(defaultTo)!;
   const periodLabel = g === "day" ? "Diario" : g === "week" ? "Semanal" : "Mensual";
@@ -428,6 +311,7 @@ export default async function Home({
     getSubscriptionsBoard({ tenantId: resolvedTenantId || null }),
     getScheduledJobsReport()
   ]);
+  const filteredBoard = applyBoardFilter(subscriptionsBoard, boardFilters);
   const aiConfig = settingsRes?.ai || null;
   const aiProviders = aiConfig?.providers || null;
   const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
@@ -679,7 +563,6 @@ export default async function Home({
                 to={toDate}
                 g={g}
                 tenantId={tenantId}
-                view={view}
                 tenants={tenants}
                 minDate={firstDataAt || undefined}
                 maxDate={maxDate}
@@ -832,7 +715,7 @@ export default async function Home({
 
                   <SubscriptionsBoardPanel
                     board={subscriptionsBoard}
-                    rows={filterBoardRows(subscriptionsBoard.rows, boardFilters)}
+                    filtered={filteredBoard}
                     filters={boardFilters}
                     baseParams={boardParams}
                     exportHref={boardExportHref}

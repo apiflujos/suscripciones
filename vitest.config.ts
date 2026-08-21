@@ -1,6 +1,8 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // Los componentes del admin usan el runtime automático de JSX, igual que Next.
+  esbuild: { jsx: 'automatic' },
   test: {
     globals: true,
     environment: 'node',
