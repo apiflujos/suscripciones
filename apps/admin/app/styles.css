@@ -17791,3 +17791,13 @@ strong {
 @media (max-width: 640px) {
   .sb-kpis { grid-template-columns: 1fr; }
 }
+
+/* El mensaje reconstruido conserva los saltos de línea de la plantilla:
+   se lee igual que le llegó al cliente, no como una sola línea corrida. */
+.log-message-cell .log-message-full {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 520px;
+  line-height: 1.5;
+}

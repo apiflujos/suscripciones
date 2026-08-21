@@ -1,5 +1,8 @@
 import { LocalDateTime } from "../../ui/LocalDateTime";
 import { listChatwootMessages } from "../../admin/_services/logs";
+import { listWhatsappTemplatesSafe } from "../../admin/_services/whatsappTemplates";
+
+const PUBLIC_BASE_URL = (process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "").replace(/\/+$/, "");
 import { PageToolbar } from "../../ui/PageToolbar";
 import { ListCsvActions } from "../../ui/ListCsvActions";
 import { FiltersFocusButton } from "../../ui/FiltersFocusButton";
@@ -43,6 +46,65 @@ function humanType(item: any) {
   if (trigger === "SUBSCRIPTION_DUE" && paymentType === "LINK" && offsetSeconds > 0) return "Recordatorio en mora (link de pago)";
   if (trigger === "SUBSCRIPTION_DUE" && paymentType === "SUBSCRIPTION" && offsetSeconds > 0) return "Recordatorio en mora (débito automático)";
   return "No clasificado";
+}
+
+/** Cuerpo de una plantilla de WhatsApp, con sus marcadores {{1}}, {{2}}… */
+function templateBodyText(template: any) {
+  const comps = Array.isArray(template?.components) ? template.components : [];
+  const body = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BODY");
+  const text = String(body?.text || "").trim();
+  if (text) return text;
+  return comps
+    .map((c: any) => String(c?.text || "").trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * Reconstruye el mensaje tal como lo recibió el cliente: el cuerpo de la
+ * plantilla con sus variables ya sustituidas, más el link del botón.
+ *
+ * `content` guarda el literal "(template)" porque el texto final lo arma
+ * WhatsApp al renderizar; sin reconstruirlo aquí no hay forma de verificar
+ * qué monto, qué nombre o qué link le llegó a cada persona.
+ */
+function renderMessagePreview(item: any, templates: any[]) {
+  const tp = item?.providerResp?.template_params;
+  if (!tp || typeof tp !== "object") return "";
+
+  const processed = tp?.processed_params && typeof tp.processed_params === "object" ? tp.processed_params : {};
+  const body = processed?.body && typeof processed.body === "object" ? processed.body : {};
+
+  const buttons = Array.isArray(processed?.buttons) ? processed.buttons : [];
+  const link = buttons
+    .map((b: any) => String(b?.parameter || "").trim())
+    .filter(Boolean)
+    .map((v: string) => (v.startsWith("http") ? v : `${PUBLIC_BASE_URL}/${v.replace(/^\/+/, "")}`))[0];
+
+  const name = String(tp?.name || "").trim().toLowerCase();
+  const lang = String(tp?.language || "").trim().toLowerCase();
+  const template =
+    templates.find((t: any) => String(t?.name || "").toLowerCase() === name && String(t?.language || "").toLowerCase() === lang) ||
+    templates.find((t: any) => String(t?.name || "").toLowerCase() === name);
+
+  const bodyText = template ? templateBodyText(template) : "";
+  if (bodyText) {
+    const filled = bodyText.replace(/\{\{\s*(\d+)\s*\}\}/g, (_m: string, n: string) => {
+      const value = (body as any)[String(n)];
+      return value ? String(value) : `{{${n}}}`;
+    });
+    return link ? `${filled}\n\n${link}` : filled;
+  }
+
+  // Sin la plantilla a mano (Chatwoot caído o plantilla borrada) se muestran al
+  // menos los valores, que siguen sirviendo para verificar monto y destinatario.
+  const values = Object.keys(body)
+    .sort((a, b) => Number(a) - Number(b))
+    .map((k) => String((body as any)[k] ?? "").trim())
+    .filter(Boolean);
+  const parts = [...values];
+  if (link) parts.push(link);
+  return parts.join(" · ");
 }
 
 function renderTrace(item: any) {
@@ -98,7 +160,10 @@ export default async function WhatsappNotificationsListPage({
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const currentPage = Number.isFinite(page) && page > 0 ? Math.trunc(page) : 1;
   const skip = currentPage > 1 ? (currentPage - 1) * take : 0;
-  const { items, total } = await listChatwootMessages({ take, skip, withCount: true, q, status, type, from, to });
+  const [{ items, total }, templates] = await Promise.all([
+    listChatwootMessages({ take, skip, withCount: true, q, status, type, from, to }),
+    listWhatsappTemplatesSafe()
+  ]);
   const countOnPage = items.length;
   const hasPrev = currentPage > 1;
   const hasNext = total != null ? currentPage * take < total : countOnPage >= take;
@@ -195,8 +260,9 @@ export default async function WhatsappNotificationsListPage({
               {items.map((m: any) => {
                 const chip = resolveNotificationChip(m);
                 const trace = renderTrace(m);
-                const detailRaw = String(deliveryErrorOf(m) || trace || m.content || "—");
-                const detailText = detailRaw.length > 200 ? `${detailRaw.slice(0, 200)}…` : detailRaw;
+                const preview = renderMessagePreview(m, templates);
+                const detailRaw = String(deliveryErrorOf(m) || preview || trace || "—");
+                const detailText = detailRaw.length > 400 ? `${detailRaw.slice(0, 400)}…` : detailRaw;
                 return (
                   <tr key={m.id}>
                     <td className="log-date-cell"><LocalDateTime value={m.createdAt} variant="stacked" /></td>
@@ -208,8 +274,8 @@ export default async function WhatsappNotificationsListPage({
                         {chip.label}
                       </span>
                     </td>
-                    <td className="log-message-cell" title={detailRaw}>
-                      <span className="log-message-text">{detailText}</span>
+                    <td className="log-message-cell" title={trace ? `${detailRaw}\n\n${trace}` : detailRaw}>
+                      <span className="log-message-text log-message-full">{detailText}</span>
                     </td>
                   </tr>
                 );
