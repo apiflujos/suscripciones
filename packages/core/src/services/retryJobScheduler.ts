@@ -25,7 +25,11 @@ export async function resolvePaymentRetryRunAt(args: {
   const scheduledForToday = applyClockTimeInZone(now, executionHour, timeZone);
   if (scheduledForToday.getTime() > now.getTime()) return scheduledForToday;
 
-  return now;
+  // Si la hora de hoy ya pasó, el cobro va a la de mañana. Devolver "ahora"
+  // hacía que cada job se ejecutara al instante de crearse, y el cobro caía a
+  // cualquier hora en vez de a la establecida.
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  return applyClockTimeInZone(tomorrow, executionHour, timeZone);
 }
 
 export async function ensurePaymentRetryJob(args: {

@@ -27,12 +27,15 @@ describe("resolvePaymentRetryRunAt", () => {
     expect(runAt.toISOString()).toBe("2026-05-20T20:00:00.000Z");
   });
 
-  it("falls back to immediate execution when today's execution hour already passed", async () => {
+  it("waits for tomorrow's execution hour when today's already passed", async () => {
     const now = new Date("2026-05-20T21:00:00.000Z");
     const dueAt = new Date("2026-05-19T20:00:00.000Z");
 
     const runAt = await resolvePaymentRetryRunAt({ dueAt, now });
 
-    expect(runAt.toISOString()).toBe(now.toISOString());
+    // Nunca "ahora": cobrar en el instante en que se crea el job es lo que
+    // hacía que los cobros cayeran a cualquier hora y se repitieran.
+    expect(runAt.toISOString()).toBe("2026-05-21T20:00:00.000Z");
+    expect(runAt.getTime()).toBeGreaterThan(now.getTime());
   });
 });

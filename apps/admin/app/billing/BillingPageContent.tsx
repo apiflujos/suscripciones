@@ -56,6 +56,10 @@ export async function BillingPageContent({
 
   const tipo = typeof sp.tipo === "string" ? sp.tipo : "todos";
   const estado = typeof sp.estado === "string" ? sp.estado : "todos";
+  // Estado del ciclo (el que muestra la lista), con el que enlaza el resumen
+  // de métricas. Es un recorte distinto al de "estado" de la suscripción.
+  const cycleStateRaw = typeof sp.state === "string" ? sp.state.trim().toUpperCase() : "";
+  const cycleState = ["AL_DIA", "EN_GRACIA", "EN_MORA"].includes(cycleStateRaw) ? cycleStateRaw : "";
   const q = typeof sp.q === "string" ? sp.q : "";
   const ordenar = typeof sp.ordenar === "string" ? sp.ordenar : "vencimiento";
   // La lista es la vista que deja ver qué pasa con cada ciclo; las tarjetas
@@ -91,7 +95,9 @@ export async function BillingPageContent({
   }).toString()}`;
 
   const subParams = new URLSearchParams();
-  const take = vista === "kanban" ? 500 : 20;
+  // Filtrar por estado del ciclo se hace sobre las filas ya calculadas, así que
+  // se traen todas de una vez en vez de paginar un recorte que no cuadra.
+  const take = vista === "kanban" || cycleState ? 500 : 20;
   subParams.set("take", String(take));
   if (vista !== "kanban" && Number.isFinite(page) && page > 1) subParams.set("skip", String((Math.trunc(page) - 1) * take));
   if (q.trim()) subParams.set("q", q.trim());
@@ -171,6 +177,7 @@ export async function BillingPageContent({
     q,
     tipo,
     estado,
+    cycleState,
     ordenar
   });
 

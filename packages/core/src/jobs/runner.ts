@@ -1,3 +1,4 @@
+import { hasExhaustedCycleAttempts } from "../services/collectionAttempts";
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
 import { loadEnv } from "../config/env";
@@ -391,6 +392,7 @@ async function ensureDueCutoffRetries() {
   let processedTotal = 0;
   let createdJobs = 0;
   let skippedRecentLink = 0;
+  let skippedExhausted = 0;
   let cursor: string | undefined;
 
   do {
@@ -433,6 +435,19 @@ async function ensureDueCutoffRetries() {
       const collectionCycle = billingState?.collectionCycle || null;
       const collectionCyclePaid = isBillingCyclePaid(collectionCycle);
       if (!collectionCycle || collectionCyclePaid) continue;
+
+      // El tope de intentos vale con o sin reintentos activos: antes, con los
+      // reintentos encendidos, esta sincronización volvía a agendar cobro para
+      // el mismo ciclo en cada pasada, sin techo.
+      const intentosCiclo = await hasExhaustedCycleAttempts({
+        subscriptionId: sub.id,
+        cycleNumber: collectionCycle.cycleNumber,
+        config: autoDebitConfig
+      }).catch(() => ({ exhausted: false, attempts: 0, allowed: 1 }));
+      if (intentosCiclo.exhausted) {
+        skippedExhausted++;
+        continue;
+      }
 
       if (!autoDebitConfig.retryEnabled) {
         const existingCyclePayment = await prisma.payment.findFirst({
@@ -525,7 +540,8 @@ async function ensureDueCutoffRetries() {
     await systemLog(LogLevel.INFO, "jobs.safety_sync", "Due cutoff retries processed", {
       processedSubscriptions: processedTotal,
       jobsCreated: createdJobs,
-      jobsSkippedRecentLink: skippedRecentLink
+      jobsSkippedRecentLink: skippedRecentLink,
+      jobsSkippedAttemptsExhausted: skippedExhausted
     }).catch((err) => {
       logger.warn({ err }, '[Jobs/SafetySync] Fallo creando resumen de seguridad');
     });

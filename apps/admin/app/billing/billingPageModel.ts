@@ -25,11 +25,20 @@ type BuildBillingRowsArgs = {
   q: string;
   tipo: string;
   estado: string;
+  /** Estado del ciclo: AL_DIA | EN_GRACIA | EN_MORA. Vacío = todos. */
+  cycleState?: string;
   ordenar: string;
 };
 
+/** Los tres estados del ciclo, tal como se rotulan en pantalla. */
+export const CYCLE_STATE_LABEL: Record<string, string> = {
+  AL_DIA: "Al día",
+  EN_GRACIA: "En gracia",
+  EN_MORA: "En mora"
+};
+
 export function buildBillingRows(args: BuildBillingRowsArgs): BillingRow[] {
-  const { subItems, productById, tenantById, renderNowDate, q, tipo, estado, ordenar } = args;
+  const { subItems, productById, tenantById, renderNowDate, q, tipo, estado, cycleState, ordenar } = args;
 
   return subItems
     .map((s) => {
@@ -125,6 +134,7 @@ export function buildBillingRows(args: BuildBillingRowsArgs): BillingRow[] {
         inArrears,
         nextRetryAt: s.nextRetryAtEffective || s.nextRetryJob?.runAt || (s.metadata as any)?.manualRetry?.nextRetryAt || (s.metadata as any)?.autoRetry?.nextRetryAt || null,
         nextRetryAtEffective: s.nextRetryAtEffective || null,
+        collectionStatus: typeof s?.collectionStatus === "string" ? s.collectionStatus : undefined,
         cycleNumber: typeof s?.collectionCycleNumber === "number" ? s.collectionCycleNumber : null,
         notice: s?.lastNotice
           ? {
@@ -157,6 +167,12 @@ export function buildBillingRows(args: BuildBillingRowsArgs): BillingRow[] {
       if (estado === "si" && row.estadoInfo.key !== "si") return false;
       if (estado === "no" && row.estadoInfo.key !== "no") return false;
       if (estado === "mora" && row.estadoInfo.key !== "mora") return false;
+      // Estado del ciclo: se reusa el mismo cálculo que ya rotuló la fila, para
+      // que filtrar por "En mora" no devuelva filas etiquetadas de otra cosa.
+      if (cycleState) {
+        const label = row.inArrears ? "En mora" : row.inGrace ? "En gracia" : "Al día";
+        if (label !== CYCLE_STATE_LABEL[cycleState]) return false;
+      }
       if (q) {
         const term = q.toLowerCase();
         const matches =

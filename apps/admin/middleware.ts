@@ -80,13 +80,17 @@ function applySecurityHeaders(res: NextResponse, pathname: string, nonce: string
   const unsafe = isPublic ? allowUnsafeInlinePublic : allowUnsafeInline;
   const scriptUnsafe = unsafe || isLogin;
   const nonceDirective = nonce ? ` 'nonce-${nonce}'` : "";
+  // El runtime de desarrollo de Next (Fast Refresh) evalúa código en caliente.
+  // Sin esta excepción la CSP lo bloquea, el bundle falla y la app no hidrata:
+  // en dev nada del cliente responde. En producción no se otorga.
+  const devEval = process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'";
   const csp = [
     "default-src 'self'",
     "img-src 'self' data: blob: https:",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
-    `script-src 'self' https://checkout.wompi.co${nonceDirective}${scriptUnsafe ? " 'unsafe-inline'" : ""}`,
-    `script-src-elem 'self' https://checkout.wompi.co${nonceDirective}${scriptUnsafe ? " 'unsafe-inline'" : ""}`,
+    `script-src 'self' https://checkout.wompi.co${nonceDirective}${scriptUnsafe ? " 'unsafe-inline'" : ""}${devEval}`,
+    `script-src-elem 'self' https://checkout.wompi.co${nonceDirective}${scriptUnsafe ? " 'unsafe-inline'" : ""}${devEval}`,
     "connect-src 'self' https: ws: wss: https://checkout.wompi.co",
     "frame-src https://checkout.wompi.co",
     "frame-ancestors 'none'"

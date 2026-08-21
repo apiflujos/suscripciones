@@ -1,3 +1,4 @@
+import { hasExhaustedCycleAttempts } from "../../services/collectionAttempts";
 import { prisma } from "../../db/prisma";
 import { LogLevel } from "@prisma/client";
 import { createAutoDebitTransactionForSubscription, createPaymentLinkForSubscription } from "../../services/subscriptionBilling";
@@ -253,6 +254,31 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
           subscriptionId
         };
       }
+      // Tope duro por ciclo. Un cobro declinado no lanza error, así que sin
+      // esto el ciclo se vuelve a cobrar en cada pasada del sincronizador.
+      const intentos = await hasExhaustedCycleAttempts({
+        subscriptionId,
+        cycleNumber: billingState?.collectionCycle?.cycleNumber ?? null,
+        config: autoDebitConfig
+      }).catch(() => ({ exhausted: false, attempts: 0, allowed: 1 }));
+      if (intentos.exhausted) {
+        await systemLog(LogLevel.WARN, "jobs.payment_retry", "Cobro automático detenido: el ciclo agotó sus intentos", {
+          subscriptionId,
+          mode,
+          cycleNumber: billingState?.collectionCycle?.cycleNumber ?? null,
+          attempts: intentos.attempts,
+          allowed: intentos.allowed
+        }, SystemActor.JOB_PAYMENT_RETRY).catch((logErr: any) => {
+          logger.warn({ err: logErr, subscriptionId }, "Fallo escribiendo systemLog por intentos agotados");
+        });
+        return {
+          status: "skipped",
+          mode,
+          reason: "cycle_attempts_exhausted",
+          subscriptionId
+        };
+      }
+
       try {
         await createAutoDebitTransactionForSubscription({
           subscriptionId,

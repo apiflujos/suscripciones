@@ -1,3 +1,5 @@
+import { CYCLE_STATE_LABEL } from "./billingPageModel";
+import Link from "next/link";
 import { BillingModals } from "./BillingModals";
 import { FilterButton } from "../ui/FilterButton";
 import { ListCsvActions } from "../ui/ListCsvActions";
@@ -13,6 +15,8 @@ type BillingHeaderProps = {
     q: string;
     tipo: string;
     estado: string;
+    /** Estado del ciclo por el que se está recortando la lista. */
+    cycleState?: string;
     ordenar: string;
     vista: "cards" | "lista" | "kanban";
     viewId: string;
@@ -37,6 +41,17 @@ type BillingHeaderProps = {
 };
 
 export function BillingHeader({ filters, data, actions }: BillingHeaderProps) {
+  const clearStateHref = (() => {
+    const params = new URLSearchParams({
+      ...(filters.tenantId ? { tenantId: filters.tenantId } : {}),
+      ...(filters.q ? { q: filters.q } : {}),
+      ...(filters.tipo && filters.tipo !== "todos" ? { tipo: filters.tipo } : {}),
+      ...(filters.estado && filters.estado !== "todos" ? { estado: filters.estado } : {}),
+      ...(filters.vista ? { vista: filters.vista } : {})
+    });
+    const qs = params.toString();
+    return qs ? `/billing?${qs}` : "/billing";
+  })();
   const baseParams = {
     ...(filters.tenantId ? { tenantId: filters.tenantId } : {}),
     ...(filters.q ? { q: filters.q } : {}),
@@ -100,6 +115,14 @@ export function BillingHeader({ filters, data, actions }: BillingHeaderProps) {
 
       <div className="page-results-left">
         <span className="muted">{data.rows.length} resultados</span>
+        {filters.cycleState ? (
+          <span className="billing-state-chip">
+            Solo <strong>{CYCLE_STATE_LABEL[filters.cycleState] ?? filters.cycleState}</strong>
+            <Link href={clearStateHref} prefetch={false} className="billing-state-chip-clear">
+              quitar
+            </Link>
+          </span>
+        ) : null}
       </div>
 
       <div className="page-actions-right">
