@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { listTenants } from "./admin/_services/tenants";
 import { getMetricsOverviewCached } from "./admin/_services/metrics";
-import { getDailyCollectionReport } from "./admin/_services/dailyCollectionReport";
+import { getSubscriptionsBoard } from "./admin/_services/subscriptionsBoard";
 import { getScheduledJobsReport } from "./admin/_services/scheduledJobsReport";
 import { listPaymentLogs } from "./admin/_services/logs";
 import { listSubscriptions } from "./admin/_services/subscriptions";
@@ -10,7 +10,7 @@ import { countEmpresasAndContactos } from "./admin/_services/companies";
 import { resolveTenantId } from "./admin/_services/tenantResolver";
 import { MetricsFilters } from "./ui/MetricsFilters";
 import { PageToolbar } from "./ui/PageToolbar";
-import { DailyCollectionReportPanel } from "./ui/DailyCollectionReport";
+import { SubscriptionsBoardPanel } from "./ui/SubscriptionsBoard";
 import { ScheduledJobsPanel } from "./ui/ScheduledJobsReport";
 import { AiAssistant } from "./logs/AiAssistant";
 import {
@@ -411,14 +411,14 @@ export default async function Home({
   const periodMs = Math.max(24 * 60 * 60 * 1000, new Date(toIso).getTime() - new Date(fromIso).getTime());
   const prevFromIso = new Date(new Date(fromIso).getTime() - periodMs).toISOString();
   const prevToIso = new Date(fromIso).toISOString();
-  const [metrics, prevMetrics, paymentsRes, subscriptionsRes, settingsRes, companiesCount, collectionReport, jobsReport] = await Promise.all([
+  const [metrics, prevMetrics, paymentsRes, subscriptionsRes, settingsRes, companiesCount, subscriptionsBoard, jobsReport] = await Promise.all([
     getMetricsOverviewCached({ from: fromIso, to: toIso, granularity: g, tenantId: resolvedTenantId || undefined }),
     getMetricsOverviewCached({ from: prevFromIso, to: prevToIso, granularity: g, tenantId: resolvedTenantId || undefined }),
     listPaymentLogs({ take: 6, status: "APPROVED", tenantId: resolvedTenantId || undefined }),
     listSubscriptions({ take: 500, tenantId: resolvedTenantId || undefined }),
     getAdminSettings(),
     countEmpresasAndContactos(resolvedTenantId || null),
-    getDailyCollectionReport({ tenantId: resolvedTenantId || null }),
+    getSubscriptionsBoard({ tenantId: resolvedTenantId || null }),
     getScheduledJobsReport()
   ]);
   const aiConfig = settingsRes?.ai || null;
@@ -956,8 +956,6 @@ export default async function Home({
                     </div>
                   </div>
 
-                  <DailyCollectionReportPanel report={collectionReport} />
-                  <ScheduledJobsPanel report={jobsReport} />
                 </>
               ) : null}
 
@@ -1165,6 +1163,9 @@ export default async function Home({
 
               {view === "subscriptions" ? (
                 <>
+                  <SubscriptionsBoardPanel board={subscriptionsBoard} />
+                  <ScheduledJobsPanel report={jobsReport} />
+
                   <div className="grid2">
                     <div className="card cardPad chart-card">
                       <div className="chart-header">
