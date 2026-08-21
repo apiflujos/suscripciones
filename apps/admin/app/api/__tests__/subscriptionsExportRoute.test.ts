@@ -67,7 +67,7 @@ function row(over: Record<string, unknown> = {}) {
     delinquency: "AL_DIA",
     daysPastDue: 0,
     hasCard: true,
-    nextCharge: { at: "2026-09-15T05:00:00.000Z", kind: "NEXT_CYCLE" },
+    nextCharge: null,
     notice: { kind: "Link de pago", status: "SENT", at: "2026-08-10T05:00:00.000Z", reason: null, content: "Tu cobro fue exitoso" },
     chargeFailure: null,
     ...over

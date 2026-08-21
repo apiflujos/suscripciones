@@ -50,7 +50,7 @@ function row(over: Partial<Row>): Row {
     delinquency: "AL_DIA",
     daysPastDue: 0,
     hasCard: true,
-    nextCharge: { at: "2026-09-15T05:00:00.000Z", kind: "NEXT_CYCLE" },
+    nextCharge: null,
     notice: { kind: "Link de pago", status: "SENT", at: "2026-08-10T05:00:00.000Z", reason: null, content: "Tu cobro fue exitoso" },
     chargeFailure: null,
     ...over
@@ -204,14 +204,38 @@ describe("SubscriptionsBoardPanel", () => {
     expect(html).toContain("Estado del ciclo");
   });
 
-  it("muestra cuándo es el próximo cobro y avisa si no hay ninguno", () => {
+  it("muestra cuándo se cobra el ciclo vigente y avisa si nadie lo va a cobrar", () => {
     const conCobro = render(boardOf([
-      row({ subscriptionId: "a", nextCharge: { at: "2026-08-25T14:00:00.000Z", kind: "RETRY" } })
+      row({
+        subscriptionId: "a",
+        cycleStatus: "PENDING",
+        nextCharge: { at: "2026-08-25T14:00:00.000Z", kind: "RETRY" }
+      })
     ]), {});
     expect(conCobro).toContain("reintento agendado");
 
-    const sinCobro = render(boardOf([row({ subscriptionId: "a", nextCharge: null })]), {});
+    const sinCobro = render(boardOf([
+      row({ subscriptionId: "a", cycleStatus: "PENDING", nextCharge: null })
+    ]), {});
     expect(sinCobro).toContain("Sin cobro programado");
+  });
+
+  it("cuenta en el riesgo los ciclos que nadie va a cobrar", () => {
+    const html = render(boardOf([
+      row({ subscriptionId: "a", cycleStatus: "PENDING", delinquency: "EN_MORA", nextCharge: null }),
+      row({ subscriptionId: "b", cycleStatus: "PENDING", nextCharge: { at: "2026-08-25T14:00:00.000Z", kind: "DUE" } })
+    ]), {});
+    expect(html).toContain("1 sin cobro programado");
+  });
+
+  it("deja claro que todo habla del ciclo vigente", () => {
+    expect(render(boardOf(cartera), {})).toContain("Ciclo vigente de cada suscripción");
+  });
+
+  it("un ciclo ya cobrado no habla del corte siguiente", () => {
+    const html = render(boardOf([row({ subscriptionId: "a", cycleStatus: "PAID" })]), {});
+    expect(html).toContain("Ciclo cobrado");
+    expect(html).not.toContain("Sin cobro programado");
   });
 
   it("un aviso que falló muestra el motivo, no el código", () => {

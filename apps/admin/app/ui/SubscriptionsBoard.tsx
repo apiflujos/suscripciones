@@ -59,8 +59,7 @@ const STATE_TILES = [
 
 const NEXT_CHARGE_HINT: Record<string, string> = {
   RETRY: "reintento agendado",
-  DUE: "fecha de corte",
-  NEXT_CYCLE: "siguiente corte"
+  DUE: "fecha de corte"
 };
 
 const DELINQUENCY = {
@@ -124,6 +123,9 @@ function ModeBlock({
           {summary.overdue ? <span className="is-bad"><strong>{summary.overdue}</strong> en mora</span> : null}
           {summary.notNotified ? <span className="is-warn"><strong>{summary.notNotified}</strong> sin avisar</span> : null}
           {summary.withoutCard ? <span className="is-warn"><strong>{summary.withoutCard}</strong> sin tarjeta</span> : null}
+          {summary.unscheduled ? (
+            <span className="is-bad"><strong>{summary.unscheduled}</strong> sin cobro programado</span>
+          ) : null}
         </div>
       </header>
 
@@ -181,13 +183,15 @@ function ModeBlock({
                     ) : null}
                   </td>
                   <td>
-                    {row.nextCharge ? (
+                    {row.cyclePaid ? (
+                      <span className="muted">Ciclo cobrado</span>
+                    ) : row.nextCharge ? (
                       <>
                         <span>{shortDateTime(row.nextCharge.at)}</span>
                         <span className="sb-sub-flag">{NEXT_CHARGE_HINT[row.nextCharge.kind]}</span>
                       </>
                     ) : (
-                      <span className="sb-warn">Sin cobro programado</span>
+                      <span className="sb-bad">Sin cobro programado</span>
                     )}
                   </td>
                   <td>
@@ -272,7 +276,11 @@ export function SubscriptionsBoardPanel({
       ) : (
         <>
           {/* Cada tile es el atajo a su lista: un clic y quedan solo esos clientes. */}
-          <div className="sb-states">
+          <p className="sb-scope muted">
+        Ciclo vigente de cada suscripción: lo que hay que cobrar ahora.
+      </p>
+
+      <div className="sb-states">
             {STATE_TILES.map((tile) => {
               const params = new URLSearchParams(baseParams);
               if (filters.state === tile.id) params.delete("state");
@@ -313,8 +321,14 @@ export function SubscriptionsBoardPanel({
             <Kpi
               label="Riesgo operativo"
               value={`${t.notNotified}`}
-              detail={`sin avisar${t.withoutCard ? ` · ${t.withoutCard} sin tarjeta` : ""}`}
-              tone={t.notNotified ? "warn" : undefined}
+              detail={[
+                "sin avisar",
+                t.withoutCard ? `${t.withoutCard} sin tarjeta` : "",
+                t.unscheduled ? `${t.unscheduled} sin cobro programado` : ""
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              tone={t.notNotified || t.unscheduled ? "warn" : undefined}
             />
           </div>
 

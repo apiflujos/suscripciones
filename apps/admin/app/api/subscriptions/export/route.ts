@@ -78,7 +78,7 @@ export async function GET(req: Request) {
     dateOnly(r.cycleDueAt),
     DELINQUENCY_LABEL[r.delinquency] ?? r.delinquency,
     r.delinquency === "EN_MORA" ? r.daysPastDue : "",
-    r.nextCharge ? dateOnly(r.nextCharge.at) : "Sin cobro programado",
+    r.cyclePaid ? "Ciclo cobrado" : r.nextCharge ? dateOnly(r.nextCharge.at) : "Sin cobro programado",
     r.hasCard ? "Sí" : "No",
     r.notice?.kind ?? "",
     r.notice ? NOTICE_STATUS_LABEL[r.notice.status] ?? r.notice.status : "Sin aviso",

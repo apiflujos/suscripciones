@@ -21,13 +21,13 @@ export type BoardNotice = {
 };
 
 /**
- * Cuándo se vuelve a intentar cobrar. `RETRY` es un reintento agendado,
- * `DUE` es la fecha de corte del ciclo y `NEXT_CYCLE` el corte siguiente.
- * Si no hay ninguno, nadie va a cobrar: eso también hay que poder verlo.
+ * Cuándo se cobra el ciclo vigente: `RETRY` es un reintento agendado y `DUE`
+ * su fecha de corte. Si el ciclo ya está cobrado no hay nada que esperar, y si
+ * no está cobrado y esto viene vacío, nadie se lo va a cobrar.
  */
 export type BoardNextCharge = {
   at: string;
-  kind: "RETRY" | "DUE" | "NEXT_CYCLE";
+  kind: "RETRY" | "DUE";
 };
 
 export type BoardChargeFailure = {
@@ -70,6 +70,7 @@ export type ModeSummary = {
   inGrace: number;
   withoutCard: number;
   notNotified: number;
+  unscheduled: number;
 };
 
 export type SubscriptionsBoard = {
@@ -87,6 +88,7 @@ export type SubscriptionsBoard = {
     overdueInCents: number;
     notNotified: number;
     withoutCard: number;
+    unscheduled: number;
   };
   byMode: ModeSummary[];
   rows: SubscriptionBoardRow[];
@@ -172,7 +174,8 @@ function emptySummary(mode: CollectionMode): ModeSummary {
     overdue: 0,
     inGrace: 0,
     withoutCard: 0,
-    notNotified: 0
+    notNotified: 0,
+    unscheduled: 0
   };
 }
 
@@ -184,6 +187,11 @@ function isRowCyclePaid(row: SubscriptionBoardRow) {
 /** Hay plata por cobrar y el aviso no llegó. */
 function isRowNotNotified(row: SubscriptionBoardRow) {
   return !row.cyclePaid && row.notice?.status !== "SENT";
+}
+
+/** Hay un ciclo sin pagar y nadie lo tiene agendado para cobrar. */
+function isRowUnscheduled(row: SubscriptionBoardRow) {
+  return !row.cyclePaid && !row.nextCharge;
 }
 
 /** Se le va a cobrar solo, pero no hay tarjeta que cobrar. */
@@ -219,6 +227,7 @@ export function summarizeBoardRows(rows: SubscriptionBoardRow[]): Omit<Subscript
     else summary.current += 1;
     if (isRowWithoutCard(row)) summary.withoutCard += 1;
     if (isRowNotNotified(row)) summary.notNotified += 1;
+    if (isRowUnscheduled(row)) summary.unscheduled += 1;
   }
 
   // Los modos conocidos primero y en orden fijo; si apareciera uno inesperado
@@ -252,7 +261,8 @@ export function summarizeBoardRows(rows: SubscriptionBoardRow[]): Omit<Subscript
       inGraceInCents: sumCents(inGrace),
       overdueInCents: sumCents(overdue),
       notNotified: rows.filter(isRowNotNotified).length,
-      withoutCard: rows.filter(isRowWithoutCard).length
+      withoutCard: rows.filter(isRowWithoutCard).length,
+      unscheduled: rows.filter(isRowUnscheduled).length
     },
     byMode
   };
@@ -400,16 +410,16 @@ export async function getSubscriptionsBoard(args?: {
     const hasCard = hasActiveCustomerPaymentSource(sub.customer?.metadata);
     const cyclePaid = cycle ? String(cycle.status) === "PAID" : false;
 
-    // El siguiente cobro: primero un reintento agendado, después la fecha de
-    // corte del ciclo sin pagar y, si ya está cobrado, el corte siguiente.
-    const retryAt = nextRetryBySub.get(sub.id) ?? null;
-    const nextCycle = cycle ? sub.billingCycles.find((c) => c.cycleNumber > cycle.cycleNumber) ?? null : null;
-    const nextCharge: BoardNextCharge | null = retryAt
-      ? { at: retryAt.toISOString(), kind: "RETRY" }
-      : !cyclePaid && cycle?.dueAt
-        ? { at: cycle.dueAt.toISOString(), kind: "DUE" }
-        : nextCycle?.dueAt
-          ? { at: nextCycle.dueAt.toISOString(), kind: "NEXT_CYCLE" }
+    // Solo el cobro del ciclo vigente: un reintento agendado o su fecha de
+    // corte. El corte del ciclo siguiente es plata del mes que viene y aquí
+    // solo estorba a quien está operando el de hoy.
+    const retryAt = cyclePaid ? null : nextRetryBySub.get(sub.id) ?? null;
+    const nextCharge: BoardNextCharge | null = cyclePaid
+      ? null
+      : retryAt
+        ? { at: retryAt.toISOString(), kind: "RETRY" }
+        : cycle?.dueAt
+          ? { at: cycle.dueAt.toISOString(), kind: "DUE" }
           : null;
 
     const failedPayment = cyclePaid ? null : failedPaymentBySub.get(sub.id) ?? null;

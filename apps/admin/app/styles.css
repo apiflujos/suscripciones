@@ -18068,3 +18068,8 @@ a.sb-state:hover {
 .sb-sub-flag.is-bad {
   color: #b91c1c;
 }
+
+.sb-scope {
+  margin: 0 0 -4px;
+  font-size: 12px;
+}

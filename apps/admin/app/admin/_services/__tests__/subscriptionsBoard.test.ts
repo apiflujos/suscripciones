@@ -42,7 +42,7 @@ function row(over: Partial<Row>): Row {
     delinquency: "AL_DIA",
     daysPastDue: 0,
     hasCard: true,
-    nextCharge: { at: "2026-09-15T05:00:00.000Z", kind: "NEXT_CYCLE" },
+    nextCharge: null,
     notice: { kind: "Link de pago", status: "SENT", at: "2026-08-10T05:00:00.000Z", reason: null, content: "Tu cobro fue exitoso" },
     chargeFailure: null,
     ...over
@@ -137,7 +137,7 @@ describe("summarizeBoardRows", () => {
       row({ subscriptionId: "c", mode: "MANUAL_LINK", cycleStatus: "PENDING", amountInCents: 20_000, delinquency: "EN_MORA", notice: null })
     ]);
 
-    const sum = (key: "expectedInCents" | "collectedInCents" | "pendingInCents" | "notNotified" | "withoutCard") =>
+    const sum = (key: "expectedInCents" | "collectedInCents" | "pendingInCents" | "notNotified" | "withoutCard" | "unscheduled") =>
       byMode.reduce((acc, s) => acc + s[key], 0);
 
     expect(sum("expectedInCents")).toBe(totals.expectedInCents);
@@ -145,6 +145,7 @@ describe("summarizeBoardRows", () => {
     expect(sum("pendingInCents")).toBe(totals.pendingInCents);
     expect(sum("notNotified")).toBe(totals.notNotified);
     expect(sum("withoutCard")).toBe(totals.withoutCard);
+    expect(sum("unscheduled")).toBe(totals.unscheduled);
     expect(totals.collectedInCents + totals.pendingInCents).toBe(totals.expectedInCents);
     expect(totals.current + totals.inGrace + totals.overdue).toBe(totals.subscriptions);
   });
@@ -173,6 +174,16 @@ describe("summarizeBoardRows", () => {
     ]);
     expect(byMode.map((s) => s.mode)).toEqual(["OTRO"]);
     expect(totals.pendingInCents).toBe(10_000);
+  });
+
+  it("un ciclo sin pagar y sin cobro agendado se cuenta como riesgo", () => {
+    const { totals } = mod.summarizeBoardRows([
+      row({ subscriptionId: "a", cycleStatus: "PENDING", nextCharge: null }),
+      row({ subscriptionId: "b", cycleStatus: "PENDING", nextCharge: { at: "2026-08-25T14:00:00.000Z", kind: "DUE" } }),
+      // Un ciclo ya cobrado no necesita cobro agendado: no es riesgo.
+      row({ subscriptionId: "c", cycleStatus: "PAID", nextCharge: null })
+    ]);
+    expect(totals.unscheduled).toBe(1);
   });
 
   it("un modo sin filas no aparece en el desglose", () => {
