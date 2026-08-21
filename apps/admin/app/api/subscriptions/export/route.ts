@@ -1,6 +1,9 @@
 import { getSubscriptionsBoard, filterBoardRows } from "../../../admin/_services/subscriptionsBoard";
+import { resolveTenantId } from "../../../admin/_services/tenantResolver";
+import { csvDocument } from "../../../lib/csv";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../../../lib/session";
+import { getRolePermissions, hasPermissions, permissionsForPath } from "../../../../lib/rbac";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,12 +20,6 @@ const MODE_LABEL: Record<string, string> = {
   MANUAL_LINK: "Cobro manual"
 };
 
-/** Escapa un campo para CSV: comillas dobladas y el valor entre comillas. */
-function cell(value: unknown) {
-  const text = value == null ? "" : String(value);
-  return `"${text.replace(/"/g, '""')}"`;
-}
-
 function dateOnly(iso: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -38,8 +35,17 @@ export async function GET(req: Request) {
   if (!session) return new Response("unauthorized", { status: 401 });
 
   const url = new URL(req.url);
-  const tenantId = url.searchParams.get("tenantId");
-  const board = await getSubscriptionsBoard({ tenantId: tenantId || null });
+  // Mismo permiso que exige cualquier otra ruta de /api/subscriptions.
+  const required = permissionsForPath(url.pathname, req.method) ?? undefined;
+  if (!hasPermissions(required, getRolePermissions(session.role))) {
+    return new Response("forbidden", { status: 403 });
+  }
+
+  // El canal se resuelve igual que en el tablero: si no, un mismo enlace
+  // devolvería un recorte distinto al que se está viendo en pantalla.
+  const tenantParam = url.searchParams.get("tenantId");
+  const tenantId = tenantParam ? await resolveTenantId(tenantParam) : null;
+  const board = await getSubscriptionsBoard({ tenantId });
   const rows = filterBoardRows(board.rows, {
     mode: url.searchParams.get("mode"),
     state: url.searchParams.get("state"),
@@ -50,34 +56,31 @@ export async function GET(req: Request) {
   const header = [
     "Cliente", "Teléfono", "Plan", "Modo de cobro", "Monto",
     "Ciclo", "Vence", "Estado del ciclo", "Cobranza", "Días de atraso",
-    "Tiene tarjeta", "Último pago", "Fecha de pago", "Aviso enviado", "Error del aviso"
+    "Tiene tarjeta", "Último pago", "Fecha de pago", "Aviso enviado", "Error del aviso", "Mensaje enviado"
   ];
 
-  const lines = [header.map(cell).join(",")];
-  for (const r of rows) {
-    lines.push([
-      r.customerName,
-      r.customerPhone ?? "",
-      r.planName,
-      MODE_LABEL[r.mode] ?? r.mode,
-      // Sin separador de miles: así entra como número en Excel.
-      Math.round(r.amountInCents / 100),
-      r.cycleNumber ?? "",
-      dateOnly(r.cycleDueAt),
-      r.cycleStatus ?? "",
-      DELINQUENCY_LABEL[r.delinquency] ?? r.delinquency,
-      r.delinquency === "EN_MORA" ? r.daysPastDue : "",
-      r.hasCard ? "Sí" : "No",
-      r.lastPaymentStatus ?? "Sin intento",
-      dateOnly(r.lastPaymentAt),
-      r.messageDelivered === true ? "Entregado" : r.messageDelivered === false ? "Falló" : "Sin enviar",
-      r.messageError ?? ""
-    ].map(cell).join(","));
-  }
+  const rowsCsv = rows.map((r) => [
+    r.customerName,
+    r.customerPhone ?? "",
+    r.planName,
+    MODE_LABEL[r.mode] ?? r.mode,
+    // Sin separador de miles: así entra como número en Excel.
+    Math.round(r.amountInCents / 100),
+    r.cycleNumber ?? "",
+    dateOnly(r.cycleDueAt),
+    r.cycleStatus ?? "",
+    DELINQUENCY_LABEL[r.delinquency] ?? r.delinquency,
+    r.delinquency === "EN_MORA" ? r.daysPastDue : "",
+    r.hasCard ? "Sí" : "No",
+    r.lastPaymentStatus ?? "Sin intento",
+    dateOnly(r.lastPaymentAt),
+    r.messageDelivered === true ? "Entregado" : r.messageDelivered === false ? "Falló" : "Sin enviar",
+    r.messageError ?? "",
+    r.messageContent ?? ""
+  ]);
 
   const stamp = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
-  // BOM para que Excel abra los acentos correctamente.
-  const csv = "﻿" + lines.join("\r\n");
+  const csv = csvDocument(header, rowsCsv);
 
   return new Response(csv, {
     headers: {
