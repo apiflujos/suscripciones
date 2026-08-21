@@ -55,7 +55,6 @@ vi.mock("@suscripciones/core/services/billingCycles", () => ({
 }));
 
 describe("subscriptionQueries listSubscriptions", () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let listSubscriptions: (args: any) => Promise<{ items: any[]; total: number }>;
 
   beforeAll(async () => {
@@ -227,7 +226,6 @@ describe("subscriptionQueries listSubscriptions", () => {
 });
 
 describe("subscriptionQueries: el aviso al cliente", () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let listSubscriptions: (args: any) => Promise<{ items: any[]; total: number }>;
 
   beforeAll(async () => {

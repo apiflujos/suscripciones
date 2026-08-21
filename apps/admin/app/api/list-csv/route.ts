@@ -5,6 +5,32 @@ import { listSubscriptions } from "../../admin/_services/subscriptions";
 import { requireApiSession } from "../_lib/requireApiSession";
 import { csvLine } from "../../lib/csv";
 
+const COLLECTION_MODE_LABEL: Record<string, string> = {
+  AUTO_DEBIT: "Débito automático",
+  AUTO_LINK: "Link de pago",
+  MANUAL_LINK: "Cobro manual"
+};
+
+const DELINQUENCY_LABEL: Record<string, string> = {
+  AL_DIA: "Al día",
+  EN_GRACIA: "En gracia",
+  EN_MORA: "En mora"
+};
+
+const NOTICE_STATUS_LABEL: Record<string, string> = {
+  SENT: "Enviado",
+  FAILED: "Falló",
+  PENDING: "En cola"
+};
+
+/** Fecha sola, en Bogotá: la hora no aporta a un reporte de cobranza. */
+function csvDate(value: unknown) {
+  if (!value) return "";
+  const d = new Date(value as any);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("es-CO", { timeZone: "America/Bogota", dateStyle: "short" }).format(d);
+}
+
 function toCsv(headers: string[], rows: Array<Record<string, unknown>>) {
   const body = rows.map((row) => csvLine(headers.map((h) => row[h]))).join("\n");
   return `${csvLine(headers)}\n${body}\n`;
@@ -166,20 +192,48 @@ export async function GET(req: Request) {
         collectionMode: tipo === "suscripciones" ? "AUTO_DEBIT" : tipo === "planes" ? "MANUAL_LINK" : undefined
       });
       const items = result.items || [];
+      // Las mismas columnas que muestra la lista en pantalla: un Excel que no
+      // coincide con lo que se está viendo obliga a cuadrarlo a mano.
       const csv = toCsv(
-        ["id", "customerId", "customerName", "productId", "planId", "planName", "status", "collectionMode", "amount_cop", "currency", "periodEndAt"],
+        [
+          "Cliente",
+          "Teléfono",
+          "Plan",
+          "Modo de cobro",
+          "Monto",
+          "Ciclo",
+          "Ciclo pagado",
+          "Vence",
+          "Estado del ciclo",
+          "Días de atraso",
+          "Próximo cobro",
+          "Aviso",
+          "Estado del aviso",
+          "Motivo del aviso",
+          "Estado de la suscripción",
+          "id",
+          "customerId"
+        ],
         items.map((s: any) => ({
+          Cliente: s?.customer?.name || s?.customer?.email || "",
+          "Teléfono": s?.customer?.phone || "",
+          Plan: s?.plan?.name || "",
+          "Modo de cobro": COLLECTION_MODE_LABEL[String(s?.collectionModeResolved || "")] || "Cobro manual",
+          Monto: Math.trunc(Number(s?.plan?.priceInCents || 0) / 100),
+          Ciclo: s?.collectionCycleNumber ?? "",
+          "Ciclo pagado": s?.collectionCyclePaid ? "Sí" : "No",
+          Vence: csvDate(s?.currentCollectionDueAt),
+          "Estado del ciclo": DELINQUENCY_LABEL[String(s?.collectionStatus || "")] || "",
+          "Días de atraso": s?.collectionCyclePaid ? "" : Number(s?.daysLate || 0) || "",
+          "Próximo cobro": s?.collectionCyclePaid
+            ? "Ciclo cobrado"
+            : csvDate(s?.nextRetryAtEffective || s?.currentCollectionDueAt) || "Sin cobro programado",
+          Aviso: s?.lastNotice?.kind || "Sin aviso",
+          "Estado del aviso": NOTICE_STATUS_LABEL[String(s?.lastNotice?.status || "")] || "",
+          "Motivo del aviso": s?.lastNotice?.reason || "",
+          "Estado de la suscripción": s?.status || "",
           id: s?.id,
-          customerId: s?.customerId || s?.customer?.id || "",
-          customerName: s?.customer?.name || s?.customer?.email || "",
-          productId: s?.productId || (s?.plan as any)?.catalogProductId || s?.plan?.metadata?.catalog?.itemId || "",
-          planId: s?.planId || s?.plan?.id || "",
-          planName: s?.plan?.name || "",
-          status: s?.status || "",
-          collectionMode: s?.collectionModeResolved || s?.plan?.metadata?.collectionMode || "",
-          amount_cop: Math.trunc(Number(s?.plan?.priceInCents || 0) / 100),
-          currency: s?.plan?.currency || "COP",
-          periodEndAt: s?.nextBillingDate || ""
+          customerId: s?.customerId || s?.customer?.id || ""
         }))
       );
       return new NextResponse(csv, {

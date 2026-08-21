@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PaginationBar } from "../../PaginationBar";
 import { listEmpresas } from "../../admin/_services/companies";
 import { getCsrfToken } from "../../lib/csrf";
@@ -87,9 +88,9 @@ export default async function EmpresasPage({
             <ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />
           )}
           actions={(
-            <a className="primary btn-compact btn-create" href="/dashboard/empresas/new">
+            <Link className="primary btn-compact btn-create" href="/dashboard/empresas/new">
               Crear empresa
-            </a>
+            </Link>
           )}
         />
 

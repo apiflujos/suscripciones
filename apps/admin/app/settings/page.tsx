@@ -899,7 +899,7 @@ export default async function SettingsPage({
                       <option key={days} value={days}>{days} días</option>
                     ))}
                   </select>
-                  <div className="field-hint">Durante este período el badge es NARANJA "En gracia"</div>
+                  <div className="field-hint">Durante este período el badge es NARANJA &ldquo;En gracia&rdquo;</div>
                 </div>
               </div>
             </form>

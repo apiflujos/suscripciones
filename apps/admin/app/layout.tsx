@@ -85,6 +85,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     >
       <head>
         <link id="theme-favicon" rel="icon" type="image/svg+xml" href="/brand/isotipo_icono.svg" data-theme-favicon="true" />
+        {/* Debe ejecutarse antes del primer pintado: si se difiere, la página
+            aparece con el tema equivocado y luego salta al correcto. */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script src="/theme-init.js" />
       </head>
       <body suppressHydrationWarning>

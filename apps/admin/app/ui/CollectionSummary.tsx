@@ -78,7 +78,7 @@ export function CollectionSummary({ board, listHref }: { board: SubscriptionsBoa
             <ul>
               {board.byMode.map((m) => (
                 <li key={m.mode}>
-                  <span className="cs-mode-name">{MODE_LABEL[m.mode] ?? m.mode}</span>
+                  <span className="cs-mode-name">{MODE_LABEL[m.mode] ?? "Otro modo de cobro"}</span>
                   <span className="muted">
                     {m.subscriptions} · {money(m.collectedInCents)} cobrado de {money(m.expectedInCents)}
                     {m.overdue ? ` · ${m.overdue} en mora` : ""}

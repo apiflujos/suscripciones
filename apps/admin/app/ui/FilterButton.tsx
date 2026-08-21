@@ -267,7 +267,7 @@ export function FilterButton({
                   </div>
                 ) : !("rules" in root) || root.rules.length === 0 ? (
                   <div className="muted" style={{ fontSize: 12, padding: 12, background: "var(--surface-2)", borderRadius: 8 }}>
-                    No hay condiciones. Haz clic en "Agregar condición" para comenzar.
+                    No hay condiciones. Haz clic en &ldquo;Agregar condición&rdquo; para comenzar.
                   </div>
                 ) : (
                   <div style={{ display: "grid", gap: 8 }}>

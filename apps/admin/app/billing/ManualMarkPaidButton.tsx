@@ -75,7 +75,7 @@ export function ManualMarkPaidButton({
           <ol style={{ margin: 0, paddingLeft: 20 }}>
             <li>Andá a <strong>Configuración</strong></li>
             <li>Seleccioná la pestaña <strong>Cobros</strong></li>
-            <li>Activá la opción <strong>"Permitir marcado manual de pagos"</strong></li>
+            <li>Activá la opción <strong>&ldquo;Permitir marcado manual de pagos&rdquo;</strong></li>
           </ol>
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <a className="primary btn-compact btn-noicon" href="/settings?tab=cobros">

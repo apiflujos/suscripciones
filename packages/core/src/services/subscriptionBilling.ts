@@ -409,7 +409,9 @@ export async function createPaymentLinkForSubscription(args: {
   if (isBillingCyclePaid(collectionCycle)) {
     throw new Error("payment_already_approved");
   }
-  const cycle = collectionCycle?.cycleNumber ?? 1;
+  // Si no hay ciclo de cobro resuelto se usa el vigente. Caer al ciclo 1 dejaba
+  // el pago colgado de un ciclo que ya no se está cobrando.
+  const cycle = collectionCycle?.cycleNumber ?? billingState?.activeCycle?.cycleNumber ?? 1;
   let reference = `SUB_${sub.id}_${cycle}`;
   const amountInCents = args.amountInCentsOverride ?? readSubscriptionTotalInCents(sub.metadata, sub.plan.priceInCents, sub.plan.metadata);
 

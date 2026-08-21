@@ -241,6 +241,18 @@ vi.mock("../../db/prisma", () => {
   };
 });
 
+function startOfMonthUtc(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function addMonthsUtc(date: Date, months: number) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, date.getUTCDate()));
+}
+
+function addDaysUtc(date: Date, days: number) {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
 function seedCycle(store: any, input: {
   id: string;
   subscriptionId: string;
@@ -551,23 +563,29 @@ describe("Subscription Billing: Payment link creation", () => {
       paymentTiming: "ANTICIPADO",
       graceDays: 3
     };
-    // Cycle 2: current active period (June 2026 — contains today 2026-06-10), already paid via dueAt May 20
+    // Los períodos se anclan a hoy: con fechas fijas, el ciclo "vigente" deja de
+    // serlo cuando pasa el calendario y la prueba se cae sola meses después.
+    const mesActual = startOfMonthUtc(new Date());
+    const mesSiguiente = addMonthsUtc(mesActual, 1);
+    const mesSubsiguiente = addMonthsUtc(mesActual, 2);
+
+    // Ciclo 2: el período vigente (contiene hoy).
     seedCycle(store, {
       id: "cycle-link-advance-2",
       subscriptionId: "sub-link-advance",
       cycleNumber: 2,
-      periodStartAt: new Date("2026-06-01T00:00:00.000Z"),
-      periodEndAt: new Date("2026-07-01T00:00:00.000Z"),
-      dueAt: new Date("2026-05-20T00:00:00.000Z")
+      periodStartAt: mesActual,
+      periodEndAt: mesSiguiente,
+      dueAt: addDaysUtc(mesActual, -11)
     });
-    // Cycle 3: next period (July 2026), dueAt June 20 = upcoming ANTICIPADO collection target
+    // Ciclo 3: el período siguiente, que es a donde debe ir un cobro ANTICIPADO.
     seedCycle(store, {
       id: "cycle-link-advance-3",
       subscriptionId: "sub-link-advance",
       cycleNumber: 3,
-      periodStartAt: new Date("2026-07-01T00:00:00.000Z"),
-      periodEndAt: new Date("2026-08-01T00:00:00.000Z"),
-      dueAt: new Date("2026-06-20T00:00:00.000Z")
+      periodStartAt: mesSiguiente,
+      periodEndAt: mesSubsiguiente,
+      dueAt: addDaysUtc(mesSiguiente, -11)
     });
 
     const { createPaymentLinkForSubscription } = await import("../../services/subscriptionBilling");

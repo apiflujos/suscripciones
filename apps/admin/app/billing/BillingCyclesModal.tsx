@@ -893,7 +893,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
 
           {searchResults.length === 0 && searchQuery && (
             <div style={{ padding: "24px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
-              No se encontraron pagos con "{searchQuery}"
+              No se encontraron pagos con &ldquo;{searchQuery}&rdquo;
             </div>
           )}
 
