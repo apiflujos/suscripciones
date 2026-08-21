@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { listTenants } from "./admin/_services/tenants";
 import { getMetricsOverviewCached } from "./admin/_services/metrics";
 import { getSubscriptionsBoard } from "./admin/_services/subscriptionsBoard";
@@ -383,13 +382,6 @@ export default async function Home({
   const tenants = await listTenants();
   const tenantLabel = tenantId ? (tenants.find((t: any) => String(t.id) === String(tenantId))?.name || "Canal") : "Todos";
 
-  const viewTabs = [
-    { id: "overview", label: "Resumen" },
-    { id: "revenue", label: "Ingresos" },
-    { id: "conversion", label: "Conversión" },
-    { id: "subscriptions", label: "Suscripciones" }
-  ];
-
   const baseParams = new URLSearchParams({
     from: fromDate,
     to: toDate,
@@ -402,11 +394,6 @@ export default async function Home({
     ...(tenantId ? { tenantId } : {})
   });
   const dailySummaryHref = `/api/metrics/daily-summary?${dailySummaryParams.toString()}`;
-  const viewHref = (nextView: string) => {
-    const params = new URLSearchParams(baseParams);
-    params.set("view", nextView);
-    return `/?${params.toString()}`;
-  };
 
   const periodMs = Math.max(24 * 60 * 60 * 1000, new Date(toIso).getTime() - new Date(fromIso).getTime());
   const prevFromIso = new Date(new Date(fromIso).getTime() - periodMs).toISOString();
@@ -689,19 +676,6 @@ export default async function Home({
           />
         </div>
 
-        <div className="panel-tabs panel-tabs-top" style={{ marginBottom: 0, borderBottom: "1px solid var(--stroke)" }}>
-          {viewTabs.map((tab) => (
-            <Link
-              key={tab.id}
-              href={viewHref(tab.id)}
-              className={`ghost no-icon panel-tab ${view === tab.id ? "is-active" : ""}`}
-              prefetch={false}
-            >
-              {tab.label}
-            </Link>
-          ))}
-        </div>
-
         <div className="settings-group-body">
           {!metrics.ok ? (
             <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>
@@ -709,8 +683,6 @@ export default async function Home({
             </div>
           ) : (
             <>
-              {view === "overview" ? (
-                <>
                   <div className="grid3">
                     <div className="card cardPad metric-card metric-card-lg tone-primary">
                       <span className="metric-icon" aria-hidden="true">
@@ -837,6 +809,9 @@ export default async function Home({
                   </div>
 
 
+
+                  <SubscriptionsBoardPanel board={subscriptionsBoard} />
+
                   <div className="grid2">
                     <div className="card cardPad chart-card">
                       <div className="chart-header">
@@ -858,164 +833,6 @@ export default async function Home({
                         <span className="chart-kpi">Máximo <strong>${fmtMoneyCop(revenueMax)} COP</strong></span>
                       </div>
                     </div>
-
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Pagos aprobados vs fallidos</div>
-                          <div className="chart-sub">Comparación de intentos por {periodLabel.toLowerCase()}.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                      </div>
-                      <ChartBars a={okSeries} b={failSeries} aLabel="Aprobados" bLabel="Fallidos" labels={bucketLabels} />
-                      <div className="chart-kpis">
-                        <span className="chart-kpi">Aprobados <strong>{okTotalSeries}</strong></span>
-                        <span className="chart-kpi">Fallidos <strong>{failTotalSeries}</strong></span>
-                        <span className="chart-kpi">Tasa OK <strong>{fmtPct(successRateSeries)}</strong></span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid2">
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Links por producto</div>
-                          <div className="chart-sub">Qué productos convierten mejor en links manuales.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel}</div>
-                      </div>
-                      {renderProductBreakdown(topLinkProducts, { empty: "Sin actividad de links por producto.", mode: "links" })}
-                    </div>
-
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Productos líderes</div>
-                          <div className="chart-sub">Top comercial por ingresos aprobados.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel}</div>
-                      </div>
-                      {renderProductBreakdown(topRevenueProducts, { empty: "Sin ingresos por producto en el período.", mode: "revenue" })}
-                    </div>
-                  </div>
-
-                  <div className="grid2">
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Últimos pagos aprobados</div>
-                          <div className="chart-sub">Movimientos recientes del período.</div>
-                        </div>
-                        <Link className="ghost btn-compact" href="/logs?tab=payments" prefetch={false}>
-                          Ver logs
-                        </Link>
-                      </div>
-                      <div className="recent-payments">
-                        {recentPayments.length ? (
-                          recentPayments.slice(0, 5).map((p: any) => {
-                            const customer = p.customer?.name || p.customer?.email || p.customer?.phone || "Cliente";
-                            const plan = p.subscription?.plan?.name || "Pago";
-                            const amount = typeof p.amountInCents === "number" ? fmtMoneyCop(p.amountInCents) : "—";
-                            const status = paymentStatusPill(p.status);
-                            return (
-                              <div className="recent-payment-row" key={p.id}>
-                                <div className="recent-payment-main">
-                                  <div className="recent-payment-title">{customer}</div>
-                                  <div className="recent-payment-sub">
-                                    {plan} · {fmtDateTimeShort(p.createdAt)}
-                                  </div>
-                                </div>
-                                <div className="recent-payment-meta">
-                                  <span className={`pill ${status.cls}`}>{status.label}</span>
-                                  <strong>${amount} COP</strong>
-                                </div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="muted">Sin pagos recientes.</div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Ingresos por tipo de plan</div>
-                          <div className="chart-sub">Distribución entre manuales y automáticos.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel}</div>
-                      </div>
-                      <Pie a={revenueLink} b={revenueAuto} aLabel="Link" bLabel="Auto" />
-                      <div className="chart-kpis">
-                        <span className="chart-kpi">Manual <strong>{fmtPct(revenueLinkPct)}</strong></span>
-                        <span className="chart-kpi">Auto <strong>{fmtPct(revenueAutoPct)}</strong></span>
-                        <span className="chart-kpi">Total <strong>${fmtMoneyCop(revenueByTypeTotal)} COP</strong></span>
-                      </div>
-                    </div>
-                  </div>
-
-                </>
-              ) : null}
-
-              {view === "revenue" ? (
-                <>
-                  <div className="grid2">
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Ingresos por período</div>
-                          <div className="chart-sub">Suma de pagos aprobados por {periodLabel.toLowerCase()}.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                      </div>
-                      <ChartLines
-                        series={revenueLineSeries}
-                        labels={bucketLabels}
-                        tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: $${fmtMoneyCop(v)} COP`}
-                      />
-                      <div className="chart-kpis">
-                        <span className="chart-kpi">Total <strong>${fmtMoneyCop(revenueTotalSeries)} COP</strong></span>
-                        <span className="chart-kpi">Promedio <strong>${fmtMoneyCop(Math.round(revenueAvgSeries))} COP</strong></span>
-                        <span className="chart-kpi">Máximo <strong>${fmtMoneyCop(revenueMax)} COP</strong></span>
-                      </div>
-                    </div>
-
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Ingresos por tipo de plan</div>
-                          <div className="chart-sub">Distribución entre manuales y automáticos.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel}</div>
-                      </div>
-                      <Pie a={revenueLink} b={revenueAuto} aLabel="Link" bLabel="Auto" />
-                      <div className="chart-kpis">
-                        <span className="chart-kpi">Manual <strong>{fmtPct(revenueLinkPct)}</strong></span>
-                        <span className="chart-kpi">Auto <strong>{fmtPct(revenueAutoPct)}</strong></span>
-                        <span className="chart-kpi">Total <strong>${fmtMoneyCop(revenueByTypeTotal)} COP</strong></span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid2">
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Pagos aprobados vs fallidos</div>
-                          <div className="chart-sub">Comparación de intentos por {periodLabel.toLowerCase()}.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                      </div>
-                      <ChartBars a={okSeries} b={failSeries} aLabel="Aprobados" bLabel="Fallidos" labels={bucketLabels} />
-                      <div className="chart-kpis">
-                        <span className="chart-kpi">Aprobados <strong>{okTotalSeries}</strong></span>
-                        <span className="chart-kpi">Fallidos <strong>{failTotalSeries}</strong></span>
-                        <span className="chart-kpi">Tasa OK <strong>{fmtPct(successRateSeries)}</strong></span>
-                      </div>
-                    </div>
-
                     <div className="card cardPad chart-card">
                       <div className="chart-header">
                         <div>
@@ -1044,11 +861,7 @@ export default async function Home({
                       </div>
                     </div>
                   </div>
-                </>
-              ) : null}
 
-              {view === "conversion" ? (
-                <>
                   <div className="grid2">
                     <div className="card cardPad chart-card">
                       <div className="chart-header">
@@ -1071,33 +884,6 @@ export default async function Home({
                         </span>
                       </div>
                     </div>
-
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Conversión de links por período</div>
-                          <div className="chart-sub">Eficiencia de links enviados.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                      </div>
-                      {hasLinkActivity ? (
-                        <ChartLines
-                          series={linkConversionLineSeries}
-                          labels={bucketLabels}
-                          tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: ${fmtPct(v)}`}
-                        />
-                      ) : (
-                        <div className="muted">Sin datos de conversión en el período.</div>
-                      )}
-                      <div className="chart-kpis">
-                        <span className="chart-kpi">Promedio <strong>{fmtPct(linkConversionAvg)}</strong></span>
-                        <span className="chart-kpi">Último <strong>{fmtPct(linkConversionLast)}</strong></span>
-                        <span className="chart-kpi">Máximo <strong>{fmtPct(linkConversionMax)}</strong></span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid2">
                     <div className="card cardPad chart-card">
                       <div className="chart-header">
                         <div>
@@ -1117,149 +903,8 @@ export default async function Home({
                         <span className="chart-kpi">Máximo <strong>{fmtPct(approvalRateMax)}</strong></span>
                       </div>
                     </div>
-
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Pagos aprobados vs fallidos</div>
-                          <div className="chart-sub">Comparación de intentos por {periodLabel.toLowerCase()}.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                      </div>
-                      <ChartBars a={okSeries} b={failSeries} aLabel="Aprobados" bLabel="Fallidos" labels={bucketLabels} />
-                      <div className="chart-kpis">
-                        <span className="chart-kpi">Aprobados <strong>{okTotalSeries}</strong></span>
-                        <span className="chart-kpi">Fallidos <strong>{failTotalSeries}</strong></span>
-                        <span className="chart-kpi">Tasa OK <strong>{fmtPct(successRateSeries)}</strong></span>
-                      </div>
-                    </div>
                   </div>
 
-                  <div className="grid2">
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Productos líderes</div>
-                          <div className="chart-sub">Top comercial por ingresos aprobados.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel}</div>
-                      </div>
-                      {renderProductBreakdown(topRevenueProducts, { empty: "Sin ingresos por producto en el período.", mode: "revenue" })}
-                    </div>
-
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Actividad de pago por producto</div>
-                          <div className="chart-sub">Aprobados y fallidos por producto comercial.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel}</div>
-                      </div>
-                      {renderProductBreakdown(topPaymentProducts, { empty: "Sin actividad de pagos por producto.", mode: "payments" })}
-                    </div>
-                  </div>
-                </>
-              ) : null}
-
-              {view === "subscriptions" ? (
-                <>
-                  <SubscriptionsBoardPanel board={subscriptionsBoard} />
-                  <ScheduledJobsPanel report={jobsReport} />
-
-                  <div className="grid2">
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Suscripciones activas</div>
-                          <div className="chart-sub">Evolución del total de suscriptores activos.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel} · {periodLabel}</div>
-                      </div>
-                      <ChartLines
-                        series={activeLineSeries}
-                        labels={bucketLabels}
-                        tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: ${v} activas`}
-                      />
-                      <div className="chart-kpis">
-                        <span className="chart-kpi">Inicio <strong>{activeStart}</strong></span>
-                        <span className="chart-kpi">Fin <strong>{activeEnd}</strong></span>
-                        <span className="chart-kpi">Δ <strong>{activeDelta >= 0 ? "+" : ""}{activeDelta}</strong></span>
-                        <span className="chart-kpi">Δ% <strong>{fmtPct(activeDeltaPct)}</strong></span>
-                      </div>
-                    </div>
-
-                    <div className="card cardPad chart-card">
-                      <div className="chart-header">
-                        <div>
-                          <div className="chart-title">Suscripción automática</div>
-                          <div className="chart-sub">Estado y desempeño de cobros recurrentes.</div>
-                        </div>
-                        <div className="chart-range">{rangeLabel}</div>
-                      </div>
-                      <div className="grid2" style={{ gap: 10 }}>
-                        <div className="card cardPad" style={{ padding: 10 }}>
-                          <div style={{ color: "var(--muted)", fontSize: 12 }}>Activas</div>
-                          <div style={{ fontSize: 18, fontWeight: 900 }}>{autoActive}</div>
-                          <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
-                            Δ {autoActiveDelta ?? "—"} ·
-                            <span className={`delta ${autoActiveDeltaPct == null ? "flat" : autoActiveDeltaPct >= 0 ? "up" : "down"}`}>
-                              {fmtDelta(autoActiveDeltaPct)}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="card cardPad" style={{ padding: 10 }}>
-                          <div style={{ color: "var(--muted)", fontSize: 12 }}>Nuevas / Cancelaciones</div>
-                          <div style={{ fontSize: 18, fontWeight: 900 }}>
-                            {autoNew} / {autoCancels}
-                          </div>
-                          <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
-                            Netas {autoNet >= 0 ? "+" : ""}{autoNet} ·
-                            <span className={`delta ${autoNetDelta == null ? "flat" : autoNetDelta >= 0 ? "up" : "down"}`}>
-                              {autoNetDelta == null ? "—" : autoNetDelta >= 0 ? `+${autoNetDelta}` : autoNetDelta}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="card cardPad" style={{ padding: 10 }}>
-                          <div style={{ color: "var(--muted)", fontSize: 12 }}>Cobros OK / Fallidos</div>
-                          <div style={{ fontSize: 18, fontWeight: 900 }}>
-                            {autoOk} / {autoFail}
-                          </div>
-                          <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
-                            Tasa OK {fmtPct(autoApprovalPct)} ·
-                            <span className={`delta ${autoApprovalDeltaPp == null ? "flat" : autoApprovalDeltaPp >= 0 ? "up" : "down"}`}>
-                              {fmtDeltaPp(autoApprovalDeltaPp)}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="card cardPad" style={{ padding: 10 }}>
-                          <div style={{ color: "var(--muted)", fontSize: 12 }}>MRR (auto)</div>
-                          <div style={{ fontSize: 18, fontWeight: 900 }}>${fmtMoneyCop(autoMrr)} COP</div>
-                          <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
-                            Δ
-                            <span className={`delta ${autoMrrDeltaPct == null ? "flat" : autoMrrDeltaPct >= 0 ? "up" : "down"}`}>
-                              {fmtDelta(autoMrrDeltaPct)}
-                            </span>
-                            · Churn {fmtPct(autoChurnDisplay)} ·
-                            <span className={`delta ${autoChurnDeltaPp == null ? "flat" : autoChurnDeltaPp <= 0 ? "up" : "down"}`}>
-                              {fmtDeltaPp(autoChurnDeltaPp)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      {mrrSeries.some((v) => v != null) ? (
-                        <div style={{ marginTop: 10 }}>
-                          <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 6 }}>Evolución MRR (mes)</div>
-                          <ChartLines
-                            series={mrrLineSeries}
-                            labels={bucketLabels}
-                            tooltipLabel={(v, i, label) => `${bucketLabels[i] || ""} · ${label}: $${fmtMoneyCop(v)} COP`}
-                          />
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {/* Pagos sin suscripción (one-time, huérfanos, links manuales) */}
                   <div className="grid2">
                     <div className="card cardPad chart-card">
                       <div className="chart-header">
@@ -1291,134 +936,7 @@ export default async function Home({
                     </div>
                   </div>
 
-                  <div className="grid2">
-                    <div className="card cardPad chart-card">
-                      <details className="metrics-list-details">
-                        <summary className="metrics-list-summary">
-                          <span>Clientes en mora</span>
-                          <strong>{contactsPastDue}</strong>
-                        </summary>
-                        <div className="metrics-list-table-wrap">
-                          <table className="metrics-list-table">
-                            <thead>
-                              <tr>
-                                <th>Cliente</th>
-                                <th>Plan</th>
-                                <th>Tipo</th>
-                                <th>Próximo cobro/corte</th>
-                                <th>Estado</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {overdueSubs.length ? (
-                                overdueSubs.map((s: any) => (
-                                  <tr key={`overdue-${s.id}`}>
-                                    <td>{s?.customer?.name || s?.customer?.email || "Cliente"}</td>
-                                    <td>{s?.productName || s?.plan?.name || "—"}</td>
-                                    <td>{modeLabel(s)}</td>
-                                    <td>{s?.nextBillingDate ? fmtDateTimeShort(s.nextBillingDate) : "Sin fecha"}</td>
-                                    <td>
-                                      <span className="pill pill-bad pill-sm">{collectionStatusLabel(s)}</span>
-                                    </td>
-                                  </tr>
-                                ))
-                              ) : (
-                                <tr>
-                                  <td colSpan={5} className="muted">No hay suscripciones en mora.</td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </details>
-                    </div>
-
-                    <div className="card cardPad chart-card">
-                      <details className="metrics-list-details">
-                        <summary className="metrics-list-summary">
-                          <span>Clientes en gracia</span>
-                          <strong>{graceSubs.length}</strong>
-                        </summary>
-                        <div className="metrics-list-table-wrap">
-                          <table className="metrics-list-table">
-                            <thead>
-                              <tr>
-                                <th>Cliente</th>
-                                <th>Plan</th>
-                                <th>Tipo</th>
-                                <th>Próximo cobro/corte</th>
-                                <th>Estado</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {graceSubs.length ? (
-                                graceSubs.map((s: any) => (
-                                  <tr key={`grace-${s.id}`}>
-                                    <td>{s?.customer?.name || s?.customer?.email || "Cliente"}</td>
-                                    <td>{s?.productName || s?.plan?.name || "—"}</td>
-                                    <td>{modeLabel(s)}</td>
-                                    <td>{s?.nextBillingDate ? fmtDateTimeShort(s.nextBillingDate) : "Sin fecha"}</td>
-                                    <td>
-                                      <span className="pill pill-warn pill-sm">{collectionStatusLabel(s)}</span>
-                                    </td>
-                                  </tr>
-                                ))
-                              ) : (
-                                <tr>
-                                  <td colSpan={5} className="muted">No hay suscripciones en gracia.</td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </details>
-                    </div>
-                  </div>
-
-                  <div className="grid1">
-                    <div className="card cardPad chart-card">
-                      <details className="metrics-list-details">
-                        <summary className="metrics-list-summary">
-                          <span>Clientes al día</span>
-                          <strong>{contactsOnTime}</strong>
-                        </summary>
-                        <div className="metrics-list-table-wrap">
-                          <table className="metrics-list-table">
-                            <thead>
-                              <tr>
-                                <th>Cliente</th>
-                                <th>Plan</th>
-                                <th>Tipo</th>
-                                <th>Próximo cobro/corte</th>
-                                <th>Estado</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {healthySubs.length ? (
-                                healthySubs.map((s: any) => (
-                                  <tr key={`healthy-${s.id}`}>
-                                    <td>{s?.customer?.name || s?.customer?.email || "Cliente"}</td>
-                                    <td>{s?.productName || s?.plan?.name || "—"}</td>
-                                    <td>{modeLabel(s)}</td>
-                                    <td>{s?.nextBillingDate ? fmtDateTimeShort(s.nextBillingDate) : "Sin fecha"}</td>
-                                    <td>
-                                      <span className="pill pill-ok pill-sm">{collectionStatusLabel(s)}</span>
-                                    </td>
-                                  </tr>
-                                ))
-                              ) : (
-                                <tr>
-                                  <td colSpan={5} className="muted">No hay suscripciones al día.</td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </details>
-                    </div>
-                  </div>
-                </>
-              ) : null}
+                  <ScheduledJobsPanel report={jobsReport} />
 
             </>
           )}
