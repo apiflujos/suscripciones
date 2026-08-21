@@ -50,7 +50,6 @@ function row(over: Partial<Row>): Row {
     lastPaymentStatus: "APPROVED",
     lastPaymentAt: "2026-08-15T06:00:00.000Z",
     messageDelivered: true,
-    messageError: null,
     messageContent: "Tu cobro fue exitoso",
     ...over
   };

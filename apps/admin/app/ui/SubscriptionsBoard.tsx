@@ -156,10 +156,8 @@ function ModeBlock({
                   <td>
                     {row.messageDelivered === true ? (
                       <span className="sb-ok" title={row.messageContent || undefined}>Entregado</span>
-                    ) : row.messageDelivered === false ? (
-                      <span className="sb-bad" title={row.messageError || undefined}>Falló</span>
                     ) : (
-                      <span className="sb-warn">Sin enviar</span>
+                      <span className="sb-warn">Sin entregar</span>
                     )}
                   </td>
                   <td className="sb-row-more">

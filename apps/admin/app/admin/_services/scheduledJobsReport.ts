@@ -10,7 +10,6 @@ export type ScheduledJobRow = {
   runAt: string;
   attempts: number;
   maxAttempts: number;
-  lastError: string | null;
   customerName: string | null;
   detail: string | null;
 };
@@ -22,7 +21,6 @@ export type ScheduledJobsReport = {
   overdue: number;
   nextRunAt: string | null;
   rows: ScheduledJobRow[];
-  failedRows: ScheduledJobRow[];
 };
 
 /** Qué hace cada job, en términos del negocio y no del código. */
@@ -63,20 +61,18 @@ export async function getScheduledJobsReport(args?: { take?: number }): Promise<
   const take = Math.min(Math.max(Number(args?.take ?? 40), 1), 200);
   const now = new Date();
 
-  const [active, failed] = await Promise.all([
+  // De los fallidos solo interesa cuántos son: el motivo se revisa en el log,
+  // no en el tablero.
+  const [active, failedCount] = await Promise.all([
     prisma.retryJob.findMany({
       where: { status: { in: ["PENDING", "RUNNING"] } },
       orderBy: [{ runAt: "asc" }],
       take
     }),
-    prisma.retryJob.findMany({
-      where: { status: "FAILED" },
-      orderBy: [{ updatedAt: "desc" }],
-      take: 20
-    })
+    prisma.retryJob.count({ where: { status: "FAILED" } })
   ]);
 
-  const all = [...active, ...failed];
+  const all = active;
 
   // Los payloads apuntan a distintas entidades según el tipo, así que se
   // resuelven en lote y después se cruzan con cada job.
@@ -145,7 +141,6 @@ export async function getScheduledJobsReport(args?: { take?: number }): Promise<
       runAt: job.runAt.toISOString(),
       attempts: job.attempts,
       maxAttempts: job.maxAttempts,
-      lastError: job.lastError ?? null,
       customerName,
       detail
     };
@@ -156,10 +151,9 @@ export async function getScheduledJobsReport(args?: { take?: number }): Promise<
   return {
     pending: active.filter((j) => String(j.status) === "PENDING").length,
     running: active.filter((j) => String(j.status) === "RUNNING").length,
-    failed: failed.length,
+    failed: failedCount,
     overdue: active.filter((j) => j.runAt.getTime() < now.getTime()).length,
     nextRunAt: rows.length ? rows[0].runAt : null,
-    rows,
-    failedRows: failed.map(toRow)
+    rows
   };
 }

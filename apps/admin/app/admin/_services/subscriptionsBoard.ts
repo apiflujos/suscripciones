@@ -26,7 +26,6 @@ export type SubscriptionBoardRow = {
   lastPaymentStatus: string | null;
   lastPaymentAt: string | null;
   messageDelivered: boolean | null;
-  messageError: string | null;
   messageContent: string | null;
 };
 
@@ -99,8 +98,9 @@ export function filterBoardRows(rows: SubscriptionBoardRow[], filter: BoardFilte
   return rows.filter((row) => {
     if (mode && row.mode !== mode) return false;
     if (state && row.delinquency !== state) return false;
-    if (notified === "no" && row.messageDelivered === true) return false;
-    if (notified === "failed" && row.messageDelivered !== false) return false;
+    // "failed" se acepta por los enlaces viejos: un aviso que falló es, para
+    // quien opera, un aviso que no llegó.
+    if ((notified === "no" || notified === "failed") && row.messageDelivered === true) return false;
     if (q) {
       const haystack = normalizeText([row.customerName, row.planName, row.customerPhone ?? ""].join(" "));
       if (haystack.includes(q)) return true;
@@ -262,7 +262,7 @@ export async function getSubscriptionsBoard(args?: {
             createdAt: { gte: new Date(asOf.getTime() - 7 * DAY_MS) }
           },
           orderBy: [{ createdAt: "desc" }],
-          select: { subscriptionId: true, status: true, errorMessage: true, content: true }
+          select: { subscriptionId: true, status: true, content: true }
         })
       : Promise.resolve([])
   ]);
@@ -318,7 +318,6 @@ export async function getSubscriptionsBoard(args?: {
       lastPaymentStatus: payment ? String(payment.status) : null,
       lastPaymentAt: payment?.paidAt ? payment.paidAt.toISOString() : null,
       messageDelivered: message ? String(message.status) === "SENT" : null,
-      messageError: message?.errorMessage ?? null,
       messageContent: message?.content ?? null
     };
     rows.push(row);

@@ -60,10 +60,7 @@ const MESSAGE_TYPE_LABEL: Record<string, string> = {
 
 const PAYMENT_STATUS_LABEL: Record<string, string> = {
   APPROVED: "Pago aprobado",
-  DECLINED: "Pago rechazado",
-  PENDING: "Pago en curso",
-  VOIDED: "Pago anulado",
-  ERROR: "Pago con error"
+  PENDING: "Pago en curso"
 };
 
 const JOBS_LIMIT = 25;
@@ -118,13 +115,13 @@ export async function getSubscriptionTimeline(subscriptionId: string): Promise<S
       where: { subscriptionId: id },
       orderBy: [{ createdAt: "desc" }],
       take: HISTORY_LIMIT,
-      select: { id: true, status: true, amountInCents: true, cycleNumber: true, paidAt: true, failedAt: true, createdAt: true }
+      select: { id: true, status: true, amountInCents: true, cycleNumber: true, paidAt: true, createdAt: true }
     }),
     prisma.chatwootMessage.findMany({
       where: { subscriptionId: id },
       orderBy: [{ createdAt: "desc" }],
       take: HISTORY_LIMIT,
-      select: { id: true, type: true, status: true, errorMessage: true, content: true, sentAt: true, createdAt: true }
+      select: { id: true, type: true, status: true, content: true, sentAt: true, createdAt: true }
     }),
     prisma.retryJob.findMany({
       where: {
@@ -173,7 +170,7 @@ export async function getSubscriptionTimeline(subscriptionId: string): Promise<S
       pending.push({
         at: cycle.dueAt,
         title: `Ciclo ${cycle.cycleNumber} sin cobrar`,
-        detail: `${money(cycle.amountInCents)} · ${cycle.status}`,
+        detail: money(cycle.amountInCents),
         tone: "bad"
       });
     }
@@ -181,15 +178,14 @@ export async function getSubscriptionTimeline(subscriptionId: string): Promise<S
 
   for (const p of payments) {
     const status = String(p.status);
-    const label = PAYMENT_STATUS_LABEL[status] ?? status;
     const detail = `${money(p.amountInCents)}${p.cycleNumber != null ? ` · ciclo ${p.cycleNumber}` : ""}`;
     if (status === "APPROVED") {
-      done.push({ at: iso(p.paidAt) ?? iso(p.createdAt), title: label, detail, tone: "ok" });
-    } else if (status === "DECLINED" || status === "ERROR") {
-      pending.push({ at: iso(p.failedAt) ?? iso(p.createdAt), title: label, detail, tone: "bad" });
-    } else {
-      pending.push({ at: iso(p.createdAt), title: label, detail, tone: "warn" });
+      done.push({ at: iso(p.paidAt) ?? iso(p.createdAt), title: PAYMENT_STATUS_LABEL.APPROVED, detail, tone: "ok" });
+    } else if (status === "PENDING") {
+      pending.push({ at: iso(p.createdAt), title: PAYMENT_STATUS_LABEL.PENDING, detail, tone: "warn" });
     }
+    // Un intento rechazado no se muestra: el motivo técnico está en el log y
+    // el ciclo sin cobrar ya aparece como pendiente.
   }
 
   for (const m of messages) {
@@ -202,15 +198,9 @@ export async function getSubscriptionTimeline(subscriptionId: string): Promise<S
         detail: m.content ? m.content.slice(0, 280) : null,
         tone: "ok"
       });
-    } else if (status === "FAILED") {
-      pending.push({
-        at: iso(m.createdAt),
-        title: `${kind} falló`,
-        detail: m.errorMessage || "Sin detalle del error",
-        tone: "bad"
-      });
     } else {
-      pending.push({ at: iso(m.createdAt), title: `${kind} sin enviar`, detail: status, tone: "warn" });
+      // Que no llegara es lo único accionable; por qué falló está en el log.
+      pending.push({ at: iso(m.createdAt), title: `${kind} sin entregar`, detail: null, tone: "warn" });
     }
   }
 

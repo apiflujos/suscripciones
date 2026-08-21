@@ -56,7 +56,7 @@ export async function GET(req: Request) {
   const header = [
     "Cliente", "Teléfono", "Plan", "Modo de cobro", "Monto",
     "Ciclo", "Vence", "Estado del ciclo", "Cobranza", "Días de atraso",
-    "Tiene tarjeta", "Último pago", "Fecha de pago", "Aviso enviado", "Error del aviso", "Mensaje enviado"
+    "Tiene tarjeta", "Último pago", "Fecha de pago", "Aviso enviado", "Mensaje enviado"
   ];
 
   const rowsCsv = rows.map((r) => [
@@ -74,8 +74,7 @@ export async function GET(req: Request) {
     r.hasCard ? "Sí" : "No",
     r.lastPaymentStatus ?? "Sin intento",
     dateOnly(r.lastPaymentAt),
-    r.messageDelivered === true ? "Entregado" : r.messageDelivered === false ? "Falló" : "Sin enviar",
-    r.messageError ?? "",
+    r.messageDelivered === true ? "Entregado" : "Sin entregar",
     r.messageContent ?? ""
   ]);
 

@@ -42,7 +42,6 @@ function row(over: Partial<Row>): Row {
     lastPaymentStatus: "APPROVED",
     lastPaymentAt: "2026-08-15T06:00:00.000Z",
     messageDelivered: true,
-    messageError: null,
     messageContent: "Tu cobro fue exitoso",
     ...over
   };
@@ -64,12 +63,12 @@ describe("filterBoardRows", () => {
     expect(mod.filterBoardRows(rows, { state: "EN_MORA" }).map((r) => r.subscriptionId)).toEqual(["b"]);
   });
 
-  it("'sin avisar' incluye a quien nunca recibió y a quien falló", () => {
+  it("'sin avisar' incluye a quien nunca recibió y a quien no le llegó", () => {
     expect(mod.filterBoardRows(rows, { notified: "no" }).map((r) => r.subscriptionId)).toEqual(["b", "c"]);
   });
 
-  it("'aviso falló' deja solo los envíos rechazados", () => {
-    expect(mod.filterBoardRows(rows, { notified: "failed" }).map((r) => r.subscriptionId)).toEqual(["c"]);
+  it("un enlace viejo con 'failed' sigue funcionando", () => {
+    expect(mod.filterBoardRows(rows, { notified: "failed" }).map((r) => r.subscriptionId)).toEqual(["b", "c"]);
   });
 
   it("busca por nombre, plan o teléfono sin importar mayúsculas", () => {

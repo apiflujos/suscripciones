@@ -23,8 +23,7 @@ const STATE_OPTIONS = [
 
 const NOTIFIED_OPTIONS = [
   { id: "", label: "Todos" },
-  { id: "no", label: "Sin avisar" },
-  { id: "failed", label: "Aviso falló" }
+  { id: "no", label: "Sin avisar" }
 ];
 
 function Chips({

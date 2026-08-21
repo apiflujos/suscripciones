@@ -17564,14 +17564,6 @@ strong {
   color: #991b1b;
 }
 
-.jobs-report-subhead {
-  margin: 24px 0 0;
-  font-size: 15px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-}
-
 .jobs-report-list {
   list-style: none;
   margin: 12px 0 0;
@@ -17610,13 +17602,6 @@ strong {
 .jobs-report-who {
   margin-top: 2px;
   font-size: 13px;
-}
-
-.jobs-report-error {
-  margin: 6px 0 0;
-  font-size: 12px;
-  color: #991b1b;
-  word-break: break-word;
 }
 
 .jobs-report-state {

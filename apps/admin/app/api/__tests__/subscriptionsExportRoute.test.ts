@@ -67,7 +67,6 @@ function row(over: Record<string, unknown> = {}) {
     lastPaymentStatus: "APPROVED",
     lastPaymentAt: "2026-08-15T06:00:00.000Z",
     messageDelivered: true,
-    messageError: null,
     messageContent: "Tu cobro fue exitoso",
     ...over
   };
@@ -108,12 +107,14 @@ describe("GET /api/subscriptions/export", () => {
     expect([bytes[0], bytes[1], bytes[2]]).toEqual([0xef, 0xbb, 0xbf]);
   });
 
-  it("lleva las 16 columnas acordadas", async () => {
+  it("lleva las 15 columnas acordadas", async () => {
     const csv = await (await get("http://localhost/api/subscriptions/export")).text();
     const [header] = csv.split("\r\n");
-    expect(header.replace("﻿", "").split(",")).toHaveLength(16);
+    expect(header.replace("﻿", "").split(",")).toHaveLength(15);
     expect(header).toContain("Mensaje enviado");
     expect(header).toContain("Teléfono");
+    // Los errores no viajan al Excel: viven en el log.
+    expect(header).not.toContain("Error");
   });
 
   it("aplica el mismo filtro que la pantalla", async () => {

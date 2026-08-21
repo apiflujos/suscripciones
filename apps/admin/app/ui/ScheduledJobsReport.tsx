@@ -34,14 +34,12 @@ function whenLabel(iso: string, now: Date) {
 
 function Row({ row, now }: { row: ScheduledJobRow; now: Date }) {
   const when = whenLabel(row.runAt, now);
-  const failed = row.status === "FAILED";
+  const running = row.status === "RUNNING";
   return (
     <li className="jobs-report-row">
       <div className="jobs-report-when">
-        <span className={when.overdue && !failed ? "jobs-report-time is-late" : "jobs-report-time"}>
-          {when.text}
-        </span>
-        {when.overdue && !failed ? <span className="muted jobs-report-late-hint">atrasado</span> : null}
+        <span className={when.overdue ? "jobs-report-time is-late" : "jobs-report-time"}>{when.text}</span>
+        {when.overdue ? <span className="muted jobs-report-late-hint">atrasado</span> : null}
       </div>
 
       <div className="jobs-report-what">
@@ -50,12 +48,11 @@ function Row({ row, now }: { row: ScheduledJobRow; now: Date }) {
         <div className="jobs-report-who">
           {row.customerName ? row.customerName : <span className="muted">sin cliente asociado</span>}
         </div>
-        {failed && row.lastError ? <p className="jobs-report-error">{row.lastError}</p> : null}
       </div>
 
       <div className="jobs-report-state">
-        <span className={`pill ${failed ? "pill-bad" : row.status === "RUNNING" ? "pill-warn" : "pill-ok"}`}>
-          {failed ? "Falló" : row.status === "RUNNING" ? "Corriendo" : "Programado"}
+        <span className={`pill ${running ? "pill-warn" : "pill-ok"}`}>
+          {running ? "Corriendo" : "Programado"}
         </span>
         {row.attempts > 0 ? (
           <span className="muted jobs-report-attempts">
@@ -84,7 +81,7 @@ export function ScheduledJobsPanel({ report }: { report: ScheduledJobsReport }) 
         <span className={report.overdue ? "is-late" : undefined}>
           <strong>{report.overdue}</strong> atrasados
         </span>
-        <span className={report.failed ? "is-bad" : undefined}>
+        <span className={report.failed ? "is-bad" : undefined} title="El motivo de cada fallo está en el log">
           <strong>{report.failed}</strong> fallidos
         </span>
         {next ? <span className="muted">Próximo: {next.text}</span> : null}
@@ -100,16 +97,6 @@ export function ScheduledJobsPanel({ report }: { report: ScheduledJobsReport }) 
         </ul>
       )}
 
-      {report.failedRows.length > 0 ? (
-        <>
-          <h3 className="jobs-report-subhead">Fallidos recientes</h3>
-          <ul className="jobs-report-list">
-            {report.failedRows.map((row) => (
-              <Row key={row.id} row={row} now={now} />
-            ))}
-          </ul>
-        </>
-      ) : null}
     </section>
   );
 }
