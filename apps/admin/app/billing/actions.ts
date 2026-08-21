@@ -36,6 +36,10 @@ import type { NotificationTrigger, NotificationsConfig } from "@suscripciones/co
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
+  // El tablero de suscripciones vive en la raíz y ejecuta estas mismas
+  // acciones, así que se acepta "/" y "/?filtros" —y solo eso, para que un
+  // returnTo no se convierta en un redirect a cualquier parte.
+  if (raw === "/" || raw.startsWith("/?")) return raw;
   if (raw.startsWith("/billing") || raw.startsWith("/customers") || raw.startsWith("/products") || raw.startsWith("/payments")) return raw;
   return "/billing";
 }

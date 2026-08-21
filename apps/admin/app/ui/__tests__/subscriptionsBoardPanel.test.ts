@@ -62,7 +62,11 @@ function boardOf(rows: Row[]): Board {
 
 // Mismo armado de parámetros que hace page.tsx: los filtros activos viajan en
 // la base, para que un chip nuevo se sume a los que ya están puestos.
-function render(board: Board, filter: Record<string, string>) {
+function render(
+  board: Board,
+  filter: Record<string, string>,
+  open?: { id: string; detail: string }
+) {
   const filters = { mode: "", state: "", notified: "", q: "", ...filter };
   const baseParams = new URLSearchParams({ g: "day" });
   Object.entries(filters).forEach(([k, v]) => {
@@ -74,7 +78,10 @@ function render(board: Board, filter: Record<string, string>) {
       filtered: service.applyBoardFilter(board, filters),
       filters,
       baseParams,
-      exportHref: "/api/subscriptions/export"
+      exportHref: "/api/subscriptions/export",
+      openId: open?.id ?? null,
+      detail: open ? createElement("p", null, open.detail) : null,
+      detailHref: (id: string) => `/?g=day&open=${id}`
     })
   );
 }
@@ -143,5 +150,31 @@ describe("SubscriptionsBoardPanel", () => {
     const html = render(boardOf(cartera), { state: "EN_MORA" });
     expect(html).toContain('href="/api/subscriptions/export"');
     expect(html).toContain("Descargar Excel");
+  });
+
+  it("cada fila ofrece abrir su detalle", () => {
+    const html = render(boardOf(cartera), {});
+    expect(html).toContain('href="/?g=day&amp;open=a"');
+    expect(html).toContain(">Ver</a>");
+    expect(html).not.toContain("sb-detail-row");
+  });
+
+  it("la fila abierta muestra su detalle y ofrece ocultarlo", () => {
+    const html = render(boardOf(cartera), {}, { id: "b", detail: "detalle de Beto" });
+    expect(html).toContain("sb-detail-row");
+    expect(html).toContain("detalle de Beto");
+    expect(html).toContain(">Ocultar</a>");
+    // El detalle se pinta una sola vez, bajo su propia fila.
+    expect(html.match(/detalle de Beto/g)).toHaveLength(1);
+  });
+
+  it("el detalle ocupa todo el ancho de la tabla", () => {
+    const html = render(boardOf(cartera), {}, { id: "b", detail: "x" });
+    // Un bloque por modo: se cuentan las columnas de la primera cabecera.
+    const thead = html.slice(html.indexOf("<thead>"), html.indexOf("</thead>"));
+    const columnas = (thead.match(/<th[ />]/g) || []).length;
+    // React serializa el atributo tal cual se escribe; el HTML no distingue
+    // mayúsculas, así que se compara sin sensibilidad a la caja.
+    expect(html.toLowerCase()).toContain(`colspan="${columnas}"`);
   });
 });

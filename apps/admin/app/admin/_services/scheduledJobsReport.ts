@@ -26,7 +26,7 @@ export type ScheduledJobsReport = {
 };
 
 /** Qué hace cada job, en términos del negocio y no del código. */
-const JOB_LABEL: Record<string, string> = {
+export const JOB_LABEL: Record<string, string> = {
   PAYMENT_RETRY: "Cobro / reintento de cobro",
   SUBSCRIPTION_REMINDER: "Aviso de vencimiento o mora",
   SEND_CHATWOOT_MESSAGE: "Envío de WhatsApp",
@@ -41,7 +41,7 @@ const JOB_LABEL: Record<string, string> = {
 };
 
 /** Motivo del aviso, para distinguir un recordatorio de una notificación de mora. */
-const TRIGGER_LABEL: Record<string, string> = {
+export const TRIGGER_LABEL: Record<string, string> = {
   SUBSCRIPTION_DUE: "vencimiento de suscripción",
   PAYMENT_APPROVED: "pago aprobado",
   PAYMENT_DECLINED: "pago rechazado",

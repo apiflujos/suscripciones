@@ -1,3 +1,5 @@
+import { Fragment, type ReactNode } from "react";
+import Link from "next/link";
 import type {
   ModeSummary,
   SubscriptionBoardRow,
@@ -62,7 +64,19 @@ function Kpi({
   );
 }
 
-function ModeBlock({ summary, rows }: { summary: ModeSummary; rows: SubscriptionBoardRow[] }) {
+function ModeBlock({
+  summary,
+  rows,
+  openId,
+  detail,
+  detailHref
+}: {
+  summary: ModeSummary;
+  rows: SubscriptionBoardRow[];
+  openId: string | null;
+  detail: ReactNode;
+  detailHref: (subscriptionId: string) => string;
+}) {
   const mine = rows.filter((r) => r.mode === summary.mode);
   if (!mine.length) return null;
   return (
@@ -99,13 +113,16 @@ function ModeBlock({ summary, rows }: { summary: ModeSummary; rows: Subscription
               <th>Cobranza</th>
               <th>Pago</th>
               <th>Aviso</th>
+              <th />
             </tr>
           </thead>
           <tbody>
             {mine.map((row) => {
               const d = DELINQUENCY[row.delinquency];
+              const isOpen = openId === row.subscriptionId;
               return (
-                <tr key={row.subscriptionId}>
+                <Fragment key={row.subscriptionId}>
+                <tr className={isOpen ? "is-open" : undefined}>
                   <td>
                     <span className="sb-name">{row.customerName}</span>
                     {row.subscriptionStatus === "PAST_DUE" ? (
@@ -145,7 +162,18 @@ function ModeBlock({ summary, rows }: { summary: ModeSummary; rows: Subscription
                       <span className="sb-warn">Sin enviar</span>
                     )}
                   </td>
+                  <td className="sb-row-more">
+                    <Link href={detailHref(row.subscriptionId)} prefetch={false} className="ghost btn-compact btn-noicon">
+                      {isOpen ? "Ocultar" : "Ver"}
+                    </Link>
+                  </td>
                 </tr>
+                {isOpen ? (
+                  <tr className="sb-detail-row">
+                    <td colSpan={9}>{detail}</td>
+                  </tr>
+                ) : null}
+                </Fragment>
               );
             })}
           </tbody>
@@ -160,13 +188,20 @@ export function SubscriptionsBoardPanel({
   filtered,
   filters,
   baseParams,
-  exportHref
+  exportHref,
+  openId = null,
+  detail = null,
+  detailHref = () => "/"
 }: {
   board: SubscriptionsBoard;
   filtered: SubscriptionsBoard;
   filters: BoardFilters;
   baseParams: URLSearchParams;
   exportHref: string;
+  /** Suscripción cuyo detalle está abierto, si hay alguna. */
+  openId?: string | null;
+  detail?: ReactNode;
+  detailHref?: (subscriptionId: string) => string;
 }) {
   if (!board.rows.length) {
     return <p className="muted">No hay suscripciones activas.</p>;
@@ -234,7 +269,14 @@ export function SubscriptionsBoardPanel({
           </div>
 
           {filtered.byMode.map((summary) => (
-            <ModeBlock key={summary.mode} summary={summary} rows={filtered.rows} />
+            <ModeBlock
+              key={summary.mode}
+              summary={summary}
+              rows={filtered.rows}
+              openId={openId}
+              detail={detail}
+              detailHref={detailHref}
+            />
           ))}
         </>
       )}

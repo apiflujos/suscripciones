@@ -1,6 +1,7 @@
 import { listTenants } from "./admin/_services/tenants";
 import { getMetricsOverviewCached } from "./admin/_services/metrics";
 import { getSubscriptionsBoard, applyBoardFilter } from "./admin/_services/subscriptionsBoard";
+import { getSubscriptionTimeline } from "./admin/_services/subscriptionTimeline";
 import { getScheduledJobsReport } from "./admin/_services/scheduledJobsReport";
 import { listPaymentLogs } from "./admin/_services/logs";
 import { listSubscriptions } from "./admin/_services/subscriptions";
@@ -10,8 +11,11 @@ import { resolveTenantId } from "./admin/_services/tenantResolver";
 import { MetricsFilters } from "./ui/MetricsFilters";
 import { PageToolbar } from "./ui/PageToolbar";
 import { SubscriptionsBoardPanel } from "./ui/SubscriptionsBoard";
+import { SubscriptionRowDetail } from "./ui/SubscriptionRowDetail";
 import { ScheduledJobsPanel } from "./ui/ScheduledJobsReport";
 import { AiAssistant } from "./logs/AiAssistant";
+import { getCsrfToken } from "./lib/csrf";
+import { chargeSubscriptionNow, markSubscriptionPaidManual } from "./billing/actions";
 import {
   alignSeries,
   avg,
@@ -245,7 +249,21 @@ function ChartBars({
 export default async function Home({
   searchParams
 }: {
-  searchParams?: Promise<{ from?: string; to?: string; g?: string; tenantId?: string; mode?: string; state?: string; notified?: string; q?: string }>;
+  searchParams?: Promise<{
+    from?: string;
+    to?: string;
+    g?: string;
+    tenantId?: string;
+    mode?: string;
+    state?: string;
+    notified?: string;
+    q?: string;
+    open?: string;
+    chargeStatus?: string;
+    chargeError?: string;
+    markPaidStatus?: string;
+    markPaidError?: string;
+  }>;
 }) {
   const now = new Date();
   const defaultTo = isoDateUtc(now);
@@ -262,6 +280,7 @@ export default async function Home({
     notified: typeof sp.notified === "string" ? sp.notified : "",
     q: typeof sp.q === "string" ? sp.q : ""
   };
+  const openId = typeof sp.open === "string" ? sp.open.trim() : "";
   const fromIso = toUtcIsoStart(fromDate) || toUtcIsoStart(defaultFrom)!;
   const toIso = toUtcIsoEndExclusive(toDate) || toUtcIsoEndExclusive(defaultTo)!;
   const periodLabel = g === "day" ? "Diario" : g === "week" ? "Semanal" : "Mensual";
@@ -301,17 +320,57 @@ export default async function Home({
   const periodMs = Math.max(24 * 60 * 60 * 1000, new Date(toIso).getTime() - new Date(fromIso).getTime());
   const prevFromIso = new Date(new Date(fromIso).getTime() - periodMs).toISOString();
   const prevToIso = new Date(fromIso).toISOString();
-  const [metrics, prevMetrics, paymentsRes, subscriptionsRes, settingsRes, companiesCount, subscriptionsBoard, jobsReport] = await Promise.all([
-    getMetricsOverviewCached({ from: fromIso, to: toIso, granularity: g, tenantId: resolvedTenantId || undefined }),
-    getMetricsOverviewCached({ from: prevFromIso, to: prevToIso, granularity: g, tenantId: resolvedTenantId || undefined }),
-    listPaymentLogs({ take: 6, status: "APPROVED", tenantId: resolvedTenantId || undefined }),
-    listSubscriptions({ take: 500, tenantId: resolvedTenantId || undefined }),
-    getAdminSettings(),
-    countEmpresasAndContactos(resolvedTenantId || null),
-    getSubscriptionsBoard({ tenantId: resolvedTenantId || null }),
-    getScheduledJobsReport()
-  ]);
+  // La configuración manda sobre el tablero: los días de gracia y los permisos
+  // de cobro manual salen de ahí, así que se lee antes que el resto.
+  const settingsRes = await getAdminSettings();
+  const graceDays = Number(settingsRes?.autoDebit?.graceDays ?? 5);
+  const manualChargeEnabled = Boolean(settingsRes?.autoDebit?.allowManualCharge ?? true);
+
+  const [metrics, prevMetrics, paymentsRes, subscriptionsRes, companiesCount, subscriptionsBoard, jobsReport, csrfToken, openTimeline] =
+    await Promise.all([
+      getMetricsOverviewCached({ from: fromIso, to: toIso, granularity: g, tenantId: resolvedTenantId || undefined }),
+      getMetricsOverviewCached({ from: prevFromIso, to: prevToIso, granularity: g, tenantId: resolvedTenantId || undefined }),
+      listPaymentLogs({ take: 6, status: "APPROVED", tenantId: resolvedTenantId || undefined }),
+      listSubscriptions({ take: 500, tenantId: resolvedTenantId || undefined }),
+      countEmpresasAndContactos(resolvedTenantId || null),
+      getSubscriptionsBoard({ tenantId: resolvedTenantId || null, graceDays }),
+      getScheduledJobsReport(),
+      getCsrfToken(),
+      // El detalle solo se consulta cuando alguien lo abre.
+      openId ? getSubscriptionTimeline(openId) : Promise.resolve(null)
+    ]);
   const filteredBoard = applyBoardFilter(subscriptionsBoard, boardFilters);
+
+  // La fila abierta viaja en la URL, así que el enlace de una suscripción
+  // concreta se puede compartir y las acciones saben a dónde volver.
+  const boardHref = (params: URLSearchParams) => {
+    const qs = params.toString();
+    return qs ? `/?${qs}` : "/";
+  };
+  const detailHref = (subscriptionId: string) => {
+    const params = new URLSearchParams(boardParams);
+    if (subscriptionId === openId) params.delete("open");
+    else params.set("open", subscriptionId);
+    return boardHref(params);
+  };
+  const closeHref = (() => {
+    const params = new URLSearchParams(boardParams);
+    params.delete("open");
+    return boardHref(params);
+  })();
+  const returnTo = (() => {
+    const params = new URLSearchParams(boardParams);
+    if (openId) params.set("open", openId);
+    return boardHref(params);
+  })();
+
+  const actionResult = (() => {
+    if (sp.chargeStatus === "processing") return { tone: "ok", text: "Cobro enviado: el resultado llega en unos segundos." };
+    if (sp.chargeStatus === "fail") return { tone: "bad", text: `No se pudo cobrar: ${sp.chargeError || "error desconocido"}` };
+    if (sp.markPaidStatus === "ok") return { tone: "ok", text: "Suscripción marcada como pagada." };
+    if (sp.markPaidStatus === "fail") return { tone: "bad", text: `No se pudo marcar como pagada: ${sp.markPaidError || "error desconocido"}` };
+    return null;
+  })();
   const aiConfig = settingsRes?.ai || null;
   const aiProviders = aiConfig?.providers || null;
   const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
@@ -713,12 +772,32 @@ export default async function Home({
 
 
 
+                  {actionResult ? (
+                    <p className={`sb-action-result is-${actionResult.tone}`}>{actionResult.text}</p>
+                  ) : null}
+
                   <SubscriptionsBoardPanel
                     board={subscriptionsBoard}
                     filtered={filteredBoard}
                     filters={boardFilters}
                     baseParams={boardParams}
                     exportHref={boardExportHref}
+                    openId={openTimeline ? openId : null}
+                    detailHref={detailHref}
+                    detail={
+                      openTimeline ? (
+                        <SubscriptionRowDetail
+                          timeline={openTimeline}
+                          csrfToken={csrfToken}
+                          returnTo={returnTo}
+                          closeHref={closeHref}
+                          manualChargeEnabled={manualChargeEnabled}
+                          manualMarkPaidEnabled={manualChargeEnabled}
+                          chargeSubscriptionNow={chargeSubscriptionNow}
+                          markSubscriptionPaidManual={markSubscriptionPaidManual}
+                        />
+                      ) : null
+                    }
                   />
 
                   <div className="grid2">
