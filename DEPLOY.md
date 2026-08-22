@@ -59,6 +59,24 @@ npx prisma generate --schema ./packages/database/prisma/schema.prisma
 
 ---
 
+## ✅ Qué verifica el deploy
+
+`scripts/deploy.sh` no solo publica: además
+
+1. **Respalda la base** antes de migrar (si hay `pg_dump`), en `backups/`.
+2. **Verifica tipos** antes de construir. El build de Next corre con
+   `NEXT_DISABLE_TYPESCRIPT=1`, así que sin este paso un error de tipos llega
+   a producción sin que nadie lo vea.
+3. **Comprueba que el proceso de jobs quedó `online`**, no solo el admin. Es el
+   que cobra y el que envía los avisos; si queda caído, el admin responde
+   igual y no se nota hasta que deja de entrar plata.
+4. **Muestra el estado de la cobranza** al terminar (`npm run check:jobs`):
+   qué se movió hoy, qué está agendado y qué quedó atrasado sin que nadie lo
+   tome.
+
+Si el paso 3 falla, el deploy termina con error: es preferible enterarse ahí
+que descubrirlo por los cobros que no salieron.
+
 ## 📦 Deploy con Scripts
 
 ### Deploy Completo

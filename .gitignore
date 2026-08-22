@@ -12,3 +12,6 @@ coverage
 *.tsbuildinfo
 prisma/dev.db
 mdv_init_data.csv
+
+# Respaldos que crea scripts/deploy.sh antes de migrar
+backups/
