@@ -655,6 +655,20 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
       orderBy: { createdAt: "desc" }
     });
   }
+  // Último recurso: la referencia de un intento anterior. El pago reescribe su
+  // referencia en cada reintento (_R57, _R58...), así que un webhook que llega
+  // tarde trae una que ya no existe en la tabla de pagos y, sin esto, termina
+  // creando un pago huérfano sin suscripción.
+  if (!paymentByReference && reference) {
+    const intento = await db.paymentAttempt.findFirst({
+      where: { reference },
+      orderBy: { createdAt: "desc" },
+      select: { paymentId: true }
+    });
+    if (intento?.paymentId) {
+      paymentByReference = await db.payment.findUnique({ where: { id: intento.paymentId } });
+    }
+  }
   const paymentMatched = paymentByLink ?? paymentByTxId ?? paymentByReference ?? null;
   const referenceClassification = classifyReference(reference);
 

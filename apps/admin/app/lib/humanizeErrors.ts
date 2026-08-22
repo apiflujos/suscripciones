@@ -21,6 +21,7 @@ export function humanizeChargeError(raw: string) {
   if (msg.includes("wompi_public_key_not_configured")) return "Falta configurar la llave pública de Wompi.";
   if (msg.includes("wompi_integrity_secret_not_configured")) return "Falta configurar la firma de integridad de Wompi.";
   if (msg.includes("auto_debit_in_progress")) return "Ya hay un intento de débito automático en proceso.";
+  if (msg.includes("charge_too_soon")) return "Se acaba de intentar un cobro para esta suscripción. Esperá un minuto antes de volver a cobrar.";
   if (msg.includes("csrf_invalid")) return "La sesión expiró. Recarga la página e intenta de nuevo.";
   return "No se pudo cobrar la suscripción.";
 }

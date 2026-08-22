@@ -1,3 +1,4 @@
+import { hasRecentChargeAttempt } from "@suscripciones/core/services/collectionAttempts";
 import "server-only";
 
 import { prisma } from "@suscripciones/database";
@@ -279,6 +280,21 @@ export async function chargeSubscriptionNow(args: { subscriptionId: string; tena
       }).catch(() => null);
       return { ok: false, status: 409, error: "pending_charge_exists", details, paymentId: failedPaymentId || recentPending.id };
     }
+  }
+
+  // Doble clic, dos pestañas o un reintento nervioso: si se acaba de pasar la
+  // tarjeta, no se vuelve a pasar. El guard de arriba solo ve cobros PENDING y
+  // un declinado de hace segundos se le escapa.
+  const reciente = await hasRecentChargeAttempt({ subscriptionId }).catch(() => ({ recent: false, at: null }));
+  if (reciente.recent) {
+    const details = { lastAttemptAt: reciente.at?.toISOString() ?? null };
+    const failedPaymentId = await recordManualChargeFailure({
+      subscription,
+      amountInCentsOverride: args.amountInCents,
+      errorCode: "charge_too_soon",
+      details
+    }).catch(() => null);
+    return { ok: false, status: 409, error: "charge_too_soon", details, ...(failedPaymentId ? { paymentId: failedPaymentId } : {}) };
   }
 
   const paymentSource = extractCustomerPaymentSourceId(subscription.customer?.metadata);

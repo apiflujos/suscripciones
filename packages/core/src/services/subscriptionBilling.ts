@@ -610,6 +610,7 @@ export async function createPaymentLinkForSubscription(args: {
         data: {
           paymentId: payment.id,
           attemptNo: 0,
+          reference,
           status: "PAYMENT_LINK_CREATE_FAILED",
           provider: "wompi",
           errorMessage: errMessage
@@ -629,6 +630,7 @@ export async function createPaymentLinkForSubscription(args: {
       data: {
         paymentId: payment.id,
         attemptNo: 0,
+        reference,
         status: "PAYMENT_LINK_CREATED",
         provider: "wompi",
         response: created.raw as any
@@ -1152,6 +1154,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
         data: {
           paymentId: payment.id,
           attemptNo: 0,
+          reference: usedReference,
           status: "TRANSACTION_CREATE_FAILED",
           provider: "wompi",
           errorMessage: getErrorMessage(err)
@@ -1174,6 +1177,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
     data: {
       paymentId: payment.id,
       attemptNo: 0,
+      reference: usedReference,
       status: "TRANSACTION_CREATED",
       provider: "wompi",
       response: created.raw as any

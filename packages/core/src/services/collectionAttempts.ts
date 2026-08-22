@@ -57,3 +57,39 @@ export async function hasExhaustedCycleAttempts(args: {
   });
   return { exhausted: attempts >= allowed, attempts, allowed };
 }
+
+/** Ventana en la que un segundo cobro es, casi siempre, el mismo clic dos veces. */
+export const DOUBLE_CHARGE_WINDOW_MS = 60_000;
+
+/**
+ * ¿Se le acaba de pasar la tarjeta a esta suscripción?
+ *
+ * El guard que ya existía solo miraba cobros PENDING, así que un cobro
+ * declinado hace segundos no frenaba al siguiente: dos clics seguidos —o dos
+ * pestañas— llegaban los dos a la tarjeta.
+ */
+export async function hasRecentChargeAttempt(args: {
+  subscriptionId: string;
+  withinMs?: number;
+}): Promise<{ recent: boolean; at: Date | null }> {
+  const subscriptionId = String(args.subscriptionId || "").trim();
+  if (!subscriptionId) return { recent: false, at: null };
+  const withinMs = Number.isFinite(Number(args.withinMs)) ? Math.max(0, Number(args.withinMs)) : DOUBLE_CHARGE_WINDOW_MS;
+  if (!withinMs) return { recent: false, at: null };
+
+  const since = new Date(Date.now() - withinMs);
+  const attempt = await prisma.paymentAttempt.findFirst({
+    where: { createdAt: { gte: since }, payment: { subscriptionId } },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true }
+  });
+  if (attempt) return { recent: true, at: attempt.createdAt };
+
+  // Un cobro puede haber quedado registrado sin fila de intento.
+  const payment = await prisma.payment.findFirst({
+    where: { subscriptionId, createdAt: { gte: since } },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true }
+  });
+  return { recent: Boolean(payment), at: payment?.createdAt ?? null };
+}

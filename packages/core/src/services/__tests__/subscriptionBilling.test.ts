@@ -668,6 +668,41 @@ describe("ensureExpiredSubscriptions", () => {
     store.subscriptionBillingCycle = {};
   });
 
+  it("devuelve a ACTIVE una suscripción PAST_DUE cuyo ciclo ya está cobrado", async () => {
+    const { prisma, store } = await import("../../db/prisma");
+    store.customer["cust-recover"] = { id: "cust-recover", email: "recover@test.com", metadata: {} };
+    store.plan["plan-recover"] = { id: "plan-recover", tenantId: "tenant-1", priceInCents: 15000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 };
+    store.subscription["sub-recover"] = {
+      id: "sub-recover",
+      tenantId: "tenant-1",
+      customerId: "cust-recover",
+      planId: "plan-recover",
+      status: "PAST_DUE",
+      startAt: new Date(),
+      cycleStartDay: 1,
+      paymentDay: 15,
+      paymentTiming: "EN_CURSO",
+      graceDays: 3
+    };
+    const mes = startOfMonthUtc(new Date());
+    seedCycle(store, {
+      id: "cycle-recover-1",
+      subscriptionId: "sub-recover",
+      cycleNumber: 1,
+      periodStartAt: mes,
+      periodEndAt: addMonthsUtc(mes, 1),
+      dueAt: addDaysUtc(mes, 14),
+      status: "PAID",
+      paymentId: "pay-recover"
+    });
+
+    const { ensureExpiredSubscriptions } = await import("../../services/subscriptionBilling");
+    await ensureExpiredSubscriptions();
+
+    // Es el barrido —no el webhook— quien devuelve la suscripción a ACTIVE.
+    expect(store.subscription["sub-recover"].status).toBe("ACTIVE");
+  });
+
   it("should mark ACTIVE as PAST_DUE when grace period has passed", async () => {
     const { prisma, store } = await import("../../db/prisma");
 

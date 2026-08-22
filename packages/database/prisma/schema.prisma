@@ -452,6 +452,9 @@ model PaymentAttempt {
   id           String   @id @default(uuid()) @db.Uuid
   paymentId    String   @db.Uuid
   attemptNo    Int
+  /// Referencia enviada a Wompi en este intento. La del pago se reescribe en
+  /// cada reintento, así que sin esto un webhook tardío no encuentra su pago.
+  reference    String?
   status       String
   errorCode    String?
   errorMessage String?
@@ -462,6 +465,7 @@ model PaymentAttempt {
   payment Payment @relation(fields: [paymentId], references: [id])
 
   @@index([paymentId])
+  @@index([reference])
 }
 
 model WebhookEvent {

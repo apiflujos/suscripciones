@@ -1,17 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prisma = {
-  payment: { findMany: vi.fn() },
-  paymentAttempt: { count: vi.fn() }
+  payment: { findMany: vi.fn(), findFirst: vi.fn() },
+  paymentAttempt: { count: vi.fn(), findFirst: vi.fn() }
 };
 
 vi.mock("../../db/prisma", () => ({ prisma }));
 
-const { countCycleChargeAttempts, hasExhaustedCycleAttempts, maxAttemptsPerCycle } = await import("../collectionAttempts");
+const { countCycleChargeAttempts, hasExhaustedCycleAttempts, hasRecentChargeAttempt, maxAttemptsPerCycle } = await import("../collectionAttempts");
 
 beforeEach(() => {
   prisma.payment.findMany.mockResolvedValue([]);
+  prisma.payment.findFirst.mockResolvedValue(null);
   prisma.paymentAttempt.count.mockResolvedValue(0);
+  prisma.paymentAttempt.findFirst.mockResolvedValue(null);
 });
 
 describe("maxAttemptsPerCycle", () => {
@@ -86,5 +88,39 @@ describe("hasExhaustedCycleAttempts", () => {
       config: { retryEnabled: false, maxRetries: 0 }
     });
     expect(r.exhausted).toBe(true);
+  });
+});
+
+describe("hasRecentChargeAttempt", () => {
+  it("sin id no consulta nada", async () => {
+    const r = await hasRecentChargeAttempt({ subscriptionId: "" });
+    expect(r.recent).toBe(false);
+  });
+
+  it("un intento reciente frena el segundo cobro", async () => {
+    const at = new Date();
+    prisma.paymentAttempt.findFirst.mockResolvedValue({ createdAt: at });
+    const r = await hasRecentChargeAttempt({ subscriptionId: "sub-1" });
+    expect(r).toEqual({ recent: true, at });
+  });
+
+  it("sin intentos mira también los pagos, por si no quedó fila de intento", async () => {
+    const at = new Date();
+    prisma.paymentAttempt.findFirst.mockResolvedValue(null);
+    prisma.payment.findFirst.mockResolvedValue({ createdAt: at });
+    const r = await hasRecentChargeAttempt({ subscriptionId: "sub-1" });
+    expect(r).toEqual({ recent: true, at });
+  });
+
+  it("sin nada reciente, deja cobrar", async () => {
+    prisma.paymentAttempt.findFirst.mockResolvedValue(null);
+    prisma.payment.findFirst.mockResolvedValue(null);
+    const r = await hasRecentChargeAttempt({ subscriptionId: "sub-1" });
+    expect(r).toEqual({ recent: false, at: null });
+  });
+
+  it("con ventana en cero no bloquea nada", async () => {
+    const r = await hasRecentChargeAttempt({ subscriptionId: "sub-1", withinMs: 0 });
+    expect(r.recent).toBe(false);
   });
 });

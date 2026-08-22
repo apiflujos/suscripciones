@@ -91,6 +91,7 @@ function createMockPrisma() {
     customer: {},
     subscription: {},
     payment: {},
+    paymentAttempt: {},
     paymentLink: {},
     retryJob: [],
     systemLog: []
@@ -105,6 +106,15 @@ function createMockPrisma() {
           store.webhookEvent[where.id] = { ...store.webhookEvent[where.id], ...data };
         }
         return store.webhookEvent[where.id];
+      }
+    },
+    paymentAttempt: {
+      findFirst: async ({ where }: any) =>
+        Object.values(store.paymentAttempt || {}).find((a: any) => !where?.reference || a.reference === where.reference) || null,
+      create: async ({ data }: any) => {
+        const id = data.id || `att-${Object.keys(store.paymentAttempt || {}).length + 1}`;
+        store.paymentAttempt[id] = { id, ...data };
+        return store.paymentAttempt[id];
       }
     },
     payment: {
@@ -457,11 +467,25 @@ test("processWompiEventLogic: procesa pago aprobado con ciclos pendientes sin ro
   expect((payments[0] as any).status).toBe(PaymentStatus.APPROVED);
 });
 
+function inicioDeMesUtc(d: Date) {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+}
+
+function sumarMesesUtc(d: Date, meses: number) {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + meses, 1));
+}
+
 test.skipIf(!process.env.DATABASE_URL)("processWompiEventLogic: agenda el siguiente cobro con dueAt del nuevo ciclo", async () => {
   const { db, store } = createMockPrisma();
   const customerId = "cust-4";
-  const periodStart = new Date("2026-04-01T00:00:00.000Z");
-  const periodEnd = new Date("2026-05-01T00:00:00.000Z");
+  // Anclado a hoy: con fechas fijas, el "ciclo siguiente" queda en el pasado
+  // en cuanto avanza el calendario y la prueba se cae sola.
+  const mesActual = inicioDeMesUtc(new Date());
+  const mesSiguiente = sumarMesesUtc(mesActual, 1);
+  const mesSubsiguiente = sumarMesesUtc(mesActual, 2);
+  const vencimientoSiguiente = new Date(mesSiguiente.getTime() + 14 * 24 * 60 * 60 * 1000);
+  const periodStart = mesActual;
+  const periodEnd = mesSiguiente;
 
   store.customer[customerId] = { id: customerId, tenantId: "tenant-1", email: "advance@test.com" };
   store.subscription["sub-advance"] = {
@@ -473,7 +497,7 @@ test.skipIf(!process.env.DATABASE_URL)("processWompiEventLogic: agenda el siguie
     paymentTiming: "EN_CURSO",
     graceDays: 2,
     status: SubscriptionStatus.PAST_DUE,
-    createdAt: new Date("2026-04-01T00:00:00.000Z"),
+    createdAt: periodStart,
     plan: { priceInCents: 15000, currency: "COP", metadata: {}, intervalUnit: "MONTH", intervalCount: 1 }
   };
 
@@ -499,8 +523,8 @@ test.skipIf(!process.env.DATABASE_URL)("processWompiEventLogic: agenda el siguie
     activeCycle: null,
     collectionCycle: {
       id: "c-next", subscriptionId: "sub-advance", cycleNumber: 2,
-      periodStartAt: new Date("2026-05-01"), periodEndAt: new Date("2026-06-01"),
-      dueAt: new Date("2026-05-15T00:00:00.000Z"), status: "PENDING" as any, paymentId: null
+      periodStartAt: mesSiguiente, periodEndAt: mesSubsiguiente,
+      dueAt: vencimientoSiguiente, status: "PENDING" as any, paymentId: null
     } as any,
     oldestUnpaidCycle: null
   });
@@ -510,8 +534,10 @@ test.skipIf(!process.env.DATABASE_URL)("processWompiEventLogic: agenda el siguie
   expect(vi.mocked(ensurePaymentRetryJob)).toHaveBeenCalledWith(
     expect.objectContaining({
       subscriptionId: "sub-advance",
-      runAt: new Date("2026-05-15T00:00:00.000Z")
+      runAt: vencimientoSiguiente
     })
   );
-  expect(store.subscription["sub-advance"].status).toBe(SubscriptionStatus.ACTIVE);
+  // El webhook agenda el cobro; devolver la suscripción a ACTIVE es tarea del
+  // barrido ensureExpiredSubscriptions, no de este camino.
+  expect(store.subscription["sub-advance"].status).toBe(SubscriptionStatus.PAST_DUE);
 });
