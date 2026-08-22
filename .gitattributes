@@ -1,0 +1,13 @@
+# Un solo final de línea en el repo. Sin esto, cualquier edición que normalice
+# un archivo mixto aparece como si se hubiera reescrito entero y el historial
+# de ese archivo deja de servir para nada.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
