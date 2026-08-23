@@ -455,6 +455,15 @@ export async function saveReminder(formData: FormData) {
       allowedHeaderValues: allowed.headerValues,
       allowedButtonValues: allowed.buttonValues
     });
+    // El link de pago se garantiza cuando el mensaje lo pide, no según el modo de
+    // cobro. Una suscripción de débito automático en mora también manda link de
+    // pago: atada al modo, el botón salía vacío y WhatsApp rechazaba el envío.
+    const pideLinkDePago = [
+      ...tplPayload.bodyParams,
+      ...tplPayload.headerParams,
+      ...tplPayload.buttonParams
+    ].some((valor) => String(valor || "").includes("paymentLink.url"));
+
     const tplNameBase = kind === "MORA" ? "Recordatorio en mora" : "Recordatorio de fecha de pago";
     const tplName = `${tplNameBase} (${paymentType === "SUBSCRIPTION" ? "débito automático" : "link de pago"})`;
 
@@ -490,7 +499,7 @@ export async function saveReminder(formData: FormData) {
       trigger: "SUBSCRIPTION_DUE",
       templateId,
       offsetsSeconds,
-      ensurePaymentLink: paymentType === "LINK",
+      ensurePaymentLink: pideLinkDePago || paymentType === "LINK",
       conditions: { skipIfSubscriptionStatusIn: ["CANCELED"], requirePaymentTypeIn: [paymentType] }
     };
     nextRules.push(rule);
