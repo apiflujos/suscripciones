@@ -85,6 +85,14 @@ const LINK_CYCLE_VARIABLES: NotificationVariableOption[] = [
   { label: "Mes del ciclo activo", value: "{{subscription.activeCycleLabel}}" }
 ].sort((a, b) => a.label.localeCompare(b.label, "es"));
 
+// Los recordatorios anuncian la fecha en que hay que pagar. Sin esta opción el
+// desplegable solo ofrecía fechas del pago (pagado, creado, fallido), y quien
+// configuró la plantilla terminó eligiendo "Fecha de pago": vacía siempre, porque
+// cuando sale el recordatorio el pago todavía no está pagado.
+const CYCLE_DUE_DATE_VARIABLES: NotificationVariableOption[] = [
+  { label: "Proximo cobro", value: "{{subscription.nextBillingDate}}", recommended: true }
+];
+
 type TemplateVariableMatrix = {
   bodyVariables: NotificationVariableOption[];
   buttonVariables: NotificationVariableOption[];
@@ -180,9 +188,9 @@ const REALTIME_VARIABLE_MATRIX: Record<RealtimeNotificationKey, TemplateVariable
 const REMINDER_VARIABLE_MATRIX: Record<ReminderNotificationKey, TemplateVariableMatrix> = {
   reminder_due_link: buildMatrix({
     core: GENERIC_MESSAGE_VARIABLES,
-    body: [...LINK_PAYMENT_VARIABLES, ...LINK_CYCLE_VARIABLES],
+    body: [...CYCLE_DUE_DATE_VARIABLES, ...LINK_PAYMENT_VARIABLES, ...LINK_CYCLE_VARIABLES],
     button: PLAN_BUTTON_VARIABLES,
-    helpText: "Recordatorio previo de pago. Usa solo la URL publica de pago.",
+    helpText: "Recordatorio previo de pago. Para la fecha usa \"Proximo cobro\": las fechas del pago están vacías porque todavía no se pagó. Usa solo la URL publica de pago.",
     recommendedButtonLabel: "Link para pagar"
   }),
   reminder_due_subscription: buildMatrix({
@@ -194,7 +202,7 @@ const REMINDER_VARIABLE_MATRIX: Record<ReminderNotificationKey, TemplateVariable
   }),
   reminder_mora_link: buildMatrix({
     core: GENERIC_MESSAGE_VARIABLES,
-    body: [...LINK_PAYMENT_VARIABLES, ...LINK_CYCLE_VARIABLES],
+    body: [...CYCLE_DUE_DATE_VARIABLES, ...LINK_PAYMENT_VARIABLES, ...LINK_CYCLE_VARIABLES],
     button: PLAN_BUTTON_VARIABLES,
     helpText: "Recordatorio en mora. Usa solo la URL publica de pago.",
     recommendedButtonLabel: "Link para pagar"
