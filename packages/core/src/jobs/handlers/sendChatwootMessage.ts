@@ -5,7 +5,12 @@ import { reconcileChatwootMessageDelivery } from "../../services/chatwootDeliver
 import { getChatwootConfig } from "../../services/runtimeConfig";
 import { consumeApp } from "../../services/superAdminApp";
 import { systemLog } from "../../services/systemLog";
-import { ensureChatwootContactForCustomer, isValidWhatsappSourceId, syncChatwootAttributesForCustomer } from "../../services/chatwootSync";
+import {
+  ensureChatwootContactForCustomer,
+  isValidWhatsappSourceId,
+  normalizeWhatsappSourceId,
+  syncChatwootAttributesForCustomer
+} from "../../services/chatwootSync";
 import { logger } from "../../lib/logger";
 
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
@@ -150,6 +155,13 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
     inboxId: cfg.inboxId
   });
 
+  // Un inbox de WhatsApp valida el source_id contra \A\d{1,15}\z: dígitos pelados,
+  // sin '+'. Al crear el contact_inbox se venía pasando undefined para que Chatwoot
+  // lo dedujera del contacto, y cuando el teléfono guardado trae '+' o le falta el
+  // indicativo, responde 422 y el aviso se pierde entero. Mejor mandárselo ya
+  // normalizado desde el teléfono del CRM.
+  const sourceIdDelTelefono = normalizeWhatsappSourceId(msg.customer.phone);
+
   // Ensure contact + conversation
   let contactId: number | undefined;
   let sourceId: string | undefined;
@@ -257,7 +269,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
       : null;
     if (!byRequested && hasRequestedInbox) {
       try {
-        const createdInbox = await client.createContactInbox(contactId, undefined, requestedInboxId);
+        const createdInbox = await client.createContactInbox(contactId, sourceIdDelTelefono, requestedInboxId);
         byRequested = { inboxId: requestedInboxId, sourceId: createdInbox.sourceId };
         contactableInboxes = [...contactableInboxes, byRequested];
       } catch {
@@ -314,7 +326,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
   }
   if (!sourceId) {
     try {
-      const createdInbox = await client.createContactInbox(contactId, undefined, selectedInboxId ?? cfg.inboxId);
+      const createdInbox = await client.createContactInbox(contactId, sourceIdDelTelefono, selectedInboxId ?? cfg.inboxId);
       sourceId = createdInbox.sourceId;
       const merged = {
         ...(customerMeta && typeof customerMeta === "object" ? customerMeta : {}),
