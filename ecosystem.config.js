@@ -34,6 +34,23 @@ const clientSlug = process.env.CLIENT_SLUG || '';
 const enableAdmin = true;
 
 const nameFor = (role) => (clientSlug ? `${stackName}-${role}-${clientSlug}` : `${stackName}-${role}`);
+
+// Los dos procesos escribían a /dev/stdout y /dev/stderr, así que no existía
+// ningún archivo de log: `pm2 logs` moría con ESPIPE y journalctl devolvía cero
+// entradas. La única traza que sobrevivía era la tabla SystemLog. Eso es lo que
+// convirtió dos averías en incidentes de días: no había dónde mirar.
+// Rotación: pm2 install pm2-logrotate (una sola vez por servidor).
+const logDir = path.resolve(__dirname, 'logs');
+try {
+  fs.mkdirSync(logDir, { recursive: true });
+} catch (err) {
+  console.warn(`[ecosystem] no se pudo crear ${logDir}: ${err && err.message}`);
+}
+const logFilesFor = (role) => ({
+  error_file: path.join(logDir, `${nameFor(role)}-error.log`),
+  out_file: path.join(logDir, `${nameFor(role)}-out.log`),
+  merge_logs: true
+});
 const apps = [
   {
     name: nameFor('jobs'),
@@ -52,8 +69,7 @@ const apps = [
       REALTIME_PUBLISH_URL: process.env.REALTIME_PUBLISH_URL,
       REALTIME_PUBLISH_TOKEN: process.env.REALTIME_PUBLISH_TOKEN,
     },
-    error_file: "/dev/stderr",
-    out_file: "/dev/stdout",
+    ...logFilesFor('jobs'),
     log_date_format: 'YYYY-MM-DD HH:mm:ss',
     autorestart: true,
     watch: false,
@@ -81,8 +97,7 @@ if (enableAdmin) {
       REALTIME_PUBLISH_URL: process.env.REALTIME_PUBLISH_URL,
       REALTIME_PUBLISH_TOKEN: process.env.REALTIME_PUBLISH_TOKEN,
     },
-    error_file: "/dev/stderr",
-    out_file: "/dev/stdout",
+    ...logFilesFor('admin'),
     log_date_format: 'YYYY-MM-DD HH:mm:ss',
     autorestart: true,
     watch: false,

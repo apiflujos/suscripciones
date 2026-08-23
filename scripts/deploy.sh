@@ -88,6 +88,13 @@ if [ "$JOBS_STATUS" != "online" ]; then
 fi
 echo "   jobs ($JOBS_NAME): online"
 
+# La rotación es un módulo aparte de PM2 y se instala una sola vez por servidor.
+# Sin ella los logs crecen sin techo, que es el otro extremo de no tener ninguno.
+if ! pm2 list 2>/dev/null | grep -q "pm2-logrotate"; then
+  echo "⚠️  pm2-logrotate no está instalado: los logs van a crecer sin límite."
+  echo "   Instalarlo una vez con: pm2 install pm2-logrotate"
+fi
+
 echo "📊 Estado de la cobranza:"
 npm run check:jobs || echo "   (no se pudo leer; revisar con: npm run check:jobs)"
 
