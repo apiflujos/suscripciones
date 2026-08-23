@@ -595,6 +595,18 @@ export async function ensureBillingCyclesForSubscriptions(subs: BillingComputati
     existingCyclesBySubscription.set(cycle.subscriptionId, list);
   }
 
+  // La cancelación se consulta acá y no se pide en la semilla a propósito: cada
+  // llamador arma la suya y basta con que uno se olvide para que una suscripción
+  // cancelada siga generando ciclos. Le pasó a una de prueba, cancelada el 20 de
+  // mayo, que acumuló 108 ciclos porque los webhooks la seguían tocando.
+  const canceladas = await prisma.subscription.findMany({
+    where: { id: { in: uniqueSubs.map((sub) => sub.id) }, canceledAt: { not: null } },
+    select: { id: true, canceledAt: true }
+  });
+  const canceladaEn = new Map<string, number>(
+    canceladas.map((sub) => [sub.id, new Date(sub.canceledAt as Date).getTime()] as const)
+  );
+
   const prepared = await Promise.all(uniqueSubs.map(async (rawSub) => {
     const now = new Date();
     const sub = pickAuthoritativeCycleSeed({
@@ -607,7 +619,14 @@ export async function ensureBillingCyclesForSubscriptions(subs: BillingComputati
     const existingByCycle = new Map(
       (existingCyclesBySubscription.get(rawSub.id) || []).map((cycle) => [cycle.cycleNumber, cycle] as const)
     );
-    return cycles.map((c) =>
+    // Después de cancelar no nacen ciclos nuevos. Los que ya existían se siguen
+    // actualizando: un pago tardío tiene que poder aterrizar en su ciclo.
+    const cancelTs = canceladaEn.get(rawSub.id);
+    const vigentes =
+      cancelTs == null
+        ? cycles
+        : cycles.filter((c) => existingByCycle.has(c.cycleNumber) || new Date(c.periodStartAt).getTime() < cancelTs);
+    return vigentes.map((c) =>
       {
         const existing = existingByCycle.get(c.cycleNumber) || null;
         const keepExisting = existing && !canRescheduleExistingCycle(existing, now);
