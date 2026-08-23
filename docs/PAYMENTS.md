@@ -280,73 +280,72 @@ const signature = sha256Hex(
 
 ## Fletes (domicilio)
 
-El monto que se le cobra al cliente incluye el flete cuando el despacho sale de
-Medellín. Es un cobro legítimo y deliberado, no un recargo sin explicar.
-
-### Cómo está modelado hoy
-
-El flete vive en **planes separados**, no en un campo del plan:
-
-| Plan | Precio | Incluye |
-|---|---|---|
-| `Suscripción Alpha` | $360.000 | sin domicilio |
-| `Suscripción Alpha con Domicilio (Fuera Medellín)` | $390.000 | + $30.000 de flete |
-| `Suscripción Omega  sin Domicilio` | $460.000 | sin domicilio |
-| `Plan Omega  sin Domicilio` | $460.000 | sin domicilio |
-
-Hay 16 planes con "domicilio" en el nombre. Existe además un campo previsto para
-esto en el esquema — `planMetadata.pricing.shippingInCents`, ver
-`packages/core/src/lib/metadataSchemas.ts` — pero hoy está en `0` o `null` en
-todos los planes: nadie lo usa.
-
-### El problema que esto causa
-
-Las suscripciones vivas apuntan al plan **sin** domicilio, y se les cobra el monto
-**con** domicilio. Los planes con domicilio tienen cero suscripciones asociadas.
-
-El sistema queda entonces contradiciéndose consigo mismo:
+El flete está modelado y es **obligatorio** para todo producto físico. Vive en la
+suscripción, no en el plan:
 
 ```
-Suscripción → plan "Suscripción Alpha"  → $360.000   ← lo que el sistema cree
-Cobro real  →                             $390.000   ← lo que el cliente paga
+subscription.metadata.pricing = {
+  basePriceInCents,      // precio del producto de catálogo
+  variantDeltaInCents,   // ajuste de la variante elegida
+  shippingInCents,       // ← el flete, por suscripción
+  freeShipping,          // domicilio cortesía
+  subtotalInCents,
+  taxInCents,
+  totalInCents           // ← esto es lo que se le cobra al cliente
+}
 ```
 
-`getExpectedSubscriptionTotalInCents()` resuelve el total esperado desde el plan,
-así que devuelve $360.000. Cuando entra el pago de $390.000, `resolveAssociation`
-no encuentra coincidencia exacta de monto y cae al Tier 2, que asocia con menos
-confianza y deja este rastro:
+### Cómo se calcula el total
+
+`computePlanTotalInCents()` en `apps/admin/app/admin/_services/subscriptionShared.ts`:
 
 ```
-resolveAssociation: asociando por identidad con diferencia de monto (posible flete)
+subtotal = basePrice + variantDelta + shipping
+subtotal -= descuento        (FIXED resta pesos; PERCENT resta porcentaje)
+total    = subtotal + IVA    (taxPercent sobre el subtotal ya descontado)
 ```
 
-Diferencias observadas en producción (23-ago-2026):
+El flete entra **antes** del descuento y del impuesto, así que un descuento
+porcentual también aplica sobre él.
 
-| Plan de la suscripción | Precio del plan | Cobrado | Diferencia | Veces |
-|---|---|---|---|---|
-| Suscripción Alpha | 360.000 | 390.000 | +30.000 | 66 |
-| Suscripción Omega | 460.000 | 480.000 | +20.000 | 10 |
-| Suscripción Alpha | 360.000 | 380.000 | +20.000 | 7 |
-| Suscripción Alpha | 360.000 | 378.000 | +18.000 | 5 |
-| Suscripción Delta | 620.000 | 616.802 | **−3.198** | 1 |
+### El flete es obligatorio
 
-Las cuatro primeras son fletes. **La última no**: es menor que el precio del plan,
-así que no puede ser flete. Es un pago aprobado por webhook el 26-jun-2026 y queda
-sin explicar.
+Al asignar el plan a una suscripción, si el producto no es de tipo `SERVICE` y no
+se marcó domicilio cortesía, un flete en cero corta la operación:
 
-### Cómo dejarlo bien
+```typescript
+if (requiresShipping && !args.freeShipping && requestedShippingInCents <= 0) {
+  return { ok: false, status: 400, error: "missing_shipping_amount" };
+}
+```
 
-Cualquiera de las dos, pero una sola y de forma consistente:
+Por eso toda suscripción de producto físico tiene su flete registrado.
 
-1. **Mover cada suscripción a su plan con domicilio.** No requiere código: los
-   planes ya existen con el precio correcto. El monto esperado pasa a coincidir
-   con el cobrado y la asociación por monto exacto vuelve a funcionar.
-2. **Usar `pricing.shippingInCents`** en el plan base y sumar el flete al total.
-   Requiere que `getExpectedSubscriptionTotalInCents` lo contemple, hoy solo lee
-   `pricing.totalInCents`.
+### `SubscriptionPlan.priceInCents` no es lo que paga el cliente
 
-Mientras se mantenga el desajuste, cada pago con flete entra por el camino de
-menor confianza y engorda la cifra de pagos sin suscripción asociada.
+Es el precio base del plan. El cobro real sale de
+`getExpectedSubscriptionTotalInCents()`, que resuelve en este orden:
+
+1. `subscription.metadata.pricing.totalInCents` ← la fuente de verdad
+2. `plan.metadata.pricing.totalInCents`
+3. `plan.priceInCents` ← último recurso
+
+Comparar un cobro contra `plan.priceInCents` da diferencias que **no son
+anomalías**: son el flete, la variante, el descuento y el IVA. Ejemplos reales:
+
+| Plan base | Cobrado | Diferencia | Qué es |
+|---|---|---|---|
+| Alpha $360.000 | $390.000 | +30.000 | flete fuera de Medellín |
+| Omega $460.000 | $480.000 | +20.000 | flete |
+| Alpha $360.000 | $380.000 | +20.000 | flete de otra zona |
+| Alpha $360.000 | $378.000 | +18.000 | flete de otra zona |
+| Delta $620.000 | $616.802 | −3.198 | importe no redondo: firma de un descuento porcentual |
+
+Al conciliar, `resolveAssociation` compara el pago entrante contra el total
+esperado de la suscripción —con flete incluido—, así que el cuadre por monto
+exacto funciona. El camino de menor confianza que deja el rastro «asociando por
+identidad con diferencia de monto (posible flete)» es para los casos en que el
+flete cambió entre el cobro y la conciliación, no para el flujo normal.
 
 ---
 
