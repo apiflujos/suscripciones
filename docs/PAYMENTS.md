@@ -9,6 +9,7 @@ Documentación técnica del módulo de pagos e integración con Wompi.
 - [Referencias Wompi](#referencias-wompi)
 - [Endpoints](#endpoints)
 - [Servicios Principales](#servicios-principales)
+- [Fletes (domicilio)](#fletes-domicilio)
 - [Conciliación](#conciliación)
 - [Manejo de Errores](#manejo-de-errores)
 - [Consideraciones de Seguridad](#consideraciones-de-seguridad)
@@ -274,6 +275,78 @@ const signature = sha256Hex(
   `${reference}${amountInCents}${currency}${integritySecret}`
 );
 ```
+
+---
+
+## Fletes (domicilio)
+
+El monto que se le cobra al cliente incluye el flete cuando el despacho sale de
+Medellín. Es un cobro legítimo y deliberado, no un recargo sin explicar.
+
+### Cómo está modelado hoy
+
+El flete vive en **planes separados**, no en un campo del plan:
+
+| Plan | Precio | Incluye |
+|---|---|---|
+| `Suscripción Alpha` | $360.000 | sin domicilio |
+| `Suscripción Alpha con Domicilio (Fuera Medellín)` | $390.000 | + $30.000 de flete |
+| `Suscripción Omega  sin Domicilio` | $460.000 | sin domicilio |
+| `Plan Omega  sin Domicilio` | $460.000 | sin domicilio |
+
+Hay 16 planes con "domicilio" en el nombre. Existe además un campo previsto para
+esto en el esquema — `planMetadata.pricing.shippingInCents`, ver
+`packages/core/src/lib/metadataSchemas.ts` — pero hoy está en `0` o `null` en
+todos los planes: nadie lo usa.
+
+### El problema que esto causa
+
+Las suscripciones vivas apuntan al plan **sin** domicilio, y se les cobra el monto
+**con** domicilio. Los planes con domicilio tienen cero suscripciones asociadas.
+
+El sistema queda entonces contradiciéndose consigo mismo:
+
+```
+Suscripción → plan "Suscripción Alpha"  → $360.000   ← lo que el sistema cree
+Cobro real  →                             $390.000   ← lo que el cliente paga
+```
+
+`getExpectedSubscriptionTotalInCents()` resuelve el total esperado desde el plan,
+así que devuelve $360.000. Cuando entra el pago de $390.000, `resolveAssociation`
+no encuentra coincidencia exacta de monto y cae al Tier 2, que asocia con menos
+confianza y deja este rastro:
+
+```
+resolveAssociation: asociando por identidad con diferencia de monto (posible flete)
+```
+
+Diferencias observadas en producción (23-ago-2026):
+
+| Plan de la suscripción | Precio del plan | Cobrado | Diferencia | Veces |
+|---|---|---|---|---|
+| Suscripción Alpha | 360.000 | 390.000 | +30.000 | 66 |
+| Suscripción Omega | 460.000 | 480.000 | +20.000 | 10 |
+| Suscripción Alpha | 360.000 | 380.000 | +20.000 | 7 |
+| Suscripción Alpha | 360.000 | 378.000 | +18.000 | 5 |
+| Suscripción Delta | 620.000 | 616.802 | **−3.198** | 1 |
+
+Las cuatro primeras son fletes. **La última no**: es menor que el precio del plan,
+así que no puede ser flete. Es un pago aprobado por webhook el 26-jun-2026 y queda
+sin explicar.
+
+### Cómo dejarlo bien
+
+Cualquiera de las dos, pero una sola y de forma consistente:
+
+1. **Mover cada suscripción a su plan con domicilio.** No requiere código: los
+   planes ya existen con el precio correcto. El monto esperado pasa a coincidir
+   con el cobrado y la asociación por monto exacto vuelve a funcionar.
+2. **Usar `pricing.shippingInCents`** en el plan base y sumar el flete al total.
+   Requiere que `getExpectedSubscriptionTotalInCents` lo contemple, hoy solo lee
+   `pricing.totalInCents`.
+
+Mientras se mantenga el desajuste, cada pago con flete entra por el camino de
+menor confianza y engorda la cifra de pagos sin suscripción asociada.
 
 ---
 
