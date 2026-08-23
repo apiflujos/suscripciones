@@ -73,8 +73,8 @@ vi.mock("../billingCycles", () => ({
     subscription: { plan: { metadata: { collectionMode: "AUTO_DEBIT" } } },
     collectionCycle: {
       cycleNumber: 1,
-      periodEndAt: new Date("2026-05-01T00:00:00.000Z"),
-      dueAt: new Date("2026-04-15T00:00:00.000Z")
+      periodEndAt: new Date(Date.now() + 17 * 24 * 60 * 60 * 1000),
+      dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
     }
   }))
 }));
@@ -200,8 +200,8 @@ describe("notificationsScheduler", () => {
       subscription: { plan: { metadata: { collectionMode: "AUTO_DEBIT" } } },
       collectionCycle: {
         cycleNumber: 1,
-        periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
-        dueAt: new Date("2026-05-20T20:00:00.000Z")
+        periodEndAt: new Date(Date.now() + 13 * 24 * 60 * 60 * 1000),
+        dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
       }
     } as any);
     vi.mocked(getNotificationsConfig).mockResolvedValue({
@@ -225,6 +225,112 @@ describe("notificationsScheduler", () => {
     );
   });
 
+  it("no deja que un job cancelado bloquee la reprogramación del aviso", async () => {
+    // Guardar la configuración de cobros cancela los avisos pendientes y los vuelve
+    // a agendar. Si la búsqueda de duplicados no filtra por estado, encuentra el que
+    // acaba de cancelar y no crea el nuevo: el ciclo se queda sin avisar.
+    vi.mocked(prisma.subscription.findUnique).mockResolvedValue({ id: "sub-1", customerId: "cus-1" } as any);
+    vi.mocked(resolveSubscriptionBillingState).mockResolvedValue({
+      subscription: { plan: { metadata: { collectionMode: "MANUAL_LINK" } } },
+      collectionCycle: {
+        cycleNumber: 1,
+        periodEndAt: new Date(Date.now() + 13 * 24 * 60 * 60 * 1000),
+        dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+      }
+    } as any);
+    vi.mocked(getNotificationsConfig).mockResolvedValue({
+      rules: [{ id: "rule-antes", enabled: true, trigger: "SUBSCRIPTION_DUE", offsetsSeconds: [-3600] }],
+      templates: []
+    } as any);
+
+    await scheduleSubscriptionDueNotifications({ subscriptionId: "sub-1" });
+
+    const consulta = vi.mocked(prisma.retryJob.findFirst).mock.calls[0]?.[0] as any;
+    expect(consulta).toBeDefined();
+    expect(consulta.where.status.in).toEqual(
+      expect.arrayContaining(["PENDING", "RUNNING", "SUCCEEDED"])
+    );
+    expect(consulta.where.status.in).not.toContain("CANCELED");
+    expect(consulta.where.status.in).not.toContain("FAILED");
+  });
+
+  it("no agenda un recordatorio anticipado si el vencimiento ya pasó", async () => {
+    // El texto anuncia una fecha futura ("está programado para el día X").
+    // Mandarlo después de esa fecha sería mentirle al cliente.
+    vi.mocked(prisma.subscription.findUnique).mockResolvedValue({ id: "sub-1", customerId: "cus-1" } as any);
+    vi.mocked(resolveSubscriptionBillingState).mockResolvedValue({
+      subscription: { plan: { metadata: { collectionMode: "MANUAL_LINK" } } },
+      collectionCycle: {
+        cycleNumber: 1,
+        periodEndAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+        dueAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+      }
+    } as any);
+    vi.mocked(getNotificationsConfig).mockResolvedValue({
+      rules: [
+        { id: "rule-antes", enabled: true, trigger: "SUBSCRIPTION_DUE", offsetsSeconds: [-86400] }
+      ],
+      templates: []
+    } as any);
+
+    const res = await scheduleSubscriptionDueNotifications({ subscriptionId: "sub-1" });
+
+    expect(prisma.retryJob.create).not.toHaveBeenCalled();
+    expect(res.scheduled).toBe(0);
+  });
+
+  it("no agenda avisos cuyo momento de envío quedó muy atrás", async () => {
+    // Al agendar ciclos viejos, sin este tope una sola pasada dispararía de golpe
+    // una avalancha de avisos vencidos a toda la cartera.
+    vi.mocked(prisma.subscription.findUnique).mockResolvedValue({ id: "sub-1", customerId: "cus-1" } as any);
+    vi.mocked(resolveSubscriptionBillingState).mockResolvedValue({
+      subscription: { plan: { metadata: { collectionMode: "MANUAL_LINK" } } },
+      collectionCycle: {
+        cycleNumber: 1,
+        periodEndAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        dueAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
+      }
+    } as any);
+    vi.mocked(getNotificationsConfig).mockResolvedValue({
+      rules: [
+        { id: "rule-mora", enabled: true, trigger: "SUBSCRIPTION_DUE", offsetsSeconds: [432000] }
+      ],
+      templates: []
+    } as any);
+
+    const res = await scheduleSubscriptionDueNotifications({ subscriptionId: "sub-1" });
+
+    expect(prisma.retryJob.create).not.toHaveBeenCalled();
+    expect(res.scheduled).toBe(0);
+  });
+
+  it("sí agenda la mora cuando el momento de envío todavía no llegó", async () => {
+    vi.mocked(prisma.subscription.findUnique).mockResolvedValue({ id: "sub-1", customerId: "cus-1" } as any);
+    vi.mocked(resolveSubscriptionBillingState).mockResolvedValue({
+      subscription: { plan: { metadata: { collectionMode: "MANUAL_LINK" } } },
+      collectionCycle: {
+        cycleNumber: 4,
+        periodEndAt: new Date(Date.now() + 9 * 24 * 60 * 60 * 1000),
+        dueAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+      }
+    } as any);
+    vi.mocked(getNotificationsConfig).mockResolvedValue({
+      rules: [
+        { id: "rule-mora", enabled: true, trigger: "SUBSCRIPTION_DUE", offsetsSeconds: [432000] }
+      ],
+      templates: []
+    } as any);
+
+    const res = await scheduleSubscriptionDueNotifications({ subscriptionId: "sub-1" });
+
+    expect(res.scheduled).toBe(1);
+    expect(prisma.retryJob.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ payload: expect.objectContaining({ ruleId: "rule-mora" }) })
+      })
+    );
+  });
+
   it("filtra SUBSCRIPTION_DUE por tipo LINK cuando la suscripción no usa AUTO_DEBIT", async () => {
     vi.mocked(prisma.subscription.findUnique).mockResolvedValue({
       id: "sub-1",
@@ -234,8 +340,8 @@ describe("notificationsScheduler", () => {
       subscription: { plan: { metadata: { collectionMode: "MANUAL_LINK" } } },
       collectionCycle: {
         cycleNumber: 1,
-        periodEndAt: new Date("2026-06-01T00:00:00.000Z"),
-        dueAt: new Date("2026-05-20T20:00:00.000Z")
+        periodEndAt: new Date(Date.now() + 13 * 24 * 60 * 60 * 1000),
+        dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
       }
     } as any);
     vi.mocked(getNotificationsConfig).mockResolvedValue({

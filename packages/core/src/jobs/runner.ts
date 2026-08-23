@@ -20,6 +20,7 @@ import { reconcileRecentChatwootDeliveries } from "../services/chatwootDelivery"
 import { reconcileWompiByReference, reconcileWompiTransaction } from "../services/wompiReconcile";
 import { resolveSubscriptionCollectionMode } from "../services/subscriptionMode";
 import { ensurePaymentRetryJob, resolvePaymentRetryRunAt } from "../services/retryJobScheduler";
+import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
 import { getZonedParts, applyClockTimeInZone } from "../lib/timeZoneScheduling";
 import { handleSubscriptionPaymentFailure, ensureExpiredSubscriptions } from "../services/subscriptionBilling";
 import { runWithActor } from "../services/actorStore";
@@ -393,6 +394,7 @@ async function ensureDueCutoffRetries() {
   let createdJobs = 0;
   let skippedRecentLink = 0;
   let skippedExhausted = 0;
+  let scheduledNotifications = 0;
   let cursor: string | undefined;
 
   do {
@@ -417,6 +419,20 @@ async function ensureDueCutoffRetries() {
     const futureToleranceMs = 5_000;
 
     for (const sub of subs) {
+      // Los avisos de vencimiento solo se agendaban cuando algo tocaba la
+      // suscripción: un alta, un cobro, un webhook, un cambio de configuración.
+      // Si un ciclo rodaba sin que pasara ninguna de esas cosas, el ciclo entero
+      // se quedaba sin avisar. Va antes de los filtros de modo de cobro porque
+      // avisar aplica también a las que se cobran con link manual.
+      const avisos = await scheduleSubscriptionDueNotifications({
+        subscriptionId: sub.id,
+        actor: "jobs:safety_sync"
+      }).catch((err) => {
+        logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo agendando avisos de vencimiento');
+        return null;
+      });
+      scheduledNotifications += avisos?.scheduled || 0;
+
       const mode = resolveSubscriptionCollectionMode(sub);
       if (mode !== "AUTO_DEBIT" && mode !== "AUTO_LINK") continue;
 
@@ -541,7 +557,8 @@ async function ensureDueCutoffRetries() {
       processedSubscriptions: processedTotal,
       jobsCreated: createdJobs,
       jobsSkippedRecentLink: skippedRecentLink,
-      jobsSkippedAttemptsExhausted: skippedExhausted
+      jobsSkippedAttemptsExhausted: skippedExhausted,
+      notificationsScheduled: scheduledNotifications
     }).catch((err) => {
       logger.warn({ err }, '[Jobs/SafetySync] Fallo creando resumen de seguridad');
     });

@@ -1,4 +1,4 @@
-import { LogLevel, PaymentStatus, RetryJobType } from "@prisma/client";
+import { LogLevel, PaymentStatus, RetryJobStatus, RetryJobType } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
 import { applyClockTimeInZone } from "../lib/timeZoneScheduling";
@@ -41,6 +41,11 @@ function resolveOffsetsSeconds(rule: NotificationRule) {
 function clampRunAt(runAt: Date, now: Date) {
   return runAt.getTime() < now.getTime() ? now : runAt;
 }
+
+// Cuánto atraso se tolera antes de descartar un aviso en vez de dispararlo.
+// Seis horas alcanzan para un worker caído un rato; más que eso ya es un aviso
+// viejo que no le sirve a nadie.
+const STALE_RUN_AT_TOLERANCE_MS = 6 * 60 * 60 * 1000;
 
 async function resolveScheduledRunAt(args: { base: Date; atTime?: string | null }) {
   const atTime = String(args.atTime || "").trim();
@@ -96,6 +101,7 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
 
   let scheduled = 0;
   let sentNow = 0;
+  let skippedStale = 0;
   const errors: string[] = [];
   for (const rule of rules) {
     const offsetsSecondsBase = resolveOffsetsSeconds(rule as NotificationRule);
@@ -103,7 +109,7 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
     for (const offsetSeconds of offsetsSeconds) {
       const runAtBase = new Date(anchorAt.getTime() + toMsSeconds(offsetSeconds));
       const runAtRaw = await resolveScheduledRunAt({ base: runAtBase, atTime: rule.atTimeBogota ?? rule.atTimeUtc });
-      const runAt = args.forceNow ? clampRunAt(runAtRaw, now) : runAtRaw;
+      const runAt = clampRunAt(runAtRaw, now);
       const payload: SubscriptionDueJobPayload = {
         trigger: "SUBSCRIPTION_DUE",
         ruleId: rule.id,
@@ -114,9 +120,26 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
         anchorAt: anchorIso
       };
       if (!args.forceNow) {
+        // Un recordatorio "antes del vencimiento" anuncia una fecha futura; si la
+        // fecha ya pasó, mandarlo sería mentirle al cliente. Para eso está la mora.
+        if (offsetSeconds < 0 && now.getTime() > anchorAt.getTime()) {
+          skippedStale++;
+          continue;
+        }
+        // Y si el momento de envío quedó muy atrás (al agendar ciclos viejos, por
+        // ejemplo), tampoco: si no, una sola pasada dispara una avalancha de avisos
+        // vencidos de golpe.
+        if (now.getTime() - runAtRaw.getTime() > STALE_RUN_AT_TOLERANCE_MS) {
+          skippedStale++;
+          continue;
+        }
         const existing = await prisma.retryJob.findFirst({
           where: {
             type: RetryJobType.SUBSCRIPTION_REMINDER,
+            // Sin filtrar por estado, un job cancelado bloqueaba la reprogramación
+            // para siempre: guardar la configuración de cobros cancelaba los avisos
+            // y después este mismo chequeo impedía volver a crearlos.
+            status: { in: [RetryJobStatus.PENDING, RetryJobStatus.RUNNING, RetryJobStatus.SUCCEEDED] },
             payload: { path: ["subscriptionId"], equals: sub.id } as any,
             AND: [
               { payload: { path: ["ruleId"], equals: rule.id } as any },
@@ -140,24 +163,31 @@ export async function scheduleSubscriptionDueNotifications(args: { subscriptionI
     }
   }
 
-  await systemLog(
-    LogLevel.INFO,
-    "notifications.schedule",
-    "Notificaciones programadas",
-    {
-      trigger: "SUBSCRIPTION_DUE",
-      environment: await getNotificationsActiveEnv(),
-      subscriptionId: sub.id,
-      customerId: sub.customerId,
-      currentPeriodEndAt: new Date(collectionCycle.periodEndAt).toISOString(),
-      rulesCount: rules.length,
-      scheduled,
-      sentNow
-    },
-    args.actor || SystemActor.JOB_SUBSCRIPTION_REMINDER
-  ).catch((err) => {
-    logger.warn({ err, subscriptionId: sub.id }, '[Notifications/Schedule] Fallo creando systemLog');
-  });
+  // Solo dejar rastro cuando algo pasó. Esta función ahora corre en cada pasada
+  // del sincronizador para toda la cartera; registrar los "no hice nada" llenaría
+  // el log de ruido y taparía lo que sí importa.
+  const huboMovimiento = scheduled > 0 || sentNow > 0 || skippedStale > 0 || errors.length > 0;
+  if (huboMovimiento) {
+    await systemLog(
+      LogLevel.INFO,
+      "notifications.schedule",
+      "Notificaciones programadas",
+      {
+        trigger: "SUBSCRIPTION_DUE",
+        environment: await getNotificationsActiveEnv(),
+        subscriptionId: sub.id,
+        customerId: sub.customerId,
+        currentPeriodEndAt: new Date(collectionCycle.periodEndAt).toISOString(),
+        rulesCount: rules.length,
+        scheduled,
+        sentNow,
+        skippedStale
+      },
+      args.actor || SystemActor.JOB_SUBSCRIPTION_REMINDER
+    ).catch((err) => {
+      logger.warn({ err, subscriptionId: sub.id }, '[Notifications/Schedule] Fallo creando systemLog');
+    });
+  }
 
   return { scheduled, sentNow, rulesActive: rules.length > 0, errors };
 }
