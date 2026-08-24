@@ -911,6 +911,14 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
         )
       }
     : null;
+
+  // Para auditoría: si no hay contenido propio, construir un resumen con la plantilla
+  // y los parámetros renderizados para que quede constancia de qué se envió.
+  const auditableContent = template.content
+    ? content
+    : normalizedRenderedTemplateParams
+      ? `[${template.name}] body=${JSON.stringify(normalizedRenderedTemplateParams.processed_params?.body ?? [])}`
+      : `[${template.name}]`;
   if (normalizedRenderedTemplateParams) {
     try {
       validateRenderedTemplateParams(normalizedRenderedTemplateParams, template.meta);
@@ -992,7 +1000,8 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
       paymentId: effectivePayment?.id ?? null,
       type: template.chatwootType as ChatwootMessageType,
       status: MessageStatus.PENDING,
-      content,
+      to: customer.phone ?? null,
+      content: auditableContent,
       actor: "Sistema",
       providerResp: normalizedRenderedTemplateParams
         ? ({

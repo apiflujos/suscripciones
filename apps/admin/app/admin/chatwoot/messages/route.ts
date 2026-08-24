@@ -121,6 +121,7 @@ export async function POST(req: Request) {
         customerId: parsed.data.customerId,
         type: msgType,
         status: MessageStatus.PENDING,
+        to: customer?.phone ?? null,
         content: cleanContent,
         actor,
         providerResp: Object.keys(providerResp).length ? (providerResp as any) : null

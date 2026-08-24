@@ -82,6 +82,7 @@ export async function sendChatwootMessageForCustomer(args: {
       customerId,
       type: msgType,
       status: MessageStatus.PENDING,
+      to: customer.phone ?? null,
       content: cleanContent,
       actor: args.actor || "Sistema",
       providerResp: Object.keys(providerResp).length ? (providerResp as any) : null

@@ -2,15 +2,16 @@
   "name": "@suscripciones/worker",
   "private": true,
   "scripts": {
-    "start": "tsx src/runner.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/runner.js",
     "dev": "tsx watch src/runner.ts"
   },
   "dependencies": {
     "@suscripciones/core": "file:../../packages/core",
-    "@suscripciones/database": "file:../../packages/database",
-    "tsx": "^4.16.2"
+    "@suscripciones/database": "file:../../packages/database"
   },
   "devDependencies": {
+    "tsx": "^4.16.2",
     "typescript": "^5.6.3"
   }
 }

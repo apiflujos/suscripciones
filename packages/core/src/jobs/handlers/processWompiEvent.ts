@@ -1537,6 +1537,7 @@ export async function processWompiEventLogic(webhookEventId: string, db: typeof 
         attemptNo: nextAttemptNo,
         status: "TRANSACTION_DECLINED",
         provider: "wompi",
+        reference: reference ?? null,
         errorCode: nextStatus || "DECLINED",
         errorMessage: failureMessage || "Pago rechazado por el emisor.",
         response: payload as Prisma.InputJsonValue

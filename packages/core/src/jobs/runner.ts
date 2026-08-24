@@ -115,6 +115,7 @@ function nextRunAtMinutes(minutes: number) {
 let lastEnsureAtMs = 0;
 let lastEnsureSmartListsAtMs = 0;
 let lastLogCleanupAtMs = 0;
+let lastRetryJobCleanupAtMs = 0;
 let lastGamificationRecalcAtMs = 0;
 let lastDataTrainerAtMs = 0;
 let lastAutoReconcileAtMs = 0;
@@ -245,6 +246,34 @@ async function ensureLogCleanup() {
   const days = Number(process.env.AUDIT_LOG_RETENTION_DAYS || process.env.LOG_RETENTION_DAYS || 60);
   const cutoff = new Date(now - days * 24 * 60 * 60 * 1000);
   await prisma.systemLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
+}
+
+async function ensureRetryJobCleanup() {
+  const now = Date.now();
+  if (now - lastRetryJobCleanupAtMs < 24 * 60 * 60 * 1000) return;
+  lastRetryJobCleanupAtMs = now;
+
+  const days = Number(process.env.RETRY_JOB_RETENTION_DAYS || 30);
+  const cutoff = new Date(now - days * 24 * 60 * 60 * 1000);
+
+  const [deletedSucceeded, deletedFailed] = await Promise.all([
+    prisma.retryJob.deleteMany({
+      where: {
+        status: RetryJobStatus.SUCCEEDED,
+        updatedAt: { lt: cutoff }
+      }
+    }),
+    prisma.retryJob.deleteMany({
+      where: {
+        status: RetryJobStatus.FAILED,
+        updatedAt: { lt: cutoff }
+      }
+    })
+  ]);
+
+  if (deletedSucceeded.count > 0 || deletedFailed.count > 0) {
+    logger.info({ deletedSucceeded: deletedSucceeded.count, deletedFailed: deletedFailed.count, retentionDays: days }, "retryJob.cleanup");
+  }
 }
 
 async function ensureJobsHeartbeat() {
@@ -855,6 +884,7 @@ async function main() {
       await ensureGamificationRecalcJob();
       await ensureDataTrainerJob();
       await ensureLogCleanup();
+      await ensureRetryJobCleanup();
       await ensureShopifyForwardRetries();
       await ensureJobsHeartbeat();
       await ensurePendingPaymentsAutoReconcile();

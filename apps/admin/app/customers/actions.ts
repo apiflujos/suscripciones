@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { assertCsrfToken } from "../lib/csrf";
 import { createCustomer as createCustomerService, updateCustomerProfile, deleteCustomerProfile } from "../admin/_services/customers";
 import type { CustomerMetadata } from "@suscripciones/core/lib/customerMetadata";
+import { normalizePhoneE164 } from "@suscripciones/core/lib/phone";
 
 function safeReturnTo(formData: FormData) {
   const raw = String(formData.get("returnTo") || "").trim();
@@ -73,16 +74,21 @@ export async function createCustomer(formData: FormData) {
   const idType = String(formData.get("idType") || "").trim();
   const idNumber = String(formData.get("idNumber") || "").trim();
 
-  if (!phoneRaw) {
-    return redirect(mergeQuery(returnTo, { error: "telefono_requerido", ...(tenantId ? { tenantId } : {}) }));
+  if (!phoneRaw && !emailRaw) {
+    return redirect(mergeQuery(returnTo, { error: "contacto_requerido", ...(tenantId ? { tenantId } : {}) }));
+  }
+
+  const phoneNormalized = phoneRaw ? normalizePhoneE164(phoneRaw) : undefined;
+  if (phoneRaw && !phoneNormalized) {
+    return redirect(mergeQuery(returnTo, { error: "telefono_invalido", ...(tenantId ? { tenantId } : {}) }));
   }
 
   try {
     const metadata = buildCustomerMetadata({ addressLine1, dept, city, code5, dane8, idType, idNumber });
 
     const name = nameRaw || undefined;
-    const email = emailRaw;
-    const phone = phoneRaw;
+    const email = emailRaw || undefined;
+    const phone = phoneNormalized || "";
     const res = await createCustomerService({
       data: {
         name,
@@ -126,7 +132,10 @@ export async function updateCustomer(formData: FormData): Promise<UpdateCustomer
   const idNumber = String(formData.get("idNumber") || "").trim();
 
   if (!id) return { ok: false, error: "invalid_id" as const };
-  if (!phone) return { ok: false, error: "telefono_requerido" as const };
+  if (!phone && !email) return { ok: false, error: "contacto_requerido" as const };
+
+  const phoneNormalized = phone ? normalizePhoneE164(phone) : undefined;
+  if (phone && !phoneNormalized) return { ok: false, error: "telefono_invalido" as const };
 
   try {
     const metadata = buildCustomerMetadata({ addressLine1, dept, city, code5, dane8, idType, idNumber });
@@ -138,7 +147,7 @@ export async function updateCustomer(formData: FormData): Promise<UpdateCustomer
       primaryTenantId: primaryTenantId || null,
       name: name || "",
       email: email || "",
-      phone: phone || "",
+      phone: phoneNormalized || "",
       ...(metadata ? { metadata } : {})
     });
     if (!updated.ok) return { ok: false as const, error: String(updated.error || "update_customer_failed") };

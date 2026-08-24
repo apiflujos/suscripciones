@@ -9,6 +9,7 @@ import { formatLevelName } from "@suscripciones/core/services/gamification";
 import { applyGamificationEvent, GAMIFICATION_EVENT_KINDS } from "@suscripciones/core/services/gamification";
 import { WompiClient } from "@suscripciones/core/providers/wompi/client";
 import { logger } from "@suscripciones/core/lib/logger";
+import { normalizePhoneE164 } from "@suscripciones/core/lib/phone";
 import {
   getWompiApiBaseUrl,
   getWompiCheckoutLinkBaseUrl,
@@ -25,10 +26,13 @@ import {
 
 export const createCustomerSchema = z.object({
   name: z.string().min(1).optional(),
-  email: z.string().email(),
-  phone: z.string().min(6),
+  email: z.string().email().optional().or(z.literal("")),
+  phone: z.string().min(6).optional().or(z.literal("")),
   metadata: customerMetadataSchema.optional()
-});
+}).refine(
+  (data) => Boolean(data.phone?.trim()) || Boolean(data.email?.trim()),
+  { message: "Se requiere al menos un dato de contacto: teléfono o correo electrónico.", path: ["phone"] }
+);
 
 type ClearPaymentSourceOk = {
   ok: true;
@@ -224,21 +228,27 @@ export async function createCustomer(args: {
   tenantIds: string[];
 }): Promise<CreateCustomerOk | CreateCustomerFail> {
   const emailNormalizado = args.data.email.toLowerCase().trim();
-  
+
   // Solo verificar si el email está vacío cuando es requerido
   // Permitir emails duplicados - el sistema maneja múltiples contactos con mismo email
-  
-  const phoneNormalizado = args.data.phone.replace(/[^\d+]/g, "").trim();
+
+  const phoneNormalizado = normalizePhoneE164(args.data.phone) ?? args.data.phone.replace(/[^\d+]/g, "").trim();
   if (phoneNormalizado.length >= 10) {
     const existingPhone = await prisma.customer.findFirst({
-      where: { phone: { contains: phoneNormalizado.slice(-10) } }
+      where: { phone: phoneNormalizado }
     });
     if (existingPhone) {
       logger.warn({
         phone: phoneNormalizado,
         existingCustomerId: existingPhone.id,
         existingCustomerName: existingPhone.name
-      }, "[Customers/Create] Phone potencialmente duplicado");
+      }, "[Customers/Create] Phone duplicado — creación bloqueada");
+      return {
+        ok: false,
+        status: 409,
+        error: "telefono_duplicado",
+        message: `El teléfono ${phoneNormalizado} ya está registrado por el cliente "${existingPhone.name}" (${existingPhone.id.slice(0, 8)}).`
+      };
     }
   }
 
@@ -257,6 +267,7 @@ export async function createCustomer(args: {
       data: {
         ...(args.data as any),
         email: emailNormalizado,
+        phone: phoneNormalizado,
         tenantId: primaryTenantId
       }
     });
@@ -364,7 +375,29 @@ export async function updateCustomerProfile(args: {
   const data: any = {};
   if (args.name !== undefined) data.name = args.name === "" ? null : args.name;
   if (args.email !== undefined) data.email = args.email === "" ? null : args.email;
-  if (args.phone !== undefined) data.phone = args.phone === "" ? null : args.phone;
+  if (args.phone !== undefined) {
+    const normalizedPhone = args.phone === "" ? null : (normalizePhoneE164(args.phone) ?? args.phone);
+    if (normalizedPhone && normalizedPhone.length >= 10) {
+      const existingPhone = await prisma.customer.findFirst({
+        where: { phone: normalizedPhone, id: { not: customerId } }
+      });
+      if (existingPhone) {
+        logger.warn({
+          phone: normalizedPhone,
+          customerId,
+          existingCustomerId: existingPhone.id,
+          existingCustomerName: existingPhone.name
+        }, "[Customers/Update] Phone duplicado — actualización bloqueada");
+        return {
+          ok: false,
+          status: 409,
+          error: "telefono_duplicado",
+          message: `El teléfono ${normalizedPhone} ya está registrado por el cliente "${existingPhone.name}" (${existingPhone.id.slice(0, 8)}).`
+        };
+      }
+    }
+    data.phone = normalizedPhone;
+  }
   if (args.metadata !== undefined) data.metadata = args.metadata;
 
   const updated = await prisma.$transaction(async (tx) => {

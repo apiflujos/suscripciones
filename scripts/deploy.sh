@@ -55,6 +55,7 @@ npm run prisma:migrate:deploy -w packages/database
 
 echo "🔨 Construyendo aplicación..."
 npm run build -w apps/admin
+npm run build -w apps/worker
 
 echo "🔄 Recargando PM2..."
 pm2 restart ecosystem.config.js --update-env 2>/dev/null || pm2 start ecosystem.config.js --update-env
