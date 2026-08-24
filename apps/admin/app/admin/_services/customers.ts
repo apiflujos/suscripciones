@@ -227,12 +227,12 @@ export async function createCustomer(args: {
   data: z.infer<typeof createCustomerSchema>;
   tenantIds: string[];
 }): Promise<CreateCustomerOk | CreateCustomerFail> {
-  const emailNormalizado = args.data.email.toLowerCase().trim();
+  const emailNormalizado = (args.data.email ?? "").toLowerCase().trim();
 
   // Solo verificar si el email está vacío cuando es requerido
   // Permitir emails duplicados - el sistema maneja múltiples contactos con mismo email
 
-  const phoneNormalizado = normalizePhoneE164(args.data.phone) ?? args.data.phone.replace(/[^\d+]/g, "").trim();
+  const phoneNormalizado = normalizePhoneE164(args.data.phone) ?? (args.data.phone ?? "").replace(/[^\d+]/g, "").trim();
   if (phoneNormalizado.length >= 10) {
     const existingPhone = await prisma.customer.findFirst({
       where: { phone: phoneNormalizado }

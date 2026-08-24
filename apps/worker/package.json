@@ -3,15 +3,15 @@
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/runner.js",
+    "start": "tsx src/runner.ts",
     "dev": "tsx watch src/runner.ts"
   },
   "dependencies": {
     "@suscripciones/core": "file:../../packages/core",
-    "@suscripciones/database": "file:../../packages/database"
+    "@suscripciones/database": "file:../../packages/database",
+    "tsx": "^4.16.2"
   },
   "devDependencies": {
-    "tsx": "^4.16.2",
     "typescript": "^5.6.3"
   }
 }

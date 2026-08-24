@@ -44,12 +44,12 @@ export async function POST(req: Request) {
   if ((client as any)?.error) return Response.json({ error: (client as any).error }, { status: 400 });
 
   let conversationId = parsed.data.conversationId;
-  let customer: { id: string; tenantId: string | null; metadata?: any } | null = null;
+  let customer: { id: string; tenantId: string | null; metadata?: any; phone: string | null } | null = null;
 
   if (!conversationId && parsed.data.customerId) {
     customer = await prisma.customer.findUnique({
       where: { id: parsed.data.customerId },
-      select: { id: true, tenantId: true, metadata: true }
+      select: { id: true, tenantId: true, metadata: true, phone: true }
     });
     if (!customer) return Response.json({ error: "customer_not_found" }, { status: 404 });
 
