@@ -19,3 +19,5 @@ backups/
 # Logs de PM2 (ver ecosystem.config.js). La carpeta se conserva; su contenido no.
 logs/*
 !logs/.gitkeep
+packages/core/src/**/*.js
+packages/database/src/**/*.js
