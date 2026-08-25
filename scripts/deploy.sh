@@ -67,7 +67,19 @@ curl -fsS "http://127.0.0.1:${PORT:-3002}/health" >/dev/null
 
 # El proceso de jobs es el que cobra. Si queda caído, el deploy no falla solo
 # —el admin responde igual— y nadie se entera hasta que no se cobra nada.
-JOBS_NAME="${PM2_APP_PREFIX:-crm-sus}-jobs${CLIENT_SLUG:+-$CLIENT_SLUG}"
+# El nombre se lee de ecosystem.config.js, que es quien de verdad lo decide.
+# Reconstruirlo aquí a mano ya ignoraba APP_STACK_NAME: si alguien lo usara en
+# vez de PM2_APP_PREFIX, este chequeo buscaría un proceso que no existe y el
+# deploy fallaría al final con la cobranza perfectamente sana.
+JOBS_NAME="$(node -e "
+  const apps = require('./ecosystem.config.js').apps || [];
+  const jobs = apps.find((a) => /-jobs(-|\$)/.test(a.name));
+  if (!jobs) { process.exit(1); }
+  process.stdout.write(jobs.name);
+")" || {
+  echo "❌ No se pudo leer el nombre del proceso de jobs de ecosystem.config.js"
+  exit 1
+}
 JOBS_STATUS="$(pm2 jlist 2>/dev/null | node -e "
   let raw = '';
   process.stdin.on('data', (d) => (raw += d));

@@ -21,3 +21,7 @@ logs/*
 !logs/.gitkeep
 packages/core/src/**/*.js
 packages/database/src/**/*.js
+
+# Artefactos locales de trabajo: no tienen por qué acabar en el repo.
+tmp/
+output/
