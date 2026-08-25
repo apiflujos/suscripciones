@@ -1,4 +1,5 @@
 import { hasExhaustedCycleAttempts } from "../services/collectionAttempts";
+import { isPermanentMessagingError } from "./permanentErrors";
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
 import { loadEnv } from "../config/env";
@@ -256,7 +257,10 @@ async function ensureRetryJobCleanup() {
   const days = Number(process.env.RETRY_JOB_RETENTION_DAYS || 30);
   const cutoff = new Date(now - days * 24 * 60 * 60 * 1000);
 
-  const [deletedSucceeded, deletedFailed] = await Promise.all([
+  // CANCELED entra en la purga igual que los otros dos estados terminales: son
+  // los avisos que se anularon al reprogramarlos y ya no los reclama nadie. Sin
+  // ellos la retención dejaba fuera una parte grande de la tabla.
+  const [deletedSucceeded, deletedFailed, deletedCanceled] = await Promise.all([
     prisma.retryJob.deleteMany({
       where: {
         status: RetryJobStatus.SUCCEEDED,
@@ -268,11 +272,25 @@ async function ensureRetryJobCleanup() {
         status: RetryJobStatus.FAILED,
         updatedAt: { lt: cutoff }
       }
+    }),
+    prisma.retryJob.deleteMany({
+      where: {
+        status: RetryJobStatus.CANCELED,
+        updatedAt: { lt: cutoff }
+      }
     })
   ]);
 
-  if (deletedSucceeded.count > 0 || deletedFailed.count > 0) {
-    logger.info({ deletedSucceeded: deletedSucceeded.count, deletedFailed: deletedFailed.count, retentionDays: days }, "retryJob.cleanup");
+  if (deletedSucceeded.count > 0 || deletedFailed.count > 0 || deletedCanceled.count > 0) {
+    logger.info(
+      {
+        deletedSucceeded: deletedSucceeded.count,
+        deletedFailed: deletedFailed.count,
+        deletedCanceled: deletedCanceled.count,
+        retentionDays: days
+      },
+      "retryJob.cleanup"
+    );
   }
 }
 
@@ -346,7 +364,7 @@ async function ensureWompiWebhookRecoveryJobs() {
   });
   if (!stale.length) return;
 
-  const toEnqueue = [];
+  const toEnqueue: string[] = [];
   for (const ev of stale) {
     const existing = await prisma.retryJob.findFirst({
       where: { type: RetryJobType.PROCESS_WOMPI_EVENT, payload: { path: ["webhookEventId"], equals: ev.id } as any }
@@ -825,8 +843,24 @@ async function runOnce() {
           return;
         }
         const attempts = job.attempts + 1;
-        let status: RetryJobStatus = attempts >= job.maxAttempts ? RetryJobStatus.FAILED : RetryJobStatus.PENDING;
+        // Un aviso que falló por configuración o por datos va a fallar igual las
+        // nueve veces que quedan, y con Meta insistir cuesta reputación. Se corta
+        // en el primer intento y queda el error escrito para poder arreglarlo.
+        const permanent = isPermanentMessagingError({ type: job.type, message: errMsg });
+        let status: RetryJobStatus =
+          permanent || attempts >= job.maxAttempts ? RetryJobStatus.FAILED : RetryJobStatus.PENDING;
         let runAt: Date | undefined = status === RetryJobStatus.PENDING ? nextRunAt(attempts) : undefined;
+        if (permanent) {
+          await systemLog(LogLevel.ERROR, "jobs.runner", "Aviso descartado sin reintentar", {
+            jobId: job.id,
+            type: job.type,
+            attempts,
+            err: errMsg,
+            reason: "permanent_error"
+          }).catch((logErr) => {
+            logger.warn({ logErr, jobId: job.id }, '[Jobs/Runner] Fallo creando systemLog');
+          });
+        }
         if (job.type === RetryJobType.PAYMENT_RETRY) {
           const subId = (job.payload as PaymentRetryPayload | null | undefined)?.subscriptionId;
           const cfg = subId
