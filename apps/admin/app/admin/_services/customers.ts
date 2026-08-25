@@ -227,12 +227,16 @@ export async function createCustomer(args: {
   data: z.infer<typeof createCustomerSchema>;
   tenantIds: string[];
 }): Promise<CreateCustomerOk | CreateCustomerFail> {
-  const emailNormalizado = (args.data.email ?? "").toLowerCase().trim();
+  // Customer.email es @unique. Postgres considera distintos entre sí todos los
+  // NULL, pero "" es un valor como cualquier otro: guardar cadena vacía dejaría
+  // crear un solo cliente sin correo y el segundo chocaría con P2002. Como ahora
+  // el correo es opcional (basta teléfono o correo), lo que falta va como null.
+  const emailNormalizado = (args.data.email ?? "").toLowerCase().trim() || null;
 
-  // Solo verificar si el email está vacío cuando es requerido
-  // Permitir emails duplicados - el sistema maneja múltiples contactos con mismo email
+  // Permitir emails duplicados no aplica: la unicidad la impone la base.
 
   const phoneNormalizado = normalizePhoneE164(args.data.phone) ?? (args.data.phone ?? "").replace(/[^\d+]/g, "").trim();
+  const phoneParaGuardar = phoneNormalizado || null;
   if (phoneNormalizado.length >= 10) {
     const existingPhone = await prisma.customer.findFirst({
       where: { phone: phoneNormalizado }
@@ -267,7 +271,7 @@ export async function createCustomer(args: {
       data: {
         ...(args.data as any),
         email: emailNormalizado,
-        phone: phoneNormalizado,
+        phone: phoneParaGuardar,
         tenantId: primaryTenantId
       }
     });
