@@ -257,7 +257,7 @@ export class ChatwootClient {
         ...(init.headers ?? {})
       }
     });
-    const json = await res.json().catch(() => null);
+    const json: any = await res.json().catch(() => null);
     return { ok: res.ok, status: res.status, json };
   }
 
@@ -277,7 +277,7 @@ export class ChatwootClient {
       },
       body: form
     });
-    const json = await res.json().catch(() => null);
+    const json: any = await res.json().catch(() => null);
     return { ok: res.ok, status: res.status, json };
   }
 

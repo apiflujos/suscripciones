@@ -22,7 +22,7 @@ async function main() {
       by: ["eventName"],
       where: { provider: "WOMPI", receivedAt: { gte: since } },
       _count: { _all: true },
-      orderBy: { _count: { _all: "desc" } },
+      orderBy: { _count: { eventName: "desc" } },
       take: 20
     }),
     prisma.webhookEvent.count({
@@ -35,10 +35,10 @@ async function main() {
 
   console.log(`Total eventos: ${total}`);
   console.log("Por estado:");
-  byStatus.forEach((r) => console.log(`  - ${r.processStatus}: ${r._count._all}`));
+  byStatus.forEach((r) => console.log(`  - ${r.processStatus}: ${(r._count as any)._all}`));
 
   console.log("Top eventos:");
-  byEvent.forEach((r) => console.log(`  - ${r.eventName}: ${r._count._all}`));
+  byEvent.forEach((r) => console.log(`  - ${r.eventName}: ${(r._count as any)._all}`));
 
   console.log(`RECEIVED > 30 min: ${staleReceived}`);
   console.log(`Forward Shopify FAILED (24h): ${failedForward}`);

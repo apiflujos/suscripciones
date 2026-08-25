@@ -3,10 +3,11 @@
  * FIX #4: Extracted from the monolithic processWompiEventLogic.
  */
 
-import { PaymentAssociationReason } from "@prisma/client";
+import { BillingCycleStatus, PaymentAssociationReason } from "@prisma/client";
 import type { prisma } from "../../../db/prisma";
 import { logger } from "../../../lib/logger";
 import { getExpectedSubscriptionTotalInCents } from "../../../lib/metadataSchemas";
+import { buildBillingSeed, ensureBillingCyclesForSubscriptions } from "../../../services/billingCycles";
 import { classifyReference } from "../../../webhooks/wompi/classifyReference";
 import type { AssociationDecision } from "./types";
 

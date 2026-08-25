@@ -13,7 +13,7 @@
     "build:admin": "npm run build -w apps/admin",
     "start": "npm run start -w apps/admin",
     "lint": "npm run lint -w apps/admin",
-    "typecheck": "npm run typecheck -w apps/admin",
+    "typecheck": "npm run typecheck -w packages/core && npm run typecheck -w apps/admin && npm run build -w apps/worker",
     "test": "vitest run --pool=threads --maxWorkers=1 --minWorkers=1",
     "test:watch": "vitest",
     "jobs": "npm -w apps/worker run start",
@@ -24,7 +24,7 @@
     "migrate:mdv-curated": "node packages/core/src/scripts/migrate-mdv-abril2026.js",
     "reset:mdv-curated": "node packages/core/src/scripts/reset-mdv-curated.js",
     "check:jobs": "node --env-file=.env scripts/check-jobs.mjs",
-  "audit:product-plan-mapping": "npx tsx packages/core/src/scripts/audit-product-plan-mapping.ts",
+    "audit:product-plan-mapping": "npx tsx packages/core/src/scripts/audit-product-plan-mapping.ts",
     "repair:subscriptions": "npx tsx packages/core/src/scripts/repair-subscriptions.ts",
     "repair:duplicate-customers": "npx tsx packages/core/src/scripts/merge-duplicate-customers.ts",
     "repair:skipped-cycles": "npx tsx packages/core/src/scripts/repair-skipped-cycles.ts",
@@ -35,7 +35,9 @@
     "audit": "npm audit --audit-level=high",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f"
+    "docker:logs": "docker-compose logs -f",
+    "typecheck:admin": "npm run typecheck -w apps/admin",
+    "typecheck:core": "npm run typecheck -w packages/core"
   },
   "prisma": {
     "seed": "npm run seed:bootstrap"

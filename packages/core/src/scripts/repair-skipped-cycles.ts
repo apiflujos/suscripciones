@@ -12,7 +12,7 @@ import { prisma } from "../db/prisma";
 
 const dryRun = process.argv.includes("--dry-run");
 
-const ACTIVE_STATUSES = [
+const ACTIVE_STATUSES: SubscriptionStatus[] = [
   SubscriptionStatus.ACTIVE,
   SubscriptionStatus.PAST_DUE
 ];
@@ -21,7 +21,7 @@ async function main() {
   const now = new Date();
   console.log(dryRun ? "🔍 DRY RUN — no se escribirá nada\n" : "🔧 Reparando ciclos SKIPPED futuros...\n");
 
-  const skippedCycles = await prisma.billingCycle.findMany({
+  const skippedCycles = await prisma.subscriptionBillingCycle.findMany({
     where: {
       status: BillingCycleStatus.SKIPPED,
       dueAt: { gt: now }
@@ -56,7 +56,7 @@ async function main() {
   }
 
   if (!dryRun) {
-    const result = await prisma.billingCycle.updateMany({
+    const result = await prisma.subscriptionBillingCycle.updateMany({
       where: {
         id: { in: anomalies.map((c) => c.id) }
       },

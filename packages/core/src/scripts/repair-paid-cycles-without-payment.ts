@@ -15,7 +15,7 @@ const dryRun = process.argv.includes("--dry-run");
 async function main() {
   console.log(dryRun ? "🔍 DRY RUN — no se escribirá nada\n" : "🔧 Reparando ciclos PAID sin pago...\n");
 
-  const orphanPaidCycles = await prisma.billingCycle.findMany({
+  const orphanPaidCycles = await prisma.subscriptionBillingCycle.findMany({
     where: {
       status: BillingCycleStatus.PAID,
       paymentId: null
@@ -44,7 +44,7 @@ async function main() {
   }
 
   if (!dryRun) {
-    const result = await prisma.billingCycle.updateMany({
+    const result = await prisma.subscriptionBillingCycle.updateMany({
       where: {
         id: { in: orphanPaidCycles.map((c) => c.id) }
       },
