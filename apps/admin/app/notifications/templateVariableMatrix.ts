@@ -93,6 +93,13 @@ const CYCLE_DUE_DATE_VARIABLES: NotificationVariableOption[] = [
   { label: "Proximo cobro", value: "{{subscription.nextBillingDate}}", recommended: true }
 ];
 
+// Y se retiran las que no puede rellenar. Un recordatorio sale antes de que el
+// pago exista, así que "Fecha de pago" y "Fecha de fallo" vienen siempre vacías;
+// Meta cuenta los parámetros y rechaza el envío entero por la que falta. Ofrecerlas
+// aquí es tender la misma trampa que dejó tres semanas de recordatorios sin salir.
+const EMPTY_ON_REMINDER = new Set(["{{payment.paidAt}}", "{{payment.failedAt}}"]);
+const REMINDER_CORE_VARIABLES = GENERIC_MESSAGE_VARIABLES.filter((v) => !EMPTY_ON_REMINDER.has(v.value));
+
 type TemplateVariableMatrix = {
   bodyVariables: NotificationVariableOption[];
   buttonVariables: NotificationVariableOption[];
@@ -125,6 +132,7 @@ function buildMatrix(args: {
 }
 
 const SUBSCRIPTION_CORE = [...GENERIC_MESSAGE_VARIABLES, ...SUBSCRIPTION_MESSAGE_VARIABLES];
+const REMINDER_SUBSCRIPTION_CORE = [...REMINDER_CORE_VARIABLES, ...SUBSCRIPTION_MESSAGE_VARIABLES];
 
 const REALTIME_VARIABLE_MATRIX: Record<RealtimeNotificationKey, TemplateVariableMatrix> = {
   catalog_link_created_plan: buildMatrix({
@@ -187,28 +195,28 @@ const REALTIME_VARIABLE_MATRIX: Record<RealtimeNotificationKey, TemplateVariable
 
 const REMINDER_VARIABLE_MATRIX: Record<ReminderNotificationKey, TemplateVariableMatrix> = {
   reminder_due_link: buildMatrix({
-    core: GENERIC_MESSAGE_VARIABLES,
+    core: REMINDER_CORE_VARIABLES,
     body: [...CYCLE_DUE_DATE_VARIABLES, ...LINK_PAYMENT_VARIABLES, ...LINK_CYCLE_VARIABLES],
     button: PLAN_BUTTON_VARIABLES,
     helpText: "Recordatorio previo de pago. Para la fecha usa \"Proximo cobro\": las fechas del pago están vacías porque todavía no se pagó. Usa solo la URL publica de pago.",
     recommendedButtonLabel: "Link para pagar"
   }),
   reminder_due_subscription: buildMatrix({
-    core: SUBSCRIPTION_CORE,
+    core: REMINDER_SUBSCRIPTION_CORE,
     body: TOKENIZATION_VARIABLES,
     button: TOKENIZATION_BUTTON_VARIABLES,
     helpText: "Recordatorio previo de debito automatico. Usa solo la URL publica de tokenizacion.",
     recommendedButtonLabel: "Link para autorizar debito"
   }),
   reminder_mora_link: buildMatrix({
-    core: GENERIC_MESSAGE_VARIABLES,
+    core: REMINDER_CORE_VARIABLES,
     body: [...CYCLE_DUE_DATE_VARIABLES, ...LINK_PAYMENT_VARIABLES, ...LINK_CYCLE_VARIABLES],
     button: PLAN_BUTTON_VARIABLES,
-    helpText: "Recordatorio en mora. Usa solo la URL publica de pago.",
+    helpText: "Recordatorio en mora. Para la fecha usa \"Proximo cobro\": el pago sigue sin hacerse, así que sus fechas están vacías. Usa solo la URL publica de pago.",
     recommendedButtonLabel: "Link para pagar"
   }),
   reminder_mora_subscription: buildMatrix({
-    core: SUBSCRIPTION_CORE,
+    core: REMINDER_SUBSCRIPTION_CORE,
     body: [...SUBSCRIPTION_LINK_VARIABLES, ...TOKENIZATION_VARIABLES],
     button: SUBSCRIPTION_RECOVERY_BUTTON_VARIABLES,
     helpText: "Recordatorio en mora para debito automatico. Usa tokenizacion o pago, pero siempre con URL publica.",

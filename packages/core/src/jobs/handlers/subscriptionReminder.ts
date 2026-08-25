@@ -11,7 +11,7 @@ import { createPublicCheckoutLink, persistPublicPaymentLinkForPayment } from "..
 import { normalizeRenderablePublicUrl } from "../../services/urlSafety";
 import { sendChatwootMessage } from "./sendChatwootMessage";
 import { getDefaultTenantId } from "../../services/tenantContext";
-import { formatDateTimeEs } from "../../lib/dates";
+import { formatDateEs, formatDateTimeEs } from "../../lib/dates";
 import { getAutoDebitConfig, getAppTimeZone } from "../../services/runtimeConfig";
 import { logger } from "../../lib/logger";
 import { resolveSubscriptionBillingState } from "../../services/billingCycles";
@@ -32,12 +32,21 @@ function getPath(obj: any, path: string) {
   return cur;
 }
 
+// Fechas de ciclo: el cliente las lee como un día, no como un instante. Todas
+// caen a medianoche, así que la hora no aporta nada y encima parece un error.
+const DATE_ONLY_PATHS = new Set([
+  "subscription.nextBillingDate",
+  "subscription.activeCycleStartAt",
+  "subscription.activeCycleEndAt"
+]);
+
 function renderTemplate(content: string, ctx: any) {
   const tz = String(ctx?.__tz || "America/Bogota");
-  return String(content || "").replace(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g, (_m, path) => {
-    const v = getPath(ctx, String(path || ""));
+  return String(content || "").replace(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g, (_m, rawPath) => {
+    const path = String(rawPath || "");
+    const v = getPath(ctx, path);
     if (v == null) return "";
-    if (v instanceof Date) return formatDateTimeEs(v, tz);
+    if (v instanceof Date) return DATE_ONLY_PATHS.has(path) ? formatDateEs(v, tz) : formatDateTimeEs(v, tz);
     return String(v);
   });
 }

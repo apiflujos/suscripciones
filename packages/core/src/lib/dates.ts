@@ -56,6 +56,24 @@ export function addIntervalUtc(date: Date, unit: PlanIntervalUnit, count: number
   return d;
 }
 
+/**
+ * Fecha sin hora, para lo que el cliente lee como un día y no como un instante.
+ * El vencimiento de un ciclo es medianoche: anunciarlo como "20 de agosto de 2026
+ * 12:00 a. m." no le dice nada a nadie y parece un error del sistema.
+ */
+export function formatDateEs(date: Date, timeZone: string = "America/Bogota") {
+  try {
+    return new Intl.DateTimeFormat("es-CO", {
+      timeZone,
+      day: "2-digit",
+      month: "long",
+      year: "numeric"
+    }).format(date);
+  } catch {
+    return date.toISOString();
+  }
+}
+
 export function formatDateTimeEs(date: Date, timeZone: string = "America/Bogota") {
   try {
     const fmt = new Intl.DateTimeFormat("es-CO", {

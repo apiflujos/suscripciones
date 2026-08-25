@@ -268,8 +268,57 @@ export function filterNotificationRules(args: {
   });
 }
 
-function normalizeNotificationsConfig(cfg: NotificationsConfig): NotificationsConfig {
+// Un recordatorio de cobro anuncia cuándo hay que pagar, así que la fecha del
+// pago todavía no existe: paidAt y failedAt vienen nulos por definición. Meta
+// cuenta los parámetros y rechaza el envío entero por el que falta, de modo que
+// un solo campo mal elegido silencia el 100 % de los recordatorios.
+//
+// Pasó de verdad: el desplegable solo ofrecía fechas del pago y quien configuró
+// la plantilla eligió "Fecha de pago". Entre el 28-jul y el 20-ago no salió un
+// solo recordatorio, y esas son las 24 suscripciones que vencieron sin aviso.
+//
+// Ya se añadió "Próximo cobro" al desplegable, pero la configuración vive en la
+// base: sin esto habría que acordarse de entrar a cambiarla a mano, en cada
+// entorno, y nada impediría volver a elegir mal mañana.
+const EMPTY_ON_REMINDER_VARIABLES = new Set(["{{payment.paidAt}}", "{{payment.failedAt}}"]);
+const REMINDER_DUE_DATE_VARIABLE = "{{subscription.nextBillingDate}}";
+
+function repairReminderDueDateParams(template: NotificationTemplate): NotificationTemplate {
+  const params = template.chatwootTemplate?.processed_params as Record<string, unknown> | undefined;
+  const body = params?.body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) return template;
+
+  let changed = false;
+  const nextBody: Record<string, unknown> = {};
+  for (const [slot, value] of Object.entries(body as Record<string, unknown>)) {
+    if (typeof value === "string" && EMPTY_ON_REMINDER_VARIABLES.has(value.trim())) {
+      nextBody[slot] = REMINDER_DUE_DATE_VARIABLE;
+      changed = true;
+    } else {
+      nextBody[slot] = value;
+    }
+  }
+  if (!changed) return template;
+
+  return {
+    ...template,
+    chatwootTemplate: {
+      ...template.chatwootTemplate!,
+      processed_params: { ...params, body: nextBody }
+    }
+  };
+}
+
+export function normalizeNotificationsConfig(cfg: NotificationsConfig): NotificationsConfig {
   const templates = Array.isArray(cfg.templates) ? cfg.templates : [];
+  // Qué plantillas usan los recordatorios de cobro. Se mira la regla y no el id
+  // de la plantilla porque una plantilla puede renombrarse o duplicarse; lo que
+  // la vuelve un recordatorio es el disparador que la invoca.
+  const reminderTemplateIds = new Set(
+    (Array.isArray(cfg.rules) ? cfg.rules : [])
+      .filter((rule) => rule.trigger === "SUBSCRIPTION_DUE")
+      .map((rule) => String(rule.templateId))
+  );
   const validTemplates = templates
     .map((template) => {
       const canonicalName = CANONICAL_TEMPLATE_NAMES[String(template.id)];
@@ -285,7 +334,10 @@ function normalizeNotificationsConfig(cfg: NotificationsConfig): NotificationsCo
             }
           }
         : template;
-      return canonicalName ? { ...normalizedTemplate, name: canonicalName } : normalizedTemplate;
+      const repaired = reminderTemplateIds.has(String(template.id))
+        ? repairReminderDueDateParams(normalizedTemplate)
+        : normalizedTemplate;
+      return canonicalName ? { ...repaired, name: canonicalName } : repaired;
     })
     .filter((t) => hasUsableWhatsAppTemplate(t));
   const templateById = new Map(validTemplates.map((t) => [String(t.id), t]));
