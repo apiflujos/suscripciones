@@ -317,6 +317,18 @@ export function SideNav({ session }: { session: AdminSession | null }) {
         <span className="nav-label">Métricas</span>
       </Link>
       <Link
+        className={`nav-item ${isActivePath(currentPath, "/billing") ? "is-active" : ""}`}
+        href="/billing"
+        prefetch={false}
+        aria-current={isActivePath(currentPath, "/billing") ? "page" : undefined}
+        aria-disabled={isActivePath(currentPath, "/billing") ? "true" : undefined}
+        data-loader={isActivePath(currentPath, "/billing") ? "off" : undefined}
+        tabIndex={isActivePath(currentPath, "/billing") ? -1 : undefined}
+      >
+        <NavIcon name="billing" className="nav-icon" />
+        <span className="nav-label">Suscripciones</span>
+      </Link>
+      <Link
         className={`nav-item ${(isActivePath(currentPath, "/payments") || isPaymentsInLogs) ? "is-active" : ""}`}
         href="/payments"
         prefetch={false}
@@ -363,18 +375,6 @@ export function SideNav({ session }: { session: AdminSession | null }) {
       >
         <NavIcon name="products" className="nav-icon" />
         <span className="nav-label">Productos y Servicios</span>
-      </Link>
-      <Link
-        className={`nav-item ${isActivePath(currentPath, "/billing") ? "is-active" : ""}`}
-        href="/billing"
-        prefetch={false}
-        aria-current={isActivePath(currentPath, "/billing") ? "page" : undefined}
-        aria-disabled={isActivePath(currentPath, "/billing") ? "true" : undefined}
-        data-loader={isActivePath(currentPath, "/billing") ? "off" : undefined}
-        tabIndex={isActivePath(currentPath, "/billing") ? -1 : undefined}
-      >
-        <NavIcon name="billing" className="nav-icon" />
-        <span className="nav-label">Suscripciones</span>
       </Link>
       <Link
         className={`nav-item ${isNotificationsList ? "is-active" : ""}`}

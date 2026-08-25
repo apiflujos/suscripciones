@@ -24,6 +24,7 @@ import { BillingViewCards } from "./BillingViewCards";
 import { BillingViewKanban } from "./BillingViewKanban";
 import { BillingViewLista } from "./BillingViewLista";
 import { createBillingCardHelpers, buildBillingRows } from "./billingPageModel";
+import { getSubscriptionsBoard } from "../admin/_services/subscriptionsBoard";
 import type { BillingCardContext, BillingPageContentProps, BillingRow, TenantOption } from "./billingTypes";
 
 export async function BillingPageContent({
@@ -66,7 +67,7 @@ export async function BillingPageContent({
   // muestran menos por pantalla y obligan a rastrear fila por fila.
   const vistaRaw = typeof sp.vista === "string" ? sp.vista : "lista";
   const resolvedTenantId = tenantId ? await resolveTenantId(tenantId) : null;
-  const vista = ["cards", "lista", "kanban"].includes(vistaRaw) ? vistaRaw : "cards";
+  const vista = ["cards", "lista", "kanban"].includes(vistaRaw) ? vistaRaw : "lista";
   const vistaTyped = vista as "cards" | "lista" | "kanban";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
   const filters = typeof sp.filters === "string" ? sp.filters : "";
@@ -115,7 +116,7 @@ export async function BillingPageContent({
   const ids = usingSmartFilters && resolvedIds && resolvedIds.length === 0 ? ["__none__"] : resolvedIds || [];
   if (ids.length) subParams.set("ids", ids.join(","));
 
-  const [subs, customers, products, empresasRes, tenantsRes, settings, notificationsConfig, checkoutTemplatesRaw] = await Promise.all([
+  const [subs, customers, products, empresasRes, tenantsRes, settings, notificationsConfig, checkoutTemplatesRaw, subscriptionsBoard] = await Promise.all([
     listSubscriptions({
       tenantId: resolvedTenantId || undefined,
       take: Number(subParams.get("take") || 50),
@@ -132,7 +133,8 @@ export async function BillingPageContent({
     listTenants(),
     getAdminSettings(),
     getNotificationsConfigForEnv("PRODUCTION").catch(() => ({ templates: [], rules: [] })),
-    listCheckoutTemplates({ tenantId: resolvedTenantId || null }).catch(() => [])
+    listCheckoutTemplates({ tenantId: resolvedTenantId || null }).catch(() => []),
+    getSubscriptionsBoard({ tenantId: resolvedTenantId || null, asOf: renderNowDate })
   ]);
 
   const subItems = (subs.items ?? []) as any[];
@@ -290,12 +292,37 @@ export async function BillingPageContent({
       ) : null}
 
       <section className="settings-group">
+        <div className="billing-metrics" aria-label="Resumen de suscripciones">
+          {[
+            { label: "Activas", value: subscriptionsBoard.totals.subscriptions, sub: "Suscripciones activas", tone: "primary", state: "", icon: "users" },
+            { label: "Al día", value: subscriptionsBoard.totals.current, sub: "Ciclos al corriente", tone: "success", state: "AL_DIA", icon: "check" },
+            { label: "En gracia", value: subscriptionsBoard.totals.inGrace, sub: "Dentro del período de gracia", tone: "warning", state: "EN_GRACIA", icon: "clock" },
+            { label: "En mora", value: subscriptionsBoard.totals.overdue, sub: "Ciclos con pago vencido", tone: "danger", state: "EN_MORA", icon: "alert" }
+          ].map((metric) => {
+            const href = `/billing?${new URLSearchParams({
+              ...(tenantId ? { tenantId } : {}),
+              ...(metric.state ? { state: metric.state } : {}),
+              vista: "lista"
+            }).toString()}`;
+            return (
+              <a className={`billing-metric billing-metric-${metric.tone}`} href={href} key={metric.label}>
+                <span className={`billing-metric-icon billing-metric-icon-${metric.icon}`} aria-hidden="true" />
+                <span className="billing-metric-copy">
+                  <span className="billing-metric-label">{metric.label}</span>
+                  <strong className="billing-metric-value">{metric.value}</strong>
+                  <span className="billing-metric-sub">{metric.sub}</span>
+                </span>
+              </a>
+            );
+          })}
+        </div>
         <BillingHeader
           filters={{
             tenantId,
             q,
             tipo,
             estado,
+            cycleState,
             ordenar,
             vista: vistaTyped,
             viewId,

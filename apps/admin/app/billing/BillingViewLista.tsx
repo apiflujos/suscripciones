@@ -4,6 +4,7 @@ import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
 import { buildSubscriptionDetail } from "./BillingCard";
 import { formatCivilDate } from "./civilDate";
 import { getCollectionStatusLabel } from "./billingDisplayHelpers";
+import { splitProductDisplay } from "./billingDisplayHelpers";
 import type { BillingCardContext, BillingRow } from "./billingTypes";
 
 type BillingViewListaProps = {
@@ -16,12 +17,11 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
     <div className="billing-list">
       <div className="billing-list-header">
         <span>Cliente</span>
-        <span>Producto</span>
+        <span>Plan</span>
         <span>Ciclo</span>
-        <span>Vence</span>
-        <span>Estado del ciclo</span>
         <span>Próximo cobro</span>
-        <span>Aviso</span>
+        <span>Estado</span>
+        <span>Método</span>
         <span>Acciones</span>
       </div>
       {rows.map((row) => {
@@ -46,15 +46,29 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
           q: row.productName || row.planName || "",
           ...(row.tenantId ? { tenantId: row.tenantId } : {})
         }).toString()}`;
+        const product = splitProductDisplay(row.productName || row.planName);
+        const initials = row.customerName
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part.charAt(0).toUpperCase())
+          .join("") || "—";
 
         return (
           <div className="billing-list-row" key={`list-${row.id}`}>
             <div className="billing-list-cell billing-list-person">
-              <a className="billing-list-name" href={contactHref}>{row.customerName}</a>
-              <div className="billing-list-sub">{row.customerEmail || "—"} · {row.identificacion || "—"}</div>
+              <span className="billing-list-avatar" aria-hidden="true">{initials}</span>
+              <span className="billing-list-person-copy">
+                <a className="billing-list-name" href={contactHref}>{row.customerName}</a>
+                <span className="billing-list-sub">{row.customerEmail || row.identificacion || "Sin datos de contacto"}</span>
+              </span>
             </div>
             <div className="billing-list-cell billing-list-product">
-              <a className="billing-list-link" href={productHref}>{row.productName || row.planName || "—"}</a>
+              <a className="billing-list-link" href={productHref}>{product.name}</a>
+              <span className="billing-list-sub">
+                {product.sku ? <span className="billing-list-sku">SKU {product.sku}</span> : null}
+                {product.sku ? " · " : ""}{row.cada}
+              </span>
             </div>
             <div className="billing-list-cell billing-list-cycle">
               <span className="billing-list-cycle-n">{row.cycleNumber != null ? `#${row.cycleNumber}` : "—"}</span>
@@ -62,11 +76,22 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
                 {row.collectionCyclePaid ? "pagado" : "sin pagar"}
               </span>
             </div>
-            <div className="billing-list-cell billing-list-cutoff">
-              {formatCivilDate(row.vencimientoAt)}
-              {!row.collectionCyclePaid && row.daysLate > 0 ? (
-                <span className="billing-list-sub is-bad">{row.daysLate} días de atraso</span>
-              ) : null}
+            <div className="billing-list-cell billing-list-next">
+              {row.collectionCyclePaid ? (
+                <>
+                  <span>{formatCivilDate(row.vencimientoAt)}</span>
+                  <span className="billing-list-sub is-ok">Ciclo cobrado</span>
+                </>
+              ) : nextChargeAt ? (
+                <>
+                  {formatCivilDate(nextChargeAt)}
+                  <span className={`billing-list-sub ${row.daysLate > 0 ? "is-bad" : ""}`}>
+                    {row.daysLate > 0 ? `Vencido hace ${row.daysLate} días` : row.nextRetryAt ? "Reintento programado" : "Fecha de corte"}
+                  </span>
+                </>
+              ) : (
+                <span className="billing-list-sub is-bad">Sin cobro programado</span>
+              )}
             </div>
             <div className="billing-list-cell billing-list-status">
               <span
@@ -76,38 +101,9 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
                 {paymentStatus}
               </span>
             </div>
-            <div className="billing-list-cell billing-list-next">
-              {row.collectionCyclePaid ? (
-                <span className="muted">Ciclo cobrado</span>
-              ) : nextChargeAt ? (
-                <>
-                  {formatCivilDate(nextChargeAt)}
-                  <span className="billing-list-sub">{row.nextRetryAt ? "reintento agendado" : "fecha de corte"}</span>
-                </>
-              ) : (
-                <span className="billing-list-sub is-bad">Sin cobro programado</span>
-              )}
-            </div>
-            <div className="billing-list-cell billing-list-notice">
-              {row.notice ? (
-                row.notice.status === "SENT" ? (
-                  <>
-                    <span className="is-ok">{row.notice.kind}</span>
-                    <span className="billing-list-sub">enviado {formatCivilDate(row.notice.at)}</span>
-                  </>
-                ) : row.notice.status === "FAILED" ? (
-                  <>
-                    <span className="is-bad">{row.notice.kind} falló</span>
-                    <span className="billing-list-sub is-bad" title={row.notice.reason || undefined}>
-                      {row.notice.reason}
-                    </span>
-                  </>
-                ) : (
-                  <span className="is-warn">{row.notice.kind} en cola</span>
-                )
-              ) : (
-                <span className="muted">Sin aviso</span>
-              )}
+            <div className="billing-list-cell billing-list-method">
+              <span className="billing-list-method-name">{row.tipoPago}</span>
+              <span className="billing-list-sub">{isAutoDebit ? (row.customerTokenized ? "Tarjeta registrada" : "Sin tarjeta") : "Link de pago"}</span>
             </div>
             <div className="billing-list-cell billing-list-more">
               <div className="billing-list-actions">
@@ -133,7 +129,10 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
                   cancelSubscription={context.actions.cancelSubscription}
                   resumeSubscription={context.actions.resumeSubscription}
                   activateSubscription={context.actions.activateSubscription}
-                />
+                  className="ghost btn-compact btn-noicon billing-list-detail-button"
+                >
+                  Ver detalle
+                </SubscriptionDetailModalWrapper>
                 {!isInactive && !isAutoDebit ? (
                   <PaymentLinkModalButton
                     subscriptionId={row.id}
@@ -172,4 +171,3 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
     </div>
   );
 }
-
