@@ -5,6 +5,7 @@ import { buildSubscriptionDetail } from "./BillingCard";
 import { formatCivilDate } from "./civilDate";
 import { getCollectionStatusLabel } from "./billingDisplayHelpers";
 import { splitProductDisplay } from "./billingDisplayHelpers";
+import { RowActionsMenu } from "./RowActionsMenu";
 import type { BillingCardContext, BillingRow } from "./billingTypes";
 
 type BillingViewListaProps = {
@@ -56,27 +57,27 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
 
         return (
           <div className="billing-list-row" key={`list-${row.id}`}>
-            <div className="billing-list-cell billing-list-person">
+            <div className="billing-list-cell billing-list-person" data-label="Cliente">
               <span className="billing-list-avatar" aria-hidden="true">{initials}</span>
               <span className="billing-list-person-copy">
                 <a className="billing-list-name" href={contactHref}>{row.customerName}</a>
                 <span className="billing-list-sub">{row.customerEmail || row.identificacion || "Sin datos de contacto"}</span>
               </span>
             </div>
-            <div className="billing-list-cell billing-list-product">
+            <div className="billing-list-cell billing-list-product" data-label="Plan">
               <a className="billing-list-link" href={productHref}>{product.name}</a>
               <span className="billing-list-sub">
                 {product.sku ? <span className="billing-list-sku">SKU {product.sku}</span> : null}
                 {product.sku ? " · " : ""}{row.cada}
               </span>
             </div>
-            <div className="billing-list-cell billing-list-cycle">
+            <div className="billing-list-cell billing-list-cycle" data-label="Ciclo">
               <span className="billing-list-cycle-n">{row.cycleNumber != null ? `#${row.cycleNumber}` : "—"}</span>
               <span className={`billing-list-sub ${row.collectionCyclePaid ? "is-ok" : "is-warn"}`}>
                 {row.collectionCyclePaid ? "pagado" : "sin pagar"}
               </span>
             </div>
-            <div className="billing-list-cell billing-list-next">
+            <div className="billing-list-cell billing-list-next" data-label="Próximo cobro">
               {row.collectionCyclePaid ? (
                 <>
                   <span>{formatCivilDate(row.vencimientoAt)}</span>
@@ -93,7 +94,7 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
                 <span className="billing-list-sub is-bad">Sin cobro programado</span>
               )}
             </div>
-            <div className="billing-list-cell billing-list-status">
+            <div className="billing-list-cell billing-list-status" data-label="Estado">
               <span
                 className={`pill pill-sm ${paymentStatus === "Al día" ? "pill-ok" : paymentStatus === "En mora" ? "pill-bad" : "pill-warn"}`}
                 title={`Cobro: ${paymentStatus} · Suscripción: ${row.estadoInfo.label}`}
@@ -101,12 +102,12 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
                 {paymentStatus}
               </span>
             </div>
-            <div className="billing-list-cell billing-list-method">
+            <div className="billing-list-cell billing-list-method" data-label="Método">
               <span className="billing-list-method-name">{row.tipoPago}</span>
               <span className="billing-list-sub">{isAutoDebit ? (row.customerTokenized ? "Tarjeta registrada" : "Sin tarjeta") : "Link de pago"}</span>
             </div>
-            <div className="billing-list-cell billing-list-more">
-              <div className="billing-list-actions">
+            <div className="billing-list-cell billing-list-more" data-label="Acciones">
+              <RowActionsMenu>
                 <SubscriptionDetailModalWrapper
                   subscription={buildSubscriptionDetail(row, context)}
                   csrfToken={context.data.csrfToken}
@@ -162,7 +163,7 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
                     action={context.actions.sendWhatsAppTokenizationLink}
                   />
                 ) : null}
-              </div>
+              </RowActionsMenu>
             </div>
           </div>
         );

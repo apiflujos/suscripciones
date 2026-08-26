@@ -304,8 +304,15 @@ export async function BillingPageContent({
               ...(metric.state ? { state: metric.state } : {}),
               vista: "lista"
             }).toString()}`;
+            // La tarjeta ya filtraba, pero nada indicaba cuál estaba aplicada.
+            const isActive = metric.state ? cycleState === metric.state : !cycleState;
             return (
-              <a className={`billing-metric billing-metric-${metric.tone}`} href={href} key={metric.label}>
+              <a
+                className={`billing-metric billing-metric-${metric.tone}${isActive ? " is-active" : ""}`}
+                href={href}
+                key={metric.label}
+                aria-current={isActive ? "true" : undefined}
+              >
                 <span className={`billing-metric-icon billing-metric-icon-${metric.icon}`} aria-hidden="true" />
                 <span className="billing-metric-copy">
                   <span className="billing-metric-label">{metric.label}</span>

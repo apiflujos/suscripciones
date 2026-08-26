@@ -7458,35 +7458,101 @@ textarea.input {
 .billing-list {
   display: grid;
   gap: 0;
-  overflow-x: auto;
   border: 1px solid var(--stroke);
   border-radius: 16px;
   background: var(--panel);
+
+  /* Cada pista es minmax(mínimo, fr): reparte el ancho DISPONIBLE y trunca dentro
+     de la celda, en vez de crecer con el contenido. Por eso la fila no se puede
+     salir y esta lista ya no necesita overflow-x. Es el patrón de la lista de
+     pedidos de mesa de ayuda.
+
+     Suma de mínimos: 150+120+64+96+84+100+40 = 654, más seis huecos de 12 = 726 px.
+     Cabe en cualquier portátil aunque la barra lateral esté desplegada. */
+  /* La densidad sale de tokens, no de píxeles clavados en cada regla: cambiarla
+     en un sitio recorre toda la lista. */
+  --list-py: var(--space-5);
+  --list-px: var(--space-6);
+  --list-gap: var(--space-5);
+
+  --billing-list-cols:
+    minmax(150px, 1.5fr)   /* cliente */
+    minmax(120px, 1.2fr)   /* plan */
+    minmax(64px, 0.5fr)    /* ciclo */
+    minmax(96px, 0.95fr)   /* próximo cobro */
+    minmax(84px, 0.7fr)    /* estado */
+    minmax(100px, 0.9fr)   /* método */
+    40px;                  /* acciones — un solo botón */
+
+  /* El menú de acciones se posiciona dentro de su celda y no puede quedar
+     recortado por el panel. */
+  overflow: visible;
 }
 
 .billing-list-header {
   display: grid;
-  grid-template-columns: minmax(220px, 1.35fr) minmax(190px, 1.15fr) minmax(90px, .55fr) minmax(150px, .9fr) minmax(110px, .65fr) minmax(150px, .9fr) minmax(256px, auto);
-  gap: 16px;
-  min-width: 1262px;
+  grid-template-columns: var(--billing-list-cols);
+  gap: var(--list-gap);
   font-size: var(--text-xs);
   font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
   color: var(--primary);
-  padding: 16px 18px;
+  padding: var(--list-py) var(--list-px);
   border-bottom: 1px solid var(--stroke);
+  /* La cabecera se queda a la vista mientras se recorre la lista: con 50 filas por
+     página, a media pantalla ya no se sabe qué columna es cuál. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel);
+  border-radius: 16px 16px 0 0;
 }
 
 .billing-list-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.35fr) minmax(190px, 1.15fr) minmax(90px, .55fr) minmax(150px, .9fr) minmax(110px, .65fr) minmax(150px, .9fr) minmax(256px, auto);
-  gap: 16px;
-  min-width: 1262px;
-  align-items: center;
-  padding: 14px 18px;
+  grid-template-columns: var(--billing-list-cols);
+  gap: var(--list-gap);
+  /* stretch y no center: una celda de dos renglones dejaba a sus vecinas flotando. */
+  align-items: stretch;
+  padding: var(--list-py) var(--list-px);
   border-bottom: 1px solid color-mix(in srgb, var(--stroke) 78%, transparent);
 }
 .billing-list-row:last-of-type { border-bottom: 0; }
 .billing-list-row:hover { background: color-mix(in srgb, var(--primary-soft) 38%, transparent); }
+
+/* ── Menú de acciones de fila (kebab) ─────────────────────────────────────── */
+.row-actions { position: relative; display: flex; justify-content: flex-end; }
+.row-actions-trigger {
+  width: 32px; height: 32px; padding: 0;
+  display: grid; place-items: center;
+  font-size: 18px; line-height: 1;
+}
+.row-actions-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 220px;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, .35);
+}
+/* Dentro del menú los botones se leen como una lista, no como una botonera:
+   ocupan el ancho y alinean su texto a la izquierda. */
+.row-actions-menu > *,
+.row-actions-menu button,
+.row-actions-menu .billing-list-detail-button {
+  width: 100%;
+  min-width: 0;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: nowrap;
+}
 
 .billing-list-actions {
   display: inline-flex;
@@ -7506,7 +7572,12 @@ textarea.input {
   min-width: 0;
   display: grid;
   gap: 4px;
+  /* Lo que no cabe se corta con puntos suspensivos; antes empujaba la columna
+     vecina y con ella la fila entera. */
+  overflow: hidden;
 }
+.billing-list-cell > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.billing-list-more { overflow: visible; }
 .billing-list-person { grid-template-columns: 42px minmax(0, 1fr); align-items: center; }
 .billing-list-person-copy { display: grid; gap: 3px; min-width: 0; }
 .billing-list-avatar {
@@ -13794,11 +13865,43 @@ body.is-global-loading {
     display: none;
   }
   .billing-list-row {
+    /* Modo ficha: la fila se apila sola y cada dato lleva su rótulo delante, sin
+       una segunda maqueta que mantener. Con la cabecera oculta, un valor suelto
+       —"#7", "21/08/2026"— no dice de qué columna venía. */
     grid-template-columns: 1fr;
-    /* La fila ya es de una columna: mantener el min-width de la tabla ancha la
-       obligaba a desbordar y arrastraba scroll horizontal en toda la página. */
     min-width: 0;
+    position: relative;
+    padding: var(--space-5) var(--space-4);
+    gap: var(--space-2);
   }
+  .billing-list-cell {
+    overflow: visible;
+    grid-template-columns: 76px minmax(0, 1fr);
+    align-items: baseline;
+  }
+  .billing-list-cell > * { white-space: normal; overflow: visible; text-overflow: clip; }
+  .billing-list-cell::before {
+    content: attr(data-label);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+  /* La celda de cliente conserva su avatar, así que no lleva rótulo: ya se
+     entiende sola y es la que encabeza la ficha. */
+  .billing-list-person { grid-template-columns: 42px minmax(0, 1fr); }
+  .billing-list-person::before { content: none; }
+  /* El botón de acciones se va al ángulo en vez de gastar una fila entera para él
+     solo: una fila con un único botón de 32 px es alto tirado. */
+  .billing-list-more {
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
+    grid-template-columns: 1fr;
+    padding: 0;
+  }
+  .billing-list-more::before { content: none; }
   .billing-list-actions {
     flex-wrap: wrap;
     justify-content: flex-start;
@@ -18240,3 +18343,11 @@ a.sb-state:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Las tarjetas ya filtraban la lista, pero nada indicaba cuál estaba aplicada.
+   El estado activo lo marca la propia tarjeta. */
+.billing-metric.is-active {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.billing-metric.is-active .billing-metric-value { color: var(--primary); }
