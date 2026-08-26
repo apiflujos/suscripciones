@@ -177,10 +177,40 @@ export async function reconcilePayment(args: {
   let reconcile: any;
   if (wompiTransactionId) {
     if (payment && payment.wompiTransactionId !== wompiTransactionId) {
-      payment = await prisma.payment.update({
-        where: { id: payment.id },
-        data: { wompiTransactionId }
+      // Payment.wompiTransactionId es @unique. Si esa transacción ya es de otro
+      // pago, este update reventaba con P2002 sin capturar y la reconciliación
+      // manual respondía un 500 sin decir por qué — justo cuando se está usando
+      // para recuperar un cobro perdido.
+      //
+      // Y antes de eso: reasignar la transacción de otro pago es corromper los
+      // dos. Quien reconcilia se equivocó de identificador; hay que decírselo,
+      // no reescribir el dato.
+      const dueño = await prisma.payment.findFirst({
+        where: { wompiTransactionId, id: { not: payment.id } },
+        select: { id: true, reference: true }
       });
+      if (dueño) {
+        return {
+          ok: false as const,
+          error: "transaccion_de_otro_pago",
+          message:
+            `La transacción ${wompiTransactionId} ya está asociada al pago ${dueño.id}` +
+            (dueño.reference ? ` (referencia ${dueño.reference})` : "") +
+            ". Verifica el identificador antes de reconciliar."
+        };
+      }
+      try {
+        payment = await prisma.payment.update({
+          where: { id: payment.id },
+          data: { wompiTransactionId }
+        });
+      } catch (err: any) {
+        return {
+          ok: false as const,
+          error: "no_se_pudo_asociar_transaccion",
+          message: String(err?.message || err || "update_failed")
+        };
+      }
     }
     reconcile = await reconcileWompiTransaction({
       wompiTransactionId,

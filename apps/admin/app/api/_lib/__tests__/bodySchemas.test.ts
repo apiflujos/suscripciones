@@ -6,7 +6,9 @@ import {
   detallesDeError,
   enviarLinkDePagoSchema,
   enviarMensajeSchema,
-  publicarTiempoRealSchema
+  publicarTiempoRealSchema,
+  reconciliarPagoSchema,
+  reconciliarPendientesSchema
 } from "../bodySchemas";
 
 describe("publicarTiempoRealSchema — la lista blanca ya no falla abierta", () => {
@@ -110,5 +112,56 @@ describe("detallesDeError", () => {
       expect(detalles.some((d) => d.startsWith("customerId"))).toBe(true);
       expect(detalles.some((d) => d.startsWith("amount"))).toBe(true);
     }
+  });
+});
+
+describe("reconciliarPagoSchema — el pago más importante de recuperar a mano", () => {
+  it("acepta cualquiera de los cuatro identificadores", () => {
+    for (const campo of ["paymentId", "reference", "wompiPaymentLinkId", "wompiTransactionId"]) {
+      expect(reconciliarPagoSchema.safeParse({ [campo]: "x1" }).success, campo).toBe(true);
+    }
+  });
+
+  it("rechaza un cuerpo sin ningún identificador antes de buscar en vano", () => {
+    const r = reconciliarPagoSchema.safeParse({ tenantId: "t1" });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(detallesDeError(r.error).join(" ")).toMatch(/al menos uno/i);
+  });
+
+  it("acepta los alias que la ruta ya admitía", () => {
+    expect(reconciliarPagoSchema.safeParse({ paymentLinkId: "pl1" }).success).toBe(true);
+    expect(reconciliarPagoSchema.safeParse({ transactionId: "tx1" }).success).toBe(true);
+  });
+
+  it("descarta un importe no positivo en vez de arrastrarlo", () => {
+    const r = reconciliarPagoSchema.safeParse({ reference: "r1", amountInCents: -100 });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.amountInCents).toBeNull();
+  });
+});
+
+describe("reconciliarPendientesSchema", () => {
+  it("acepta valores razonables y los que llegan como texto por la query", () => {
+    const r = reconciliarPendientesSchema.safeParse({ minutes: "60", take: "50" });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.minutes).toBe(60);
+      expect(r.data.take).toBe(50);
+    }
+  });
+
+  it("rechaza un take sin techo, que recorría la tabla entera", () => {
+    expect(reconciliarPendientesSchema.safeParse({ take: 100000 }).success).toBe(false);
+  });
+
+  it("rechaza una ventana absurda", () => {
+    expect(reconciliarPendientesSchema.safeParse({ minutes: 0 }).success).toBe(false);
+    expect(reconciliarPendientesSchema.safeParse({ minutes: 999999 }).success).toBe(false);
+  });
+
+  it("sin parámetros deja los valores por defecto del servicio", () => {
+    const r = reconciliarPendientesSchema.safeParse({});
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.take).toBeNull();
   });
 });

@@ -110,3 +110,64 @@ export const publicarTiempoRealSchema = z.object({
 export function detallesDeError(error: z.ZodError): string[] {
   return error.issues.map((i) => (i.path.length ? `${i.path.join(".")}: ${i.message}` : i.message));
 }
+
+/**
+ * Reconciliación manual de un pago.
+ *
+ * Se identifica por cualquiera de cuatro campos; al menos uno tiene que venir, o
+ * el servicio busca con todos vacíos y no encuentra nada. Antes ese caso llegaba
+ * hasta el fondo y volvía como "missing_reconcile_identifiers"; ahora se corta
+ * en la puerta y se dice cuáles valen.
+ */
+export const reconciliarPagoSchema = z
+  .object({
+    paymentId: textoOpcional,
+    reference: textoOpcional,
+    wompiPaymentLinkId: textoOpcional,
+    paymentLinkId: textoOpcional,
+    wompiTransactionId: textoOpcional,
+    transactionId: textoOpcional,
+    tenantId: textoOpcional,
+    amountInCents: z
+      .union([z.string(), z.number()])
+      .optional()
+      .nullable()
+      .transform((v) => {
+        if (v == null || v === "") return null;
+        const n = Number(v);
+        return Number.isFinite(n) && n > 0 ? Math.trunc(n) : null;
+      }),
+    amount_in_cents: z.union([z.string(), z.number()]).optional().nullable(),
+    currency: textoOpcional
+  })
+  .refine(
+    (d) =>
+      Boolean(d.paymentId || d.reference || d.wompiPaymentLinkId || d.paymentLinkId || d.wompiTransactionId || d.transactionId),
+    {
+      message:
+        "Hace falta al menos uno: paymentId, reference, wompiPaymentLinkId o wompiTransactionId."
+    }
+  );
+
+/**
+ * Reconciliación de los pagos pendientes de una ventana.
+ *
+ * `take` sin techo recorría la tabla entera en una sola petición. Los límites
+ * son los que el propio servicio ya aplicaba por dentro; declararlos aquí los
+ * hace visibles y devuelve un error explicable en vez de un recorte silencioso.
+ */
+export const reconciliarPendientesSchema = z.object({
+  minutes: z
+    .union([z.string(), z.number()])
+    .optional()
+    .nullable()
+    .transform((v) => (v == null || v === "" ? null : Number(v)))
+    .refine((v) => v == null || (Number.isFinite(v) && v > 0 && v <= 60 * 24 * 30), "minutes fuera de rango (1 a 43200)"),
+  take: z
+    .union([z.string(), z.number()])
+    .optional()
+    .nullable()
+    .transform((v) => (v == null || v === "" ? null : Number(v)))
+    .refine((v) => v == null || (Number.isFinite(v) && v > 0 && v <= 1000), "take fuera de rango (1 a 1000)"),
+  tenantId: textoOpcional
+});
