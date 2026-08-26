@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireApiSession } from "../../_lib/requireApiSession";
 import { sendChatwootMessageForCustomer } from "../../../admin/_services/chatwoot";
+import { detallesDeError, enviarMensajeSchema } from "../../_lib/bodySchemas";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,14 +21,18 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: "invalid_json" }), { status: 400 });
   }
 
-  const { customerId, content } = body ?? {};
-  if (!customerId || !content) {
-    return new Response(JSON.stringify({ error: "missing_required_fields", required: ["customerId", "content"] }), { status: 400 });
+  const parsed = enviarMensajeSchema.safeParse(body ?? {});
+  if (!parsed.success) {
+    return new Response(
+      JSON.stringify({ error: "invalid_payload", detalles: detallesDeError(parsed.error) }),
+      { status: 400 }
+    );
   }
+  const { customerId, content } = parsed.data;
 
   const result = await sendChatwootMessageForCustomer({
-    customerId: String(customerId),
-    content: String(content),
+    customerId,
+    content,
     actor: auth.session.sub,
     type: "PAYMENT_LINK" // Tipo genérico para mensajes personalizados
   });

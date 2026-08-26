@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiSession } from "../../_lib/requireApiSession";
+import { detallesDeError, enviarLinkDePagoSchema } from "../../_lib/bodySchemas";
 import { createManualOrder } from "../../../admin/_services/orders";
 import { getCheckoutConfig } from "../../../admin/_services/settings";
 import { findCheckoutTemplateForProductOrDefault } from "../../../admin/_services/checkoutTemplates";
@@ -11,14 +12,6 @@ import { schedulePaymentLinkNotifications } from "@suscripciones/core/services/n
 import { logger } from "@suscripciones/core/lib/logger";
 import { prisma } from "@suscripciones/database";
 import { isNotificationTemplateConfigured, resolveNotificationTemplateForTrigger } from "../../../lib/notificationTemplate";
-
-function pesosToCents(input: string): number {
-  const digits = String(input || "").replace(/[^\d-]/g, "");
-  if (!digits) return 0;
-  const pesos = Number(digits);
-  if (!Number.isFinite(pesos)) return 0;
-  return Math.trunc(pesos) * 100;
-}
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -36,14 +29,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "invalid_json" }, { status: 400 });
   }
 
-  const customerId = String(body?.customerId || "").trim();
-  const customerName = String(body?.customerName || "").trim() || "Cliente";
-  const tenantId = String(body?.tenantId || "").trim();
-  const productId = String(body?.productId || "").trim();
-  const amountInCents = pesosToCents(String(body?.amount || ""));
-  if (!customerId || amountInCents <= 0) {
-    return NextResponse.json({ ok: false, error: "monto_invalido" }, { status: 400 });
+  // El importe solo se comprobaba contra cero. Sin techo, un cero de más al
+  // teclear genera un link de cobro por un importe absurdo y se lo manda al
+  // cliente por WhatsApp.
+  const parsed = enviarLinkDePagoSchema.safeParse(body ?? {});
+  if (!parsed.success) {
+    return NextResponse.json(
+      { ok: false, error: "monto_invalido", detalles: detallesDeError(parsed.error) },
+      { status: 400 }
+    );
   }
+  const customerId = parsed.data.customerId;
+  const customerName = parsed.data.customerName || "Cliente";
+  const tenantId = parsed.data.tenantId || "";
+  const productId = parsed.data.productId || "";
+  const amountInCents = parsed.data.amount * 100;
   if (!productId) {
     return NextResponse.json({ ok: false, error: "missing_product_for_customer" }, { status: 400 });
   }
