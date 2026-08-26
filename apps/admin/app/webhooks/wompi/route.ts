@@ -258,6 +258,52 @@ export async function POST(req: Request) {
     }
   } catch (err: any) {
     if (String(err?.code) === "P2002") {
+      // El checksum es @unique, y hasta aquí llega también un evento que YA se
+      // guardó con la firma inválida: si el secreto estuvo mal configurado un
+      // rato —una rotación de llaves—, los webhooks de esa ventana quedaron como
+      // FAILED. Al reintentarlos Wompi con el secreto ya correcto, chocaban con
+      // el único, se respondía 200 "deduped" y ese pago se perdía para siempre,
+      // en silencio y con Wompi convencido de haberlo entregado.
+      //
+      // Este reintento SÍ trae firma válida —se verificó más arriba—, así que el
+      // evento se rescata: pasa a RECEIVED y se encola para procesar.
+      const previo = await prisma.webhookEvent.findUnique({
+        where: { checksum },
+        select: { id: true, processStatus: true }
+      }).catch(() => null);
+
+      if (previo && previo.processStatus === "FAILED") {
+        await prisma.webhookEvent.update({
+          where: { id: previo.id },
+          data: { processStatus: "RECEIVED", errorMessage: null, processedAt: null }
+        }).catch((updErr: any) => {
+          logger.warn({ err: updErr, webhookEventId: previo.id }, "[Webhooks/Wompi] Fallo rescatando webhook con firma previamente inválida");
+        });
+
+        const yaEncolado = await prisma.retryJob.findFirst({
+          where: {
+            type: RetryJobType.PROCESS_WOMPI_EVENT,
+            payload: { path: ["webhookEventId"], equals: previo.id } as any
+          },
+          select: { id: true }
+        }).catch(() => null);
+
+        if (!yaEncolado) {
+          await prisma.retryJob.create({
+            data: { type: RetryJobType.PROCESS_WOMPI_EVENT, payload: { webhookEventId: previo.id } }
+          }).catch((jobErr: any) => {
+            logger.error({ err: jobErr, webhookEventId: previo.id }, "[Webhooks/Wompi] Fallo encolando webhook rescatado");
+          });
+        }
+
+        logger.warn({
+          webhookEventId: previo.id,
+          checksum,
+          event: parsed.data.event
+        }, "[Webhooks/Wompi] Webhook rescatado: la firma falló antes y ahora es válida");
+        return Response.json({ ok: true, rescatado: true });
+      }
+
       logger.info({
         checksum,
         event: parsed.data.event
