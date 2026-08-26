@@ -2,6 +2,7 @@ import { requireAdminToken } from "../../../_lib/requireAdminToken";
 import { reqToCompat } from "../../../_lib/reqCompat";
 import { getActorFromReq } from "@suscripciones/core/services/actorContext";
 import { scheduleCatalogLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
+import { agendarCatalogoSchema } from "@suscripciones/core/services/publicLinkSafety";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,11 +12,18 @@ export async function POST(req: Request) {
   if (!auth.ok) return auth.response;
 
   const body = await req.json().catch(() => null);
-  const customerId = String(body?.customerId || "").trim();
-  const catalogUrl = String(body?.catalogUrl || "").trim();
-  const catalogTypeRaw = String(body?.catalogType || "").trim().toUpperCase();
+  // Mismo motivo que en tokenización: este enlace lo recibe el cliente por
+  // WhatsApp, así que tiene que ser del dominio público de la aplicación.
+  const parsed = agendarCatalogoSchema.safeParse(body ?? {});
+  if (!parsed.success) {
+    return Response.json(
+      { error: "invalid_payload", detalles: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`) },
+      { status: 400 }
+    );
+  }
+  const { customerId, catalogUrl } = parsed.data;
+  const catalogTypeRaw = String((body as any)?.catalogType || "").trim().toUpperCase();
   const catalogType = catalogTypeRaw === "SUBSCRIPTION" ? "SUBSCRIPTION" : catalogTypeRaw === "PLAN" ? "PLAN" : "";
-  if (!customerId || !catalogUrl) return Response.json({ error: "invalid_payload" }, { status: 400 });
 
   const url = new URL(req.url);
   const forceNow = String(url.searchParams.get("forceNow") ?? "").trim() === "1";

@@ -2,6 +2,7 @@ import { requireAdminToken } from "../../../_lib/requireAdminToken";
 import { reqToCompat } from "../../../_lib/reqCompat";
 import { getActorFromReq } from "@suscripciones/core/services/actorContext";
 import { scheduleTokenizationLinkNotifications } from "@suscripciones/core/services/notificationsScheduler";
+import { agendarTokenizacionSchema } from "@suscripciones/core/services/publicLinkSafety";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,12 +12,17 @@ export async function POST(req: Request) {
   if (!auth.ok) return auth.response;
 
   const body = await req.json().catch(() => null);
-  const customerId = String(body?.customerId || "").trim();
-  const tokenUrl = String(body?.tokenUrl || "").trim();
-  const tenantId = String(body?.tenantId || "").trim();
-  const planId = String(body?.planId || "").trim();
-  const productId = String(body?.productId || "").trim();
-  if (!customerId || !tokenUrl) return Response.json({ error: "invalid_payload" }, { status: 400 });
+  // El enlace acaba en una plantilla de WhatsApp que ve el cliente: se exige que
+  // sea del dominio público de la aplicación, no cualquier URL que quepa en el
+  // cuerpo de la petición.
+  const parsed = agendarTokenizacionSchema.safeParse(body ?? {});
+  if (!parsed.success) {
+    return Response.json(
+      { error: "invalid_payload", detalles: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`) },
+      { status: 400 }
+    );
+  }
+  const { customerId, tokenUrl, tenantId, planId, productId } = parsed.data;
 
   const url = new URL(req.url);
   const forceNow = String(url.searchParams.get("forceNow") ?? "").trim() === "1";
@@ -25,9 +31,9 @@ export async function POST(req: Request) {
   const result = await scheduleTokenizationLinkNotifications({
     customerId,
     tokenUrl,
-    tenantId: tenantId || null,
-    planId: planId || null,
-    productId: productId || null,
+    tenantId,
+    planId,
+    productId,
     forceNow,
     actor
   });
