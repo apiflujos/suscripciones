@@ -136,5 +136,54 @@ export function permissionsForPath(pathname: string, method: string): Permission
   if (pathname.startsWith("/admin/ai") || pathname.startsWith("/api/ai"))
     return [write ? "ai:write" : "ai:read"];
 
-  return null;
+  // ── Rutas que estaban fuera del mapa ──────────────────────────────────────
+  // `settings:read` y `settings:write` existían como permisos y no estaban
+  // conectados a ninguna ruta: cualquier token válido podía leer y reescribir
+  // las credenciales de la pasarela de pagos, la configuración de cobro y los
+  // usuarios, sin necesitar permiso alguno para ello.
+  if (pathname.startsWith("/admin/settings") || pathname.startsWith("/api/settings"))
+    return [write ? "settings:write" : "settings:read"];
+
+  // `/logs` estaba mapeado, pero las rutas reales viven bajo `/admin/logs` y no
+  // empiezan por `/logs`, así que caían fuera. Las de pagos mueven dinero
+  // —reconciliar y recobrar— y piden permiso de pagos, no de lectura de logs.
+  if (pathname.startsWith("/admin/logs/payments"))
+    return [write ? "payments:write" : "payments:read"];
+  if (pathname.startsWith("/admin/logs") || pathname.startsWith("/api/logs"))
+    return [write ? "audit:read" : "audit:read"];
+
+  if (pathname.startsWith("/admin/webhook-events")) return ["audit:read"];
+
+  // Chatwoot es el canal de mensajes al cliente.
+  if (pathname.startsWith("/admin/chatwoot") || pathname.startsWith("/api/chatwoot"))
+    return [write ? "comms:write" : "comms:read"];
+
+  if (pathname.startsWith("/admin/checkout-templates") || pathname.startsWith("/api/checkout-templates"))
+    return [write ? "settings:write" : "settings:read"];
+
+  if (pathname.startsWith("/admin/gamification") || pathname.startsWith("/api/gamification"))
+    return [write ? "customers:write" : "customers:read"];
+
+  if (pathname.startsWith("/admin/empresas") || pathname.startsWith("/api/empresas"))
+    return [write ? "customers:write" : "customers:read"];
+
+  if (pathname.startsWith("/admin/billing") || pathname.startsWith("/api/billing"))
+    return [write ? "subscriptions:write" : "subscriptions:read"];
+
+  if (pathname.startsWith("/admin/import") || pathname.startsWith("/api/import"))
+    return [write ? "customers:write" : "customers:read"];
+
+  if (pathname.startsWith("/api/search")) return ["customers:read"];
+  if (pathname.startsWith("/api/list-csv")) return ["customers:read"];
+  if (pathname.startsWith("/api/realtime")) return [write ? "notifications:write" : "notifications:read"];
+
+  // ⛔ CIERRA POR DEFECTO. Antes devolvía null, y quien consulta este mapa hace
+  // `if (required && !hasPermissions(...))`: sin entrada, la comprobación se
+  // saltaba entera y bastaba un token válido —de cualquier alcance— para entrar.
+  // Una lista blanca que autoriza todo lo que no está en ella no protege nada.
+  //
+  // Lo que de verdad es público (/health, /public/*, /webhooks) no pasa por
+  // estas guardas, así que no se ve afectado; lo comprueba
+  // `todaRutaExigePermiso.test.ts`, que recorre las rutas del repositorio.
+  return write ? ["sa:write"] : ["sa:read"];
 }
