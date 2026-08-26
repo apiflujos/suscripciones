@@ -356,6 +356,12 @@ export default async function Home({
   const autoTotal = autoOk + autoFail;
   const autoApprovalPct = autoTotal > 0 ? (autoOk / autoTotal) * 100 : 0;
   const autoChurn = metricsData?.totals?.auto?.churnMonthlyPct ?? null;
+  // Qué parte de lo que se esperaba cobrar este ciclo está cobrado. Sin esto, un
+  // mes en el que no se cobró nada se ve igual que uno normal.
+  const esperadoCiclo = Number(subscriptionsBoard.totals.expectedInCents || 0);
+  const tasaCobroPct = esperadoCiclo > 0
+    ? (Number(subscriptionsBoard.totals.collectedInCents || 0) / esperadoCiclo) * 100
+    : null;
   
   // Pagos sin suscripción (one-time, huérfanos, links manuales)
   const unlinkedPaymentsApproved = Number(metricsData?.totals?.unlinked?.paymentsApproved || 0);
@@ -435,7 +441,6 @@ export default async function Home({
   const prevLinksSentTotal = sum(prevLinksSent);
   const prevLinksPaidTotal = sum(prevLinksPaid);
   const prevHasLinkActivity = prevLinksSentTotal > 0 || prevLinksPaidTotal > 0;
-  const prevPlansSold = Number(prevTotals?.totalPlansSold || 0);
   const prevAutoActive = Number(prevTotals?.auto?.activeSubscriptions || 0);
   const prevAutoNew = Number(prevTotals?.auto?.newSubscriptions || 0);
   const prevAutoCancels = Number(prevTotals?.auto?.cancellations || 0);
@@ -453,7 +458,6 @@ export default async function Home({
     hasPrev && linkConversionPct != null && prevLinkConversionRaw != null && prevHasLinkActivity
       ? linkConversionPct - Number(prevLinkConversionRaw)
       : null;
-  const plansDeltaPct = hasPrev ? pctChange(metricsData?.totals?.totalPlansSold || 0, prevPlansSold) : null;
   const autoActiveDelta = hasPrev ? autoActive - prevAutoActive : null;
   const autoActiveDeltaPct = hasPrev ? pctChange(autoActive, prevAutoActive) : null;
   const autoNetDelta = hasPrev ? autoNet - prevAutoNet : null;
@@ -665,16 +669,17 @@ export default async function Home({
                           <polyline points="21 3 21 9 15 9" />
                         </svg>
                       </span>
-                      <div className="metric-label">MRR automático</div>
-                      <div className="metric-value">{autoMrrDisplay == null ? "—" : `$${fmtMoneyCop(autoMrr)} COP`}</div>
+                      {/* El titular era el MRR de DÉBITO AUTOMÁTICO, y la mayoría de la
+                          cartera cobra por link: el número mostraba una fracción del
+                          negocio. Ahora es el recurrente de todas las suscripciones
+                          activas, con el reparto por modo debajo. */}
+                      <div className="metric-label">Ingreso recurrente</div>
+                      <div className="metric-value">${fmtMoneyCop(subscriptionsBoard.totals.mrrInCents)} COP</div>
                       <div className="metric-sub">
+                        {subscriptionsBoard.totals.subscriptions} suscripciones activas
                         {hasAutoActivity ? (
-                          <span title="Porcentaje de autosuscripciones que cancelaron en el último mes">
-                            Churn mensual: {fmtPct(autoChurnDisplay)}
-                          </span>
-                        ) : (
-                          <>Sin autosuscripciones activas.</>
-                        )}
+                          <> · de débito automático ${fmtMoneyCop(autoMrr)}</>
+                        ) : null}
                       </div>
                     </div>
                     <div className="card cardPad metric-card metric-card-sm tone-warning">
@@ -685,13 +690,17 @@ export default async function Home({
                           <line x1="12" y1="22.08" x2="12" y2="12" />
                         </svg>
                       </span>
-                      <div className="metric-label">Planes vendidos</div>
-                      <div className="metric-value">{metricsData?.totals?.totalPlansSold || 0}</div>
+                      {/* "Planes vendidos" no dice si el mes va bien. Lo que lo dice es
+                          cuánto del ciclo vigente se ha cobrado de lo que se esperaba
+                          cobrar: es el número que la avería de agosto habría delatado
+                          en cuanto pasó, y no había dónde verlo. */}
+                      <div className="metric-label">Cobrado del ciclo</div>
+                      <div className="metric-value">{fmtPct(tasaCobroPct)}</div>
                       <div className="metric-sub">
-                        Rango: {rangeLabel} ·
-                        <span className={`delta ${plansDeltaPct == null ? "flat" : plansDeltaPct >= 0 ? "up" : "down"}`}>
-                          {fmtDelta(plansDeltaPct)}
-                        </span>
+                        ${fmtMoneyCop(subscriptionsBoard.totals.collectedInCents)} de ${fmtMoneyCop(subscriptionsBoard.totals.expectedInCents)}
+                        {subscriptionsBoard.totals.pendingInCents > 0 ? (
+                          <> · faltan ${fmtMoneyCop(subscriptionsBoard.totals.pendingInCents)}</>
+                        ) : null}
                       </div>
                     </div>
                   </div>
