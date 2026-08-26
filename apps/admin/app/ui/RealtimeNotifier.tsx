@@ -91,10 +91,15 @@ export function RealtimeNotifier({ children, session }: RealtimeNotifierProps) {
       }
       window.dispatchEvent(new CustomEvent("apiflujos:notifications-updated", { detail: { items } }));
 
-      const nextSeen = new Set(lastSeenRef.current);
-      const newItems = items.filter((n) => n?.id && !nextSeen.has(n.id));
-      for (const n of items) if (n?.id) nextSeen.add(n.id);
-      lastSeenRef.current = nextSeen;
+      const newItems = items.filter((n) => n?.id && !lastSeenRef.current.has(n.id));
+      // El conjunto se REEMPLAZA por los ids del feed actual en vez de acumular.
+      // Antes solo crecía: en un tablero que se deja abierto todo el día iba
+      // sumando cada id de cada vuelta del sondeo sin soltar ninguno. Y no hace
+      // falta recordar más: lo que ya no llega del servidor tampoco puede volver
+      // a aparecer como "nuevo".
+      lastSeenRef.current = new Set(
+        items.map((n) => String(n?.id || "")).filter(Boolean)
+      );
 
       if (!newItems.length) return;
 

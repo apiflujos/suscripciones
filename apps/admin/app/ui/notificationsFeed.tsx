@@ -276,6 +276,48 @@ export function useNotificationsFeed(args: { isSuperAdmin: boolean }) {
     return notifications.filter((n) => n.category === filter);
   }, [notifications, filter]);
 
+  /**
+   * Los identificadores de leídos y descartados solo crecían.
+   *
+   * Cada aviso que alguien marcaba como leído dejaba su id guardado para siempre,
+   * y nada los borraba nunca. En una operación diaria eso son decenas de miles de
+   * ids en unos meses, y localStorage tiene un techo de unos 5 MB: al pasarlo,
+   * `setItem` lanza y el `catch {}` se lo traga. El síntoma no es un error — es
+   * que "marcar como leído" deja de funcionar. Se ve leído hasta que recargas.
+   *
+   * La poda correcta es intersecar con el feed vivo: si un aviso ya no está en el
+   * feed, no hay nada que recordar de él. Y hay que conservar los descartados que
+   * SÍ siguen llegando del servidor, o reaparecerían en la siguiente vuelta.
+   */
+  const pruneStoredIds = (items: any[]) => {
+    const vivos = new Set(
+      (Array.isArray(items) ? items : []).map((n) => String(n?.id || "")).filter(Boolean)
+    );
+    if (!vivos.size) return;
+
+    const podar = (actuales: Set<string>) => {
+      const siguiente = new Set<string>();
+      for (const id of actuales) if (vivos.has(id)) siguiente.add(id);
+      return siguiente;
+    };
+
+    const leidos = podar(readIdsRef.current);
+    if (leidos.size !== readIdsRef.current.size) {
+      readIdsRef.current = leidos;
+      try {
+        window.localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(Array.from(leidos)));
+      } catch {}
+    }
+
+    const descartados = podar(dismissedIdsRef.current);
+    if (descartados.size !== dismissedIdsRef.current.size) {
+      dismissedIdsRef.current = descartados;
+      try {
+        window.localStorage.setItem(DISMISSED_STORAGE_KEY, JSON.stringify(Array.from(descartados)));
+      } catch {}
+    }
+  };
+
   const saveReadIds = (ids: Set<string>) => {
     try {
       window.localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(Array.from(ids)));
@@ -287,7 +329,7 @@ export function useNotificationsFeed(args: { isSuperAdmin: boolean }) {
       try {
         const raw = window.localStorage.getItem(READ_STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
-        readIdsRef.current = new Set(parsed.map((v: string) => String(v || "")));
+        readIdsRef.current = new Set((Array.isArray(parsed) ? parsed : []).map((v: any) => String(v || "")));
       } catch {
         readIdsRef.current = new Set();
       }
@@ -296,7 +338,7 @@ export function useNotificationsFeed(args: { isSuperAdmin: boolean }) {
       try {
         const raw = window.localStorage.getItem(DISMISSED_STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
-        dismissedIdsRef.current = new Set(parsed.map((v: string) => String(v || "")));
+        dismissedIdsRef.current = new Set((Array.isArray(parsed) ? parsed : []).map((v: any) => String(v || "")));
       } catch {
         dismissedIdsRef.current = new Set();
       }
@@ -306,9 +348,11 @@ export function useNotificationsFeed(args: { isSuperAdmin: boolean }) {
       try {
         const raw = window.localStorage.getItem(FEED_STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
-        const next = buildNotifications(parsed, isSuperAdmin, readIdsRef.current).filter(
+        const items = Array.isArray(parsed) ? parsed : [];
+        const next = buildNotifications(items, isSuperAdmin, readIdsRef.current).filter(
           (n) => !dismissedIdsRef.current.has(n.id)
         );
+        pruneStoredIds(items);
         setNotifications(next);
       } catch {
         setNotifications([]);
@@ -327,6 +371,7 @@ export function useNotificationsFeed(args: { isSuperAdmin: boolean }) {
             (n) => !dismissedIdsRef.current.has(n.id)
           )
         );
+        pruneStoredIds(detail.items);
         return;
       }
       load();
