@@ -116,6 +116,13 @@ export async function BillingPageContent({
   const ids = usingSmartFilters && resolvedIds && resolvedIds.length === 0 ? ["__none__"] : resolvedIds || [];
   if (ids.length) subParams.set("ids", ids.join(","));
 
+  // Los días de gracia deciden si un ciclo vencido se cuenta como "en gracia" o
+  // "en mora". El tablero ya los leía de la configuración; esta lista no, así que
+  // se quedaba con el 5 por defecto y las dos pantallas podían dar cifras
+  // distintas del mismo dato en cuanto alguien cambiara el ajuste.
+  const settingsForGrace = await getAdminSettings().catch(() => null);
+  const graceDays = Number(settingsForGrace?.autoDebit?.graceDays ?? 5);
+
   const [subs, customers, products, empresasRes, tenantsRes, settings, notificationsConfig, checkoutTemplatesRaw, subscriptionsBoard] = await Promise.all([
     listSubscriptions({
       tenantId: resolvedTenantId || undefined,
@@ -134,7 +141,7 @@ export async function BillingPageContent({
     getAdminSettings(),
     getNotificationsConfigForEnv("PRODUCTION").catch(() => ({ templates: [], rules: [] })),
     listCheckoutTemplates({ tenantId: resolvedTenantId || null }).catch(() => []),
-    getSubscriptionsBoard({ tenantId: resolvedTenantId || null, asOf: renderNowDate })
+    getSubscriptionsBoard({ tenantId: resolvedTenantId || null, asOf: renderNowDate, graceDays })
   ]);
 
   const subItems = (subs.items ?? []) as any[];

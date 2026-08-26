@@ -262,14 +262,6 @@ function validateRenderedTemplateParams(templateParams: any, templateMeta: any) 
   }
 }
 
-function dedupeKey(args: { trigger: string; ruleId: string; subscriptionId?: string; paymentId?: string; cycleNumber?: number; offsetSeconds?: number }) {
-  const sub = args.subscriptionId || "-";
-  const pay = args.paymentId || "-";
-  const cycle = typeof args.cycleNumber === "number" ? String(args.cycleNumber) : "-";
-  const off = typeof args.offsetSeconds === "number" ? String(args.offsetSeconds) : "0";
-  return `notif:${args.trigger}:${args.ruleId}:${sub}:${cycle}:${pay}:${off}`;
-}
-
 function getPaymentType(args: { subscription?: any | null; payment?: any | null }) {
   const sub = args.subscription;
   if (sub?.plan) {
@@ -954,15 +946,6 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
       throw err;
     }
   }
-  const dk = dedupeKey({
-    trigger: parsed.data.trigger,
-    ruleId: rule.id,
-    subscriptionId: subscription?.id,
-    paymentId: effectivePayment?.id,
-    cycleNumber: cycleNumberForLogs,
-    offsetSeconds: parsed.data.offsetSeconds
-  });
-
   const allowManualImmediateResend = Boolean(parsed.data.immediateSend);
 
   // Best-effort dedupe (without a DB-level constraint): if the same message exists recently, skip.
@@ -977,7 +960,12 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
         createdAt: { gt: new Date(Date.now() - 7 * 24 * 60 * 60_000) },
         AND: [
           { providerResp: { path: ["meta", "ruleId"], equals: rule.id } as any },
-          { providerResp: { path: ["meta", "templateId"], equals: template.id } as any }
+          { providerResp: { path: ["meta", "templateId"], equals: template.id } as any },
+          // Sin el offset, una regla con varios avisos —"tres días antes" y "un
+          // día antes", que es la forma natural de configurarla— veía el primero
+          // como duplicado del segundo y solo salía uno. El cliente recibía la
+          // mitad de lo que alguien configuró, sin rastro de por qué.
+          { providerResp: { path: ["meta", "offsetSeconds"], equals: parsed.data.offsetSeconds ?? null } as any }
         ]
       },
       select: { id: true }
@@ -1012,20 +1000,23 @@ export async function subscriptionReminder(payload: unknown): Promise<{ ok: bool
       to: customer.phone ?? null,
       content: auditableContent,
       actor: "Sistema",
-      providerResp: normalizedRenderedTemplateParams
-        ? ({
-            template_params: normalizedRenderedTemplateParams,
-            meta: {
-              trigger: parsed.data.trigger,
-              offsetSeconds: parsed.data.offsetSeconds ?? null,
-              ruleId: rule.id,
-              paymentType,
-              templateId: template.id,
-              templateName: template.name,
-              missingParams: missing
-            }
-          } as any)
-        : null
+      // meta se escribe SIEMPRE. Antes colgaba de que hubiera plantilla, así que
+      // un mensaje con cuerpo propio nacía sin ella y la consulta de duplicados
+      // —que filtra por meta.ruleId— no lo encontraba nunca: ese camino no tenía
+      // deduplicación en absoluto.
+      providerResp: ({
+        ...(normalizedRenderedTemplateParams ? { template_params: normalizedRenderedTemplateParams } : {}),
+        meta: {
+          trigger: parsed.data.trigger,
+          offsetSeconds: parsed.data.offsetSeconds ?? null,
+          cycleNumber: cycleNumberForLogs ?? null,
+          ruleId: rule.id,
+          paymentType,
+          templateId: template.id,
+          templateName: template.name,
+          missingParams: missing
+        }
+      } as any)
     }
   });
 

@@ -113,6 +113,9 @@ export function BillingHeader({ filters, data, actions }: BillingHeaderProps) {
         summary={<ListCsvActions exportHref={data.exportHref} tenantId={filters.tenantId} defaultEntity="payments" allowImport={false} />}
       />
 
+      {/* El recuento y el botón de crear iban en dos franjas separadas debajo de la
+          barra. Comparten fila: es la misma información de contexto de la lista. */}
+      <div className="billing-results-bar">
       <div className="page-results-left">
         <span className="muted">{data.rows.length} resultados</span>
         {filters.cycleState ? (
@@ -139,6 +142,7 @@ export function BillingHeader({ filters, data, actions }: BillingHeaderProps) {
           createCustomer={actions.createCustomerFromBilling}
           createPlanAndSubscription={actions.createPlanAndSubscription}
         />
+      </div>
       </div>
     </>
   );

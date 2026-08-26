@@ -16484,6 +16484,33 @@ html[data-contrast="high"] .toggle::after {
   justify-content: space-between;
 }
 
+/* ── Barra de lista en UNA sola fila ──────────────────────────────────────────
+   El estándar de las listas de mesa de ayuda pone buscador, filtros, selector de
+   vista y botones en la MISMA fila. Aquí venían en dos, apiladas, y con el chip de
+   resultados y el botón de crear en dos bloques más debajo: cuatro franjas para lo
+   que cabe en una, y todas robando alto a la lista que se venía a leer.
+
+   Las dos filas del componente se funden con `display: contents`, así que sus hijos
+   pasan a ser hijos directos del flex de la barra y se acomodan solos. No hace falta
+   tocar el JSX ni las otras pantallas: las seis listas piden `compact`, así que todas
+   ganan lo mismo. */
+.page-toolbar.compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.page-toolbar.compact .page-toolbar-row { display: contents; }
+/* El buscador se lleva el espacio sobrante; el resto ocupa lo suyo y no crece. */
+.page-toolbar.compact .page-toolbar-search { flex: 1 1 260px; min-width: 200px; }
+.page-toolbar.compact .page-toolbar-right {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--toolbar-gap);
+}
+.page-toolbar.compact .page-toolbar-views,
+.page-toolbar.compact .page-toolbar-filters { flex: 0 0 auto; }
+
 .page-toolbar-search {
   flex: 1 1 320px;
   min-width: 220px;
@@ -18351,3 +18378,15 @@ a.sb-state:hover {
   box-shadow: inset 0 0 0 1px var(--primary);
 }
 .billing-metric.is-active .billing-metric-value { color: var(--primary); }
+
+/* Recuento de resultados y botón de crear en la misma fila: eran dos franjas
+   sueltas bajo la barra, cada una con su propio alto, para dos elementos. */
+.billing-results-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.billing-results-bar .page-results-left,
+.billing-results-bar .page-actions-right { margin: 0; }
