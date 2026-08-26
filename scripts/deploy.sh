@@ -36,6 +36,16 @@ npm ci --include=dev
 echo "🗄️ Generando Prisma Client..."
 npm run db:generate
 
+# Sin cliente generado, `@prisma/client` no exporta nada y el typecheck se llena
+# de "has no exported member 'LogLevel'" — decenas de errores que no dicen cuál
+# es la causa. Se comprueba aquí, donde sí se puede explicar.
+if ! node -e "const c=require('@prisma/client'); if(!c.LogLevel) process.exit(1)" 2>/dev/null; then
+  echo "❌ El cliente de Prisma no quedó generado."
+  echo "   Sin él nada compila. Ejecutar: npm run db:generate"
+  exit 1
+fi
+echo "   cliente de Prisma: ok"
+
 echo "💾 Respaldando la base antes de migrar..."
 if command -v pg_dump >/dev/null 2>&1; then
   BACKUP_DIR="${BACKUP_DIR:-$ROOT_DIR/backups}"
