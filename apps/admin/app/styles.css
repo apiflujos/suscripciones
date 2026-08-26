@@ -7544,9 +7544,10 @@ textarea.input {
 }
 /* Dentro del menú los botones se leen como una lista, no como una botonera:
    ocupan el ancho y alinean su texto a la izquierda. */
+/* Solo los HIJOS DIRECTOS del menú. Con un descendente, estas reglas alcanzaban
+   también los botones de dentro de los modales que abren esos mismos botones. */
 .row-actions-menu > *,
-.row-actions-menu button,
-.row-actions-menu .billing-list-detail-button {
+.row-actions-menu > button {
   width: 100%;
   min-width: 0;
   justify-content: flex-start;
@@ -7577,7 +7578,13 @@ textarea.input {
   overflow: hidden;
 }
 .billing-list-cell > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.billing-list-more { overflow: visible; }
+/* La celda de acciones queda FUERA del truncado, ella y sus hijos. El menú es un
+   posicionado absoluto dentro de .row-actions: con overflow:hidden heredado de la
+   regla de arriba quedaba recortado a los 40 px de la celda y no se veía nunca,
+   así que los botones eran inalcanzables. */
+.billing-list-more,
+.billing-list-more > *,
+.billing-list-more .row-actions { overflow: visible; }
 .billing-list-person { grid-template-columns: 42px minmax(0, 1fr); align-items: center; }
 .billing-list-person-copy { display: grid; gap: 3px; min-width: 0; }
 .billing-list-avatar {
@@ -18390,3 +18397,5 @@ a.sb-state:hover {
 }
 .billing-results-bar .page-results-left,
 .billing-results-bar .page-actions-right { margin: 0; }
+/* `hidden` lo pisa el display:grid del menú si no se dice lo contrario. */
+.row-actions-menu[hidden] { display: none; }

@@ -21,6 +21,7 @@ export function RowActionsMenu({
   label?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [montado, setMontado] = useState(false);
   const boxRef = useRef<HTMLDivElement | null>(null);
   const menuId = useId();
 
@@ -55,14 +56,28 @@ export function RowActionsMenu({
         aria-label={label}
         title={label}
         data-loader="off"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setMontado(true);
+          setOpen((v) => !v);
+        }}
       >
-        <span aria-hidden="true">⋮</span>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="5" r="1.8" />
+          <circle cx="12" cy="12" r="1.8" />
+          <circle cx="12" cy="19" r="1.8" />
+        </svg>
       </button>
-      {open ? (
-        // El menú se queda montado mientras esté abierto: cada hijo abre su propio
-        // modal y necesita seguir vivo para que ese modal no desaparezca con él.
-        <div className="row-actions-menu" id={menuId} role="menu">
+      {/* Una vez abierto, el menú NO se desmonta: se oculta. Los modales de estos
+          botones se renderizan como hijos suyos —AppModal no usa portal—, así que
+          desmontar el menú al cerrarlo se llevaría por delante el modal que
+          acababa de abrir. */}
+      {montado ? (
+        <div
+          className="row-actions-menu"
+          id={menuId}
+          role="menu"
+          hidden={!open}
+        >
           {children}
         </div>
       ) : null}
