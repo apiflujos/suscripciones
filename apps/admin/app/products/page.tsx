@@ -40,8 +40,11 @@ export default async function ProductsPage({
   const sent = typeof spParams.sent === "string" ? spParams.sent : "";
   const q = typeof spParams.q === "string" ? spParams.q : "";
   const page = typeof spParams.page === "string" ? Number(spParams.page) : 1;
-  const vistaRaw = typeof spParams.vista === "string" ? spParams.vista : "cards";
-  const vista = ["cards", "lista"].includes(vistaRaw) ? vistaRaw : "cards";
+  // La lista es la vista predeterminada en todo el producto: muestra más por
+  // pantalla y deja comparar filas. Las tarjetas se quedan como opción, no como
+  // punto de partida.
+  const vistaRaw = typeof spParams.vista === "string" ? spParams.vista : "lista";
+  const vista = ["cards", "lista"].includes(vistaRaw) ? vistaRaw : "lista";
   const vistaTyped = vista as "cards" | "lista" | "kanban";
   const viewId = typeof spParams.viewId === "string" ? spParams.viewId : "";
   const filters = typeof spParams.filters === "string" ? spParams.filters : "";

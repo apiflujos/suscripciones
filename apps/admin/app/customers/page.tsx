@@ -154,8 +154,11 @@ export default async function CustomersPage({
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
   const txCustomerId = typeof sp.tx === "string" ? sp.tx : "";
-  const vistaRaw = typeof sp.vista === "string" ? sp.vista : "cards";
-  const vista = ["cards", "lista"].includes(vistaRaw) ? vistaRaw : "cards";
+  // La lista es la vista predeterminada en todo el producto: muestra más por
+  // pantalla y deja comparar filas. Las tarjetas se quedan como opción, no como
+  // punto de partida.
+  const vistaRaw = typeof sp.vista === "string" ? sp.vista : "lista";
+  const vista = ["cards", "lista"].includes(vistaRaw) ? vistaRaw : "lista";
   const vistaTyped = vista as "cards" | "lista" | "kanban";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
   const filters = typeof sp.filters === "string" ? sp.filters : "";

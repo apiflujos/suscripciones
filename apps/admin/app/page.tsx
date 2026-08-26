@@ -10,7 +10,6 @@ import { resolveTenantId } from "./admin/_services/tenantResolver";
 import { MetricsFilters } from "./ui/MetricsFilters";
 import { PageToolbar } from "./ui/PageToolbar";
 import { CollectionSummary } from "./ui/CollectionSummary";
-import { DashboardSubscriptionsTable } from "./ui/DashboardSubscriptionsTable";
 import { ScheduledJobsPanel } from "./ui/ScheduledJobsReport";
 import { AiAssistant } from "./logs/AiAssistant";
 import {
@@ -700,8 +699,6 @@ export default async function Home({
 
 
                   <CollectionSummary board={subscriptionsBoard} listHref="/billing" />
-
-                  <DashboardSubscriptionsTable board={subscriptionsBoard} />
 
                   <details className="dashboard-advanced">
                     <summary>

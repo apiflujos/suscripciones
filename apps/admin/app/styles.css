@@ -7390,8 +7390,11 @@ textarea.input {
 
 .contact-list-header {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 0.7fr 0.9fr;
-  gap: 8px;
+  /* minmax(mínimo, fr): reparte el ancho disponible y trunca dentro de la
+     celda. Con fr a secas la columna se encogía a cero y el contenido se
+     salía por encima de la vecina. */
+  grid-template-columns: minmax(160px, 1.4fr) minmax(120px, 1fr) minmax(90px, 0.7fr) minmax(110px, 0.9fr);
+  gap: var(--space-3);
   font-size: 9px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -7401,8 +7404,11 @@ textarea.input {
 
 .contact-list-row {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 0.7fr 0.9fr;
-  gap: 8px;
+  /* minmax(mínimo, fr): reparte el ancho disponible y trunca dentro de la
+     celda. Con fr a secas la columna se encogía a cero y el contenido se
+     salía por encima de la vecina. */
+  grid-template-columns: minmax(160px, 1.4fr) minmax(120px, 1fr) minmax(90px, 0.7fr) minmax(110px, 0.9fr);
+  gap: var(--space-3);
   align-items: center;
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--stroke) 82%, transparent);
@@ -7411,11 +7417,30 @@ textarea.input {
   box-shadow: var(--shadow);
 }
 
-.contact-list-cell {
+.contact-list-cell,
+.product-list-cell,
+.company-list-cell {
   min-width: 0;
   display: grid;
   gap: 4px;
+  overflow: hidden;
 }
+/* Lo que no cabe se corta con puntos suspensivos en vez de desbordar la celda. */
+.contact-list-cell > *,
+.product-list-cell > *,
+.company-list-cell > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Las celdas de acciones no truncan: llevan menús que se posicionan fuera. */
+.contact-list-cell.is-actions,
+.product-list-cell.is-actions,
+.company-list-cell.is-actions,
+.contact-list-cell.is-actions > *,
+.product-list-cell.is-actions > *,
+.company-list-cell.is-actions > * { overflow: visible; }
 
 .contact-list-name {
   font-weight: 700;
@@ -13090,8 +13115,11 @@ body.is-global-loading {
 
 .product-list-header {
   display: grid;
-  grid-template-columns: 1.6fr 0.8fr 0.8fr 0.6fr;
-  gap: 8px;
+  /* minmax(mínimo, fr): reparte el ancho disponible y trunca dentro de la
+     celda. Con fr a secas la columna se encogía a cero y el contenido se
+     salía por encima de la vecina. */
+  grid-template-columns: minmax(170px, 1.6fr) minmax(100px, 0.8fr) minmax(100px, 0.8fr) minmax(90px, 0.6fr);
+  gap: var(--space-3);
   font-size: 9px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -13101,8 +13129,11 @@ body.is-global-loading {
 
 .product-list-row {
   display: grid;
-  grid-template-columns: 1.6fr 0.8fr 0.8fr 0.6fr;
-  gap: 8px;
+  /* minmax(mínimo, fr): reparte el ancho disponible y trunca dentro de la
+     celda. Con fr a secas la columna se encogía a cero y el contenido se
+     salía por encima de la vecina. */
+  grid-template-columns: minmax(170px, 1.6fr) minmax(100px, 0.8fr) minmax(100px, 0.8fr) minmax(90px, 0.6fr);
+  gap: var(--space-3);
   align-items: center;
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--stroke) 82%, transparent);
@@ -13113,8 +13144,11 @@ body.is-global-loading {
 
 .company-list-header {
   display: grid;
-  grid-template-columns: 1.4fr 1.1fr 0.5fr 0.6fr;
-  gap: 8px;
+  /* minmax(mínimo, fr): reparte el ancho disponible y trunca dentro de la
+     celda. Con fr a secas la columna se encogía a cero y el contenido se
+     salía por encima de la vecina. */
+  grid-template-columns: minmax(160px, 1.4fr) minmax(130px, 1.1fr) minmax(80px, 0.5fr) minmax(90px, 0.6fr);
+  gap: var(--space-3);
   font-size: 9px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -13124,8 +13158,11 @@ body.is-global-loading {
 
 .company-list-row {
   display: grid;
-  grid-template-columns: 1.4fr 1.1fr 0.5fr 0.6fr;
-  gap: 8px;
+  /* minmax(mínimo, fr): reparte el ancho disponible y trunca dentro de la
+     celda. Con fr a secas la columna se encogía a cero y el contenido se
+     salía por encima de la vecina. */
+  grid-template-columns: minmax(160px, 1.4fr) minmax(130px, 1.1fr) minmax(80px, 0.5fr) minmax(90px, 0.6fr);
+  gap: var(--space-3);
   align-items: center;
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--stroke) 82%, transparent);

@@ -89,3 +89,26 @@ describe("la lista de suscripciones no se va a la derecha", () => {
     expect(ultima.length, "la última pista debe ser un ancho fijo, no un minmax").toBeGreaterThan(0);
   });
 });
+
+describe("todas las listas siguen el mismo estándar", () => {
+  const LISTAS = ["contact", "product", "company"] as const;
+
+  it.each(LISTAS)("la lista de %s declara mínimos, no fr a secas", (nombre) => {
+    const bloque = CSS.slice(CSS.indexOf(`.${nombre}-list-row {`));
+    const pistas = bloque.slice(0, bloque.indexOf("}"));
+
+    // Con `fr` a secas la columna se encoge a cero y el contenido se sale por
+    // encima de la vecina; el mínimo es lo que lo impide.
+    expect(pistas, `.${nombre}-list-row usa fr sin mínimo`).toMatch(/minmax\(\d+px/);
+  });
+
+  it("las celdas de todas las listas truncan dentro", () => {
+    for (const nombre of LISTAS) {
+      expect(
+        CSS,
+        `.${nombre}-list-cell no trunca: el texto largo desbordará la celda`
+      ).toMatch(new RegExp(`\\.${nombre}-list-cell > \\*`));
+    }
+    expect(CSS).toMatch(/text-overflow:\s*ellipsis/);
+  });
+});
