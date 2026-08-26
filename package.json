@@ -14,7 +14,7 @@
     "start": "npm run start -w apps/admin",
     "lint": "npm run lint -w apps/admin",
     "typecheck": "npm run typecheck -w packages/core && npm run typecheck -w apps/admin && npm run build -w apps/worker",
-    "postinstall": "npm run db:generate",
+    "postinstall": "node -e \"const f=require('fs');if(!f.existsSync('packages/database/prisma/schema.prisma'))process.exit(0);try{require('child_process').execSync('npm run prisma:generate -w packages/database',{stdio:'inherit'})}catch(e){console.warn('[postinstall] Genera el cliente con: npm run db:generate')}\"",
     "test": "vitest run --pool=threads --maxWorkers=1 --minWorkers=1",
     "test:watch": "vitest",
     "jobs": "npm -w apps/worker run start",
