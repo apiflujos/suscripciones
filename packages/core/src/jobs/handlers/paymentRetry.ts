@@ -256,11 +256,27 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
       }
       // Tope duro por ciclo. Un cobro declinado no lanza error, así que sin
       // esto el ciclo se vuelve a cobrar en cada pasada del sincronizador.
+      // ⛔ ESTE .catch DEVOLVÍA `exhausted: false`, o sea: si no se podía contar
+      // cuántas veces se había cobrado ya el ciclo, se cobraba igual. El tope que
+      // existe justo para cortar el bucle de 62 cobros fallaba ABIERTO ante un
+      // fallo transitorio de base.
+      //
+      // Cuando no se puede verificar cuántas veces se pasó la tarjeta, la
+      // respuesta correcta es no pasarla: aplazar el cobro cuesta un ciclo del
+      // worker, cobrar de más le cuesta al cliente y al comercio el bloqueo del
+      // medio de pago.
       const intentos = await hasExhaustedCycleAttempts({
         subscriptionId,
         cycleNumber: billingState?.collectionCycle?.cycleNumber ?? null,
         config: autoDebitConfig
-      }).catch(() => ({ exhausted: false, attempts: 0, allowed: 1 }));
+      }).catch(async (err: any) => {
+        await systemLog(LogLevel.ERROR, "jobs.payment_retry", "No se pudo verificar los intentos del ciclo: no se cobra", {
+          subscriptionId,
+          cycleNumber: billingState?.collectionCycle?.cycleNumber ?? null,
+          err: err?.message ? String(err.message) : String(err)
+        }, SystemActor.JOB_PAYMENT_RETRY).catch(() => {});
+        return { exhausted: true, attempts: -1, allowed: -1 };
+      });
       if (intentos.exhausted) {
         await systemLog(LogLevel.WARN, "jobs.payment_retry", "Cobro automático detenido: el ciclo agotó sus intentos", {
           subscriptionId,

@@ -502,11 +502,18 @@ async function ensureDueCutoffRetries() {
       // El tope de intentos vale con o sin reintentos activos: antes, con los
       // reintentos encendidos, esta sincronización volvía a agendar cobro para
       // el mismo ciclo en cada pasada, sin techo.
+      // Ante un fallo al contar, NO se agenda cobro. Este .catch devolvía
+      // `exhausted: false`, o sea que un tropiezo de base saltaba el tope y el
+      // ciclo volvía a agendarse. Aplazar cuesta una pasada; cobrar de más le
+      // cuesta al cliente y al comercio el bloqueo del medio de pago.
       const intentosCiclo = await hasExhaustedCycleAttempts({
         subscriptionId: sub.id,
         cycleNumber: collectionCycle.cycleNumber,
         config: autoDebitConfig
-      }).catch(() => ({ exhausted: false, attempts: 0, allowed: 1 }));
+      }).catch((err) => {
+        logger.error({ err, subscriptionId: sub.id }, "[Jobs/SafetySync] No se pudo verificar los intentos del ciclo: no se agenda cobro");
+        return { exhausted: true, attempts: -1, allowed: -1 };
+      });
       if (intentosCiclo.exhausted) {
         skippedExhausted++;
         continue;
