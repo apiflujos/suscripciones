@@ -25,7 +25,13 @@ echo "📦 Obteniendo últimos cambios..."
 git pull --ff-only
 
 echo "📦 Instalando dependencias..."
-npm ci
+# --include=dev es obligatorio, no una preferencia. Este script hace `source .env`
+# unas líneas más arriba, y ahí vive NODE_ENV=production: npm lo respeta y omite
+# las dependencias de desarrollo. Sin ellas no hay typescript, así que el
+# typecheck muere con "tsc: not found" y el build de Next moriría dos líneas
+# después. Es la razón por la que este script nunca llegó a correr entero y las
+# migraciones se acabaron aplicando a mano.
+npm ci --include=dev
 
 echo "🗄️ Generando Prisma Client..."
 npm run db:generate
