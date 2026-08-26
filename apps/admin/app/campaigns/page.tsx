@@ -8,7 +8,6 @@ import { listCampaigns } from "../admin/_services/campaigns";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { PageToolbar } from "../ui/PageToolbar";
-import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
 
@@ -89,19 +88,6 @@ export default async function CampaignsPage({
           )}
           views={(
             <ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />
-          )}
-          smartViews={(
-            <SmartViewsBar
-              scope="customers"
-              initialViewId={viewId}
-              initialFilters={filters}
-              baseParams={{
-                ...(q ? { q } : {})
-              }}
-              initialFields={getSmartViewFields("customers")}
-              compactInline
-              hideFilterButton
-            />
           )}
           summary={<span className="muted">Total {total}</span>}
         />

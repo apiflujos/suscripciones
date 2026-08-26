@@ -17,7 +17,6 @@ import { CustomersTable } from "./CustomersTable";
 import { getCsrfToken } from "../lib/csrf";
 import { createPlanAndSubscription } from "../billing/actions";
 import { prisma } from "@suscripciones/database";
-import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
@@ -307,20 +306,6 @@ export default async function CustomersPage({
                 ...(viewId ? { viewId } : {}),
                 ...(filters ? { filters } : {})
               }}
-            />
-          )}
-          smartViews={(
-            <SmartViewsBar
-              scope="customers"
-              initialViewId={viewId}
-              initialFilters={filters}
-              baseParams={{
-                ...(q ? { q } : {}),
-                ...(tenantId ? { tenantId } : {})
-              }}
-              initialFields={getSmartViewFields("customers")}
-              compactInline
-              hideFilterButton
             />
           )}
           summary={(

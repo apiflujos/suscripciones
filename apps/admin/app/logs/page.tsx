@@ -9,7 +9,6 @@ import { AiAssistant } from "./AiAssistant";
 import { LogsFiltersAutoSubmit } from "./LogsFiltersAutoSubmit";
 import { getCsrfToken, assertCsrfToken } from "../lib/csrf";
 import { PendingButton } from "../ui/PendingButton";
-import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ReconcilePaymentModal } from "./ReconcilePaymentModal";
 import { PageToolbar } from "../ui/PageToolbar";
 import { ListCsvActions } from "../ui/ListCsvActions";
@@ -861,37 +860,8 @@ export default async function LogsPage({
       </form>
     );
 
-  const headerSmartViews =
-    tab === "payments" ? (
-      <SmartViewsBar
-        scope="payments"
-        initialViewId={viewId}
-        initialFilters={filters}
-        compactInline
-        hideFilterButton
-        baseParams={{
-          ...(q ? { q } : {}),
-          ...(paymentsView ? { paymentsView } : {})
-        }}
-        initialFields={getSmartViewFields("payments")}
-      />
-    ) : tab === "system" ? (
-      <SmartViewsBar
-        scope="logs"
-        initialViewId={viewId}
-        initialFilters={filters}
-        compactInline
-        hideFilterButton
-        baseParams={{
-          tab: "system",
-          ...(q ? { q } : {}),
-          ...(level ? { level } : {}),
-          ...(from ? { from } : {}),
-          ...(to ? { to } : {})
-        }}
-        initialFields={getSmartViewFields("logs")}
-      />
-    ) : null;
+  // Las vistas guardadas se retiran: el filtro sigue en headerFilterButton.
+  const headerSmartViews = null;
 
   const headerFilterButton =
     tab === "payments" ? (

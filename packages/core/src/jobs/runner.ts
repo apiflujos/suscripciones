@@ -914,7 +914,12 @@ async function main() {
   while (true) {
     try {
       await ensureMonthlyBillingReportJob();
-      await ensureSmartListsSyncJob();
+      // El sincronizador de smart lists queda apagado: la funcionalidad se retiró.
+      // Era el 84 % de las filas de RetryJob (16.976 ejecuciones) y lo único que
+      // hacía era mantener SmartListMember, que ya no lee nadie del camino de
+      // mensajes. Se deja la función y el manejador para no romper los jobs que
+      // pudieran quedar encolados; simplemente no se agenda ninguno más.
+      // await ensureSmartListsSyncJob();
       await ensureGamificationRecalcJob();
       await ensureDataTrainerJob();
       await ensureLogCleanup();

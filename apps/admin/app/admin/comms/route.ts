@@ -87,29 +87,10 @@ export async function POST(req: Request) {
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/admin\/comms\/?/, "");
 
+  // Las smart lists se retiran: nunca fueron funcionales y las campañas ya
+  // resuelven su audiencia con el filtro, que sí funciona.
   if (path.startsWith("smart-lists")) {
-    const body = await req.json().catch(() => null);
-    const parsed = smartListCreateSchema.safeParse(body);
-    if (!parsed.success) return Response.json({ error: "invalid_body", details: parsed.error.flatten() }, { status: 400 });
-
-    const compatReq = reqToCompat(req, body);
-    const tenantId = await getEffectiveTenantId(compatReq as any);
-    if (!tenantId) return Response.json({ error: "tenant_required" }, { status: 400 });
-
-    const rules = parseRules(parsed.data.rules);
-    const chatwootLabel = slugifyLabel(parsed.data.name);
-
-    const created = await prisma.smartList.create({
-      data: {
-        tenant: { connect: { id: tenantId } },
-        name: parsed.data.name,
-        description: parsed.data.description,
-        enabled: parsed.data.enabled ?? true,
-        rules: rules as any,
-        chatwootLabel
-      }
-    });
-    return Response.json({ smartList: created }, { status: 201 });
+    return Response.json({ error: "smart_lists_retiradas" }, { status: 410 });
   }
 
   if (path.startsWith("test-connection")) {

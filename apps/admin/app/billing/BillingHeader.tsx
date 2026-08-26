@@ -4,7 +4,6 @@ import { BillingModals } from "./BillingModals";
 import { FilterButton } from "../ui/FilterButton";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { PageToolbar } from "../ui/PageToolbar";
-import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { getSmartViewFields } from "@suscripciones/core/services/smartViews";
 import type { BillingAction, BillingRow, TenantOption } from "./billingTypes";
@@ -89,17 +88,6 @@ export function BillingHeader({ filters, data, actions }: BillingHeaderProps) {
             scope="billing"
             baseParams={baseParams}
             initialFields={getSmartViewFields("billing")}
-          />
-        )}
-        smartViews={(
-          <SmartViewsBar
-            scope="billing"
-            initialViewId={filters.viewId}
-            initialFilters={filters.filters}
-            baseParams={baseParams}
-            initialFields={getSmartViewFields("billing")}
-            compactInline
-            hideFilterButton
           />
         )}
         views={(

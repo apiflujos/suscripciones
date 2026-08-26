@@ -3,7 +3,6 @@ import { ProductsTable } from "./ProductsTable";
 import { getCsrfToken } from "../lib/csrf";
 import { ProductsModals } from "./ProductsModals";
 import { createCustomerFromBilling, createPlanAndSubscription } from "../billing/actions";
-import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
@@ -163,20 +162,6 @@ export default async function ProductsPage({
                 ...(viewId ? { viewId } : {}),
                 ...(filters ? { filters } : {})
               }}
-            />
-          )}
-          smartViews={(
-            <SmartViewsBar
-              scope="products"
-              initialViewId={viewId}
-              initialFilters={filters}
-              baseParams={{
-                ...(tenantId ? { tenantId } : {}),
-                ...(q ? { q } : {})
-              }}
-              initialFields={getSmartViewFields("products")}
-              compactInline
-              hideFilterButton
             />
           )}
           summary={(

@@ -9,7 +9,6 @@ import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { PageToolbar } from "../ui/PageToolbar";
 import { ListCsvActions } from "../ui/ListCsvActions";
-import { SmartViewsBar } from "../smart-views/SmartViewsBar";
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
 
 export const dynamic = "force-dynamic";
@@ -118,19 +117,6 @@ export default async function EmpresasPage({
                 ...(filters ? { filters } : {})
               }}
               initialFields={getSmartViewFields("companies")}
-            />
-          )}
-          smartViews={(
-            <SmartViewsBar
-              scope="companies"
-              initialViewId={viewId}
-              initialFilters={filters}
-              baseParams={{
-                ...(q ? { q } : {})
-              }}
-              initialFields={getSmartViewFields("companies")}
-              compactInline
-              hideFilterButton
             />
           )}
           views={<ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />}
