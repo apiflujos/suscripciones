@@ -33,6 +33,7 @@ type Props = {
   tenantId?: string | null;
   forceOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  label?: string;
 };
 
 function statusClass(status?: string | null) {
@@ -86,7 +87,7 @@ function associationLabel(reason?: string | null) {
   return s || "—";
 }
 
-export function PaymentHistoryButton({ subscriptionId, tenantId, forceOpen, onOpenChange }: Props) {
+export function PaymentHistoryButton({ subscriptionId, tenantId, forceOpen, onOpenChange, label }: Props) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<PaymentItem[]>([]);
@@ -155,11 +156,14 @@ export function PaymentHistoryButton({ subscriptionId, tenantId, forceOpen, onOp
       {forceOpen === undefined ? (
         <button
           type="button"
-          className="ghost btn-compact btn-history btn-icon-only"
+          className={label ? "ghost btn-compact btn-history" : "ghost btn-compact btn-history btn-icon-only"}
           aria-label="Historial de pagos"
           title="Historial de pagos"
           onClick={() => setOpen(true)}
-        />
+          data-loader="off"
+        >
+          {label ? label : null}
+        </button>
       ) : null}
       <AppModal open={open} onClose={() => setOpen(false)} title="Historial de pagos" width="min(760px, 96vw)">
         <div className="billing-history">

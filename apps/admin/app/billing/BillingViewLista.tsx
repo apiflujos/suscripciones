@@ -1,6 +1,13 @@
 import { SubscriptionDetailModalWrapper } from "./SubscriptionDetailModalWrapper";
 import { PaymentLinkModalButton } from "./PaymentLinkModalButton";
 import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
+import { PaymentHistoryButton } from "./PaymentHistoryButton";
+import { ChangePlanButton } from "./ChangePlanButton";
+import { ManualChargeButton } from "./ManualChargeButton";
+import { ManualMarkPaidButton } from "./ManualMarkPaidButton";
+import { ManualUnmarkPaidButton } from "./ManualUnmarkPaidButton";
+import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
+import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
 import { buildSubscriptionDetail } from "./BillingCard";
 import { formatCivilDate } from "./civilDate";
 import { getCollectionStatusLabel } from "./billingDisplayHelpers";
@@ -38,7 +45,21 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
         const isCanceled = row.status === "CANCELED";
         const isSuspended = row.status === "SUSPENDED";
         const isExpired = row.status === "EXPIRED";
-        const isInactive = isCanceled || isSuspended || isExpired;
+        const isReactivatable = isCanceled || isExpired;
+        const isInactive = isReactivatable || isSuspended;
+        const alreadyPaidCurrentPeriod = Boolean(row.lastPaidInCurrentPeriod);
+        const canManualCharge = Boolean(row.canManualCharge);
+        const canManualMarkPaid = Boolean(row.canManualMarkPaid);
+        const canManualUnmarkPaid = Boolean(row.canManualUnmarkPaid);
+        const showManualCharge = isAutoDebit && !isInactive && canManualCharge;
+        const showMarkPaid = !isInactive && !alreadyPaidCurrentPeriod && canManualMarkPaid;
+        // Duplicados: el botón solo aparece en la suscripción que queda como
+        // "principal" del grupo. Si no, se enviaría el merge desde una fila que
+        // luego se va a borrar y el keepSubscriptionId no coincidiría.
+        const duplicateKey = context.helpers.resolveDuplicateKey(row);
+        const duplicateCount = context.helpers.duplicateCountByKey.get(duplicateKey) || 1;
+        const keepRowId = context.helpers.duplicateKeepByKey.get(duplicateKey)?.id || row.id;
+        const isDuplicateKeep = keepRowId === row.id;
         const contactHref = `/customers?${new URLSearchParams({
           tx: row.customerId,
           ...(row.tenantId ? { tenantId: row.tenantId } : {})
@@ -134,6 +155,57 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
                 >
                   Ver detalle
                 </SubscriptionDetailModalWrapper>
+                <ChangePlanButton
+                  subscriptionId={row.id}
+                  currentPlanId={row.productId || row.planId}
+                  currentChargeAt={row.vencimientoAt}
+                  currentShippingInCents={row.currentShippingInCents}
+                  currentRequiresShipping={row.currentRequiresShipping}
+                  currentPlanName={row.productName || row.planName}
+                  currentPlanCurrency={row.moneda}
+                  plans={context.data.planOptions}
+                  csrfToken={context.data.csrfToken}
+                  returnTo={context.data.returnTo}
+                  tenantId={row.tenantId}
+                  action={context.actions.changeSubscriptionPlan}
+                />
+                <PaymentHistoryButton
+                  subscriptionId={row.id}
+                  tenantId={row.tenantId}
+                  label="Historial de pagos"
+                />
+                {showManualCharge ? (
+                  <ManualChargeButton
+                    action={context.actions.chargeSubscriptionNow}
+                    csrfToken={context.data.csrfToken}
+                    subscriptionId={row.id}
+                    tenantId={row.tenantId}
+                    returnTo={context.data.returnTo}
+                    warnNotDue={!row.chargeDue}
+                    warnAlreadyPaid={alreadyPaidCurrentPeriod}
+                    manualChargeEnabled={row.manualChargeEnabled}
+                  />
+                ) : null}
+                {showMarkPaid ? (
+                  <ManualMarkPaidButton
+                    action={context.actions.markSubscriptionPaidManual}
+                    csrfToken={context.data.csrfToken}
+                    subscriptionId={row.id}
+                    tenantId={row.tenantId}
+                    returnTo={context.data.returnTo}
+                    warnAlreadyPaid={alreadyPaidCurrentPeriod}
+                    manualMarkPaidEnabled={row.manualMarkPaidEnabled}
+                  />
+                ) : null}
+                {canManualUnmarkPaid ? (
+                  <ManualUnmarkPaidButton
+                    action={context.actions.unmarkSubscriptionPaidManual}
+                    csrfToken={context.data.csrfToken}
+                    subscriptionId={row.id}
+                    tenantId={row.tenantId}
+                    returnTo={context.data.returnTo}
+                  />
+                ) : null}
                 {!isInactive && !isAutoDebit ? (
                   <PaymentLinkModalButton
                     subscriptionId={row.id}
@@ -163,6 +235,48 @@ export function BillingViewLista({ rows, context }: BillingViewListaProps) {
                     action={context.actions.sendWhatsAppTokenizationLink}
                   />
                 ) : null}
+                {isSuspended ? (
+                  <form action={context.actions.resumeSubscription}>
+                    <input type="hidden" name="csrf" value={context.data.csrfToken} />
+                    <input type="hidden" name="subscriptionId" value={row.id} />
+                    {row.tenantId ? <input type="hidden" name="tenantId" value={row.tenantId} /> : null}
+                    <button className="ghost btn-compact btn-green btn-noicon" type="submit" title="Reanudar suscripción">
+                      Reanudar
+                    </button>
+                  </form>
+                ) : null}
+                {isReactivatable ? (
+                  <form action={context.actions.activateSubscription}>
+                    <input type="hidden" name="csrf" value={context.data.csrfToken} />
+                    <input type="hidden" name="subscriptionId" value={row.id} />
+                    {row.tenantId ? <input type="hidden" name="tenantId" value={row.tenantId} /> : null}
+                    <input type="hidden" name="returnTo" value={context.data.returnTo} />
+                    <button className="ghost btn-compact btn-green btn-noicon" type="submit" title="Reactivar suscripción">
+                      Reactivar
+                    </button>
+                  </form>
+                ) : null}
+                {isDuplicateKeep && duplicateCount > 1 ? (
+                  <MergeDuplicateSubscriptionsButton
+                    action={context.actions.mergeDuplicateSubscriptions}
+                    csrfToken={context.data.csrfToken}
+                    customerId={row.customerId}
+                    productId={row.productId || undefined}
+                    planId={row.planId}
+                    keepSubscriptionId={row.id}
+                    tenantId={row.tenantId}
+                    returnTo={context.data.returnTo}
+                    duplicatesCount={duplicateCount - 1}
+                  />
+                ) : null}
+                <DeleteSubscriptionButton
+                  action={context.actions.deleteSubscription}
+                  csrfToken={context.data.csrfToken}
+                  subscriptionId={row.id}
+                  tenantId={row.tenantId}
+                  returnTo={context.data.returnTo}
+                  label="Eliminar"
+                />
               </RowActionsMenu>
             </div>
           </div>
