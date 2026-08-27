@@ -7,6 +7,7 @@ import { LocalDateTime } from "../ui/LocalDateTime";
 import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
 import { AppModal } from "../ui/AppModal";
 import { CustomerEditModal } from "./CustomerEditModal";
+import { RowActionsMenu } from "../billing/RowActionsMenu";
 import {
   isNotificationTemplateConfigured,
   renderNotificationTemplatePreview,
@@ -581,98 +582,101 @@ export function CustomersTable({
                   <span className={`pill pill-sm ${statusPillClass}`}>{statusLabel}</span>
                 </div>
                 <div className="contact-list-cell contact-list-actions">
-                  <button
-                    className="ghost btn-compact btn-history btn-icon-only"
-                    type="button"
-                    onClick={() => openTransactions(c)}
-                    aria-label="Historial de pagos"
-                    title="Historial de pagos"
-                  />
-                  <button
-                    className="ghost btn-compact btn-edit btn-icon-only"
-                    type="button"
-                    onClick={() => openEditor(c)}
-                    aria-label="Editar"
-                    title="Editar"
-                  />
-                  <form
-                    action={deleteCustomer}
-                    className="delete-row"
-                    onSubmit={(e) => {
-                      if (!confirm("¿Eliminar contacto?")) e.preventDefault();
-                    }}
-                  >
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <input type="hidden" name="id" value={c.id} />
-                    <input type="hidden" name="tenantId" value={resolveEffectiveTenantId(c)} />
-                    {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-                    <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar contacto" title="Eliminar contacto" />
-                  </form>
-                  <Link className="ghost btn-compact btn-noicon btn-blue contact-action-btn action-card" href={`/customers/${c.id}/payment-method`}>
-                    {hasToken(c) ? "Actualizar tarjeta" : "Guardar tarjeta"}
-                  </Link>
-                  {hasToken(c) ? (
+                  <RowActionsMenu label="Acciones del contacto">
                     <button
-                      className="ghost btn-compact btn-noicon btn-red contact-action-btn action-danger"
+                      className="ghost btn-compact btn-noicon btn-blue btn-create contact-action-btn action-create"
                       type="button"
-                      onClick={() => {
-                        void clearCustomerPaymentSource(c.id);
-                      }}
-                      disabled={clearingTokenId === c.id}
-                      title={clearingTokenId === c.id ? "Quitando token" : "Quitar token"}
+                      data-modal="true"
+                      data-loader="off"
+                      onClick={() => openPlanModal(c)}
                     >
-                      {clearingTokenId === c.id ? "Quitando..." : "Quitar token"}
+                      Crear suscripción
                     </button>
-                  ) : null}
-                  <button
-                    className="ghost btn-compact btn-pay contact-action-btn action-payment"
-                    type="button"
-                    data-modal="true"
-                    data-loader="off"
-                    onClick={() => openPayModal(c)}
-                    disabled={!actionState.canSendPayment}
-                    title={actionState.canSendPayment ? "Enviar link de pago" : mapSendError(actionState.paymentError)}
-                  >
-                    Enviar link de pago
-                  </button>
-                  <button
-                    className="ghost btn-compact btn-token contact-action-btn action-token"
-                    type="button"
-                    data-modal="true"
-                    data-loader="off"
-                    onClick={() => openTokenModal(c)}
-                    disabled={!actionState.canSendToken}
-                    title={actionState.canSendToken ? "Enviar débito automático" : mapSendError(actionState.tokenError)}
-                  >
-                    Enviar débito automático
-                  </button>
-                  <button
-                    className="ghost btn-compact btn-open contact-action-btn action-catalog"
-                    type="button"
-                    data-modal="true"
-                    data-loader="off"
-                    onClick={() => openCartModal(c)}
-                    disabled={!actionState.canSendCatalog}
-                    title={
-                      actionState.canSendCatalog
-                        ? "Enviar catálogo"
-                        : mapSendError(actionState.catalogPlanError || actionState.catalogSubscriptionError)
-                    }
-                  >
-                    Enviar catálogo
-                  </button>
-                  <button className="ghost btn-compact btn-noicon btn-blue btn-create contact-action-btn action-create" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(c)}>
-                    Crear suscripción
-                  </button>
-                  <details className="inline-detail">
-                    <summary className="ghost btn-compact btn-icon-only btn-view" aria-label="Ver más" title="Ver más" />
-                    <div className="inline-detail-body">
-                      <div><strong>Email:</strong> {c.email || "—"}</div>
-                      <div><strong>Teléfono:</strong> {c.phone || "—"}</div>
-                      <div><strong>Canal:</strong> {c.tenantName || "—"}</div>
-                      <div><strong>Identificación:</strong> {ident || "—"}</div>
-                    </div>
-                  </details>
+                    <button
+                      className="ghost btn-compact btn-pay contact-action-btn action-payment"
+                      type="button"
+                      data-modal="true"
+                      data-loader="off"
+                      onClick={() => openPayModal(c)}
+                      disabled={!actionState.canSendPayment}
+                      title={actionState.canSendPayment ? "Enviar link de pago" : mapSendError(actionState.paymentError)}
+                    >
+                      Enviar link de pago
+                    </button>
+                    <button
+                      className="ghost btn-compact btn-token contact-action-btn action-token"
+                      type="button"
+                      data-modal="true"
+                      data-loader="off"
+                      onClick={() => openTokenModal(c)}
+                      disabled={!actionState.canSendToken}
+                      title={actionState.canSendToken ? "Enviar débito automático" : mapSendError(actionState.tokenError)}
+                    >
+                      Enviar débito automático
+                    </button>
+                    <button
+                      className="ghost btn-compact btn-open contact-action-btn action-catalog"
+                      type="button"
+                      data-modal="true"
+                      data-loader="off"
+                      onClick={() => openCartModal(c)}
+                      disabled={!actionState.canSendCatalog}
+                      title={
+                        actionState.canSendCatalog
+                          ? "Enviar catálogo"
+                          : mapSendError(actionState.catalogPlanError || actionState.catalogSubscriptionError)
+                      }
+                    >
+                      Enviar catálogo
+                    </button>
+                    <Link className="ghost btn-compact btn-noicon btn-blue contact-action-btn action-card" href={`/customers/${c.id}/payment-method`}>
+                      {hasToken(c) ? "Actualizar tarjeta" : "Guardar tarjeta"}
+                    </Link>
+                    {hasToken(c) ? (
+                      <button
+                        className="ghost btn-compact btn-noicon btn-red contact-action-btn action-danger"
+                        type="button"
+                        onClick={() => {
+                          void clearCustomerPaymentSource(c.id);
+                        }}
+                        disabled={clearingTokenId === c.id}
+                        title={clearingTokenId === c.id ? "Quitando token" : "Quitar token"}
+                      >
+                        {clearingTokenId === c.id ? "Quitando..." : "Quitar token"}
+                      </button>
+                    ) : null}
+                    <button
+                      className="ghost btn-compact btn-history btn-noicon"
+                      type="button"
+                      onClick={() => openTransactions(c)}
+                      title="Historial de pagos"
+                    >
+                      Historial de pagos
+                    </button>
+                    <button
+                      className="ghost btn-compact btn-edit btn-noicon"
+                      type="button"
+                      onClick={() => openEditor(c)}
+                      title="Editar contacto"
+                    >
+                      Editar
+                    </button>
+                    <form
+                      action={deleteCustomer}
+                      className="delete-row"
+                      onSubmit={(e) => {
+                        if (!confirm("¿Eliminar contacto?")) e.preventDefault();
+                      }}
+                    >
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="id" value={c.id} />
+                      <input type="hidden" name="tenantId" value={resolveEffectiveTenantId(c)} />
+                      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+                      <button className="ghost btn-compact btn-red btn-noicon" type="submit" title="Eliminar contacto">
+                        Eliminar
+                      </button>
+                    </form>
+                  </RowActionsMenu>
                 </div>
               </div>
             );

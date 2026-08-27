@@ -5,6 +5,7 @@ import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
 import { deleteEmpresa, createEmpresa, updateEmpresa } from "./actions";
 import { EmpresaCreateModal } from "./EmpresaCreateModal";
+import { RowActionsMenu } from "../billing/RowActionsMenu";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { PageToolbar } from "../ui/PageToolbar";
@@ -160,12 +161,23 @@ export default async function EmpresasPage({
                     <span className="pill pill-muted">{Number(e?._count?.contactos || 0)} contactos</span>
                   </div>
                   <div className="company-list-cell company-list-actions">
-                    <a className="ghost btn-compact btn-icon-only btn-edit" href={`/empresas/${e.id}`} aria-label="Editar" title="Editar" />
-                    <form action={deleteEmpresa}>
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="id" value={e.id} />
-                      <button className="ghost btn-compact btn-delete-icon btn-red" type="submit" aria-label="Eliminar" title="Eliminar" />
-                    </form>
+                    <RowActionsMenu label="Acciones de la empresa">
+                      <a className="ghost btn-compact btn-edit btn-noicon" href={`/empresas/${e.id}`} title="Editar">
+                        Editar
+                      </a>
+                      <form
+                        action={deleteEmpresa}
+                        onSubmit={(ev) => {
+                          if (!confirm("¿Eliminar empresa?")) ev.preventDefault();
+                        }}
+                      >
+                        <input type="hidden" name="csrf" value={csrfToken} />
+                        <input type="hidden" name="id" value={e.id} />
+                        <button className="ghost btn-compact btn-red btn-noicon" type="submit" title="Eliminar">
+                          Eliminar
+                        </button>
+                      </form>
+                    </RowActionsMenu>
                   </div>
                 </div>
               ))}

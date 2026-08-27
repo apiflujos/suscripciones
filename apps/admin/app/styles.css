@@ -7401,7 +7401,7 @@ textarea.input {
   /* minmax(mínimo, fr): reparte el ancho disponible y trunca dentro de la
      celda. Con fr a secas la columna se encogía a cero y el contenido se
      salía por encima de la vecina. */
-  grid-template-columns: minmax(160px, 1.4fr) minmax(120px, 1fr) minmax(90px, 0.7fr) minmax(110px, 0.9fr);
+  grid-template-columns: minmax(200px, 2fr) minmax(140px, 1.2fr) minmax(90px, 0.8fr) 48px;
   gap: var(--space-3);
   font-size: 9px;
   letter-spacing: 0.08em;
@@ -7415,7 +7415,7 @@ textarea.input {
   /* minmax(mínimo, fr): reparte el ancho disponible y trunca dentro de la
      celda. Con fr a secas la columna se encogía a cero y el contenido se
      salía por encima de la vecina. */
-  grid-template-columns: minmax(160px, 1.4fr) minmax(120px, 1fr) minmax(90px, 0.7fr) minmax(110px, 0.9fr);
+  grid-template-columns: minmax(200px, 2fr) minmax(140px, 1.2fr) minmax(90px, 0.8fr) 48px;
   gap: var(--space-3);
   align-items: center;
   padding: 8px 10px;
@@ -7448,7 +7448,16 @@ textarea.input {
 .company-list-cell.is-actions,
 .contact-list-cell.is-actions > *,
 .product-list-cell.is-actions > *,
-.company-list-cell.is-actions > * { overflow: visible; }
+.company-list-cell.is-actions > *,
+.contact-list-actions,
+.contact-list-actions > *,
+.contact-list-actions .row-actions,
+.product-list-actions,
+.product-list-actions > *,
+.product-list-actions .row-actions,
+.company-list-actions,
+.company-list-actions > *,
+.company-list-actions .row-actions { overflow: visible; }
 
 .contact-list-name {
   font-weight: 700;
@@ -13126,7 +13135,7 @@ body.is-global-loading {
   /* minmax(mínimo, fr): reparte el ancho disponible y trunca dentro de la
      celda. Con fr a secas la columna se encogía a cero y el contenido se
      salía por encima de la vecina. */
-  grid-template-columns: minmax(170px, 1.6fr) minmax(100px, 0.8fr) minmax(100px, 0.8fr) minmax(90px, 0.6fr);
+  grid-template-columns: minmax(200px, 2fr) minmax(120px, 1fr) minmax(120px, 1fr) 48px;
   gap: var(--space-3);
   font-size: 9px;
   letter-spacing: 0.08em;
@@ -13140,7 +13149,7 @@ body.is-global-loading {
   /* minmax(mínimo, fr): reparte el ancho disponible y trunca dentro de la
      celda. Con fr a secas la columna se encogía a cero y el contenido se
      salía por encima de la vecina. */
-  grid-template-columns: minmax(170px, 1.6fr) minmax(100px, 0.8fr) minmax(100px, 0.8fr) minmax(90px, 0.6fr);
+  grid-template-columns: minmax(200px, 2fr) minmax(120px, 1fr) minmax(120px, 1fr) 48px;
   gap: var(--space-3);
   align-items: center;
   padding: 8px 10px;
@@ -13155,7 +13164,7 @@ body.is-global-loading {
   /* minmax(mínimo, fr): reparte el ancho disponible y trunca dentro de la
      celda. Con fr a secas la columna se encogía a cero y el contenido se
      salía por encima de la vecina. */
-  grid-template-columns: minmax(160px, 1.4fr) minmax(130px, 1.1fr) minmax(80px, 0.5fr) minmax(90px, 0.6fr);
+  grid-template-columns: minmax(200px, 2fr) minmax(160px, 1.4fr) minmax(90px, 0.6fr) 48px;
   gap: var(--space-3);
   font-size: 9px;
   letter-spacing: 0.08em;
@@ -13169,7 +13178,7 @@ body.is-global-loading {
   /* minmax(mínimo, fr): reparte el ancho disponible y trunca dentro de la
      celda. Con fr a secas la columna se encogía a cero y el contenido se
      salía por encima de la vecina. */
-  grid-template-columns: minmax(160px, 1.4fr) minmax(130px, 1.1fr) minmax(80px, 0.5fr) minmax(90px, 0.6fr);
+  grid-template-columns: minmax(200px, 2fr) minmax(160px, 1.4fr) minmax(90px, 0.6fr) 48px;
   gap: var(--space-3);
   align-items: center;
   padding: 8px 10px;

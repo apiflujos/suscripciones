@@ -7,6 +7,7 @@ import { HelpTip } from "../ui/HelpTip";
 import { VariantsEditor } from "./VariantsEditor";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { DeleteProductButton } from "./DeleteProductButton";
+import { RowActionsMenu } from "../billing/RowActionsMenu";
 import { PendingButton } from "../ui/PendingButton";
 import { NewBillingAssignmentForm } from "../billing/NewBillingAssignmentForm";
 import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, normalizeSupportedCurrency } from "../lib/currencies";
@@ -625,44 +626,50 @@ export function ProductsTable({
                 <div className="product-stock">Activas: {Number(p.activeSubscriptions || 0)}</div>
               </div>
               <div className="product-list-cell product-list-actions">
-                <button
-                  className="ghost btn-compact btn-icon-only btn-send"
-                  type="button"
-                  data-modal="true"
-                  data-loader="off"
-                  onClick={() => openSendModal(p)}
-                  disabled={Boolean(resolveSendModalDisabledReason(p))}
-                  aria-label="Enviar"
-                  title={resolveSendModalDisabledReason(p) || "Enviar"}
-                />
-                <button
-                  className="ghost btn-compact btn-icon-only btn-create"
-                  type="button"
-                  data-modal="true"
-                  data-loader="off"
-                  onClick={() => openPlanModal(p)}
-                  aria-label="Crear suscripción"
-                  title="Crear suscripción"
-                />
-                <button
-                  className="ghost btn-compact btn-history btn-icon-only"
-                  type="button"
-                  data-modal="true"
-                  data-loader="off"
-                  onClick={() => openTransactions(p)}
-                  aria-label="Historial de transacciones"
-                  title="Historial de transacciones"
-                />
-                <button
-                  className="ghost btn-compact btn-edit btn-icon-only"
-                  type="button"
-                  data-modal="true"
-                  data-loader="off"
-                  onClick={() => openEditor(p)}
-                  aria-label="Editar"
-                  title="Editar"
-                />
-                <DeleteProductButton action={deleteProductAction} csrfToken={csrfToken} productId={p.id} tenantId={String(p.tenantId || "")} returnTo={returnTo} />
+                <RowActionsMenu label="Acciones del producto">
+                  <button
+                    className="ghost btn-compact btn-noicon btn-create"
+                    type="button"
+                    data-modal="true"
+                    data-loader="off"
+                    onClick={() => openPlanModal(p)}
+                    title="Crear suscripción"
+                  >
+                    Crear suscripción
+                  </button>
+                  <button
+                    className="ghost btn-compact btn-noicon btn-send"
+                    type="button"
+                    data-modal="true"
+                    data-loader="off"
+                    onClick={() => openSendModal(p)}
+                    disabled={Boolean(resolveSendModalDisabledReason(p))}
+                    title={resolveSendModalDisabledReason(p) || "Enviar"}
+                  >
+                    Enviar
+                  </button>
+                  <button
+                    className="ghost btn-compact btn-history btn-noicon"
+                    type="button"
+                    data-modal="true"
+                    data-loader="off"
+                    onClick={() => openTransactions(p)}
+                    title="Historial de transacciones"
+                  >
+                    Historial de transacciones
+                  </button>
+                  <button
+                    className="ghost btn-compact btn-edit btn-noicon"
+                    type="button"
+                    data-modal="true"
+                    data-loader="off"
+                    onClick={() => openEditor(p)}
+                    title="Editar"
+                  >
+                    Editar
+                  </button>
+                  <DeleteProductButton action={deleteProductAction} csrfToken={csrfToken} productId={p.id} tenantId={String(p.tenantId || "")} returnTo={returnTo} label="Eliminar" />
+                </RowActionsMenu>
               </div>
             </div>
           ))}

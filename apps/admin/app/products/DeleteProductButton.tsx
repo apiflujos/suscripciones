@@ -5,13 +5,15 @@ export function DeleteProductButton({
   csrfToken,
   productId,
   tenantId,
-  returnTo
+  returnTo,
+  label
 }: {
   action: (formData: FormData) => void | Promise<void>;
   csrfToken: string;
   productId: string;
   tenantId?: string;
   returnTo?: string;
+  label?: string;
 }) {
   return (
     <form
@@ -24,7 +26,14 @@ export function DeleteProductButton({
       <input type="hidden" name="id" value={productId} />
       {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-      <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar producto" title="Eliminar producto" />
+      <button
+        className={label ? "ghost btn-compact btn-red btn-noicon" : "ghost btn-compact btn-red btn-delete-icon"}
+        type="submit"
+        aria-label="Eliminar producto"
+        title="Eliminar producto"
+      >
+        {label || null}
+      </button>
     </form>
   );
 }
