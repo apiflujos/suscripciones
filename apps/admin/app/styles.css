@@ -3139,7 +3139,11 @@ html[data-theme="dark"] .payments-health-banner code {
 }
 
 .logs-table-payments {
-  min-width: 1340px;
+  /* Antes 1340px: las acciones vivían en la columna 9 con "Enviar link…" y
+     "Asociar ciclo…" sueltos, y forzaban la tabla a ancho mayor que muchas
+     pantallas. Ahora esa columna es un kebab (56 px) y el mínimo baja al
+     ancho de las columnas de dato, sin scroll en resoluciones estándar. */
+  min-width: 1096px;
 }
 
 .logs-table .log-date-cell {
@@ -3502,9 +3506,13 @@ html[data-theme="dark"] .payments-health-banner code {
 }
 
 .logs-table-payments .log-payment-actions-cell {
-  width: 300px;
+  /* Solo el kebab: 32 px + padding. El menú es un posicionado absoluto
+     dentro de .row-actions, así que la celda queda con overflow visible
+     para no recortarlo a los 56 px de la columna. */
+  width: 56px;
   max-width: none;
   overflow: visible;
+  text-align: right;
 }
 
 .logs-table-jobs .log-detail-cell {

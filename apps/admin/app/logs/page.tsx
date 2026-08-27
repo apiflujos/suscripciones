@@ -34,6 +34,7 @@ import {
 } from "../admin/_services/logsActions";
 import { isShopifyLikePayload } from "@suscripciones/core/webhooks/wompi/classifyReference";
 import { PaymentCreateSubscriptionModal } from "./PaymentCreateSubscriptionModal";
+import { RowActionsMenu } from "../billing/RowActionsMenu";
 
 export const dynamic = "force-dynamic";
 
@@ -1308,7 +1309,7 @@ export default async function LogsPage({
                   <col style={{ width: "120px" }} />
                   <col style={{ width: "260px" }} />
                   <col style={{ width: "320px" }} />
-                  <col style={{ width: "300px" }} />
+                  <col style={{ width: "56px" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -1569,7 +1570,7 @@ export default async function LogsPage({
                           ) : null}
                         </td>
                         <td className="log-payment-actions-cell">
-                          <div className="log-payment-actions">
+                          <RowActionsMenu label="Acciones del pago">
                             {/* Primary actions row */}
                             <div className="log-actions-row">
                               {String(p.status || "").toUpperCase() === "PENDING" ? (
@@ -1688,7 +1689,7 @@ export default async function LogsPage({
                                 </form>
                               </div>
                             ) : null}
-                          </div>
+                          </RowActionsMenu>
                         </td>
                       </tr>
                     );
