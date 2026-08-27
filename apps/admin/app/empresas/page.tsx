@@ -121,19 +121,23 @@ export default async function EmpresasPage({
             />
           )}
           views={<ViewModeToggles currentMode={vistaTyped} baseParams={baseParams} />}
-          summary={<ListCsvActions exportHref={exportHref} defaultEntity="companies" />}
+          summary={(
+            <>
+              <span className="page-toolbar-count">{items.length} empresas</span>
+              <ListCsvActions exportHref={exportHref} defaultEntity="companies" />
+            </>
+          )}
+          actions={(
+            <EmpresaCreateModal
+              csrfToken={csrfToken}
+              createEmpresa={createEmpresa}
+              updateEmpresa={updateEmpresa}
+              deleteEmpresa={deleteEmpresa}
+              returnTo={`/empresas?${new URLSearchParams(baseParams).toString()}`}
+              tenantId={session?.tenantId || null}
+            />
+          )}
         />
-
-        <div className="customers-actions-right" style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, marginBottom: 12 }}>
-          <EmpresaCreateModal
-            csrfToken={csrfToken}
-            createEmpresa={createEmpresa}
-            updateEmpresa={updateEmpresa}
-            deleteEmpresa={deleteEmpresa}
-            returnTo={`/empresas?${new URLSearchParams(baseParams).toString()}`}
-            tenantId={session?.tenantId || null}
-          />
-        </div>
 
         <div className="settings-group-body">
           {vista === "lista" ? (

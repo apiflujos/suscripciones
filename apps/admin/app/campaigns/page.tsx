@@ -89,31 +89,30 @@ export default async function CampaignsPage({
           views={(
             <ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />
           )}
-          summary={<span className="muted">Total {total}</span>}
+          summary={<span className="page-toolbar-count">{total} campañas</span>}
+          actions={(
+            <NewMassMessageModal
+              csrfToken={csrfToken}
+              returnTo={returnTo}
+              views={lists
+                .filter((v: any) => {
+                  const name = String(v?.name || "").toLowerCase();
+                  if (name.startsWith("gamificación")) return false;
+                  if (name.startsWith("ranking")) return false;
+                  if (name.startsWith("estado")) return false;
+                  return true;
+                })
+                .map((v: any) => ({
+                  id: String(v.id),
+                  name: String(v.name),
+                  visibility: v.visibility,
+                  type: v.type
+                }))}
+              tenantId={tenantId}
+              action={createCampaign}
+            />
+          )}
         />
-
-        <div className="customers-actions-right">
-          <NewMassMessageModal
-            csrfToken={csrfToken}
-            returnTo={returnTo}
-            views={lists
-              .filter((v: any) => {
-                const name = String(v?.name || "").toLowerCase();
-                if (name.startsWith("gamificación")) return false;
-                if (name.startsWith("ranking")) return false;
-                if (name.startsWith("estado")) return false;
-                return true;
-              })
-              .map((v: any) => ({
-                id: String(v.id),
-                name: String(v.name),
-                visibility: v.visibility,
-                type: v.type
-              }))}
-            tenantId={tenantId}
-            action={createCampaign}
-          />
-        </div>
 
         <div className="settings-group-body">
           <div className="panel module">

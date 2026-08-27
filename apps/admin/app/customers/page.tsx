@@ -309,22 +309,26 @@ export default async function CustomersPage({
             />
           )}
           summary={(
-            <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
+            <>
+              <span className="page-toolbar-count">{items.length} contactos</span>
+              <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="customers" />
+            </>
           )}
-        />
-
-        <CustomersModals
-          actionsClassName="customers-actions-right"
-          showPlanButton={false}
-          customers={items}
-          empresas={empresas}
-          products={productsRes?.items ?? []}
-          csrfToken={csrfToken}
-          tenants={tenants}
-          tenantId={tenantId}
-          createCustomer={createCustomer}
-          createPlanAndSubscription={createPlanAndSubscription}
-          returnTo={returnTo}
+          actions={(
+            <CustomersModals
+              actionsClassName="page-toolbar-actions-inner"
+              showPlanButton={false}
+              customers={items}
+              empresas={empresas}
+              products={productsRes?.items ?? []}
+              csrfToken={csrfToken}
+              tenants={tenants}
+              tenantId={tenantId}
+              createCustomer={createCustomer}
+              createPlanAndSubscription={createPlanAndSubscription}
+              returnTo={returnTo}
+            />
+          )}
         />
 
         <div className="settings-group-body">

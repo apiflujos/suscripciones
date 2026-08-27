@@ -60,63 +60,58 @@ export function BillingHeader({ filters, data, actions }: BillingHeaderProps) {
   };
 
   return (
-    <>
-      <PageToolbar
-        className="compact"
-        search={(
-          <form action="/billing" method="GET" className="filtersForm filtersSearch">
-            {filters.tenantId ? <input type="hidden" name="tenantId" value={filters.tenantId} /> : null}
-            {filters.tipo ? <input type="hidden" name="tipo" value={filters.tipo} /> : null}
-            {filters.estado ? <input type="hidden" name="estado" value={filters.estado} /> : null}
-            {filters.ordenar ? <input type="hidden" name="ordenar" value={filters.ordenar} /> : null}
-            {filters.vista ? <input type="hidden" name="vista" value={filters.vista} /> : null}
-            {filters.viewId ? <input type="hidden" name="viewId" value={filters.viewId} /> : null}
-            {filters.filters ? <input type="hidden" name="filters" value={filters.filters} /> : null}
-            <input
-              className="input"
-              type="search"
-              name="q"
-              defaultValue={filters.q}
-              placeholder="Buscar por contacto, email o identificación..."
-              aria-label="Buscar suscripciones"
-            />
-            <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-          </form>
-        )}
-        searchActions={(
-          <FilterButton
-            scope="billing"
-            baseParams={baseParams}
-            initialFields={getSmartViewFields("billing")}
+    <PageToolbar
+      className="compact"
+      search={(
+        <form action="/billing" method="GET" className="filtersForm filtersSearch">
+          {filters.tenantId ? <input type="hidden" name="tenantId" value={filters.tenantId} /> : null}
+          {filters.tipo ? <input type="hidden" name="tipo" value={filters.tipo} /> : null}
+          {filters.estado ? <input type="hidden" name="estado" value={filters.estado} /> : null}
+          {filters.ordenar ? <input type="hidden" name="ordenar" value={filters.ordenar} /> : null}
+          {filters.vista ? <input type="hidden" name="vista" value={filters.vista} /> : null}
+          {filters.viewId ? <input type="hidden" name="viewId" value={filters.viewId} /> : null}
+          {filters.filters ? <input type="hidden" name="filters" value={filters.filters} /> : null}
+          <input
+            className="input"
+            type="search"
+            name="q"
+            defaultValue={filters.q}
+            placeholder="Buscar por contacto, email o identificación..."
+            aria-label="Buscar suscripciones"
           />
-        )}
-        views={(
-          <ViewModeToggles
-            currentMode={filters.vista}
-            baseParams={baseParams}
-            showKanban
-          />
-        )}
-        configHref="/settings?tab=cobros"
-        summary={<ListCsvActions exportHref={data.exportHref} tenantId={filters.tenantId} defaultEntity="payments" allowImport={false} />}
-      />
-
-      {/* El recuento y el botón de crear iban en dos franjas separadas debajo de la
-          barra. Comparten fila: es la misma información de contexto de la lista. */}
-      <div className="billing-results-bar">
-      <div className="page-results-left">
-        <span className="muted">{data.rows.length} resultados</span>
-        {filters.cycleState ? (
-          <span className="billing-state-chip">
-            Solo <strong>{CYCLE_STATE_LABEL[filters.cycleState] ?? filters.cycleState}</strong>
-            <Link href={clearStateHref} prefetch={false} className="billing-state-chip-clear">
-              quitar
-            </Link>
-          </span>
-        ) : null}
-      </div>
-
-      <div className="page-actions-right">
+          <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
+        </form>
+      )}
+      searchActions={(
+        <FilterButton
+          scope="billing"
+          baseParams={baseParams}
+          initialFields={getSmartViewFields("billing")}
+        />
+      )}
+      views={(
+        <ViewModeToggles
+          currentMode={filters.vista}
+          baseParams={baseParams}
+          showKanban
+        />
+      )}
+      configHref="/settings?tab=cobros"
+      summary={(
+        <>
+          <span className="page-toolbar-count">{data.rows.length} resultados</span>
+          {filters.cycleState ? (
+            <span className="billing-state-chip">
+              Solo <strong>{CYCLE_STATE_LABEL[filters.cycleState] ?? filters.cycleState}</strong>
+              <Link href={clearStateHref} prefetch={false} className="billing-state-chip-clear">
+                quitar
+              </Link>
+            </span>
+          ) : null}
+          <ListCsvActions exportHref={data.exportHref} tenantId={filters.tenantId} defaultEntity="payments" allowImport={false} />
+        </>
+      )}
+      actions={(
         <BillingModals
           customers={data.customerItems}
           empresas={data.empresas}
@@ -130,8 +125,7 @@ export function BillingHeader({ filters, data, actions }: BillingHeaderProps) {
           createCustomer={actions.createCustomerFromBilling}
           createPlanAndSubscription={actions.createPlanAndSubscription}
         />
-      </div>
-      </div>
-    </>
+      )}
+    />
   );
 }

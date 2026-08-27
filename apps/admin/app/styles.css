@@ -16557,20 +16557,29 @@ html[data-contrast="high"] .toggle::after {
    ganan lo mismo. */
 .page-toolbar.compact {
   display: flex;
-  flex-wrap: wrap;
+  /* Antes wrap: en cuanto el navegador no llegaba a los flex-basis, el resto
+     saltaba a una segunda línea y la barra ocupaba dos filas. La regla ahora
+     es una sola fila; si algo no cabe, se ve el scroll horizontal del toolbar
+     en vez de invadir el vertical del que dispone la lista. */
+  flex-wrap: nowrap;
   align-items: center;
+  overflow-x: auto;
+  overflow-y: visible;
 }
 .page-toolbar.compact .page-toolbar-row { display: contents; }
 /* El buscador se lleva el espacio sobrante; el resto ocupa lo suyo y no crece. */
-.page-toolbar.compact .page-toolbar-search { flex: 1 1 260px; min-width: 200px; }
+.page-toolbar.compact .page-toolbar-search { flex: 1 1 220px; min-width: 160px; }
 .page-toolbar.compact .page-toolbar-right {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: var(--toolbar-gap);
+  flex-shrink: 0;
 }
 .page-toolbar.compact .page-toolbar-views,
-.page-toolbar.compact .page-toolbar-filters { flex: 0 0 auto; }
+.page-toolbar.compact .page-toolbar-filters,
+.page-toolbar.compact .page-toolbar-actions,
+.page-toolbar.compact .page-toolbar-summary { flex: 0 0 auto; }
 
 .page-toolbar-search {
   flex: 1 1 320px;
@@ -16613,6 +16622,26 @@ html[data-contrast="high"] .toggle::after {
   align-items: center;
   gap: var(--toolbar-gap);
   flex-shrink: 0;
+}
+
+/* Recuento de resultados dentro del toolbar. Antes vivía en una franja
+   separada debajo de la barra; ahora comparte fila con el resto para no
+   duplicar altura. */
+.page-toolbar-count {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding: 0 var(--space-1);
+}
+
+/* Contenedor plano para modales de crear (CustomersModals, ProductsModals,
+   BillingModals) cuando se pasan como slot `actions` de PageToolbar. Sin
+   este selector el div interno arrastra los estilos de customers-actions-
+   right (justify-content: flex-end en su propia fila) y rompe la línea. */
+.page-toolbar-actions-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--toolbar-gap);
 }
 
 .page-toolbar-views :is(.btn, .ghost, .primary, .btn-compact, .btn-icon-only) {
