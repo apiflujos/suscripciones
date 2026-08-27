@@ -4,7 +4,7 @@
   "packageManager": "npm@10.8.2",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate --schema ../../packages/database/prisma/schema.prisma && NEXT_IGNORE_INCORRECT_LOCKFILE=1 NEXT_DISABLE_TYPESCRIPT=1 next build",
+    "build": "prisma generate --schema ../../packages/database/prisma/schema.prisma && next build",
     "start": "next start",
     "start:standalone": "node .next/standalone/apps/admin/server.js",
     "lint": "next lint",

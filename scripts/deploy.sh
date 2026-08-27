@@ -62,8 +62,13 @@ else
 fi
 
 echo "🔎 Verificando tipos..."
-# El build de Next corre con NEXT_DISABLE_TYPESCRIPT=1, así que sin esto un
-# error de tipos llega a producción sin que nadie lo vea.
+# El build de Next corre con typescript.ignoreBuildErrors, así que sin este paso
+# un error de tipos llega a producción sin que nadie lo vea.
+# Además borramos apps/admin/.next porque tsconfig lo incluye: si un deploy
+# anterior generó validators para rutas que después se borraron, el typecheck
+# muere con errores TS2307 sobre módulos que ya no existen y este paso —el que
+# tenía que atrapar los tipos reales— nunca llega a correr.
+rm -rf apps/admin/.next
 npm run typecheck
 
 echo "🔄 Aplicando migraciones..."
