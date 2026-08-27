@@ -9,6 +9,7 @@ import { PaymentHistoryButton } from "./PaymentHistoryButton";
 import { PaymentLinkModalButton } from "./PaymentLinkModalButton";
 import { SubscriptionEditModal } from "./SubscriptionEditModal";
 import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
+import { RowActionsMenu } from "./RowActionsMenu";
 import { buildBillingStatusCards, fmtMoney, formatLongCivilDate, splitProductDisplay } from "./billingDisplayHelpers";
 import type { BillingCardContext, BillingRow } from "./billingTypes";
 
@@ -124,46 +125,60 @@ export function BillingCard({ row, context }: BillingCardProps) {
               returnTo={context.data.returnTo}
               action={context.actions.updateSubscriptionTenants}
             />
-            <SubscriptionEditModal
-              subscriptionId={row.id}
-              tenantId={row.tenantId}
-              csrfToken={context.data.csrfToken}
-              returnTo={context.data.returnTo}
-              currentChargeAt={row.vencimientoAt}
-              periodStartAt={row.periodoInicioAt}
-              currentPlanId={row.productId || row.planId}
-              currentPlanName={productLabel}
-              currentPlanCurrency={row.moneda}
-              currentShippingInCents={row.currentShippingInCents}
-              currentRequiresShipping={row.currentRequiresShipping}
-              planIntervalUnit={row.planIntervalUnit}
-              planIntervalCount={row.planIntervalCount}
-              plans={context.data.planOptions}
-              changeSubscriptionPlan={context.actions.changeSubscriptionPlan}
-              cycleStartDay={row.cycleStartDay}
-              paymentDay={row.paymentDay}
-              paymentTiming={row.paymentTiming}
-              graceDays={row.graceDays}
-              collectionMode={row.mode}
-              updateSubscriptionBillingSettings={context.actions.updateSubscriptionBillingSettings}
-              deleteSubscription={context.actions.deleteSubscription}
-              globalConfig={{ graceDays: row.graceDays }}
-              CyclesModal={PaymentCyclesModal}
-            />
-            <PaymentHistoryButton subscriptionId={row.id} tenantId={row.tenantId} />
-            <PaymentCyclesModal
-              subscriptionId={row.id}
-              csrfToken={context.data.csrfToken}
-              returnTo={context.data.returnTo}
-              tenantId={row.tenantId}
-            />
-            <DeleteSubscriptionButton
-              action={context.actions.deleteSubscription}
-              csrfToken={context.data.csrfToken}
-              subscriptionId={row.id}
-              tenantId={row.tenantId}
-              returnTo={context.data.returnTo}
-            />
+            <RowActionsMenu label="Acciones de la suscripción">
+              <SubscriptionEditModal
+                subscriptionId={row.id}
+                tenantId={row.tenantId}
+                csrfToken={context.data.csrfToken}
+                returnTo={context.data.returnTo}
+                currentChargeAt={row.vencimientoAt}
+                periodStartAt={row.periodoInicioAt}
+                currentPlanId={row.productId || row.planId}
+                currentPlanName={productLabel}
+                currentPlanCurrency={row.moneda}
+                currentShippingInCents={row.currentShippingInCents}
+                currentRequiresShipping={row.currentRequiresShipping}
+                planIntervalUnit={row.planIntervalUnit}
+                planIntervalCount={row.planIntervalCount}
+                plans={context.data.planOptions}
+                changeSubscriptionPlan={context.actions.changeSubscriptionPlan}
+                cycleStartDay={row.cycleStartDay}
+                paymentDay={row.paymentDay}
+                paymentTiming={row.paymentTiming}
+                graceDays={row.graceDays}
+                collectionMode={row.mode}
+                updateSubscriptionBillingSettings={context.actions.updateSubscriptionBillingSettings}
+                deleteSubscription={context.actions.deleteSubscription}
+                globalConfig={{ graceDays: row.graceDays }}
+                CyclesModal={PaymentCyclesModal}
+                label="Editar producto y facturación"
+              />
+              <PaymentHistoryButton subscriptionId={row.id} tenantId={row.tenantId} label="Historial de pagos" />
+              <PaymentCyclesModal
+                subscriptionId={row.id}
+                csrfToken={context.data.csrfToken}
+                returnTo={context.data.returnTo}
+                tenantId={row.tenantId}
+                trigger={(open: () => void) => (
+                  <button
+                    className="ghost btn-compact btn-calendar btn-noicon"
+                    type="button"
+                    onClick={open}
+                    title="Ver ciclos de pago"
+                  >
+                    Ciclos de facturación
+                  </button>
+                )}
+              />
+              <DeleteSubscriptionButton
+                action={context.actions.deleteSubscription}
+                csrfToken={context.data.csrfToken}
+                subscriptionId={row.id}
+                tenantId={row.tenantId}
+                returnTo={context.data.returnTo}
+                label="Eliminar"
+              />
+            </RowActionsMenu>
           </div>
         </div>
       </div>

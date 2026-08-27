@@ -521,33 +521,57 @@ export function ProductsTable({
             <div className="product-price entity-card-price">
               {formatMoneyFromCents(p.basePriceInCents, String(p.currency || DEFAULT_CURRENCY))}
             </div>
-            <div style={{ display: "flex", gap: 4 }}>
+            <RowActionsMenu label="Acciones del producto">
               <button
-                className="ghost btn-compact btn-icon-only btn-edit"
+                className="ghost btn-compact btn-blue btn-create btn-noicon"
+                type="button"
+                data-modal="true"
+                data-loader="off"
+                onClick={() => openPlanModal(p)}
+                title="Crear suscripción"
+              >
+                Crear suscripción
+              </button>
+              <button
+                className="ghost btn-compact btn-send btn-noicon"
+                type="button"
+                data-modal="true"
+                data-loader="off"
+                onClick={() => openSendModal(p)}
+                disabled={Boolean(resolveSendModalDisabledReason(p))}
+                title={resolveSendModalDisabledReason(p) || "Enviar producto"}
+              >
+                Enviar
+              </button>
+              <button
+                className="ghost btn-compact btn-history btn-noicon"
+                type="button"
+                data-modal="true"
+                data-loader="off"
+                onClick={() => openTransactions(p)}
+                title="Historial de transacciones"
+              >
+                Historial de transacciones
+              </button>
+              <button
+                className="ghost btn-compact btn-edit btn-noicon"
                 type="button"
                 data-modal="true"
                 data-loader="off"
                 onClick={() => openEditor(p)}
-                aria-label="Editar"
-                title="Editar"
-              />
-              <form
-                action={deleteProductAction}
-                onSubmit={(e) => {
-                  if (!confirm("¿Eliminar producto? Esta acción no se puede deshacer.")) e.preventDefault();
-                }}
+                title="Editar producto"
               >
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="id" value={p.id} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                <button
-                  className="ghost btn-compact btn-icon-only btn-delete-icon btn-red"
-                  type="submit"
-                  aria-label="Eliminar producto"
-                  title="Eliminar producto"
-                />
-              </form>
-            </div>
+                Editar
+              </button>
+              <DeleteProductButton
+                action={deleteProductAction}
+                csrfToken={csrfToken}
+                productId={p.id}
+                tenantId={String(p.tenantId || "")}
+                returnTo={returnTo}
+                label="Eliminar"
+              />
+            </RowActionsMenu>
           </div>
         </div>
 
@@ -556,36 +580,6 @@ export function ProductsTable({
             <div className="field-hint">Canal</div>
             <div>{p.tenantName || "—"}</div>
           </div>
-        </div>
-
-        <div className="entity-card-actions">
-          <div className="entity-card-actions-left">
-            <button
-              className="ghost btn-compact btn-send btn-open btn-noicon"
-              type="button"
-              data-modal="true"
-              data-loader="off"
-              onClick={() => openSendModal(p)}
-              disabled={Boolean(resolveSendModalDisabledReason(p))}
-              title={resolveSendModalDisabledReason(p) || "Enviar producto"}
-            >
-              Enviar
-            </button>
-            <button className="ghost btn-compact btn-blue btn-create btn-noicon" type="button" data-modal="true" data-loader="off" onClick={() => openPlanModal(p)}>
-              Crear suscripción
-            </button>
-            <button
-              className="ghost btn-compact btn-history btn-noicon"
-              type="button"
-              data-modal="true"
-              data-loader="off"
-              onClick={() => openTransactions(p)}
-              title="Historial de transacciones"
-            >
-              Historial
-            </button>
-          </div>
-          <div className="entity-card-actions-right" />
         </div>
         <div className="entity-card-footer">
           <div className="field-hint">Suscripciones</div>

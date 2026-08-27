@@ -25,7 +25,8 @@ export function SubscriptionEditModal({
   deleteSubscription,
   globalConfig,
   CyclesModal,
-  cyclesTrigger
+  cyclesTrigger,
+  label
 }: {
   subscriptionId: string;
   tenantId?: string | null;
@@ -54,6 +55,7 @@ export function SubscriptionEditModal({
   };
   CyclesModal?: React.ComponentType<{ subscriptionId: string; csrfToken: string; returnTo: string; tenantId?: string | null }>;
   cyclesTrigger?: () => void;
+  label?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [subscriptionType, setSubscriptionType] = useState<"AUTO_DEBIT" | "LINK_PAYMENT">(
@@ -94,12 +96,14 @@ export function SubscriptionEditModal({
   return (
     <>
       <button
-        className="ghost btn-compact btn-icon-only btn-edit"
+        className={label ? "ghost btn-compact btn-edit btn-noicon" : "ghost btn-compact btn-icon-only btn-edit"}
         type="button"
         title="Editar producto y facturación"
         aria-label="Editar producto y facturación"
         onClick={() => setOpen(true)}
-      />
+      >
+        {label || null}
+      </button>
 
       <AppModal open={open} onClose={() => setOpen(false)} title="Editar producto y facturación" panelClassName="subscription-edit-modal">
         <form action={updateSubscriptionBillingSettings} className="modal-body subscription-edit-modal-body">

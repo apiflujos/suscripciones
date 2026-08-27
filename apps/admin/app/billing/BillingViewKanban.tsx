@@ -1,6 +1,11 @@
 import { SubscriptionDetailModalWrapper } from "./SubscriptionDetailModalWrapper";
 import { PaymentLinkModalButton } from "./PaymentLinkModalButton";
 import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
+import { PaymentHistoryButton } from "./PaymentHistoryButton";
+import { ManualChargeButton } from "./ManualChargeButton";
+import { ManualMarkPaidButton } from "./ManualMarkPaidButton";
+import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
+import { RowActionsMenu } from "./RowActionsMenu";
 import { buildSubscriptionDetail } from "./BillingCard";
 import { fmtMoney, getCollectionStatusLabel } from "./billingDisplayHelpers";
 import { formatCivilDate } from "./civilDate";
@@ -40,7 +45,11 @@ export function BillingViewKanban({ rows, context }: BillingViewKanbanProps) {
               const isCanceled = row.status === "CANCELED";
               const isSuspended = row.status === "SUSPENDED";
               const isExpired = row.status === "EXPIRED";
-              const isInactive = isCanceled || isSuspended || isExpired;
+              const isReactivatable = isCanceled || isExpired;
+              const isInactive = isReactivatable || isSuspended;
+              const alreadyPaidCurrentPeriod = Boolean(row.lastPaidInCurrentPeriod);
+              const showManualCharge = isAutoDebit && !isInactive && Boolean(row.canManualCharge);
+              const showMarkPaid = !isInactive && !alreadyPaidCurrentPeriod && Boolean(row.canManualMarkPaid);
               const itemPaymentStatus = getCollectionStatusLabel({
                 status: row.status,
                 dueAt: row.vencimientoAt,
@@ -93,35 +102,90 @@ export function BillingViewKanban({ rows, context }: BillingViewKanbanProps) {
                     </div>
                   </SubscriptionDetailModalWrapper>
                   <div className="billing-kanban-card-actions">
-                    {!isInactive && !isAutoDebit ? (
-                      <PaymentLinkModalButton
+                    <RowActionsMenu label="Acciones de la suscripción">
+                      <PaymentHistoryButton subscriptionId={row.id} tenantId={row.tenantId} label="Historial de pagos" />
+                      {showManualCharge ? (
+                        <ManualChargeButton
+                          action={context.actions.chargeSubscriptionNow}
+                          csrfToken={context.data.csrfToken}
+                          subscriptionId={row.id}
+                          tenantId={row.tenantId}
+                          returnTo={context.data.returnTo}
+                          warnNotDue={!row.chargeDue}
+                          warnAlreadyPaid={alreadyPaidCurrentPeriod}
+                          manualChargeEnabled={row.manualChargeEnabled}
+                        />
+                      ) : null}
+                      {showMarkPaid ? (
+                        <ManualMarkPaidButton
+                          action={context.actions.markSubscriptionPaidManual}
+                          csrfToken={context.data.csrfToken}
+                          subscriptionId={row.id}
+                          tenantId={row.tenantId}
+                          returnTo={context.data.returnTo}
+                          warnAlreadyPaid={alreadyPaidCurrentPeriod}
+                          manualMarkPaidEnabled={row.manualMarkPaidEnabled}
+                        />
+                      ) : null}
+                      {!isInactive && !isAutoDebit ? (
+                        <PaymentLinkModalButton
+                          subscriptionId={row.id}
+                          customerId={row.customerId}
+                          tenantId={row.tenantId}
+                          csrfToken={context.data.csrfToken}
+                          returnTo={context.data.returnTo}
+                          defaultAmountPesos={Math.trunc(Number(row.totalInCents || row.montoInCents || 0) / 100)}
+                          notificationTemplates={context.data.notificationsTemplates}
+                          notificationRules={context.data.notificationsRules}
+                          paymentType="SUBSCRIPTION"
+                          blockedReason={context.helpers.getPaymentLinkBlockedReason(row)}
+                          action={context.actions.sendWhatsAppPaymentLink}
+                        />
+                      ) : null}
+                      {isAutoDebit && !isInactive ? (
+                        <TokenizationLinkModalButton
+                          customerId={row.customerId}
+                          productId={row.productId || undefined}
+                          planId={row.planId}
+                          tenantId={row.tenantId}
+                          csrfToken={context.data.csrfToken}
+                          returnTo={context.data.returnTo}
+                          notificationTemplates={context.data.notificationsTemplates}
+                          notificationRules={context.data.notificationsRules}
+                          blockedReason={context.helpers.getTokenizationBlockedReason(row)}
+                          action={context.actions.sendWhatsAppTokenizationLink}
+                        />
+                      ) : null}
+                      {isSuspended ? (
+                        <form action={context.actions.resumeSubscription}>
+                          <input type="hidden" name="csrf" value={context.data.csrfToken} />
+                          <input type="hidden" name="subscriptionId" value={row.id} />
+                          {row.tenantId ? <input type="hidden" name="tenantId" value={row.tenantId} /> : null}
+                          <button className="ghost btn-compact btn-green btn-noicon" type="submit" title="Reanudar suscripción">
+                            Reanudar
+                          </button>
+                        </form>
+                      ) : null}
+                      {isReactivatable ? (
+                        <form action={context.actions.activateSubscription}>
+                          <input type="hidden" name="csrf" value={context.data.csrfToken} />
+                          <input type="hidden" name="subscriptionId" value={row.id} />
+                          {row.tenantId ? <input type="hidden" name="tenantId" value={row.tenantId} /> : null}
+                          <input type="hidden" name="returnTo" value={context.data.returnTo} />
+                          <button className="ghost btn-compact btn-green btn-noicon" type="submit" title="Reactivar suscripción">
+                            Reactivar
+                          </button>
+                        </form>
+                      ) : null}
+                      <DeleteSubscriptionButton
+                        action={context.actions.deleteSubscription}
+                        csrfToken={context.data.csrfToken}
                         subscriptionId={row.id}
-                        customerId={row.customerId}
                         tenantId={row.tenantId}
-                        csrfToken={context.data.csrfToken}
                         returnTo={context.data.returnTo}
-                        defaultAmountPesos={Math.trunc(Number(row.totalInCents || row.montoInCents || 0) / 100)}
-                        notificationTemplates={context.data.notificationsTemplates}
-                        notificationRules={context.data.notificationsRules}
-                        paymentType="SUBSCRIPTION"
-                        blockedReason={context.helpers.getPaymentLinkBlockedReason(row)}
-                        action={context.actions.sendWhatsAppPaymentLink}
+                        label="Eliminar"
                       />
-                    ) : null}
-                    {isAutoDebit && !isInactive ? (
-                      <TokenizationLinkModalButton
-                        customerId={row.customerId}
-                        productId={row.productId || undefined}
-                        planId={row.planId}
-                        tenantId={row.tenantId}
-                        csrfToken={context.data.csrfToken}
-                        returnTo={context.data.returnTo}
-                        notificationTemplates={context.data.notificationsTemplates}
-                        notificationRules={context.data.notificationsRules}
-                        blockedReason={context.helpers.getTokenizationBlockedReason(row)}
-                        action={context.actions.sendWhatsAppTokenizationLink}
-                      />
-                    ) : null}
+                    </RowActionsMenu>
                   </div>
                 </div>
               );

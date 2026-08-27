@@ -729,32 +729,38 @@ export function CustomersTable({
                   </div>
                 </div>
                 <div className="billing-header-actions">
-                  <button
-                    className="ghost btn-compact btn-edit btn-icon-only"
-                    type="button"
-                    onClick={() => openEditor(c)}
-                    aria-label="Editar contacto"
-                    title="Editar contacto"
-                  />
-                  <button
-                    className="ghost btn-compact btn-view btn-icon-only"
-                    type="button"
-                    onClick={() => openViewFicha(c)}
-                    aria-label="Ver ficha completa"
-                    title="Ver ficha completa"
-                  />
-                  <form
-                    action={deleteCustomer}
-                    onSubmit={(e) => {
-                      if (!confirm("¿Eliminar contacto?")) e.preventDefault();
-                    }}
-                  >
-                    <input type="hidden" name="csrf" value={csrfToken} />
-                    <input type="hidden" name="id" value={c.id} />
-                    <input type="hidden" name="tenantId" value={resolveEffectiveTenantId(c)} />
-                    {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-                    <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar contacto" title="Eliminar contacto" />
-                  </form>
+                  <RowActionsMenu label="Acciones del contacto">
+                    <button
+                      className="ghost btn-compact btn-view btn-noicon"
+                      type="button"
+                      onClick={() => openViewFicha(c)}
+                      title="Ver ficha completa"
+                    >
+                      Ver ficha completa
+                    </button>
+                    <button
+                      className="ghost btn-compact btn-edit btn-noicon"
+                      type="button"
+                      onClick={() => openEditor(c)}
+                      title="Editar contacto"
+                    >
+                      Editar contacto
+                    </button>
+                    <form
+                      action={deleteCustomer}
+                      onSubmit={(e) => {
+                        if (!confirm("¿Eliminar contacto?")) e.preventDefault();
+                      }}
+                    >
+                      <input type="hidden" name="csrf" value={csrfToken} />
+                      <input type="hidden" name="id" value={c.id} />
+                      <input type="hidden" name="tenantId" value={resolveEffectiveTenantId(c)} />
+                      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+                      <button className="ghost btn-compact btn-red btn-noicon" type="submit" title="Eliminar contacto">
+                        Eliminar
+                      </button>
+                    </form>
+                  </RowActionsMenu>
                 </div>
               </div>
               <div className="contact-body">
