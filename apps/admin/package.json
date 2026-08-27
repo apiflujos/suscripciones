@@ -8,6 +8,7 @@
     "start": "next start",
     "start:standalone": "node .next/standalone/apps/admin/server.js",
     "lint": "next lint",
+    "pretypecheck": "node -e \"require('fs').rmSync('.next/types', { recursive: true, force: true })\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
