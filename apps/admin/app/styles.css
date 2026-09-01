@@ -18482,3 +18482,87 @@ a.sb-state:hover {
 .billing-results-bar .page-actions-right { margin: 0; }
 /* `hidden` lo pisa el display:grid del menú si no se dice lo contrario. */
 .row-actions-menu[hidden] { display: none; }
+
+/* --- Hardening de listas: acciones compactas sin desbordes ni doble icono --- */
+.row-actions,
+.row-actions-menu,
+.row-actions-menu > *,
+.row-actions-menu > form {
+  box-sizing: border-box;
+}
+
+.row-actions,
+.row-actions-menu > form {
+  overflow: visible;
+}
+
+.row-actions-trigger.btn-icon-only::before {
+  content: none !important;
+}
+
+.row-actions-trigger svg {
+  display: block;
+  flex: 0 0 var(--btn-icon-size);
+}
+
+.row-actions-menu {
+  width: max-content;
+  min-width: 220px;
+  max-width: min(280px, calc(100vw - 32px));
+  justify-items: stretch;
+}
+
+.row-actions-menu > *,
+.row-actions-menu > form {
+  width: 100%;
+  min-width: 0 !important;
+  max-width: 100%;
+  margin: 0;
+  white-space: normal;
+}
+
+.row-actions-menu > form {
+  display: grid;
+  gap: 0;
+}
+
+.row-actions-menu > :is(button, a, .btn, .ghost, .primary, .btnLink),
+.row-actions-menu > form > :is(button, a, .btn, .ghost, .primary, .btnLink),
+.row-actions-menu .log-actions-row > :is(button, a, .btn, .ghost, .primary, .btnLink),
+.row-actions-menu .log-actions-row > form > :is(button, a, .btn, .ghost, .primary, .btnLink),
+.row-actions-menu .log-associate-form > :is(button, a, .btn, .ghost, .primary, .btnLink) {
+  width: 100%;
+  min-width: 0 !important;
+  max-width: 100%;
+  min-height: 32px;
+  height: auto;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  line-height: 1.2;
+  padding: 7px 10px;
+}
+
+.row-actions-menu :is(.log-actions-row, .log-actions-secondary, .log-associate-form) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  justify-items: stretch;
+}
+
+.row-actions-menu :is(.select, .input) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.contact-list-actions,
+.product-list-actions,
+.company-list-actions,
+.billing-list-more,
+.log-payment-actions-cell {
+  min-width: 0;
+  overflow: visible;
+}

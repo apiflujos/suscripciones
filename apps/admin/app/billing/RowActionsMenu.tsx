@@ -49,7 +49,7 @@ export function RowActionsMenu({
     <div className="row-actions" ref={boxRef}>
       <button
         type="button"
-        className="ghost btn-icon-only row-actions-trigger"
+        className="ghost btn-icon-only btn-noicon row-actions-trigger"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
