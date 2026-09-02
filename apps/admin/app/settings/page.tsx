@@ -318,43 +318,31 @@ export default async function SettingsPage({
 
       {tab === "connections" ? (
         <>
-          <section className="settings-group">
-            <div className="settings-group-header">
-              <div className="settings-group-header-main">
-                <SettingsSectionHeader
-                  title="Conexiones"
-                  help={<HelpTip text="Abre cada conexión para configurar sus credenciales." />}
-                />
-              </div>
-            </div>
-            <div className="settings-group-body">
-              <ConnectionsPanel
-                csrfToken={csrfToken}
-                wompiActiveEnv={wompiActiveEnv}
-                wompiProduction={wompiProduction}
-                wompiSandbox={wompiSandbox}
-                commsProduction={commsProduction}
-                shopify={settings?.shopify || {}}
-                actions={{
-                  setWompiActiveEnv,
-                  updateWompi,
-                  testWompiConnection,
-                  deleteWompiConnection,
-                  updateChatwoot,
-                  deleteCentralConnection,
-                  testCentralConnection,
-                  bootstrapCentralAttributes,
-                  syncCentralAttributes,
-                  updateShopify,
-                  deleteShopifyConnection,
-                  testShopifyForward
-                }}
-                inlineState={inlineState}
-                initialOpen={open}
-                returnTo={returnTo}
-              />
-            </div>
-          </section>
+          <ConnectionsPanel
+            csrfToken={csrfToken}
+            wompiActiveEnv={wompiActiveEnv}
+            wompiProduction={wompiProduction}
+            wompiSandbox={wompiSandbox}
+            commsProduction={commsProduction}
+            shopify={settings?.shopify || {}}
+            actions={{
+              setWompiActiveEnv,
+              updateWompi,
+              testWompiConnection,
+              deleteWompiConnection,
+              updateChatwoot,
+              deleteCentralConnection,
+              testCentralConnection,
+              bootstrapCentralAttributes,
+              syncCentralAttributes,
+              updateShopify,
+              deleteShopifyConnection,
+              testShopifyForward
+            }}
+            inlineState={inlineState}
+            initialOpen={open}
+            returnTo={returnTo}
+          />
 
           <section className="settings-group">
             <div className="settings-group-header">

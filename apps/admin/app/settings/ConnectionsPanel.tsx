@@ -121,125 +121,135 @@ export function ConnectionsPanel({
 
   return (
     <>
-      <div className="conn-grid">
-        <button className="conn-card" type="button" data-modal="true" data-loader="off" onClick={() => setOpen("wompi_prod")}>
-          <div className="conn-icon conn-icon-wompi">
-            <img src="/brand/conn-wompi.png" alt="Wompi" />
-          </div>
-          <div className="conn-body">
-            <div className="conn-title">Wompi · Producción</div>
-            <div className="conn-sub">Pagos y débito automático</div>
-          </div>
-          <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
-            <span>{wompiActiveEnv === "PRODUCTION" ? "Activo" : "Inactivo"}</span>
-            {(() => {
-              const ready = Boolean(wompiProduction?.publicKey && wompiProduction?.privateKey && wompiProduction?.integritySecret && wompiProduction?.eventsSecret);
-              return ready ? (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--status-success)" }}>
-                  <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--status-success)" }}>
-                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-                  </svg>
-                  Conectado
-                </span>
-              ) : (
-                <span className="muted">Sin configurar</span>
-              );
-            })()}
-          </div>
-        </button>
-
-        <button className="conn-card" type="button" data-modal="true" data-loader="off" onClick={() => setOpen("wompi_sandbox")}>
-          <div className="conn-icon conn-icon-wompi">
-            <img src="/brand/conn-wompi.png" alt="Wompi" />
-          </div>
-          <div className="conn-body">
-            <div className="conn-title">Wompi · Sandbox</div>
-            <div className="conn-sub">Pagos y débito automático</div>
-          </div>
-          <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
-            <span>{wompiActiveEnv === "SANDBOX" ? "Activo" : "Inactivo"}</span>
-            {(() => {
-              const ready = Boolean(wompiSandbox?.publicKey && wompiSandbox?.privateKey && wompiSandbox?.integritySecret && wompiSandbox?.eventsSecret);
-              return ready ? (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--status-success)" }}>
-                  <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--status-success)" }}>
-                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-                  </svg>
-                  Conectado
-                </span>
-              ) : (
-                <span className="muted">Sin configurar</span>
-              );
-            })()}
-          </div>
-        </button>
-
-        <button className="conn-card" type="button" data-modal="true" data-loader="off" onClick={() => setOpen("central")}>
-          <div className="conn-icon conn-icon-apiflujos">
-            <img src="/brand/logo_vertical.svg" alt="Logo" data-theme-logo="vertical" />
-          </div>
-          <div className="conn-body">
-            <div className="conn-title">Chatwoot · WhatsApp</div>
-            <div className="conn-sub">Mensajería y plantillas</div>
-          </div>
-          <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
-            <span>{commsProduction?.baseUrl ? "Activo" : "Inactivo"}</span>
-            {(() => {
-              const ready = Boolean(commsProduction?.baseUrl && commsProduction?.accountId && commsProduction?.inboxId);
-              return ready ? (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--status-success)" }}>
-                  <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--status-success)" }}>
-                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-                  </svg>
-                  Conectado
-                </span>
-              ) : (
-                <span className="muted">Sin configurar</span>
-              );
-            })()}
-          </div>
-        </button>
-
-        <button className="conn-card" type="button" data-modal="true" data-loader="off" onClick={() => setOpen("shopify")}>
-          <div className="conn-icon conn-icon-shopify">
-            <img src="/brand/conn-shopify.png" alt="Shopify" />
-          </div>
-          <div className="conn-body">
-            <div className="conn-title">Shopify</div>
-            <div className="conn-sub">Reenvío de eventos</div>
-          </div>
-          <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
-            <span>{shopify?.forwardUrl ? "Activo" : "Inactivo"}</span>
-            {shopify?.forwardUrl ? (
-              <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--success)" }}>
-                <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-              </svg>
-            ) : null}
-          </div>
-        </button>
-      </div>
-      <div className="panel module" style={{ marginTop: 12 }}>
-        <div className="panelHeaderRow" style={{ justifyContent: "space-between", gap: 8 }}>
-          <strong>Chatwoot · Plantillas WhatsApp</strong>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button className="ghost btn-compact" type="button" onClick={syncWhatsappTemplates} disabled={templatesSync.running} data-loader="off">
-              {templatesSync.running ? "Sincronizando..." : "Sincronizar plantillas"}
-            </button>
-            <span className="field-hint">
-              {templatesSync.count ? `Sincronizadas: ${templatesSync.count}` : "Trae las plantillas activas desde Chatwoot."}
-            </span>
+      <section className="settings-group">
+        <div className="settings-group-header">
+          <div className="settings-group-header-main">
+            <h3>Conexiones</h3>
+            <div className="field-hint">Abre cada conexión para configurar sus credenciales.</div>
           </div>
         </div>
-        {templatesSync.error ? (
-          <div className="field-hint" style={{ color: "var(--danger)" }}>
-            Error: {templatesSync.error}
+        <div className="settings-group-body" style={{ display: "grid", gap: 12 }}>
+          <div className="conn-grid">
+            <button className="conn-card" type="button" data-modal="true" data-loader="off" onClick={() => setOpen("wompi_prod")}>
+              <div className="conn-icon conn-icon-wompi">
+                <img src="/brand/conn-wompi.png" alt="Wompi" />
+              </div>
+              <div className="conn-body">
+                <div className="conn-title">Wompi · Producción</div>
+                <div className="conn-sub">Pagos y débito automático</div>
+              </div>
+              <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
+                <span>{wompiActiveEnv === "PRODUCTION" ? "Activo" : "Inactivo"}</span>
+                {(() => {
+                  const ready = Boolean(wompiProduction?.publicKey && wompiProduction?.privateKey && wompiProduction?.integritySecret && wompiProduction?.eventsSecret);
+                  return ready ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--status-success)" }}>
+                      <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--status-success)" }}>
+                        <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                      </svg>
+                      Conectado
+                    </span>
+                  ) : (
+                    <span className="muted">Sin configurar</span>
+                  );
+                })()}
+              </div>
+            </button>
+
+            <button className="conn-card" type="button" data-modal="true" data-loader="off" onClick={() => setOpen("wompi_sandbox")}>
+              <div className="conn-icon conn-icon-wompi">
+                <img src="/brand/conn-wompi.png" alt="Wompi" />
+              </div>
+              <div className="conn-body">
+                <div className="conn-title">Wompi · Sandbox</div>
+                <div className="conn-sub">Pagos y débito automático</div>
+              </div>
+              <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
+                <span>{wompiActiveEnv === "SANDBOX" ? "Activo" : "Inactivo"}</span>
+                {(() => {
+                  const ready = Boolean(wompiSandbox?.publicKey && wompiSandbox?.privateKey && wompiSandbox?.integritySecret && wompiSandbox?.eventsSecret);
+                  return ready ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--status-success)" }}>
+                      <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--status-success)" }}>
+                        <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                      </svg>
+                      Conectado
+                    </span>
+                  ) : (
+                    <span className="muted">Sin configurar</span>
+                  );
+                })()}
+              </div>
+            </button>
+
+            <button className="conn-card" type="button" data-modal="true" data-loader="off" onClick={() => setOpen("central")}>
+              <div className="conn-icon conn-icon-apiflujos">
+                <img src="/brand/logo_vertical.svg" alt="Logo" data-theme-logo="vertical" />
+              </div>
+              <div className="conn-body">
+                <div className="conn-title">Chatwoot · WhatsApp</div>
+                <div className="conn-sub">Mensajería y plantillas</div>
+              </div>
+              <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
+                <span>{commsProduction?.baseUrl ? "Activo" : "Inactivo"}</span>
+                {(() => {
+                  const ready = Boolean(commsProduction?.baseUrl && commsProduction?.accountId && commsProduction?.inboxId);
+                  return ready ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--status-success)" }}>
+                      <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--status-success)" }}>
+                        <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                      </svg>
+                      Conectado
+                    </span>
+                  ) : (
+                    <span className="muted">Sin configurar</span>
+                  );
+                })()}
+              </div>
+            </button>
+
+            <button className="conn-card" type="button" data-modal="true" data-loader="off" onClick={() => setOpen("shopify")}>
+              <div className="conn-icon conn-icon-shopify">
+                <img src="/brand/conn-shopify.png" alt="Shopify" />
+              </div>
+              <div className="conn-body">
+                <div className="conn-title">Shopify</div>
+                <div className="conn-sub">Reenvío de eventos</div>
+              </div>
+              <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
+                <span>{shopify?.forwardUrl ? "Activo" : "Inactivo"}</span>
+                {shopify?.forwardUrl ? (
+                  <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--success)" }}>
+                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                  </svg>
+                ) : null}
+              </div>
+            </button>
           </div>
-        ) : templatesSync.syncWarning ? (
-          <div className="field-hint" style={{ color: "var(--warning, #b45309)" }}>
-            {templatesSync.syncWarning}
+          <div className="panel module">
+            <div className="panelHeaderRow" style={{ justifyContent: "space-between", gap: 8 }}>
+              <strong>Chatwoot · Plantillas WhatsApp</strong>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <button className="ghost btn-compact" type="button" onClick={syncWhatsappTemplates} disabled={templatesSync.running} data-loader="off">
+                  {templatesSync.running ? "Sincronizando..." : "Sincronizar plantillas"}
+                </button>
+                <span className="field-hint">
+                  {templatesSync.count ? `Sincronizadas: ${templatesSync.count}` : "Trae las plantillas activas desde Chatwoot."}
+                </span>
+              </div>
+            </div>
+            {templatesSync.error ? (
+              <div className="field-hint" style={{ color: "var(--danger)" }}>
+                Error: {templatesSync.error}
+              </div>
+            ) : templatesSync.syncWarning ? (
+              <div className="field-hint" style={{ color: "var(--warning, #b45309)" }}>
+                {templatesSync.syncWarning}
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </div>
+        </div>
+      </section>
 
       <AppModal
         open={open === "wompi_prod" || open === "wompi_sandbox"}
