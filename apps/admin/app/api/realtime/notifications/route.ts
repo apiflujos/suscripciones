@@ -116,7 +116,7 @@ export async function GET(req: NextRequest) {
           title,
           message,
           level: pendingConfirmation ? "info" : ok ? "success" : "error",
-          category: type === "PAYMENT_LINK" || type === "EXPIRY_WARNING" ? "pagos" : "clientes",
+          category: "comunicaciones",
           href: "/notifications",
           read: false,
           meta: {

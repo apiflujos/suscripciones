@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { isNoiseNotification, normalizeSystemText } from "../lib/logPresentation";
 
-export type NotificationCategory = "pagos" | "suscripciones" | "clientes" | "sistema";
+export type NotificationCategory = "pagos" | "suscripciones" | "clientes" | "comunicaciones" | "sistema";
 export type NotificationLevel = "success" | "warning" | "error" | "info";
-export type NotificationFilter = "unread" | "read" | "pagos" | "suscripciones" | "clientes" | "sistema" | "all";
+export type NotificationFilter = "unread" | "read" | "pagos" | "suscripciones" | "clientes" | "comunicaciones" | "sistema" | "all";
 
 export type NotificationItem = {
   id: string;
@@ -26,6 +26,7 @@ export const DISMISSED_STORAGE_KEY = "apiflujos-notifications-dismissed-ids";
 
 export function categorizeNotification(title: string, message: string, source?: string): NotificationCategory {
   const text = `${title} ${message} ${source || ""}`.toLowerCase();
+  if (/mensaje|whatsapp|chatwoot|plantilla|notificaci[oó]n:|comunicaci/.test(text)) return "comunicaciones";
   if (/pago|payment|cobro|wompi|transacci/.test(text)) return "pagos";
   if (/suscripci|subscription|ciclo|reintento|mora/.test(text)) return "suscripciones";
   if (/cliente|customer|contact|email|tel/.test(text)) return "clientes";
@@ -46,6 +47,7 @@ export function resolveNotificationHref(category: NotificationCategory, level: N
     pagos: "/payments",
     suscripciones: "/billing",
     clientes: "/customers",
+    comunicaciones: "/notifications",
     sistema: isSuperAdmin ? "/logs" : "/settings"
   };
   const baseHref = categoryMap[category];
@@ -78,6 +80,13 @@ export function getNotificationIcon({ level, category }: { level: NotificationLe
         <circle cx="9" cy="7" r="4" />
         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    );
+  }
+  if (category === "comunicaciones") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
     );
   }
@@ -185,6 +194,12 @@ export function getFilterIcon(iconName: string) {
           <line x1="3" y1="18" x2="3.01" y2="18" />
         </svg>
       );
+    case "message":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -264,6 +279,7 @@ export function useNotificationsFeed(args: { isSuperAdmin: boolean }) {
     { key: "pagos" as const, label: "Pagos", icon: "card" },
     { key: "suscripciones" as const, label: "Suscripciones", icon: "refresh" },
     { key: "clientes" as const, label: "Clientes", icon: "users" },
+    { key: "comunicaciones" as const, label: "Comunicaciones", icon: "message" },
     { key: "sistema" as const, label: "Sistema", icon: "alert" }
   ], []);
 
