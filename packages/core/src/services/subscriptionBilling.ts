@@ -180,14 +180,18 @@ async function resolvePlanCheckoutTemplateId(args: {
   }
 }
 
-async function hasUsableSubscriptionPaymentLinkNotification(): Promise<boolean> {
+// Mismo criterio que schedulePaymentLinkNotifications: las suscripciones que se
+// cobran con link usan reglas de tipo LINK. Preguntar siempre por SUBSCRIPTION
+// daba "no hay notificación" cuando la regla estaba hecha solo para LINK, y el
+// link se creaba pero nunca llegaba al cliente, sin dejar ningún error.
+async function hasUsableSubscriptionPaymentLinkNotification(paymentType: "LINK" | "SUBSCRIPTION"): Promise<boolean> {
   try {
     const cfg = await getNotificationsConfig();
     const template = resolveNotificationTemplate({
       rules: cfg.rules,
       templates: cfg.templates,
       trigger: "PAYMENT_LINK_CREATED",
-      paymentType: "SUBSCRIPTION"
+      paymentType
     });
     return Boolean(
       template &&
@@ -722,7 +726,10 @@ export async function createPaymentLinkForSubscription(args: {
     };
   }
 
-  const shouldNotify = await hasUsableSubscriptionPaymentLinkNotification();
+  const linkCollectionMode = resolveSubscriptionCollectionMode(sub);
+  const shouldNotify = await hasUsableSubscriptionPaymentLinkNotification(
+    linkCollectionMode === "AUTO_LINK" || linkCollectionMode === "MANUAL_LINK" ? "LINK" : "SUBSCRIPTION"
+  );
   if (!shouldNotify) {
     if (!updated.checkoutUrl) throw new Error("checkout_url_missing");
     return {
