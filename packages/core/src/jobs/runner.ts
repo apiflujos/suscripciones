@@ -122,6 +122,8 @@ let lastDataTrainerAtMs = 0;
 let lastAutoReconcileAtMs = 0;
 let lastWebhookRecoveryAtMs = 0;
 let lastEnsureDueCutoffRetriesAtMs = 0;
+// Dónde quedó la última pasada del sincronizador cuando topó con el límite por ciclo.
+let dueCutoffRetriesResumeCursor: string | undefined;
 let lastEnsurePaymentRetryQueueHealthAtMs = 0;
 let lastChatwootDeliveryReconcileAtMs = 0;
 
@@ -442,7 +444,11 @@ async function ensureDueCutoffRetries() {
   let skippedRecentLink = 0;
   let skippedExhausted = 0;
   let scheduledNotifications = 0;
-  let cursor: string | undefined;
+  let failedSubscriptions = 0;
+  // Retoma donde se quedó la pasada anterior: sin esto, con más suscripciones que
+  // el límite, siempre se procesaban las mismas primeras y el resto nunca se cobraba.
+  let cursor: string | undefined = dueCutoffRetriesResumeCursor;
+  dueCutoffRetriesResumeCursor = undefined;
 
   do {
     const subs = await prisma.subscription.findMany({
@@ -466,136 +472,136 @@ async function ensureDueCutoffRetries() {
     const futureToleranceMs = 5_000;
 
     for (const sub of subs) {
-      // Los avisos de vencimiento solo se agendaban cuando algo tocaba la
-      // suscripción: un alta, un cobro, un webhook, un cambio de configuración.
-      // Si un ciclo rodaba sin que pasara ninguna de esas cosas, el ciclo entero
-      // se quedaba sin avisar. Va antes de los filtros de modo de cobro porque
-      // avisar aplica también a las que se cobran con link manual.
-      const avisos = await scheduleSubscriptionDueNotifications({
-        subscriptionId: sub.id,
-        actor: "jobs:safety_sync"
-      }).catch((err) => {
-        logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo agendando avisos de vencimiento');
-        return null;
-      });
-      scheduledNotifications += avisos?.scheduled || 0;
-
-      const mode = resolveSubscriptionCollectionMode(sub);
-      if (mode !== "AUTO_DEBIT" && mode !== "AUTO_LINK") continue;
-
-      // Si es AUTO_DEBIT y el cobro en corte está apagado, omitir creación de Job.
-      if (mode === "AUTO_DEBIT" && (!autoDebitEnabled || !chargeAtCutoffEnabled)) continue;
-
-      // FIX #1: Si ya hay un payment link pendiente reciente, saltar para evitar spam.
-      // Ventana de 2 horas: si se creó un link en las últimas 2h, no crear otro.
-      const hasRecent = await hasRecentPendingPaymentLink(sub.id, 2 * 60 * 60 * 1000);
-      if (hasRecent) {
-        skippedRecentLink++;
-        continue;
-      }
-
-      const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id });
-      const collectionCycle = billingState?.collectionCycle || null;
-      const collectionCyclePaid = isBillingCyclePaid(collectionCycle);
-      if (!collectionCycle || collectionCyclePaid) continue;
-
-      // El tope de intentos vale con o sin reintentos activos: antes, con los
-      // reintentos encendidos, esta sincronización volvía a agendar cobro para
-      // el mismo ciclo en cada pasada, sin techo.
-      // Ante un fallo al contar, NO se agenda cobro. Este .catch devolvía
-      // `exhausted: false`, o sea que un tropiezo de base saltaba el tope y el
-      // ciclo volvía a agendarse. Aplazar cuesta una pasada; cobrar de más le
-      // cuesta al cliente y al comercio el bloqueo del medio de pago.
-      const intentosCiclo = await hasExhaustedCycleAttempts({
-        subscriptionId: sub.id,
-        cycleNumber: collectionCycle.cycleNumber,
-        config: autoDebitConfig
-      }).catch((err) => {
-        logger.error({ err, subscriptionId: sub.id }, "[Jobs/SafetySync] No se pudo verificar los intentos del ciclo: no se agenda cobro");
-        return { exhausted: true, attempts: -1, allowed: -1 };
-      });
-      if (intentosCiclo.exhausted) {
-        skippedExhausted++;
-        continue;
-      }
-
-      if (!autoDebitConfig.retryEnabled) {
-        const existingCyclePayment = await prisma.payment.findFirst({
-          where: {
-            subscriptionId: sub.id,
-            status: {
-              in: [
-                PaymentStatus.PENDING,
-                PaymentStatus.DECLINED,
-                PaymentStatus.ERROR,
-                PaymentStatus.VOIDED,
-                PaymentStatus.APPROVED
-              ]
-            },
-            OR: [
-              { cycleNumber: collectionCycle.cycleNumber },
-              { subscriptionCycleKey: `${sub.id}:${collectionCycle.cycleNumber}` },
-              { reference: { startsWith: `SUB_${sub.id}_${collectionCycle.cycleNumber}` } }
-            ]
-          },
-          orderBy: [{ createdAt: "desc" }],
-          select: {
-            id: true,
-            status: true,
-            reference: true,
-            wompiTransactionId: true,
-            createdAt: true
-          }
+      try {
+        // Los avisos de vencimiento solo se agendaban cuando algo tocaba la
+        // suscripción: un alta, un cobro, un webhook, un cambio de configuración.
+        // Si un ciclo rodaba sin que pasara ninguna de esas cosas, el ciclo entero
+        // se quedaba sin avisar. Va antes de los filtros de modo de cobro porque
+        // avisar aplica también a las que se cobran con link manual.
+        const avisos = await scheduleSubscriptionDueNotifications({
+          subscriptionId: sub.id,
+          actor: "jobs:safety_sync"
+        }).catch((err) => {
+          logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo agendando avisos de vencimiento');
+          return null;
         });
-        if (existingCyclePayment) {
+        scheduledNotifications += avisos?.scheduled || 0;
+
+        const mode = resolveSubscriptionCollectionMode(sub);
+        if (mode !== "AUTO_DEBIT" && mode !== "AUTO_LINK") continue;
+
+        // Si es AUTO_DEBIT y el cobro en corte está apagado, omitir creación de Job.
+        if (mode === "AUTO_DEBIT" && (!autoDebitEnabled || !chargeAtCutoffEnabled)) continue;
+
+        // FIX #1: Si ya hay un payment link pendiente reciente, saltar para evitar spam.
+        // Ventana de 2 horas: si se creó un link en las últimas 2h, no crear otro.
+        const hasRecent = await hasRecentPendingPaymentLink(sub.id, 2 * 60 * 60 * 1000);
+        if (hasRecent) {
+          skippedRecentLink++;
           continue;
         }
-      }
 
-      const dueAt = collectionCycle ? new Date(collectionCycle.dueAt || collectionCycle.periodEndAt) : null;
-      const runAt = dueAt
-        ? await resolvePaymentRetryRunAt({
-            dueAt,
-            now: nowDate,
-            config: autoDebitConfig
-          })
-        : nowDate;
+        const billingState = await resolveSubscriptionBillingState({ subscriptionId: sub.id });
+        const collectionCycle = billingState?.collectionCycle || null;
+        const collectionCyclePaid = isBillingCyclePaid(collectionCycle);
+        if (!collectionCycle || collectionCyclePaid) continue;
 
-      // ensurePaymentRetryJob internamente revisa si ya existe uno pendiente.
-      const job = await ensurePaymentRetryJob({ subscriptionId: sub.id, runAt, maxAttempts: 1 }).catch((err) => {
-        logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo en sincronización de seguridad');
-        return null;
-      });
-
-      // Actualizar metadata para que sea visible en el UI
-      if (job) {
-        createdJobs++;
-        const currentMetadata = (sub.metadata as Record<string, any>) || {};
-        const newMetadata = {
-          ...currentMetadata,
-          autoRetry: {
-            nextRetryAt: runAt.toISOString(),
-            scheduledAt: new Date().toISOString(),
-            source: "ensureDueCutoffRetries",
-            runAt: runAt.toISOString()
-          }
-        };
-
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          data: { metadata: newMetadata }
+        // El tope de intentos vale con o sin reintentos activos: antes, con los
+        // reintentos encendidos, esta sincronización volvía a agendar cobro para
+        // el mismo ciclo en cada pasada, sin techo.
+        // Ante un fallo al contar, NO se agenda cobro. Este .catch devolvía
+        // `exhausted: false`, o sea que un tropiezo de base saltaba el tope y el
+        // ciclo volvía a agendarse. Aplazar cuesta una pasada; cobrar de más le
+        // cuesta al cliente y al comercio el bloqueo del medio de pago.
+        const intentosCiclo = await hasExhaustedCycleAttempts({
+          subscriptionId: sub.id,
+          cycleNumber: collectionCycle.cycleNumber,
+          config: autoDebitConfig
         }).catch((err) => {
-          logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo al actualizar metadata de reintento');
+          logger.error({ err, subscriptionId: sub.id }, "[Jobs/SafetySync] No se pudo verificar los intentos del ciclo: no se agenda cobro");
+          return { exhausted: true, attempts: -1, allowed: -1 };
         });
-      }
-    }
+        if (intentosCiclo.exhausted) {
+          skippedExhausted++;
+          continue;
+        }
 
-    if (processedTotal >= MAX_SUBSCRIPTIONS_PER_CUTOFF_CYCLE) {
-      logger.info(
-        { processedTotal, limit: MAX_SUBSCRIPTIONS_PER_CUTOFF_CYCLE },
-        "[Jobs/SafetySync] Límite de suscripciones por ciclo alcanzado, continuará en el siguiente ciclo"
-      );
-      break;
+        if (!autoDebitConfig.retryEnabled) {
+          const existingCyclePayment = await prisma.payment.findFirst({
+            where: {
+              subscriptionId: sub.id,
+              status: {
+                in: [
+                  PaymentStatus.PENDING,
+                  PaymentStatus.DECLINED,
+                  PaymentStatus.ERROR,
+                  PaymentStatus.VOIDED,
+                  PaymentStatus.APPROVED
+                ]
+              },
+              OR: [
+                { cycleNumber: collectionCycle.cycleNumber },
+                { subscriptionCycleKey: `${sub.id}:${collectionCycle.cycleNumber}` },
+                { reference: { startsWith: `SUB_${sub.id}_${collectionCycle.cycleNumber}` } }
+              ]
+            },
+            orderBy: [{ createdAt: "desc" }],
+            select: {
+              id: true,
+              status: true,
+              reference: true,
+              wompiTransactionId: true,
+              createdAt: true
+            }
+          });
+          if (existingCyclePayment) {
+            continue;
+          }
+        }
+
+        const dueAt = collectionCycle ? new Date(collectionCycle.dueAt || collectionCycle.periodEndAt) : null;
+        const runAt = dueAt
+          ? await resolvePaymentRetryRunAt({
+              dueAt,
+              now: nowDate,
+              config: autoDebitConfig
+            })
+          : nowDate;
+
+        // ensurePaymentRetryJob internamente revisa si ya existe uno pendiente.
+        const job = await ensurePaymentRetryJob({ subscriptionId: sub.id, runAt, maxAttempts: 1 }).catch((err) => {
+          logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo en sincronización de seguridad');
+          return null;
+        });
+
+        // Actualizar metadata para que sea visible en el UI
+        if (job) {
+          createdJobs++;
+          const currentMetadata = (sub.metadata as Record<string, any>) || {};
+          const newMetadata = {
+            ...currentMetadata,
+            autoRetry: {
+              nextRetryAt: runAt.toISOString(),
+              scheduledAt: new Date().toISOString(),
+              source: "ensureDueCutoffRetries",
+              runAt: runAt.toISOString()
+            }
+          };
+
+          await prisma.subscription.update({
+            where: { id: sub.id },
+            data: { metadata: newMetadata }
+          }).catch((err) => {
+            logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo al actualizar metadata de reintento');
+          });
+        }
+      } catch (err) {
+        // Una suscripción con datos rotos no puede frenar el cobro de las demás:
+        // antes la excepción salía del ciclo entero y, como el orden es fijo, las
+        // que venían después nunca se agendaban en ninguna pasada.
+        failedSubscriptions++;
+        logger.error({ err, subscriptionId: sub.id }, "[Jobs/SafetySync] Fallo procesando la suscripción; se continúa con las demás");
+      }
     }
 
     // Avanzar cursor
@@ -603,6 +609,15 @@ async function ensureDueCutoffRetries() {
 
     // Si recibimos menos de PAGE_SIZE, ya no hay más
     if (subs.length < PAGE_SIZE) break;
+
+    if (processedTotal >= MAX_SUBSCRIPTIONS_PER_CUTOFF_CYCLE) {
+      dueCutoffRetriesResumeCursor = cursor;
+      logger.info(
+        { processedTotal, limit: MAX_SUBSCRIPTIONS_PER_CUTOFF_CYCLE },
+        "[Jobs/SafetySync] Límite de suscripciones por ciclo alcanzado, continuará en el siguiente ciclo"
+      );
+      break;
+    }
   } while (true);
 
   // Log de resumen para observabilidad
@@ -612,6 +627,7 @@ async function ensureDueCutoffRetries() {
       jobsCreated: createdJobs,
       jobsSkippedRecentLink: skippedRecentLink,
       jobsSkippedAttemptsExhausted: skippedExhausted,
+      subscriptionsFailed: failedSubscriptions,
       notificationsScheduled: scheduledNotifications
     }).catch((err) => {
       logger.warn({ err }, '[Jobs/SafetySync] Fallo creando resumen de seguridad');
