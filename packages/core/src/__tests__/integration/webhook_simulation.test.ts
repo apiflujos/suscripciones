@@ -171,7 +171,11 @@ function createMockPrisma() {
       },
       findMany: async ({ where }: any = {}) => {
         let rows = Object.values(store.customer);
-        if (where?.email) rows = rows.filter((c: any) => c.email === where.email);
+        if (where?.email) {
+          // El asociador busca el email sin distinguir mayúsculas ({ equals, mode }).
+          const wanted = String(typeof where.email === "object" ? where.email.equals : where.email).toLowerCase();
+          rows = rows.filter((c: any) => String(c.email || "").toLowerCase() === wanted);
+        }
         if (where?.tenantId) rows = rows.filter((c: any) => c.tenantId === where.tenantId);
         if (where?.phone?.not === null) rows = rows.filter((c: any) => c.phone != null);
         if (where?.name?.contains) {
