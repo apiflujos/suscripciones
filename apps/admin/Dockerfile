@@ -38,7 +38,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV DOCKER_BUILD=1
 ENV NEXT_IGNORE_INCORRECT_LOCKFILE=1
-ENV NEXT_DISABLE_TYPESCRIPT=1
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json ./package.json

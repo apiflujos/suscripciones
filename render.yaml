@@ -14,8 +14,6 @@ services:
     envVars:
       - key: NODE_ENV
         value: "production"
-      - key: SYSTEM_LOG_RETENTION_DAYS
-        value: "30"
       - key: NODE_VERSION
         value: "20"
       - key: DATABASE_URL
@@ -116,8 +114,6 @@ services:
       - key: CHATWOOT_WEBHOOK_TOKEN
         sync: false
       - key: JOBS_HEARTBEAT_KEY
-        sync: false
-      - key: GAMIFICATION_RECALC_MINUTES
         sync: false
       - key: CSP_PUBLIC_ALLOW_UNSAFE_INLINE
         sync: false

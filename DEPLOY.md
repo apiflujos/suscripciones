@@ -48,13 +48,13 @@ PORT=3002
 ### 2. Instalar Dependencias
 
 ```bash
-npm ci
+npm ci --include=dev
 ```
 
 ### 3. Generar Prisma Client
 
 ```bash
-npx prisma generate --schema ./packages/database/prisma/schema.prisma
+npm run db:generate
 ```
 
 ---
@@ -120,7 +120,7 @@ npm run build
 ### 2. Migraciones
 
 ```bash
-npx prisma migrate deploy --schema ./packages/database/prisma/schema.prisma
+npm run prisma:migrate:deploy -w packages/database
 ```
 
 ### 3. Iniciar con PM2
@@ -221,13 +221,13 @@ pm2 monit
 ### Crear Migración
 
 ```bash
-npx prisma migrate dev --name descripcion_del_cambio
+npm run prisma:migrate:dev -w packages/database -- --name descripcion_del_cambio
 ```
 
 ### Aplicar Migraciones en Producción
 
 ```bash
-npx prisma migrate deploy
+npm run prisma:migrate:deploy -w packages/database
 ```
 
 ### Migración de Ciclos de Facturación (Importante)
@@ -236,7 +236,7 @@ Si vienes de una versión anterior a los ciclos de facturación como source of t
 
 ```bash
 # 1. Aplicar migraciones de schema primero
-npx prisma migrate deploy --schema ./packages/database/prisma/schema.prisma
+npm run prisma:migrate:deploy -w packages/database
 
 # 2. Ejecutar backfill para generar ciclos en suscripciones existentes
 npx tsx packages/core/src/scripts/backfill-billing-cycles.ts
@@ -260,7 +260,7 @@ npx tsx packages/core/src/scripts/backfill-billing-cycles.ts
 ### Resetear Base de Datos (⚠️ PELIGRO)
 
 ```bash
-npx prisma migrate reset
+npx prisma migrate reset --schema ./packages/database/prisma/schema.prisma
 ```
 
 ### Seed (Datos de Prueba)
@@ -291,22 +291,22 @@ pm2 restart crm-sus-admin --update-env
 ### Error de Base de Datos
 
 ```bash
-# Verificar conexión
-npx prisma db pull
+# Verificar que las migraciones estén aplicadas
+npx prisma migrate status --schema ./packages/database/prisma/schema.prisma
 
 # Regenerar Prisma Client
-npx prisma generate
+npm run db:generate
 ```
 
 ### Error de Build
 
 ```bash
-# Limpiar caché
-npm run clean
+# Limpiar caché de Next y dependencias (NO borrar package-lock.json)
+rm -rf node_modules apps/admin/.next
 
-# Reinstalar dependencias
-rm -rf node_modules package-lock.json
-npm install
+# Reinstalar dependencias (--include=dev: el build necesita typescript)
+npm ci --include=dev
+npm run db:generate
 
 # Rebuild
 npm run build
