@@ -57,3 +57,21 @@
     margin-bottom: 2px;
   }
 }
+
+/* El formulario de dos columnas pasa a una en pantallas estrechas (antes se salía ~155 px a 390). */
+@media (max-width: 760px) {
+  form.empresa-form.ui-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  form.empresa-form .grid-span-2 {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+}
+
+form.empresa-form .module-footer {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+form.empresa-form .module-footer { grid-column: 1 / -1; }

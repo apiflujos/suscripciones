@@ -126,7 +126,7 @@ export default async function CampaignsPage({
                         <span>Enviados: {c.sentCount}</span>
                         <span>Fallidos: {c.failedCount}</span>
                       </div>
-                      {c.content ? <p className="cp-content">{c.content}</p> : null}
+                      {c.content && String(c.content).trim() !== `Plantilla WhatsApp: ${tplName}` ? <p className="cp-content">{c.content}</p> : null}
                       {tplName ? (
                         <div className="cp-meta">
                           Plantilla WhatsApp: {tplName}

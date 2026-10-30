@@ -4,6 +4,7 @@ import { listWhatsappTemplatesSafe } from "../../admin/_services/whatsappTemplat
 
 const PUBLIC_BASE_URL = (process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "").replace(/\/+$/, "");
 import { PageToolbar } from "../../ui/PageToolbar";
+import "../notifications.css";
 import { ListCsvActions } from "../../ui/ListCsvActions";
 import { FiltersFocusButton } from "../../ui/FiltersFocusButton";
 import { LogsFiltersAutoSubmit } from "../../logs/LogsFiltersAutoSubmit";
@@ -205,13 +206,13 @@ export default async function WhatsappNotificationsListPage({
           filters={(
             <form action="/notifications/list" method="GET" className="filtersForm page-header-standard-filters-group" data-debounce-form="true">
               {q ? <input type="hidden" name="q" value={q} /> : null}
-              <select className="select" name="status" defaultValue={status} style={{ minWidth: 140 }} data-auto-submit="true">
+              <select className="select" name="status" defaultValue={status} data-auto-submit="true">
                 <option value="">Estado: Todos</option>
                 <option value="SENT">Enviado</option>
                 <option value="PENDING">En cola</option>
                 <option value="FAILED">Fallido</option>
               </select>
-              <select className="select" name="type" defaultValue={type} style={{ minWidth: 220 }} data-auto-submit="true">
+              <select className="select" name="type" defaultValue={type} data-auto-submit="true">
                 <option value="">Tipo: Todos</option>
                 <option value="PAYMENT_LINK_LINK">Link de cobro enviado (link de pago)</option>
                 <option value="PAYMENT_LINK_SUBSCRIPTION">Link de cobro enviado (suscripción · link de pago)</option>
@@ -223,8 +224,8 @@ export default async function WhatsappNotificationsListPage({
                 <option value="PAYMENT_DECLINED_SUBSCRIPTION">Pago rechazado (débito automático)</option>
                 <option value="EXPIRY_WARNING">Vencimiento y mora</option>
               </select>
-              <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" style={{ width: 130 }} data-auto-submit="true" />
-              <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" style={{ width: 130 }} data-auto-submit="true" />
+              <input className="input" type="date" name="from" defaultValue={from} aria-label="Desde" title="Desde" data-auto-submit="true" />
+              <input className="input" type="date" name="to" defaultValue={to} aria-label="Hasta" title="Hasta" data-auto-submit="true" />
             </form>
           )}
           smartViews={<div />}
@@ -238,58 +239,41 @@ export default async function WhatsappNotificationsListPage({
         />
 
         <div className="settings-group-body">
-          <div className="panel module" style={{ padding: 0 }}>
-            <table className="table logs-table logs-table-messages" aria-label="Tabla de mensajes">
-            <colgroup>
-              <col style={{ width: "12%" }} />
-              <col style={{ width: "22%" }} />
-              <col style={{ width: "14%" }} />
-              <col style={{ width: "12%" }} />
-              <col style={{ width: "40%" }} />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Contacto</th>
-                <th>Tipo</th>
-                <th>Estado</th>
-                <th>Mensaje</th>
-              </tr>
-            </thead>
-            <tbody>
+          <div className="panel module nl-panel">
+            <div className="nl-list" role="table" aria-label="Mensajes de notificaciones">
+              <div className="nl-head" role="row">
+                <span role="columnheader">Fecha</span>
+                <span role="columnheader">Contacto</span>
+                <span role="columnheader">Tipo</span>
+                <span role="columnheader">Estado</span>
+                <span role="columnheader">Mensaje</span>
+              </div>
               {items.map((m: any) => {
                 const chip = resolveNotificationChip(m);
                 const trace = renderTrace(m);
                 const preview = renderMessagePreview(m, templates);
                 const detailRaw = String(deliveryErrorOf(m) || preview || trace || "—");
-                const detailText = detailRaw.length > 400 ? `${detailRaw.slice(0, 400)}…` : detailRaw;
+                const detailText = detailRaw;
                 return (
-                  <tr key={m.id}>
-                    <td className="log-date-cell"><LocalDateTime value={m.createdAt} variant="stacked" /></td>
-                    <td className="log-contact-cell">{renderContactBlock(m)}</td>
-                    <td className="log-type-cell" title={humanType(m)}>{humanType(m)}</td>
-                    <td className="log-status-cell">
+                  <div key={m.id} className="nl-row" role="row">
+                    <div className="nl-cell nl-date" data-area="date" role="cell"><LocalDateTime value={m.createdAt} variant="stacked" /></div>
+                    <div className="nl-cell" data-area="contact" role="cell">{renderContactBlock(m)}</div>
+                    <div className="nl-cell" data-area="type" role="cell" title={humanType(m)}>{humanType(m)}</div>
+                    <div className="nl-cell" data-area="status" role="cell">
                       <span className={`status-chip ${chip.cls}`}>
                         <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
                         {chip.label}
                       </span>
-                    </td>
-                    <td className="log-message-cell" title={trace ? `${detailRaw}\n\n${trace}` : detailRaw}>
-                      <span className="log-message-text log-message-full">{detailText}</span>
-                    </td>
-                  </tr>
+                    </div>
+                    <div className="nl-cell nl-message" data-area="message" role="cell" title={trace ? `${detailRaw}\n\n${trace}` : detailRaw}>
+                      {detailText}
+                    </div>
+                  </div>
                 );
               })}
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ color: "var(--muted)" }}>
-                    Sin mensajes.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+              {items.length === 0 ? <div className="nl-empty">Sin mensajes.</div> : null}
+            </div>
+          </div>
 
         <div className="pagination pagination-indicator" style={{ marginTop: 8 }}>
           <div className="pagination-summary">{summaryText}</div>

@@ -64,3 +64,8 @@
 .page-shell .smart-rule-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
 .page-shell .smart-rule-row select,
 .page-shell .smart-rule-row input { min-width: 0 !important; flex: 1 1 150px; max-width: 100%; }
+
+/* `.field` es una rejilla de una columna "auto": un <select> con opciones largas la
+   ensancha más que su contenedor. Con minmax(0, 1fr) la columna se ajusta al ancho. */
+.page-shell .field { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.page-shell .field > select, .page-shell .field > input, .page-shell .field > textarea { max-width: 100%; }

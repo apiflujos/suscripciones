@@ -17,7 +17,16 @@
 /* Formulario de crear suscripción/cobro: sus rejillas de dos columnas (estilos en línea)
    se apilan en pantallas angostas en vez de desbordar la página. */
 @media (max-width: 700px) {
-  .page-shell .panel.module [style*="1fr 1fr"],
-  .page-shell .panel.module [style*="repeat(2"] { grid-template-columns: 1fr !important; }
+  .page-shell [style*="1fr 1fr"] { grid-template-columns: minmax(0, 1fr) !important; }
+  .page-shell [style*="repeat(2"] { grid-template-columns: minmax(0, 1fr) !important; }
+  .page-shell select, .page-shell .select { max-width: 100%; min-width: 0; }
+  /* Las rejillas de una sola columna "auto" (el <form> y los bloques con display:grid en
+     línea) crecen hasta el ancho de su <select> más largo: se les fija minmax(0, 1fr). */
+  .page-shell form, .page-shell [style*="display:grid"], .page-shell [style*="display: grid"] { grid-template-columns: minmax(0, 1fr); }
   .page-shell .panel.module { min-width: 0; }
 }
+
+/* Encabezados de sección del formulario de crear: se parten en vez de ensanchar la página. */
+.page-shell .panel-header { flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.page-shell .panel.module form,
+.page-shell form.panel.module { min-width: 0; max-width: 100%; }
