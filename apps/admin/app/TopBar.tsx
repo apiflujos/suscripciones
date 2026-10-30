@@ -13,7 +13,7 @@ type HeaderNotification = NotificationItem;
 
 function getHeader(pathname: string): Header {
   if (pathname === "/") return { title: "Métricas", subtitle: "Ajusta rango y granularidad para leer la evolución de las métricas." };
-  if (pathname.startsWith("/payments")) return { title: "Pagos", subtitle: "Seguimiento de pagos, estados y conciliación." };
+  if (pathname.startsWith("/payments") || pathname.startsWith("/logs/payments")) return { title: "Pagos", subtitle: "Seguimiento de pagos, estados y conciliación." };
   if (pathname.startsWith("/logs")) return { title: "Logs de API", subtitle: "Seguimiento de procesos y sincronizaciones." };
   if (pathname.startsWith("/customers")) return { title: "Contactos", subtitle: "Clientes y datos de contacto." };
   if (pathname.startsWith("/empresas") || pathname.startsWith("/dashboard/empresas")) {
@@ -25,6 +25,7 @@ function getHeader(pathname: string): Header {
   if (pathname.startsWith("/plans")) return { title: "Planes", subtitle: "Tipos de suscripción: precio y periodicidad." };
   if (pathname.startsWith("/notifications")) return { title: "Notificaciones WhatsApp", subtitle: "Plantillas, reglas y recordatorios." };
   if (pathname.startsWith("/campaigns")) return { title: "Mensajes masivos", subtitle: "Envíos por audiencia con filtros inteligentes." };
+  if (pathname.startsWith("/checkout-templates")) return { title: "Checkout público", subtitle: "Plantillas de links de pago y suscripción." };
   if (pathname.startsWith("/webhooks")) return { title: "Webhooks", subtitle: "Eventos entrantes y su estado." };
   if (pathname.startsWith("/settings")) return { title: "Configuración", subtitle: "Credenciales y conexiones." };
   if (pathname.startsWith("/appearance")) return { title: "Apariencia", subtitle: "Tema, visión y contraste." };
