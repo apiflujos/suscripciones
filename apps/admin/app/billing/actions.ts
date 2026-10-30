@@ -596,6 +596,9 @@ export async function unmarkSubscriptionPaidManual(formData: FormData) {
     }
     redirect(mergeQuery(returnTo, { unmarkPaidStatus: "ok" }));
   } catch (err: any) {
+    // `redirect` lanza NEXT_REDIRECT: sin esta línea, el redirect de éxito de arriba
+    // caía aquí y desmarcar mostraba siempre "Error desmarcando: NEXT_REDIRECT".
+    if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     redirect(mergeQuery(returnTo, { unmarkPaidStatus: "error", unmarkPaidError: err?.message || "unknown_error" }));
   }
 }

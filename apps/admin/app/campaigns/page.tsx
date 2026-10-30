@@ -1,9 +1,9 @@
 import { normalizeErrorParam } from "../lib/errorParam";
-import { getCsrfToken } from "../lib/csrf";
-import { createCampaign, runCampaign } from "./actions";
-import { RunCampaignButton } from "./RunCampaignButton";
-import { NewMassMessageModal } from "./NewMassMessageModal";
-import { listSmartViews, resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
+import Link from "next/link";
+import { RowActionsMenu } from "../billing/RowActionsMenu";
+import { withReturnTo } from "../lib/returnTo";
+import "./campaigns.css";
+import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
 import { listCampaigns } from "../admin/_services/campaigns";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
@@ -11,31 +11,35 @@ import { PageToolbar } from "../ui/PageToolbar";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
 
+const STATUS_LABEL: Record<string, string> = {
+  DRAFT: "Borrador",
+  RUNNING: "En envío",
+  PAUSED: "Pausada",
+  COMPLETED: "Completada",
+  FAILED: "Fallida"
+};
+
+export const dynamic = "force-dynamic";
+
 export default async function CampaignsPage({
   searchParams
 }: {
   searchParams?: Promise<Record<string, string | undefined>>;
 }) {
-  const csrfToken = await getCsrfToken();
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
   const session = await verifyAdminSessionToken(sessionToken);
   const tenantId = session?.tenantId || null;
-  let lists: any[] = [];
-  if (tenantId) {
-    try {
-      lists = await listSmartViews("customers", tenantId, session?.email || null);
-    } catch {
-      lists = [];
-    }
-  }
   const sp = (await searchParams) ?? {};
   const q = typeof sp.q === "string" ? sp.q : "";
   const viewId = typeof sp.viewId === "string" ? sp.viewId : "";
   const filters = typeof sp.filters === "string" ? sp.filters : "";
-  const returnTo = `/campaigns?${new URLSearchParams(
-    Object.fromEntries(Object.entries(sp).filter(([, v]) => typeof v === "string")) as Record<string, string>
-  ).toString()}`;
+  // La URL a la que vuelven las páginas de campaña: la lista con sus filtros, sin los avisos de resultado.
+  const TRANSIENT = new Set(["created", "running", "error"]);
+  const returnQuery = new URLSearchParams(
+    Object.fromEntries(Object.entries(sp).filter(([k, v]) => typeof v === "string" && !TRANSIENT.has(k))) as Record<string, string>
+  ).toString();
+  const returnTo = returnQuery ? `/campaigns?${returnQuery}` : "/campaigns";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
@@ -54,12 +58,21 @@ export default async function CampaignsPage({
   const items = campaignsRes.ok ? campaignsRes.items : [];
   const total = campaignsRes.ok ? Number(campaignsRes.total ?? items.length) : items.length;
 
+  const baseParams = { ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) };
+  const pageHref = (p: number) => `/campaigns?${new URLSearchParams({ ...baseParams, page: String(p) }).toString()}`;
+  const currentPage = Math.max(1, Number(page) || 1);
+  const totalPages = total > 0 ? Math.max(1, Math.ceil(total / take)) : currentPage;
+  const hasNext = total > 0 ? currentPage < totalPages : items.length >= take;
+  const windowStart = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+  const windowEnd = Math.min(totalPages, windowStart + 4);
+  const pages: number[] = [];
+  for (let i = windowStart; i <= windowEnd; i += 1) pages.push(i);
+
   return (
     <div className="page pageWide campaignsPage">
-
-      {normalizeErrorParam(sp.error) ? <div className="panel module">Error: {normalizeErrorParam(sp.error)}</div> : null}
-      {sp.created ? <div className="panel module">Campaña guardada.</div> : null}
-      {sp.running ? <div className="panel module">Campaña en cola.</div> : null}
+      {normalizeErrorParam(sp.error) ? <div className="panel module" role="alert">Error: {normalizeErrorParam(sp.error)}</div> : null}
+      {sp.created ? <div className="panel module" role="status">Campaña guardada.</div> : null}
+      {sp.running ? <div className="panel module" role="status">Campaña en cola.</div> : null}
 
       <section className="settings-group">
         <PageToolbar
@@ -82,141 +95,81 @@ export default async function CampaignsPage({
           searchActions={(
             <FilterButton
               scope="customers"
-              baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }}
+              baseParams={baseParams}
               initialFields={getSmartViewFields("customers")}
             />
           )}
-          views={(
-            <ViewModeToggles currentMode="lista" baseParams={{ ...(q ? { q } : {}), ...(viewId ? { viewId } : {}), ...(filters ? { filters } : {}) }} />
-          )}
+          views={<ViewModeToggles currentMode="lista" baseParams={baseParams} />}
           summary={<span className="page-toolbar-count">{total} campañas</span>}
           actions={(
-            <NewMassMessageModal
-              csrfToken={csrfToken}
-              returnTo={returnTo}
-              views={lists
-                .filter((v: any) => {
-                  const name = String(v?.name || "").toLowerCase();
-                  if (name.startsWith("gamificación")) return false;
-                  if (name.startsWith("ranking")) return false;
-                  if (name.startsWith("estado")) return false;
-                  return true;
-                })
-                .map((v: any) => ({
-                  id: String(v.id),
-                  name: String(v.name),
-                  visibility: v.visibility,
-                  type: v.type
-                }))}
-              tenantId={tenantId}
-              action={createCampaign}
-            />
+            <Link className="primary btn-compact btn-create" href={withReturnTo("/campaigns/new", returnTo)} data-loader="off">
+              Nueva campaña
+            </Link>
           )}
         />
 
         <div className="settings-group-body">
           <div className="panel module">
-            <h3 style={{ marginTop: 0 }}>Campañas guardadas</h3>
-            <div style={{ display: "grid", gap: 10 }}>
-          {items.length === 0 ? <div className="muted">No hay campañas aún.</div> : null}
-          {items.map((c: any) => (
-            <div key={c.id} className="panel" style={{ padding: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                <div>
-                  <strong>{c.name}</strong>
-                  <div className="muted" style={{ fontSize: 12 }}>
-                    Enviados: {c.sentCount} · Fallidos: {c.failedCount} · Estado: {c.status}
-                  </div>
-                </div>
-                <form action={runCampaign}>
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  <input type="hidden" name="id" value={c.id} />
-                  <input type="hidden" name="returnTo" value={returnTo} />
-                  <RunCampaignButton
-                    disabled={c.status === "RUNNING"}
-                    label={c.sentCount > 0 ? "Reenviar" : "Enviar"}
-                    name={c.name}
-                    content={c.content}
-                    template={c.templateParams || null}
-                  />
-                </form>
-              </div>
-              {c.content ? (
-                <div className="muted" style={{ marginTop: 8, whiteSpace: "pre-wrap", fontSize: 13 }}>
-                  {c.content}
-                </div>
-              ) : null}
-              {c.templateParams ? (() => {
+            <h2 style={{ marginTop: 0, fontSize: 15 }}>Campañas guardadas</h2>
+            <div className="cp-list">
+              {items.length === 0 ? <div className="muted">No hay campañas aún.</div> : null}
+              {items.map((c: any) => {
                 const tplName = String(c.templateParams?.name || "").trim();
                 const tplLang = String(c.templateParams?.language || "").trim();
-                const params = c.templateParams?.processed_params || null;
+                const runHref = withReturnTo(`/campaigns/${encodeURIComponent(c.id)}/run`, returnTo);
+                const running = c.status === "RUNNING";
                 return (
-                  <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
-                    <div className="muted" style={{ fontSize: 12 }}>
-                      Plantilla WhatsApp: {tplName || "—"}{tplLang ? ` (${tplLang})` : ""}
-                    </div>
-                    {params ? (
-                      <div className="muted" style={{ fontSize: 11 }}>
-                        {params.body?.length ? `Body: ${params.body.map((p: any) => p.value).join(" | ")}` : ""}
-                        {params.header?.length ? ` · Header: ${params.header.map((p: any) => p.value).join(" | ")}` : ""}
-                        {params.buttons?.length ? ` · Botones: ${params.buttons.map((p: any) => p.value).join(" | ")}` : ""}
+                  <div key={c.id} className="cp-row">
+                    <div className="cp-main">
+                      <div className="cp-title">{c.name}</div>
+                      <div className="cp-stats">
+                        <span>Enviados: {c.sentCount}</span>
+                        <span>Fallidos: {c.failedCount}</span>
                       </div>
-                    ) : null}
+                      {c.content && String(c.content).trim() !== `Plantilla WhatsApp: ${tplName}` ? <p className="cp-content">{c.content}</p> : null}
+                      {tplName ? (
+                        <div className="cp-meta">
+                          Plantilla WhatsApp: {tplName}
+                          {tplLang ? ` (${tplLang})` : ""}
+                        </div>
+                      ) : null}
+                    </div>
+                    <span className={`pill ${c.status === "COMPLETED" ? "pill-green" : ""}`}>{STATUS_LABEL[c.status] || c.status}</span>
+                    <div className="cp-actions">
+                      <RowActionsMenu label={`Acciones de la campaña ${c.name}`}>
+                        {running ? (
+                          <span className="field-hint" style={{ padding: "4px 8px" }}>Enviándose…</span>
+                        ) : (
+                          <Link className="ghost btn-compact btn-noicon" href={runHref} data-loader="off">
+                            {c.sentCount > 0 ? "Reenviar" : "Enviar"}
+                          </Link>
+                        )}
+                      </RowActionsMenu>
+                    </div>
                   </div>
                 );
-              })() : null}
-            </div>
-          ))}
+              })}
             </div>
           </div>
-          {(() => {
-          const currentPage = Math.max(1, Number(page) || 1);
-          const hasNext = total > 0 ? currentPage < Math.max(1, Math.ceil(total / take)) : items.length >= take;
-          const totalPages = total > 0 ? Math.max(1, Math.ceil(total / take)) : currentPage + (hasNext ? 1 : 0);
-          const desktopWindow = 10;
-          let start = Math.max(1, currentPage - Math.floor(desktopWindow / 2));
-          let end = start + (desktopWindow - 1);
-          if (end > totalPages) {
-            end = totalPages;
-            start = Math.max(1, end - (desktopWindow - 1));
-          }
-          const pages: number[] = [];
-          for (let i = start; i <= end; i += 1) pages.push(i);
-          const mobileWindow = 5;
-          let mobileStart = Math.max(1, currentPage - 2);
-          let mobileEnd = mobileStart + (mobileWindow - 1);
-          if (mobileEnd > totalPages) {
-            mobileEnd = totalPages;
-            mobileStart = Math.max(1, mobileEnd - (mobileWindow - 1));
-          }
-          return (
-            <div className="pagination pagination-indicator">
-              {currentPage <= 1 ? (
-                <span className="page-link page-nav" aria-disabled="true">
-                  Anterior
-                </span>
-              ) : (
-                <a className="page-link page-nav" href={`/campaigns?page=${Math.max(1, currentPage - 1)}`}>
-                  Anterior
-                </a>
-              )}
-              <div className="pagination-pages">
-                {pages.map((p) => (
-                  <a key={p} className={`page-link${p === currentPage ? " is-active" : ""}`} href={`/campaigns?page=${p}`} aria-current={p === currentPage ? "page" : undefined}>{p}</a>
-                ))}
-              </div>
-              {!hasNext ? (
-                <span className="page-link page-nav" aria-disabled="true">
-                  Siguiente
-                </span>
-              ) : (
-                <a className="page-link page-nav" href={`/campaigns?page=${currentPage + 1}`}>
-                  Siguiente
-                </a>
-              )}
+          <nav className="pagination pagination-indicator" aria-label="Paginación">
+            {currentPage <= 1 ? (
+              <span className="page-link page-nav" aria-disabled="true">Anterior</span>
+            ) : (
+              <Link className="page-link page-nav" href={pageHref(currentPage - 1)}>Anterior</Link>
+            )}
+            <div className="pagination-pages">
+              {pages.map((p) => (
+                <Link key={p} className={`page-link${p === currentPage ? " is-active" : ""}`} href={pageHref(p)} aria-current={p === currentPage ? "page" : undefined}>
+                  {p}
+                </Link>
+              ))}
             </div>
-          );
-        })()}
+            {!hasNext ? (
+              <span className="page-link page-nav" aria-disabled="true">Siguiente</span>
+            ) : (
+              <Link className="page-link page-nav" href={pageHref(currentPage + 1)}>Siguiente</Link>
+            )}
+          </nav>
         </div>
       </section>
     </div>

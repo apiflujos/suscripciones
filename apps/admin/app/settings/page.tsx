@@ -1,24 +1,9 @@
 import type { ReactNode } from "react";
 import {
-  bootstrapCentralAttributes,
-  deleteShopifyConnection,
-  deleteCentralConnection,
-  setWompiActiveEnv,
-  syncCentralAttributes,
-  testCentralConnection,
-  testWompiConnection,
-  testShopifyForward,
-  updateChatwoot,
-  updateShopify,
-  updateWompi,
-  deleteWompiConnection,
   updateAiProvider,
   deleteAiProvider,
   updateAutoDebitConfig,
   updatePaymentsConfig,
-  createWebhookEndpointAction,
-  updateWebhookEndpointAction,
-  deleteWebhookEndpointAction,
   createApiTokenAction,
   revokeApiTokenAction,
   updateSubscriptionConfig
@@ -38,9 +23,12 @@ import { LogoUploadField } from "./LogoUploadField";
 import { CheckoutTemplatesPanel } from "../checkout-templates/CheckoutTemplatesPanel";
 import { createCheckoutTemplate, updateCheckoutTemplate, deleteCheckoutTemplate, duplicateCheckoutTemplate, createCheckoutTemplateDefaults } from "../checkout-templates/actions";
 import { RedirectConfigPanel } from "./RedirectConfigPanel";
-import { createTenant, deleteTenant, updateTenant } from "../tenants/actions";
+import { createTenant, updateTenant } from "../tenants/actions";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import "./settings-layout.css";
+import { connectionHref, slugFromLegacyOpen } from "./connections/connectionMeta";
 import { updateCheckoutConfig, updateCheckoutDefaults } from "./actions";
-import { DeleteTenantButton } from "./DeleteTenantButton";
 import { UsersPanel } from "./UsersPanel";
 import { UserNotificationsPanel } from "./UserNotificationsPanel";
 import { WhatsappNotificationsPanel } from "./WhatsappNotificationsPanel";
@@ -142,6 +130,9 @@ export default async function SettingsPage({
   const rawTab = String(sp.tab || "connections");
   const tab = rawTab === "webhooks" ? "integraciones" : rawTab;
   const open = String(sp.open || "");
+  // Enlaces antiguos a los modales de conexiones: ahora cada conexión tiene su página.
+  const legacySlug = tab === "connections" ? slugFromLegacyOpen(open) : null;
+  if (legacySlug) redirect(connectionHref(legacySlug, { returnTo: "/settings?tab=connections" }));
   const envRaw = String(sp.env || "");
   const env = envRaw.toUpperCase() === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
   const notifSaved = typeof sp.saved === "string" ? sp.saved : "";
@@ -302,14 +293,10 @@ export default async function SettingsPage({
           apiTokens={apiTokens}
           docsUrl={docsUrl}
           swaggerUrl={swaggerUrl}
-          openId={open || null}
           createdToken={String(sp.token || "")}
           inlineState={inlineState}
           returnTo={returnTo}
           actions={{
-            createWebhookEndpointAction: createWebhookEndpointAction,
-            updateWebhookEndpointAction: updateWebhookEndpointAction,
-            deleteWebhookEndpointAction: deleteWebhookEndpointAction,
             createApiTokenAction: createApiTokenAction,
             revokeApiTokenAction: revokeApiTokenAction
           }}
@@ -319,29 +306,13 @@ export default async function SettingsPage({
       {tab === "connections" ? (
         <>
           <ConnectionsPanel
-            csrfToken={csrfToken}
             wompiActiveEnv={wompiActiveEnv}
             wompiProduction={wompiProduction}
             wompiSandbox={wompiSandbox}
             commsProduction={commsProduction}
             shopify={settings?.shopify || {}}
-            actions={{
-              setWompiActiveEnv,
-              updateWompi,
-              testWompiConnection,
-              deleteWompiConnection,
-              updateChatwoot,
-              deleteCentralConnection,
-              testCentralConnection,
-              bootstrapCentralAttributes,
-              syncCentralAttributes,
-              updateShopify,
-              deleteShopifyConnection,
-              testShopifyForward
-            }}
             inlineState={inlineState}
-            initialOpen={open}
-            returnTo={returnTo}
+            returnTo="/settings?tab=connections"
           />
 
           <section className="settings-group">
@@ -383,15 +354,16 @@ export default async function SettingsPage({
                       </span>
                     </div>
                     <div className="saved-conn-actions">
-                      <a className="ghost btn-compact btn-blue" href="/settings?tab=connections&open=wompi">Editar</a>
-                      <form action={deleteWompiConnection}>
-                        <input type="hidden" name="csrf" value={csrfToken} />
-                        <input type="hidden" name="environment" value={envKey} />
-                        <input type="hidden" name="returnTo" value={returnTo} />
-                        <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar conexión" title="Eliminar conexión" />
-                      </form>
+                      <Link className="ghost btn-compact btn-blue" href={connectionHref(envKey === "SANDBOX" ? "wompi-sandbox" : "wompi-prod", { returnTo: "/settings?tab=connections" })} data-loader="off">Editar</Link>
+                      <Link
+                        className="ghost btn-compact btn-red btn-delete-icon"
+                        href={connectionHref(envKey === "SANDBOX" ? "wompi-sandbox" : "wompi-prod", { returnTo: "/settings?tab=connections", confirmDelete: true })}
+                        aria-label="Eliminar conexión"
+                        title="Eliminar conexión"
+                        data-loader="off"
+                      />
                     </div>
-                    <div className="field-hint">Prueba la conexión desde el modal de edición.</div>
+                    <div className="field-hint">Prueba la conexión desde la página de edición.</div>
                     <div className="saved-conn-meta">
                       <div className="saved-conn-meta-item">
                         <span className="saved-conn-meta-label">Llave pública</span>
@@ -428,15 +400,16 @@ export default async function SettingsPage({
                     </span>
                   </div>
                   <div className="saved-conn-actions">
-                    <a className="ghost btn-compact btn-blue" href="/settings?tab=connections&open=central">Editar</a>
-                    <form action={deleteCentralConnection}>
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="environment" value="PRODUCTION" />
-                      <input type="hidden" name="returnTo" value={returnTo} />
-                      <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar conexión" title="Eliminar conexión" />
-                    </form>
+                    <Link className="ghost btn-compact btn-blue" href={connectionHref("chatwoot", { returnTo: "/settings?tab=connections" })} data-loader="off">Editar</Link>
+                    <Link
+                      className="ghost btn-compact btn-red btn-delete-icon"
+                      href={connectionHref("chatwoot", { returnTo: "/settings?tab=connections", confirmDelete: true })}
+                      aria-label="Eliminar conexión"
+                      title="Eliminar conexión"
+                      data-loader="off"
+                    />
                   </div>
-                  <div className="field-hint">Prueba la conexión desde el modal de edición.</div>
+                  <div className="field-hint">Prueba la conexión desde la página de edición.</div>
                   <div className="saved-conn-meta">
                     <div className="saved-conn-meta-item">
                       <span className="saved-conn-meta-label">Base URL</span>
@@ -465,14 +438,16 @@ export default async function SettingsPage({
                     </span>
                   </div>
                   <div className="saved-conn-actions">
-                    <a className="ghost btn-compact btn-blue" href="/settings?tab=connections&open=shopify">Editar</a>
-                    <form action={deleteShopifyConnection}>
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="returnTo" value={returnTo} />
-                      <button className="ghost btn-compact btn-red btn-delete-icon" type="submit" aria-label="Eliminar conexión" title="Eliminar conexión" />
-                    </form>
+                    <Link className="ghost btn-compact btn-blue" href={connectionHref("shopify", { returnTo: "/settings?tab=connections" })} data-loader="off">Editar</Link>
+                    <Link
+                      className="ghost btn-compact btn-red btn-delete-icon"
+                      href={connectionHref("shopify", { returnTo: "/settings?tab=connections", confirmDelete: true })}
+                      aria-label="Eliminar conexión"
+                      title="Eliminar conexión"
+                      data-loader="off"
+                    />
                   </div>
-                  <div className="field-hint">Prueba el forward desde el modal de edición.</div>
+                  <div className="field-hint">Prueba el forward desde la página de edición.</div>
                   <div className="saved-conn-meta">
                     <div className="saved-conn-meta-item">
                       <span className="saved-conn-meta-label">URL</span>
@@ -906,13 +881,7 @@ export default async function SettingsPage({
             </div>
           </div>
           <div className="settings-group-body">
-            <RedirectConfigPanel
-              defaults={settings?.checkoutConfig || {}}
-              appPublicBaseUrl={appPublicBaseUrl}
-              csrfToken={csrfToken}
-              returnTo={`/settings?${new URLSearchParams({ tab: "checkout-publico" }).toString()}`}
-              onSave={updateCheckoutConfig}
-            />
+            <RedirectConfigPanel defaults={settings?.checkoutConfig || {}} inlineState={inlineState} />
             <CheckoutTemplatesPanel
               templates={templates}
               products={products}
@@ -1021,7 +990,7 @@ export default async function SettingsPage({
                             <a className="ghost btn-compact btn-blue" href={editHref}>
                               Editar
                             </a>
-                            <DeleteTenantButton action={deleteTenant} csrfToken={csrfToken} tenantId={tenant.id} returnTo={returnTo} />
+                            <Link className="ghost btn-compact btn-red btn-delete-icon" href={`/settings/channels/${encodeURIComponent(String(tenant.id))}/delete`} aria-label="Eliminar canal" title="Eliminar canal" data-loader="off">Eliminar</Link>
                           </div>
                         </>
                       ) : (
@@ -1045,7 +1014,7 @@ export default async function SettingsPage({
                             <a className="ghost btn-compact" href={closeEditHref}>
                               Cancelar
                             </a>
-                            <DeleteTenantButton action={deleteTenant} csrfToken={csrfToken} tenantId={tenant.id} returnTo={returnTo} />
+                            <Link className="ghost btn-compact btn-red btn-delete-icon" href={`/settings/channels/${encodeURIComponent(String(tenant.id))}/delete`} aria-label="Eliminar canal" title="Eliminar canal" data-loader="off">Eliminar</Link>
                           </div>
                         </>
                       )}

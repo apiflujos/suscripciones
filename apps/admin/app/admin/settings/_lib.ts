@@ -87,7 +87,9 @@ export const checkoutConfigUpdateSchema = z.object({
   subscriptionBaseUrl: z.string().url().optional().or(z.literal("")),
   cartBaseUrl: z.string().url().optional().or(z.literal("")),
   defaultUtmParams: z.string().optional().or(z.literal("")),
-  tokenExpiryHours: z.coerce.number().int().positive().optional(),
+  // Un campo vacío llega como "" y z.coerce lo vuelve 0, que no es positivo: guardar
+  // cualquier otra cosa fallaba con invalid_body solo porque este campo estaba en blanco.
+  tokenExpiryHours: z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.number().int().positive().optional()),
   defaultPlanTemplateId: z.string().optional().or(z.literal("")),
   defaultSubscriptionTemplateId: z.string().optional().or(z.literal("")),
   defaultCartTemplateId: z.string().optional().or(z.literal("")),

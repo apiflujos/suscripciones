@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import Link from "next/link";
 import { enterToNextField } from "../../lib/enterToNext";
+import "../../empresas/empresa-form.css";
 
 type ContactRow = {
   id?: string;
@@ -29,8 +31,10 @@ export function EmpresaForm({
   csrfToken,
   createEmpresa,
   updateEmpresa,
-  deleteEmpresa,
   returnTo,
+  cancelHref,
+  deleteHref,
+  hideHeader = false,
   tenantId
 }: {
   empresa: Empresa | null;
@@ -38,8 +42,13 @@ export function EmpresaForm({
   csrfToken: string;
   createEmpresa: (formData: FormData) => Promise<void>;
   updateEmpresa: (formData: FormData) => Promise<void>;
-  deleteEmpresa: (formData: FormData) => Promise<void>;
   returnTo?: string;
+  /** Enlace de "Cancelar" (por defecto, returnTo o /empresas). */
+  cancelHref?: string;
+  /** Página de confirmación para eliminar (dos pasos, sin modal). */
+  deleteHref?: string;
+  /** Oculta el título interno cuando la página ya lo trae (PageShell). */
+  hideHeader?: boolean;
   tenantId?: string | null;
 }) {
   const [nombre, setNombre] = useState(empresa?.nombre || "");
@@ -155,11 +164,13 @@ export function EmpresaForm({
 
   return (
     <div className="panel module">
-      <div className="panel-header ui-panel-header ui-panel-header-left">
-        <div className="ui-panel-title">
-          <h3 className="ui-title-reset">{empresa ? "Editar empresa" : "Nueva empresa"}</h3>
+      {hideHeader ? null : (
+        <div className="panel-header ui-panel-header ui-panel-header-left">
+          <div className="ui-panel-title">
+            <h2 className="ui-title-reset">{empresa ? "Editar empresa" : "Nueva empresa"}</h2>
+          </div>
         </div>
-      </div>
+      )}
 
       <form
         action={empresa ? updateEmpresa : createEmpresa}
@@ -167,7 +178,7 @@ export function EmpresaForm({
         onSubmit={(e) => {
           e.currentTarget.classList.add("was-validated");
         }}
-        className="ui-form-grid ui-grid-2 compact-form"
+        className="ui-form-grid ui-grid-2 compact-form empresa-form"
       >
         <input type="hidden" name="csrf" value={csrfToken} />
         {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
@@ -177,24 +188,24 @@ export function EmpresaForm({
         {empresa ? <input type="hidden" name="id" value={empresa.id} /> : null}
 
         <div className="field">
-          <label>Nombre</label>
-          <input className="input" name="nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+          <label htmlFor="emp-nombre">Nombre</label>
+          <input id="emp-nombre" className="input" name="nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
         </div>
         <div className="field">
-          <label>Email</label>
-          <input className="input" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@empresa.com" />
+          <label htmlFor="emp-email">Email</label>
+          <input id="emp-email" className="input" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@empresa.com" />
         </div>
         <div className="field">
-          <label>Teléfono</label>
-          <input className="input" name="telefono" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="+57..." />
+          <label htmlFor="emp-telefono">Teléfono</label>
+          <input id="emp-telefono" className="input" name="telefono" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="+57..." />
         </div>
         <div className="field">
-          <label>Sitio web</label>
-          <input className="input" name="sitioWeb" value={sitioWeb} onChange={(e) => setSitioWeb(e.target.value)} placeholder="https://..." />
+          <label htmlFor="emp-sitioWeb">Sitio web</label>
+          <input id="emp-sitioWeb" className="input" name="sitioWeb" value={sitioWeb} onChange={(e) => setSitioWeb(e.target.value)} placeholder="https://..." />
         </div>
         <div className="field grid-span-2">
-          <label>Dirección</label>
-          <input className="input" name="direccion" value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Dirección completa" />
+          <label htmlFor="emp-direccion">Dirección</label>
+          <input id="emp-direccion" className="input" name="direccion" value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Dirección completa" />
         </div>
 
         <div className="panel module grid-span-2">
@@ -208,8 +219,9 @@ export function EmpresaForm({
           </div>
 
           <div className="field" style={{ marginTop: 6 }}>
-            <label>Buscar contacto existente</label>
+            <label htmlFor="emp-search">Buscar contacto existente</label>
             <input
+              id="emp-search"
               className="input"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -220,7 +232,7 @@ export function EmpresaForm({
           {searching ? <div className="field-hint">Buscando...</div> : null}
           {searchError ? <div className="field-hint" style={{ color: "var(--bad)" }}>{searchError}</div> : null}
           {searchResults.length ? (
-            <div className="table-wrap" style={{ marginTop: 8 }}>
+            <div className="table-wrap empresa-table" style={{ marginTop: 8 }}>
               <table className="table">
                 <thead>
                   <tr>
@@ -233,13 +245,13 @@ export function EmpresaForm({
                 <tbody>
                   {searchResults.map((c) => (
                     <tr key={c.id || c.tempId}>
-                      <td>
+                      <td data-label="Contacto">
                         <div style={{ fontWeight: 600 }}>{c.nombre || "Sin nombre"}</div>
                         <div className="field-hint">{c.email || c.telefono || "—"}</div>
                       </td>
-                      <td>{c.cargo || "—"}</td>
-                      <td>{c.empresaNombre || "—"}</td>
-                      <td>
+                      <td data-label="Cargo">{c.cargo || "—"}</td>
+                      <td data-label="Empresa">{c.empresaNombre || "—"}</td>
+                      <td className="empresa-row-action">
                         <button
                           className="ghost btn-compact btn-noicon"
                           type="button"
@@ -256,7 +268,7 @@ export function EmpresaForm({
           ) : null}
 
           {hasContacts ? (
-            <div className="table-wrap">
+            <div className="table-wrap empresa-table">
               <table className="table">
                 <thead>
                   <tr>
@@ -270,38 +282,42 @@ export function EmpresaForm({
                 <tbody>
                   {contacts.map((c, idx) => (
                     <tr key={c.id || c.tempId || idx}>
-                      <td>
+                      <td data-label="Nombre">
                         <input
                           className="input"
+                          aria-label="Nombre del contacto"
                           value={c.nombre}
                           onChange={(e) => updateContact(idx, { nombre: e.target.value })}
                           required
                         />
                       </td>
-                      <td>
+                      <td data-label="Cargo">
                         <input
                           className="input"
+                          aria-label="Cargo del contacto"
                           value={c.cargo}
                           onChange={(e) => updateContact(idx, { cargo: e.target.value })}
                           required
                         />
                       </td>
-                      <td>
+                      <td data-label="Email">
                         <input
                           className="input"
+                          aria-label="Email del contacto"
                           type="email"
                           value={c.email || ""}
                           onChange={(e) => updateContact(idx, { email: e.target.value })}
                         />
                       </td>
-                      <td>
+                      <td data-label="Teléfono">
                         <input
                           className="input"
+                          aria-label="Teléfono del contacto"
                           value={c.telefono || ""}
                           onChange={(e) => updateContact(idx, { telefono: e.target.value })}
                         />
                       </td>
-                      <td>
+                      <td className="empresa-row-action">
                         <button className="ghost btn-compact btn-danger btn-noicon" type="button" onClick={() => removeContact(idx)}>
                           Quitar
                         </button>
@@ -316,8 +332,9 @@ export function EmpresaForm({
           )}
 
           <div className="field" style={{ marginTop: 12 }}>
-            <label>Contacto principal</label>
+            <label htmlFor="emp-principal">Contacto principal</label>
             <select
+              id="emp-principal"
               className="select"
               value={principalKey}
               onChange={(e) => setPrincipalKey(e.target.value)}
@@ -335,15 +352,14 @@ export function EmpresaForm({
         </div>
 
         <div className="module-footer">
-          <button 
-            className="ghost btn-compact btn-cancel" 
-            type="button"
-            onClick={() => window.history.back()}
+          <Link
+            className="ghost btn-compact btn-cancel"
+            href={cancelHref || returnTo || "/empresas"}
+            data-loader="off"
             title="Cancelar y volver"
-            aria-label="Cancelar"
           >
             Cancelar
-          </button>
+          </Link>
           <button 
             className="primary btn-compact btn-save" 
             type="submit"
@@ -353,15 +369,14 @@ export function EmpresaForm({
             {empresa ? "Guardar" : "Crear empresa"}
           </button>
           {empresa ? (
-            <button 
-              className="ghost btn-compact btn-red" 
-              type="submit" 
-              formAction={deleteEmpresa}
+            <Link
+              className="ghost btn-compact btn-red"
+              href={deleteHref || `/empresas/${empresa.id}/delete`}
+              data-loader="off"
               title="Eliminar empresa permanentemente"
-              aria-label="Eliminar empresa"
             >
               Eliminar
-            </button>
+            </Link>
           ) : null}
         </div>
       </form>

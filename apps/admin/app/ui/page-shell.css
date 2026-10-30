@@ -1,0 +1,79 @@
+/* Páginas dedicadas (sustituyen a los modales). Solo tokens del sistema de diseño. */
+.page-shell { align-content: start; gap: 14px; }
+.page-shell-form .page-shell-body,
+.page-shell-form .page-shell-header { max-width: 760px; }
+.page-shell-wide .page-shell-body,
+.page-shell-wide .page-shell-header { max-width: 1120px; }
+.page-shell-header { display: grid; gap: 8px; width: 100%; }
+.page-shell-crumbs { display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; color: var(--text-faint); }
+.page-shell-crumb + .page-shell-crumb::before { content: "/"; margin-right: 4px; opacity: .6; }
+.page-shell-crumb a { color: inherit; text-decoration: none; }
+.page-shell-crumb a:hover { color: var(--primary); text-decoration: underline; }
+.page-shell-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.page-shell-title-block { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.page-shell-back { flex: 0 0 auto; text-decoration: none; }
+.page-shell-title { margin: 0; font-size: 18px; line-height: 1.25; font-weight: 700; color: var(--text-strong); overflow-wrap: anywhere; }
+.page-shell-subtitle { margin: 3px 0 0; font-size: 12.5px; color: var(--text-faint); }
+.page-shell-header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.page-shell-body { display: grid; gap: 12px; width: 100%; min-width: 0; }
+.page-shell-notice { padding: 10px 12px; border: 1px solid var(--stroke); border-radius: var(--radius-md); background: var(--panel); font-size: 13px; max-width: 1120px; }
+.page-shell-notice.is-ok { border-color: var(--success); }
+.page-shell-notice.is-error { border-color: var(--danger); }
+.page-shell-section { border: 1px solid var(--stroke); border-radius: var(--radius-md); background: var(--panel); box-shadow: var(--shadow); }
+.page-shell-section-head { padding: 12px 14px 0; display: grid; gap: 2px; }
+.page-shell-section-title { margin: 0; font-size: 14px; font-weight: 700; color: var(--text-strong); }
+.page-shell-section-desc { margin: 0; font-size: 12px; color: var(--text-faint); }
+.page-shell-section-body { padding: 12px 14px 14px; display: grid; gap: 10px; min-width: 0; }
+.page-shell-form-grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.page-shell-form-grid > .field-full { grid-column: 1 / -1; }
+@media (max-width: 640px) { .page-shell-form-grid { grid-template-columns: 1fr; } }
+/* Barra fija: el botón de guardar siempre está a la vista. */
+.page-shell-actions {
+  position: sticky; bottom: 0; z-index: 5;
+  display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;
+  padding: 10px 14px; margin-top: 4px;
+  border: 1px solid var(--stroke); border-radius: var(--radius-md);
+  background: var(--panel); box-shadow: var(--shadow-lg);
+}
+/* Tabla de datos dentro de una página: ocupa el ancho y no corta nada. */
+.page-shell-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.page-shell-table th { text-align: left; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); padding: 6px 8px; border-bottom: 1px solid var(--stroke); }
+.page-shell-table td { padding: 8px; border-bottom: 1px solid color-mix(in srgb, var(--stroke) 78%, transparent); vertical-align: top; overflow-wrap: anywhere; }
+.page-shell-tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--stroke); }
+.page-shell-tab { padding: 8px 12px; font-size: 13px; color: var(--text-faint); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.page-shell-tab:hover { color: var(--text-strong); }
+.page-shell-tab.is-active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+/* Lista de datos clave/valor (resumen de una acción). */
+.page-shell-dl { display: grid; gap: 8px; margin: 0; }
+.page-shell-dl > div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; }
+.page-shell-dl dt { font-size: 12px; color: var(--text-faint); }
+.page-shell-dl dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .page-shell-dl > div { grid-template-columns: 1fr; gap: 2px; } }
+
+/* Resultados de búsqueda de contacto/producto dentro de una página: sin scroll interno,
+   cada resultado ocupa el ancho disponible y el texto largo se parte. */
+.page-shell .customer-search-list,
+.page-shell .product-search-list { max-height: none; overflow: visible; padding-right: 0; }
+.page-shell .customer-search-item,
+.page-shell .product-search-item {
+  width: 100%; max-width: 100%; min-width: 0; height: auto; min-height: 34px;
+  white-space: normal; overflow-wrap: anywhere; text-align: left; box-sizing: border-box;
+}
+/* Editor de condiciones de filtros inteligentes: las condiciones pasan a otra línea
+   en pantallas angostas en vez de ensancharse más que la página. */
+.page-shell .smart-rule-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+.page-shell .smart-rule-row select,
+.page-shell .smart-rule-row input { min-width: 0 !important; flex: 1 1 150px; max-width: 100%; }
+
+/* `.field` es una rejilla de una columna "auto": un <select> con opciones largas la
+   ensancha más que su contenedor. Con minmax(0, 1fr) la columna se ajusta al ancho. */
+.page-shell .field { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.page-shell .field > select, .page-shell .field > input, .page-shell .field > textarea { max-width: 100%; }
+
+/* Selector de producto (cambiar producto): sin scroll interno y con texto que se parte. */
+.page-shell .plan-option-list { max-height: none; overflow: visible; }
+.page-shell .plan-option-item { min-width: 0 !important; width: 100% !important; max-width: 100% !important; height: auto !important; min-height: 34px; white-space: normal !important; overflow-wrap: anywhere; text-align: left; box-sizing: border-box; }
+
+/* Las rejillas de una sola columna "auto" crecen hasta el contenido más ancho de su
+   hijo (un <select>, un botón con texto largo) y lo sacan de la pantalla. */
+.page-shell-body, .page-shell form, .page-shell .plan-option-list { grid-template-columns: minmax(0, 1fr); }

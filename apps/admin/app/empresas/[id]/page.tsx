@@ -1,7 +1,11 @@
+import { notFound } from "next/navigation";
 import { getEmpresaById } from "../../admin/_services/companies";
+import { PageShell } from "../../ui/PageShell";
 import { EmpresaForm } from "../EmpresaForm";
 import { getCsrfToken } from "../../lib/csrf";
-import { createEmpresa, updateEmpresa, deleteEmpresa } from "../actions";
+import { resolveReturnTo } from "../../lib/returnTo";
+import { createEmpresa, updateEmpresa } from "../actions";
+import { empresaErrorMessage } from "../messages";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -17,40 +21,42 @@ export default async function EmpresaDetailPage({
   const sp = (await searchParams) ?? {};
   const created = typeof sp.created === "string" ? sp.created : "";
   const updated = typeof sp.updated === "string" ? sp.updated : "";
-  const error = typeof sp.error === "string" ? sp.error : "";
+  const error = empresaErrorMessage(sp.error);
+  const returnTo = resolveReturnTo(sp.returnTo, "/empresas");
   const csrfToken = await getCsrfToken();
 
-  const isNew = id === "new";
-  if (isNew) {
-    redirect("/empresas");
-  }
+  if (id === "new") redirect("/empresas");
   const empresa = await getEmpresaById(id);
-  const contactos = empresa?.contactos || [];
+  if (!empresa) notFound();
+  const contactos = empresa.contactos || [];
+
+  const notice = error
+    ? { tone: "error" as const, text: error }
+    : created
+      ? { tone: "ok" as const, text: "Empresa creada correctamente." }
+      : updated
+        ? { tone: "ok" as const, text: "Empresa actualizada." }
+        : null;
 
   return (
-    <main className="page pageWide">
-      {error ? (
-        <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-          Error: {error}
-        </div>
-      ) : null}
-      {created ? <div className="card cardPad">Empresa creada correctamente.</div> : null}
-      {updated ? <div className="card cardPad">Empresa actualizada.</div> : null}
-
+    <PageShell
+      title="Editar empresa"
+      subtitle={empresa.nombre}
+      crumbs={[{ label: "Empresas", href: returnTo }, { label: empresa.nombre }]}
+      backHref={returnTo}
+      notice={notice}
+      width="wide"
+    >
       <EmpresaForm
-        empresa={
-          empresa
-            ? {
-                id: empresa.id,
-                nombre: empresa.nombre,
-                email: empresa.email,
-                telefono: empresa.telefono,
-                direccion: empresa.direccion,
-                sitioWeb: empresa.sitioWeb,
-                contactoPrincipalId: empresa.contactoPrincipalId
-              }
-            : null
-        }
+        empresa={{
+          id: empresa.id,
+          nombre: empresa.nombre,
+          email: empresa.email,
+          telefono: empresa.telefono,
+          direccion: empresa.direccion,
+          sitioWeb: empresa.sitioWeb,
+          contactoPrincipalId: empresa.contactoPrincipalId
+        }}
         contactos={contactos.map((c: { id: string; nombre: string; email?: string | null; telefono?: string | null; cargo: string }) => ({
           id: c.id,
           nombre: c.nombre,
@@ -61,10 +67,12 @@ export default async function EmpresaDetailPage({
         csrfToken={csrfToken}
         createEmpresa={createEmpresa}
         updateEmpresa={updateEmpresa}
-        deleteEmpresa={deleteEmpresa}
         returnTo="/empresas"
-        tenantId={empresa?.tenantId || null}
+        cancelHref={returnTo}
+        deleteHref={`/empresas/${empresa.id}/delete?returnTo=${encodeURIComponent(returnTo)}`}
+        hideHeader
+        tenantId={empresa.tenantId || null}
       />
-    </main>
+    </PageShell>
   );
 }

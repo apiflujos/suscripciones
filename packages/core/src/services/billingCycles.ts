@@ -363,7 +363,14 @@ export function resolveConfiguredCollectionCycle(args: {
   });
   if (overdue.length > 0) return overdue[0];
 
-  return unpaid[0];
+  // EN_CURSO cobra el período que corre, nunca el siguiente. Si el período vigente
+  // ya está pago y no hay arrastres, no hay nada que cobrar. Devolver aquí el
+  // primer ciclo futuro dejaba cobrar octubre el 30 de septiembre, y al pagarlo
+  // el siguiente pasaba a ser noviembre, luego diciembre: cada cobro manual
+  // adelantaba un mes y la suscripción quedaba "al día" sin que ese mes hubiera
+  // empezado. Solo el primer ciclo de una suscripción que aún no arranca se
+  // devuelve, para no bloquear el primer cobro.
+  return unpaid[0].cycleNumber === 1 ? unpaid[0] : null;
 }
 
 export function isBillingCyclePaid(cycle: { status?: BillingCycleStatus | string | null; paymentId?: string | null } | null | undefined) {

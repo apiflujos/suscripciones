@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 // `db` falso). Lo mockeamos para poder cargar el módulo en vitest.
 vi.mock("@suscripciones/database", () => ({ prisma: {} }));
 
-import { resolveAssociationByScore } from "../processWompiEvent";
+import { namesMatchFuzzy, resolveAssociationByScore } from "../processWompiEvent";
 import { classifyReference } from "../../../webhooks/wompi/classifyReference";
 
 /**
@@ -35,7 +35,8 @@ function makeDb(customers: Customer[], subscriptions: Sub[]) {
     customer: {
       findMany: async ({ where }: any) => {
         if (where?.email) {
-          return customers.filter((c) => c.email === where.email).map((c) => ({ id: c.id }));
+          const wanted = String(typeof where.email === "object" ? where.email.equals : where.email).toLowerCase();
+          return customers.filter((c) => String(c.email || "").toLowerCase() === wanted).map((c) => ({ id: c.id }));
         }
         if (where?.phone) {
           return customers.filter((c) => c.phone).map((c) => ({ id: c.id, phone: c.phone }));
@@ -182,5 +183,82 @@ describe("resolveAssociationByScore — pagos de clientes duplicados", () => {
     });
 
     expect(decision).toBeNull();
+  });
+});
+
+describe("namesMatchFuzzy — nombres escritos a mano en el link de pago", () => {
+  it.each([
+    ["Federico Balthazar J", "Federico Balthazar"],
+    ["Lina Cruz", "Lina Marcela Cruz"],
+    ["Gabriel J Osorio B", "Gabriel Jaime Osorio"],
+    ["Kristin BustosMoron", "Kristin Bustos"],
+    ["Tomas Pineda", "Tomás Pineda"]
+  ])("'%s' coincide con '%s'", (pagador, cliente) => {
+    expect(namesMatchFuzzy(pagador, cliente)).toBe(true);
+  });
+
+  it.each([
+    ["Lina Pineda", "Tomás Pineda"],
+    ["Lina", "Lina Cruz"],
+    ["Pedro Cruz", "Lina Marcela Cruz"]
+  ])("'%s' no coincide con '%s'", (pagador, cliente) => {
+    expect(namesMatchFuzzy(pagador, cliente)).toBe(false);
+  });
+});
+
+describe("resolveAssociationByScore — pagador con otro email y nombre abreviado", () => {
+  const customers: Customer[] = [
+    { id: "cust-fede", email: "federicobalthazar@gmail.com", phone: null, name: "Federico Balthazar", tenantId: "t1" },
+    { id: "cust-otro", email: "otro@x.com", phone: null, name: "Federico Gomez", tenantId: "t1" }
+  ];
+
+  it("asocia 'Federico Balthazar J' con otro email al cliente registrado", async () => {
+    const db = makeDb(customers, [baseSub({ id: "sub-fede", customerId: "cust-fede" })]);
+    const decision = await resolveAssociationByScore({
+      ...commonArgs,
+      db,
+      amountInCents: 46000000,
+      email: "federicobalthazar@icloud.com",
+      phone: null,
+      name: "Federico Balthazar J"
+    });
+    expect(decision?.subscriptionId).toBe("sub-fede");
+    expect(decision?.criteria).toMatchObject({ source: "name_fuzzy" });
+  });
+
+  it("no adivina cuando dos clientes encajan con el nombre", async () => {
+    const dup: Customer[] = [
+      { id: "c1", email: "a@x.com", phone: null, name: "Lina Marcela Cruz", tenantId: "t1" },
+      { id: "c2", email: "b@x.com", phone: null, name: "Lina Patricia Cruz", tenantId: "t1" }
+    ];
+    const db = makeDb(dup, [
+      baseSub({ id: "s1", customerId: "c1" }),
+      baseSub({ id: "s2", customerId: "c2" })
+    ]);
+    const decision = await resolveAssociationByScore({
+      ...commonArgs,
+      db,
+      amountInCents: 46000000,
+      email: null,
+      phone: null,
+      name: "Lina Cruz"
+    });
+    expect(decision).toBeNull();
+  });
+
+  it("encuentra el email sin importar mayúsculas", async () => {
+    const db = makeDb(
+      [{ id: "c1", email: "DIANAVELEZJ@GMAIL.COM", phone: null, name: "Diana Vélez", tenantId: "t1" }],
+      [baseSub({ id: "s1", customerId: "c1" })]
+    );
+    const decision = await resolveAssociationByScore({
+      ...commonArgs,
+      db,
+      amountInCents: 46000000,
+      email: "dianavelezj@gmail.com",
+      phone: null,
+      name: null
+    });
+    expect(decision?.subscriptionId).toBe("s1");
   });
 });

@@ -41,6 +41,13 @@ function safeReturnTo(formData: FormData) {
   return raw.startsWith("/products") ? raw : "/products";
 }
 
+/** A dónde volver si la acción falla: la propia página del formulario, para no perder lo escrito. */
+function safeFailTo(formData: FormData, fallback: string) {
+  const raw = String(formData.get("failTo") || "").trim();
+  if (raw.startsWith("/products") && !raw.startsWith("//") && !raw.includes("\\")) return raw;
+  return fallback;
+}
+
 function mergeQuery(path: string, extra: Record<string, string | undefined>) {
   const url = new URL(path, "http://localhost");
   for (const [k, v] of Object.entries(extra)) {
@@ -97,6 +104,7 @@ function resolveNotificationTemplate(
 export async function createProduct(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
+  const failTo = safeFailTo(formData, returnTo);
   const name = String(formData.get("name") || "").trim();
   const sku = String(formData.get("sku") || "").trim();
   const kind = String(formData.get("kind") || "PRODUCT").trim();
@@ -119,7 +127,7 @@ export async function createProduct(formData: FormData) {
   const imageUrl = String(formData.get("imageUrl") || "").trim();
   const tenantIds = readTenantIds(formData);
   if (!name || !sku || basePriceInCents <= 0) {
-    return redirect(mergeQuery(returnTo, { error: "invalid_body" }));
+    return redirect(mergeQuery(failTo, { error: "invalid_body" }));
   }
 
   let variants: any[] | undefined;
@@ -160,13 +168,14 @@ export async function createProduct(formData: FormData) {
     redirect(mergeQuery(returnTo, { created: "1" }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(mergeQuery(returnTo, { error: String(err?.message || "create_product_failed") }));
+    redirect(mergeQuery(failTo, { error: String(err?.message || "create_product_failed") }));
   }
 }
 
 export async function updateProduct(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
+  const failTo = safeFailTo(formData, returnTo);
   const id = String(formData.get("id") || "").trim();
   const tenantIds = readTenantIds(formData);
   const primaryTenantId = String(formData.get("primaryTenantId") || "").trim();
@@ -200,9 +209,9 @@ export async function updateProduct(formData: FormData) {
     } catch {}
   }
 
-  if (!id) return redirect(mergeQuery(returnTo, { error: "missing_id" }));
+  if (!id) return redirect(mergeQuery(failTo, { error: "missing_id" }));
   if (!name || !sku || basePriceInCents <= 0) {
-    return redirect(mergeQuery(returnTo, { error: "invalid_body", ...(tenantId ? { tenantId } : {}) }));
+    return redirect(mergeQuery(failTo, { error: "invalid_body", ...(tenantId ? { tenantId } : {}) }));
   }
 
   try {
@@ -233,27 +242,28 @@ export async function updateProduct(formData: FormData) {
       imageUrl: imageUrl || null
     });
     if (!updated.ok) throw new Error(updated.error);
-    redirect(mergeQuery(returnTo, { updated: "1", ...(tenantId ? { tenantId } : {}) }));
+    redirect(mergeQuery(returnTo, { updated: "1" }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(mergeQuery(returnTo, { error: String(err?.message || "update_product_failed"), ...(tenantId ? { tenantId } : {}) }));
+    redirect(mergeQuery(failTo, { error: String(err?.message || "update_product_failed"), ...(tenantId ? { tenantId } : {}) }));
   }
 }
 
 export async function sendProductToCustomer(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
+  const failTo = safeFailTo(formData, returnTo);
   const productId = String(formData.get("productId") || "").trim();
   const customerId = String(formData.get("customerId") || "").trim();
 
   if (!productId || !customerId) {
-    return redirect(mergeQuery(returnTo, { error: "missing_product_or_customer" }));
+    return redirect(mergeQuery(failTo, { error: "missing_product_or_customer" }));
   }
 
   const notificationsConfig = await getNotificationsConfigForEnv("PRODUCTION").catch(() => null);
   const paymentTemplate = resolveNotificationTemplate(notificationsConfig, "PAYMENT_LINK_CREATED", "LINK");
   if (!isNotificationTemplateConfigured(paymentTemplate)) {
-    return redirect(mergeQuery(returnTo, { error: "missing_template" }));
+    return redirect(mergeQuery(failTo, { error: "missing_template" }));
   }
 
   let product: any = null;
@@ -262,23 +272,23 @@ export async function sendProductToCustomer(formData: FormData) {
     const productRes = await getCatalogProductById({ productId });
     product = productRes.ok ? productRes.item : null;
   } catch (err: any) {
-    return redirect(mergeQuery(returnTo, { error: String(err?.message || "product_fetch_failed") }));
+    return redirect(mergeQuery(failTo, { error: String(err?.message || "product_fetch_failed") }));
   }
 
   try {
     customer = await getCustomerById(customerId);
   } catch (err: any) {
-    return redirect(mergeQuery(returnTo, { error: String(err?.message || "customer_fetch_failed") }));
+    return redirect(mergeQuery(failTo, { error: String(err?.message || "customer_fetch_failed") }));
   }
 
   if (!product || !customer) {
-    return redirect(mergeQuery(returnTo, { error: "product_or_customer_not_found" }));
+    return redirect(mergeQuery(failTo, { error: "product_or_customer_not_found" }));
   }
 
   try {
     const checkoutConfig = await getCheckoutConfig().catch(() => null);
     if (!checkoutConfig || !String(checkoutConfig?.planBaseUrl || "").trim()) {
-      return redirect(mergeQuery(returnTo, { error: "missing_plan_base_url" }));
+      return redirect(mergeQuery(failTo, { error: "missing_plan_base_url" }));
     }
 
     const tenantId = String(product?.tenantId || customer?.tenantId || "").trim() || null;
@@ -290,7 +300,7 @@ export async function sendProductToCustomer(formData: FormData) {
     });
     const templateId = String((selected as any)?.id || "").trim();
     if (!templateId) {
-      return redirect(mergeQuery(returnTo, { error: "missing_checkout_for_product" }));
+      return redirect(mergeQuery(failTo, { error: "missing_checkout_for_product" }));
     }
 
     const orderRes = await createManualOrderForAdmin({
@@ -316,7 +326,7 @@ export async function sendProductToCustomer(formData: FormData) {
 
     const checkoutUrl = String((orderRes as any)?.checkoutUrl || "").trim();
     if (!checkoutUrl) {
-      return redirect(mergeQuery(returnTo, { error: "checkout_url_missing" }));
+      return redirect(mergeQuery(failTo, { error: "checkout_url_missing" }));
     }
 
     const created = await createPublicCheckoutLink({
@@ -325,12 +335,12 @@ export async function sendProductToCustomer(formData: FormData) {
       checkoutUrl
     });
     if (!String(created?.url || "").trim()) {
-      return redirect(mergeQuery(returnTo, { error: "public_checkout_create_failed" }));
+      return redirect(mergeQuery(failTo, { error: "public_checkout_create_failed" }));
     }
 
     const paymentId = String((orderRes as any)?.payment?.id || "").trim();
     if (!paymentId) {
-      return redirect(mergeQuery(returnTo, { error: "request_failed" }));
+      return redirect(mergeQuery(failTo, { error: "request_failed" }));
     }
 
     const scheduled = await schedulePaymentLinkNotifications({
@@ -343,10 +353,10 @@ export async function sendProductToCustomer(formData: FormData) {
     });
     const chatwootError = String((scheduled as any)?.errors?.[0] || "").trim();
     if (chatwootError) {
-      return redirect(mergeQuery(returnTo, { error: chatwootError }));
+      return redirect(mergeQuery(failTo, { error: chatwootError }));
     }
   } catch (err: any) {
-    return redirect(mergeQuery(returnTo, { error: String(err?.message || "order_create_failed") }));
+    return redirect(mergeQuery(failTo, { error: String(err?.message || "order_create_failed") }));
   }
 
   redirect(mergeQuery(returnTo, { sent: "1" }));
@@ -355,30 +365,31 @@ export async function sendProductToCustomer(formData: FormData) {
 export async function deleteProduct(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
+  const failTo = safeFailTo(formData, returnTo);
   const id = String(formData.get("id") || "").trim();
   const tenantIds = readTenantIds(formData);
   const tenantId = tenantIds[0] || "";
-  if (!id) return redirect(mergeQuery(returnTo, { error: "missing_id" }));
+  if (!id) return redirect(mergeQuery(failTo, { error: "missing_id" }));
 
   try {
     const result = await deleteCatalogProduct({ productId: id, tenantId: tenantId || null, force: true });
     if (!result.ok) throw new Error(result.error);
-    redirect(mergeQuery(returnTo, { deleted: "1", ...(tenantId ? { tenantId } : {}) }));
+    redirect(mergeQuery(returnTo, { deleted: "1" }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
     const msg = String(err?.message || "delete_product_failed");
     if (msg.includes("product_has_active_subscriptions")) {
       return redirect(
-        mergeQuery(returnTo, {
+        mergeQuery(failTo, {
           error: "No se puede borrar: primero cancela las suscripciones activas/en mora/suspendidas de este producto.",
           ...(tenantId ? { tenantId } : {})
         })
       );
     }
     if (msg.includes("product_has_dependencies")) {
-      return redirect(mergeQuery(returnTo, { error: "No se puede borrar: tiene suscripciones o links asociados.", ...(tenantId ? { tenantId } : {}) }));
+      return redirect(mergeQuery(failTo, { error: "No se puede borrar: tiene suscripciones o links asociados.", ...(tenantId ? { tenantId } : {}) }));
     }
-    redirect(mergeQuery(returnTo, { error: msg, ...(tenantId ? { tenantId } : {}) }));
+    redirect(mergeQuery(failTo, { error: msg, ...(tenantId ? { tenantId } : {}) }));
   }
 }
 

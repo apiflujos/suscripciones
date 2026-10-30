@@ -1,478 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PendingButton } from "../ui/PendingButton";
+import Link from "next/link";
+import { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { HelpTip } from "../ui/HelpTip";
-import { AppModal } from "../ui/AppModal";
-import { isNotificationTemplateConfigured } from "../lib/notificationTemplate";
-import { extractProcessedParamValues } from "@suscripciones/core/services/chatwootTemplates";
-import {
-  REALTIME_NOTIFICATION_DEFINITIONS,
-  type RealtimeNotificationKey
-} from "./realtimeDefinitions";
-import {
-  ALL_NOTIFICATION_VARIABLE_OPTIONS,
-  getRealtimeVariableMatrix,
-  getReminderVariableMatrix
-} from "./templateVariableMatrix";
+import { withReturnTo } from "../lib/returnTo";
+import { buildNotificationEntries, type Env, type Rule, type Template } from "./notificationsModel";
+import "./notifications.css";
 
-type Env = "PRODUCTION" | "SANDBOX";
-
-type Template = {
-  id: string;
-  name: string;
-  channel: "CHATWOOT" | "META";
-  chatwootType?: "PAYMENT_LINK" | "PAYMENT_CONFIRMED" | "EXPIRY_WARNING" | "PAYMENT_FAILED";
-  content?: string | null;
-  chatwootTemplate?: {
-    name: string;
-    language: string;
-    processed_params?: {
-      body?: Array<{ key: string; value: string }>;
-      header?: Array<{ key: string; value: string }>;
-      buttons?: Array<{ index?: string | number; key?: string; value?: string }>;
-    };
-  } | null;
-};
-
-function defaultTemplateParamString(value: unknown, kind: "body" | "header" | "buttons") {
-  return extractProcessedParamValues(value, kind).join("|");
-}
-
-type ChatwootTemplate = {
-  id?: string | number;
-  name: string;
-  language?: string;
-  category?: string;
-  status?: string;
-  components?: any[];
-};
-
-function extractPlaceholderIndexes(value: unknown): number[] {
-  if (typeof value !== "string") return [];
-  const matches = value.match(/\{\{\s*(\d+)\s*\}\}/g) || [];
-  return matches
-    .map((match) => {
-      const num = Number(match.replace(/[^\d]/g, ""));
-      return Number.isFinite(num) ? Math.max(0, Math.trunc(num)) : 0;
-    })
-    .filter((num) => num > 0);
-}
-
-function countPlaceholderSlotsFromText(value: unknown) {
-  const indexes = extractPlaceholderIndexes(value);
-  return indexes.length ? Math.max(...indexes) : 0;
-}
-
-function countPlaceholderSlotsFromExample(value: unknown): number {
-  if (Array.isArray(value)) {
-    return value.reduce<number>((max, item) => Math.max(max, countPlaceholderSlotsFromExample(item)), 0);
-  }
-  if (value && typeof value === "object") {
-    return Object.values(value as Record<string, unknown>).reduce<number>(
-      (max, item) => Math.max(max, countPlaceholderSlotsFromExample(item)),
-      0
-    );
-  }
-  return 0;
-}
-
-function countExampleValueSlots(value: unknown): number {
-  if (!Array.isArray(value)) return 0;
-  return value.reduce((max, item) => {
-    if (Array.isArray(item)) return Math.max(max, item.filter((entry) => entry != null && String(entry).trim() !== "").length);
-    if (item && typeof item === "object") return Math.max(max, countExampleValueSlots(Object.values(item)));
-    return max;
-  }, 0);
-}
-
-function buttonRequiresParameter(button: any) {
-  const hasPlaceholder = countPlaceholderSlotsFromText(button?.url) > 0;
-  const hasExample = countPlaceholderSlotsFromExample(button?.example) > 0;
-  return hasPlaceholder || hasExample;
-}
-
-type Rule = {
-  id: string;
-  name: string;
-  enabled: boolean;
-  trigger: "SUBSCRIPTION_DUE" | "PAYMENT_LINK_CREATED" | "CATALOG_LINK_CREATED" | "TOKENIZATION_LINK_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_DECLINED";
-  templateId: string;
-  offsetsSeconds?: number[];
-  atTimeUtc?: string | null;
-  ensurePaymentLink?: boolean;
-  checkoutTemplateId?: string | null;
-  conditions?: {
-    requirePaymentTypeIn?: Array<"PLAN" | "SUBSCRIPTION" | "LINK">;
-  };
-};
-
-const REALTIME_TYPES: Array<{
-  key: RealtimeNotificationKey;
-  label: string;
-  aliases?: string[];
-  trigger: Rule["trigger"];
-  chatwootType: Template["chatwootType"];
-  paymentType?: "PLAN" | "SUBSCRIPTION" | "LINK";
-}> = REALTIME_NOTIFICATION_DEFINITIONS;
-
-const REMINDER_TPL_DUE_LINK = "tpl_reminder_due_link";
-const REMINDER_TPL_DUE_SUBSCRIPTION = "tpl_reminder_due_subscription";
-const REMINDER_TPL_MORA_LINK = "tpl_reminder_mora_link";
-const REMINDER_TPL_MORA_SUBSCRIPTION = "tpl_reminder_mora_subscription";
-
-const REMINDER_TYPES = [
-  { key: "reminder_due_link", kind: "DUE", paymentType: "LINK", label: "Recordatorio antes del vencimiento (link de pago)", templateId: REMINDER_TPL_DUE_LINK },
-  { key: "reminder_due_subscription", kind: "DUE", paymentType: "SUBSCRIPTION", label: "Recordatorio antes del vencimiento (débito automático)", templateId: REMINDER_TPL_DUE_SUBSCRIPTION },
-  { key: "reminder_mora_link", kind: "MORA", paymentType: "LINK", label: "Recordatorio en mora (link de pago)", templateId: REMINDER_TPL_MORA_LINK },
-  { key: "reminder_mora_subscription", kind: "MORA", paymentType: "SUBSCRIPTION", label: "Recordatorio en mora (débito automático)", templateId: REMINDER_TPL_MORA_SUBSCRIPTION }
-] as const;
-
-type OffsetItem = { amount: string; unit: "minutes" | "hours" | "days" };
-function insertAtCursor(el: HTMLInputElement | HTMLTextAreaElement, text: string) {
-  const start = el.selectionStart ?? el.value.length;
-  const end = el.selectionEnd ?? el.value.length;
-  const before = el.value.slice(0, start);
-  const after = el.value.slice(end);
-  el.value = `${before}${text}${after}`;
-  const nextPos = start + text.length;
-  el.setSelectionRange(nextPos, nextPos);
-  el.dispatchEvent(new Event("input", { bubbles: true }));
-  el.focus();
-}
-
-function autoResizeTextarea(el: HTMLTextAreaElement) {
-  el.style.height = "auto";
-  el.style.height = `${el.scrollHeight}px`;
-}
-
-function WaTemplateFields({
-  templates,
-  defaultName,
-  defaultLang,
-  defaultParams,
-  defaultHeaderParams,
-  defaultButtonParams,
-  variables,
-  buttonVariables,
-  onSync,
-  syncing,
-  syncError
-}: {
-  templates: ChatwootTemplate[];
-  defaultName?: string;
-  defaultLang?: string;
-  defaultParams?: string;
-  defaultHeaderParams?: string;
-  defaultButtonParams?: string;
-  variables: Array<{ label: string; value: string; recommended?: boolean }>;
-  buttonVariables: Array<{ label: string; value: string; recommended?: boolean }>;
-  onSync?: () => void;
-  syncing?: boolean;
-  syncError?: string;
-}) {
-  const [name, setName] = useState(defaultName || "");
-  const [lang, setLang] = useState(defaultLang || "es");
-  const [bodyParams, setBodyParams] = useState<string[]>(
-    defaultParams ? defaultParams.split("|").map((p) => p.trim()) : []
-  );
-  const [headerParams, setHeaderParams] = useState<string[]>(
-    defaultHeaderParams ? defaultHeaderParams.split("|").map((p) => p.trim()) : []
-  );
-  const [buttonParams, setButtonParams] = useState<string[]>(
-    defaultButtonParams ? defaultButtonParams.split("|").map((p) => p.trim()) : []
-  );
-
-  const selectedTemplate = useMemo(() => {
-    return templates.find((t) => t.name === name && String(t.language || "es") === String(lang || "es")) || null;
-  }, [templates, name, lang]);
-
-  const bodyParamCount = useMemo(() => {
-    const comps = selectedTemplate?.components || [];
-    const body = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BODY") as any;
-    if (!body) return 0;
-    const countByText = countPlaceholderSlotsFromText(body?.text);
-    const countByExample = Math.max(
-      countPlaceholderSlotsFromExample(body?.example),
-      countExampleValueSlots(body?.example?.body_text)
-    );
-    return Math.max(countByText, countByExample, bodyParams.length);
-  }, [selectedTemplate, bodyParams.length]);
-
-  const headerParamCount = useMemo(() => {
-    const comps = selectedTemplate?.components || [];
-    const header = comps.find((c: any) => String(c?.type || "").toUpperCase() === "HEADER") as any;
-    if (!header) return 0;
-    const fmt = String(header?.format || header?.format_type || "").toUpperCase();
-    if (fmt && fmt !== "TEXT") return 0;
-    const countByText = countPlaceholderSlotsFromText(header?.text);
-    const countByExample = Math.max(
-      countPlaceholderSlotsFromExample(header?.example),
-      Array.isArray(header?.example?.header_text)
-        ? header.example.header_text.filter((entry: unknown) => entry != null && String(entry).trim() !== "").length
-        : 0
-    );
-    return Math.max(countByText, countByExample, headerParams.length);
-  }, [selectedTemplate, headerParams.length]);
-
-  const buttonParamCount = useMemo(() => {
-    const comps = selectedTemplate?.components || [];
-    const buttons = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BUTTONS") as any;
-    if (!buttons || !Array.isArray(buttons?.buttons)) return 0;
-    const urlButtons = buttons.buttons.filter((b: any) => String(b?.type || "").toUpperCase() === "URL");
-    const inferred = urlButtons.reduce((count: number, button: any) => {
-      return count + (buttonRequiresParameter(button) ? 1 : 0);
-    }, 0);
-    return Math.max(inferred, buttonParams.length);
-  }, [selectedTemplate, buttonParams.length]);
-
-  const templateBody = useMemo(() => {
-    const comps = selectedTemplate?.components || [];
-    const body = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BODY") as any;
-    const text = String(body?.text || "");
-    if (text) return text;
-    const fallback = comps
-      .map((c: any) => String(c?.text || "").trim())
-      .filter(Boolean)
-      .join("\n");
-    return fallback || "";
-  }, [selectedTemplate]);
-
-  const templatePreview = useMemo(() => {
-    if (!templateBody) return "";
-    return templateBody.replace(/\{\{\s*(\d+)\s*\}\}/g, (_m, n) => {
-      const idx = Math.max(1, Number(n)) - 1;
-      const val = bodyParams[idx];
-      return val ? String(val) : `{{${n}}}`;
-    });
-  }, [templateBody, bodyParams]);
-
-  const templateButtons = useMemo(() => {
-    const comps = selectedTemplate?.components || [];
-    const buttons = comps.find((c: any) => String(c?.type || "").toUpperCase() === "BUTTONS") as any;
-    if (!buttons || !Array.isArray(buttons?.buttons)) return [] as Array<{ type: string; text: string; url?: string | null; parameterIndex: number | null }>;
-    let dynamicParamIndex = 0;
-    return buttons.buttons.map((button: any) => {
-      const requiresParameter = String(button?.type || "").toUpperCase() === "URL" && buttonRequiresParameter(button);
-      const parameterIndex = requiresParameter ? dynamicParamIndex++ : null;
-      return {
-      type: String(button?.type || "").toUpperCase(),
-      text: String(button?.text || button?.label || "Botón").trim() || "Botón",
-      url: button?.url ? String(button.url) : null,
-      parameterIndex
-      };
-    });
-  }, [selectedTemplate]);
-
-  const ensureLength = (values: string[], count: number) => {
-    if (!count) return [];
-    const next = values.slice(0, count);
-    while (next.length < count) next.push("");
-    return next;
-  };
-
-  const onSelect = (value: string) => {
-    if (!value) return;
-    const [tplName, tplLang] = value.split("::");
-    setName(tplName || "");
-    setLang(tplLang || "es");
-  };
-
-  useEffect(() => {
-    if (!selectedTemplate) return;
-    setBodyParams((prev) => ensureLength(prev, bodyParamCount));
-    setHeaderParams((prev) => ensureLength(prev, headerParamCount));
-    setButtonParams((prev) => ensureLength(prev, buttonParamCount));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTemplate, bodyParamCount, headerParamCount, buttonParamCount]);
-
-  return (
-    <>
-      <div className="field" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <label style={{ margin: 0 }}>Plantillas disponibles</label>
-        {onSync ? (
-          <button className="ghost btn-compact" type="button" onClick={onSync} data-loader="off">
-            {syncing ? "Sincronizando..." : "Sincronizar"}
-          </button>
-        ) : null}
-      </div>
-      {templates.length ? (
-        <div className="field">
-          <select className="select select-compact" defaultValue="" onChange={(e) => onSelect(e.target.value)}>
-            <option value="">Selecciona una plantilla</option>
-            {templates.map((t) => (
-              <option key={`${t.name}:${t.language || "es"}`} value={`${t.name}::${t.language || "es"}`}>
-                {t.name} · {t.language || "es"}
-              </option>
-            ))}
-          </select>
-          {syncError ? <div className="field-hint" style={{ color: "var(--danger)" }}>{syncError}</div> : null}
-        </div>
-      ) : (
-        <div className="field-hint">No hay plantillas disponibles. Sincroniza para cargarlas.</div>
-      )}
-      <input type="hidden" name="waTemplateName" value={name} />
-      <input type="hidden" name="waLanguage" value={lang} />
-      <div className="field">
-        <label>Mensaje</label>
-        <textarea className="input input-compact" rows={6} readOnly value={templatePreview || templateBody} />
-      </div>
-      {templateButtons.length ? (
-        <div className="field">
-          <label>Botones detectados</label>
-          <div
-            style={{
-              display: "grid",
-              gap: 8,
-              padding: 12,
-              border: "1px solid var(--stroke)",
-              borderRadius: 12,
-              background: "var(--panel)"
-            }}
-          >
-            {templateButtons.map((button, idx) => {
-              const mappedValue = button.parameterIndex != null ? buttonParams[button.parameterIndex] || "" : "";
-              return (
-                <div
-                  key={`preview-button-${idx}`}
-                  style={{
-                    display: "grid",
-                    gap: 4,
-                    padding: "10px 12px",
-                    border: "1px solid var(--stroke)",
-                    borderRadius: 10,
-                    background: "var(--card)"
-                  }}
-                >
-                  <div style={{ fontWeight: 600 }}>{button.text}</div>
-                  <div className="muted" style={{ fontSize: 12 }}>
-                    {button.type === "URL"
-                      ? mappedValue
-                        ? `Variable del botón: ${mappedValue}`
-                        : "Botón URL: requiere seleccionar una variable"
-                      : `Botón ${button.type || "estático"}: no requiere variable`}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-      <div className="field">
-        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span>Parámetros</span>
-          <HelpTip text="Se abren según la plantilla seleccionada. Valores para {{1}}, {{2}}, {{3}}..." />
-        </label>
-        {bodyParamCount || headerParamCount || buttonParamCount ? (
-          <div style={{ display: "grid", gap: 10 }}>
-            {bodyParamCount ? (
-              <div style={{ display: "grid", gap: 6 }}>
-                <div className="muted">Mensaje</div>
-                {Array.from({ length: bodyParamCount }).map((_, idx) => (
-                  <select
-                    key={`param-body-${idx}`}
-                    className="select select-compact"
-                    value={bodyParams[idx] || ""}
-                    onChange={(e) => {
-                      const next = bodyParams.slice();
-                      next[idx] = e.target.value;
-                      setBodyParams(next);
-                    }}
-                  >
-                    <option value="">{`{{${idx + 1}}} · Selecciona variable`}</option>
-                    {variables.map((v) => (
-                      <option key={`${idx}-${v.value}`} value={v.value}>
-                        {v.recommended ? `Recomendada · ${v.label}` : v.label}
-                      </option>
-                    ))}
-                  </select>
-                ))}
-              </div>
-            ) : null}
-            {headerParamCount ? (
-              <div style={{ display: "grid", gap: 6 }}>
-                <div className="muted">Encabezado</div>
-                {Array.from({ length: headerParamCount }).map((_, idx) => (
-                  <select
-                    key={`param-header-${idx}`}
-                    className="select select-compact"
-                    value={headerParams[idx] || ""}
-                    onChange={(e) => {
-                      const next = headerParams.slice();
-                      next[idx] = e.target.value;
-                      setHeaderParams(next);
-                    }}
-                  >
-                    <option value="">{`{{${idx + 1}}} · Selecciona variable`}</option>
-                    {variables.map((v) => (
-                      <option key={`h-${idx}-${v.value}`} value={v.value}>
-                        {v.recommended ? `Recomendada · ${v.label}` : v.label}
-                      </option>
-                    ))}
-                  </select>
-                ))}
-              </div>
-            ) : null}
-            {buttonParamCount ? (
-              <div style={{ display: "grid", gap: 6 }}>
-                <div className="muted">Botones</div>
-                {Array.from({ length: buttonParamCount }).map((_, idx) => (
-                  <select
-                    key={`param-button-${idx}`}
-                    className="select select-compact"
-                    value={buttonParams[idx] || ""}
-                    onChange={(e) => {
-                      const next = buttonParams.slice();
-                      next[idx] = e.target.value;
-                      setButtonParams(next);
-                    }}
-                  >
-                    <option value="">{`Botón ${idx + 1} · Selecciona variable`}</option>
-                    {buttonVariables.map((v) => (
-                      <option key={`b-${idx}-${v.value}`} value={v.value}>
-                        {v.recommended ? `Recomendada · ${v.label}` : v.label}
-                      </option>
-                    ))}
-                  </select>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <div className="field-hint">Esta plantilla no requiere variables.</div>
-        )}
-        <input type="hidden" name="waParams" value={bodyParams.join("|")} />
-        <input type="hidden" name="waBodyParams" value={bodyParams.join("|")} />
-        <input type="hidden" name="waHeaderParams" value={headerParams.join("|")} />
-        <input type="hidden" name="waButtonParams" value={buttonParams.join("|")} />
-      </div>
-    </>
-  );
-}
-
-function secondsFromOffset(item: OffsetItem, sign: 1 | -1) {
-  const amount = Number(item.amount || 0);
-  const base = item.unit === "days" ? amount * 24 * 60 * 60 : item.unit === "hours" ? amount * 60 * 60 : amount * 60;
-  return Math.trunc(base * sign);
-}
-
-function offsetsToItems(offsets?: number[], sign: 1 | -1 = -1): OffsetItem[] {
-  if (!offsets?.length) return [{ amount: "1", unit: "days" }];
-  return offsets.map((sec) => {
-    const abs = Math.abs(Number(sec));
-    if (abs % (24 * 60 * 60) === 0) return { amount: String(abs / (24 * 60 * 60)), unit: "days" };
-    if (abs % (60 * 60) === 0) return { amount: String(abs / (60 * 60)), unit: "hours" };
-    return { amount: String(abs / 60), unit: "minutes" };
-  });
-}
-
+/**
+ * Lista de notificaciones de WhatsApp (en Ajustes). Solo lista: configurar una notificación
+ * abre /notifications/[id] (antes un modal de 900 px). Cada fila trae su interruptor y un
+ * enlace "Configurar".
+ *
+ * `returnTo` es la URL de esta lista; a ella vuelve el editor al guardar o cancelar.
+ */
 export function NotificationsSimple({
   env,
   csrfToken,
   templates,
   rules,
   paymentsConfig,
-  actions
+  actions,
+  returnTo
 }: {
   env: Env;
   csrfToken: string;
@@ -480,307 +30,81 @@ export function NotificationsSimple({
   rules: Rule[];
   paymentsConfig?: { notifyWhatsappForUnlinkedPayments?: boolean | null } | null;
   actions: {
-    saveRealtime: (formData: FormData) => void;
-    saveReminder: (formData: FormData) => void;
+    saveRealtime?: (formData: FormData) => void;
+    saveReminder?: (formData: FormData) => void;
     toggleRule: (formData: FormData) => void;
     updatePaymentsConfig: (formData: FormData) => void;
   };
+  returnTo?: string;
 }) {
-  const templateById = useMemo(() => {
-    const map = new Map<string, Template>();
-    templates.forEach((t) => map.set(String(t.id), t));
-    return map;
-  }, [templates]);
+  const router = useRouter();
+  const listUrl = returnTo || `/settings?tab=notificaciones-whatsapp&env=${env}`;
+  const entries = useMemo(() => buildNotificationEntries(templates, rules), [templates, rules]);
 
-  const reminderTemplateById = useMemo(() => {
-    return {
-      dueLink: templateById.get(REMINDER_TPL_DUE_LINK) || null,
-      dueSubscription: templateById.get(REMINDER_TPL_DUE_SUBSCRIPTION) || null,
-      moraLink: templateById.get(REMINDER_TPL_MORA_LINK) || null,
-      moraSubscription: templateById.get(REMINDER_TPL_MORA_SUBSCRIPTION) || null
-    };
-  }, [templateById]);
-
-  const rulesByKey = useMemo(() => {
-    const map = new Map<string, Rule>();
-    for (const rt of REALTIME_TYPES) {
-      const match = rules.find((r) => {
-        if (r.trigger !== rt.trigger) return false;
-        const types = r.conditions?.requirePaymentTypeIn;
-        if (!rt.paymentType) return !types || !types.length;
-        return Array.isArray(types) && types.includes(rt.paymentType);
-      });
-      const fallback = !match && !rt.paymentType ? rules.find((r) => r.trigger === rt.trigger) : null;
-      if (match) map.set(rt.key, match);
-      else if (fallback) map.set(rt.key, fallback);
-    }
-    return map;
-  }, [rules]);
-
-  const templateForKey = (key: RealtimeNotificationKey, chatwootType?: Template["chatwootType"], label?: string, aliases?: string[]) => {
-    const rule = rulesByKey.get(key);
-    if (rule) {
-      const tpl = templateById.get(String(rule.templateId));
-      if (tpl) return tpl;
-    }
-    const candidateNames = [label, ...(aliases || [])].filter(Boolean) as string[];
-    const found = templates.find((t) => t.chatwootType === chatwootType && candidateNames.includes(t.name));
-    return found || null;
-  };
-
-  const findReminderRule = (kind: "DUE" | "MORA", paymentType: "LINK" | "SUBSCRIPTION") => {
-    return rules.find((r) => {
-      if (r.trigger !== "SUBSCRIPTION_DUE") return false;
-      const offsets = r.offsetsSeconds || [];
-      const isDue = offsets.some((s) => Number(s) <= 0);
-      const isMora = offsets.some((s) => Number(s) > 0);
-      if (kind === "DUE" && !isDue) return false;
-      if (kind === "MORA" && !isMora) return false;
-      const types = r.conditions?.requirePaymentTypeIn;
-      if (paymentType === "SUBSCRIPTION") return Array.isArray(types) && types.includes("SUBSCRIPTION");
-      if (!types || !types.length) return true;
-      return Array.isArray(types) && types.includes("LINK");
-    });
-  };
-
-  const reminderRuleByKey = useMemo(() => {
-    return {
-      dueLink: findReminderRule("DUE", "LINK"),
-      dueSubscription: findReminderRule("DUE", "SUBSCRIPTION"),
-      moraLink: findReminderRule("MORA", "LINK"),
-      moraSubscription: findReminderRule("MORA", "SUBSCRIPTION")
-    };
-  }, [rules]);
-
-  const lastFieldRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
-  const [pickerOpen, setPickerOpen] = useState<null | "vars">(null);
-  const [activeModal, setActiveModal] = useState<
-    null | { type: "realtime"; key: RealtimeNotificationKey } | { type: "reminder"; kind: "DUE" | "MORA"; paymentType: "LINK" | "SUBSCRIPTION" }
-  >(null);
-  const [wizardStep, setWizardStep] = useState<1 | 2>(1);
-  const [reminderOffsets, setReminderOffsets] = useState<OffsetItem[]>([]);
-
-  const [waTemplates, setWaTemplates] = useState<ChatwootTemplate[]>([]);
-  const [waLoading, setWaLoading] = useState(false);
-  const [waError, setWaError] = useState("");
-  const loadWaTemplates = useCallback(async () => {
-    setWaLoading(true);
-    setWaError("");
-    try {
-      const res = await fetch("/admin/comms?op=whatsapp_templates", { cache: "no-store" });
-      const json = await res.json().catch(() => null);
-      if (res.ok && json?.ok && Array.isArray(json.templates)) {
-        setWaTemplates(json.templates);
-      } else {
-        setWaTemplates([]);
-        setWaError(String(json?.error || "No se pudieron cargar las plantillas"));
-      }
-    } catch (err: any) {
-      setWaTemplates([]);
-      setWaError(String(err?.message || "No se pudieron cargar las plantillas"));
-    } finally {
-      setWaLoading(false);
-    }
-  }, []);
-
+  // Enlaces antiguos (`?open=<clave>`) abrían el modal de esa notificación: ahora llevan a su página.
   useEffect(() => {
-    loadWaTemplates();
-  }, [loadWaTemplates, env]);
-
-  const getReminderTemplate = (kind: "DUE" | "MORA", paymentType: "LINK" | "SUBSCRIPTION") => {
-    if (kind === "DUE" && paymentType === "LINK") return reminderTemplateById.dueLink;
-    if (kind === "DUE") return reminderTemplateById.dueSubscription;
-    if (kind === "MORA" && paymentType === "LINK") return reminderTemplateById.moraLink;
-    return reminderTemplateById.moraSubscription;
-  };
-
-  const getReminderRule = (kind: "DUE" | "MORA", paymentType: "LINK" | "SUBSCRIPTION") => {
-    if (kind === "DUE" && paymentType === "LINK") return reminderRuleByKey.dueLink;
-    if (kind === "DUE") return reminderRuleByKey.dueSubscription;
-    if (kind === "MORA" && paymentType === "LINK") return reminderRuleByKey.moraLink;
-    return reminderRuleByKey.moraSubscription;
-  };
-
-  function onPickValue(value: string) {
-    if (lastFieldRef.current) insertAtCursor(lastFieldRef.current, value);
-    setPickerOpen(null);
-  }
-
-  const pendingRealtime = REALTIME_TYPES;
-
-  useEffect(() => {
-    if (!activeModal) return;
-    setWizardStep(1);
-    if (activeModal.type === "realtime") {
-      const rt = REALTIME_TYPES.find((r) => r.key === activeModal.key);
-      if (!rt) return;
-      templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
-      setWizardStep(2);
-      return;
+    const open = String(new URLSearchParams(window.location.search).get("open") || "").trim();
+    if (open && entries.some((entry) => entry.id === open)) {
+      router.replace(withReturnTo(`/notifications/${encodeURIComponent(open)}?env=${env}`, listUrl));
     }
-    const rule = getReminderRule(activeModal.kind, activeModal.paymentType);
-    const tpl = getReminderTemplate(activeModal.kind, activeModal.paymentType);
-    const isDue = activeModal.kind === "DUE";
-    const offsets = offsetsToItems(rule?.offsetsSeconds, isDue ? -1 : 1);
-    setReminderOffsets(offsets);
-    setWizardStep(2);
-  }, [activeModal]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const open = String(params.get("open") || "").trim();
-    if (!open) return;
-    const key = open as RealtimeNotificationKey;
-    const exists = REALTIME_TYPES.some((r) => r.key === key);
-    if (exists) {
-      setActiveModal({ type: "realtime", key });
-    }
-  }, []);
-  const listItems = [
-    ...pendingRealtime.map((rt) => {
-      const rule = rulesByKey.get(rt.key);
-      const tpl = templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
-      const kindLabel = "Plantilla WhatsApp";
-      const isConfigured = Boolean(rule && isNotificationTemplateConfigured(tpl));
-      const statusLabel = isConfigured ? (rule?.enabled ? "Activa" : "Inactiva") : "No configurada";
-      const statusPill = isConfigured ? (rule?.enabled ? "pill-green" : "pill-muted") : "pill-muted";
-      return {
-        id: `realtime:${rt.key}`,
-        label: rt.label,
-        subtitle: kindLabel,
-        statusLabel,
-        statusPill,
-        ruleId: rule?.id || "",
-        enabled: Boolean(rule?.enabled),
-        onClick: () => setActiveModal({ type: "realtime", key: rt.key })
-      };
-    }),
-    ...REMINDER_TYPES.map((rt) => {
-      const rule = getReminderRule(rt.kind, rt.paymentType);
-      const tpl = getReminderTemplate(rt.kind, rt.paymentType);
-      const kindLabel = "Plantilla WhatsApp";
-      const isConfigured = Boolean(rule && isNotificationTemplateConfigured(tpl));
-      const statusLabel = isConfigured ? (rule?.enabled ? "Activa" : "Inactiva") : "No configurada";
-      const statusPill = isConfigured && rule?.enabled ? "pill-green" : "pill-muted";
-      return {
-        id: `reminder:${rt.key}`,
-        label: rt.label,
-        subtitle: rt.kind === "DUE" ? "Antes del vencimiento" : "Después del vencimiento",
-        statusLabel,
-        statusPill,
-        ruleId: rule?.id || "",
-        enabled: Boolean(rule?.enabled),
-        onClick: () => setActiveModal({ type: "reminder", kind: rt.kind, paymentType: rt.paymentType })
-      };
-    })
-  ];
-
-  const getReminderTemplateId = (kind: "DUE" | "MORA", paymentType: "LINK" | "SUBSCRIPTION") => {
-    if (kind === "DUE" && paymentType === "LINK") return REMINDER_TPL_DUE_LINK;
-    if (kind === "DUE") return REMINDER_TPL_DUE_SUBSCRIPTION;
-    if (kind === "MORA" && paymentType === "LINK") return REMINDER_TPL_MORA_LINK;
-    return REMINDER_TPL_MORA_SUBSCRIPTION;
-  };
-
-  const activeReminder =
-    activeModal?.type === "reminder"
-      ? {
-          rule: getReminderRule(activeModal.kind, activeModal.paymentType),
-          template: getReminderTemplate(activeModal.kind, activeModal.paymentType),
-          templateId: getReminderTemplateId(activeModal.kind, activeModal.paymentType)
-        }
-      : null;
-  const activeModalTitle = (() => {
-    if (!activeModal) return "";
-    if (activeModal.type === "realtime") {
-      const rt = REALTIME_TYPES.find((r) => r.key === activeModal.key);
-      return rt ? `Notificación: ${rt.label}` : "Configurar notificación";
-    }
-    const reminder = REMINDER_TYPES.find((item) => item.kind === activeModal.kind && item.paymentType === activeModal.paymentType);
-    return reminder ? `Notificación: ${reminder.label}` : "Configurar recordatorio";
-  })();
+  }, [entries, env, listUrl, router]);
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div className="notif-config">
       <div className="settings-group-header">
         <div className="settings-group-header-main">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <h3>Notificaciones WhatsApp</h3>
+          <div className="notif-heading">
+            <h2>Notificaciones WhatsApp</h2>
             <HelpTip text="Crea notificaciones personalizadas por evento y configura los recordatorios automáticos." />
           </div>
         </div>
       </div>
-      <AppModal
-        open={Boolean(pickerOpen)}
-        onClose={() => setPickerOpen(null)}
-        title={pickerOpen === "vars" ? "Variables" : "Emojis"}
-        maxWidth={640}
-      >
-        <div className="panel module" style={{ display: "grid", gap: 6 }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {ALL_NOTIFICATION_VARIABLE_OPTIONS.map((item) => {
-              const label = item.label;
-              const value = item.value;
-              return (
-                <button key={value} type="button" className="ghost" onClick={() => onPickValue(value)} style={{ minHeight: 32 }} data-loader="off">
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </AppModal>
+
       <section className="settings-group notifications-templates-section">
         <div className="settings-group-header">
           <div className="settings-group-header-main">
             <h3>Lista de notificaciones</h3>
           </div>
-          <div className="settings-group-header-actions">
-            <button className="ghost btn-compact" type="button" onClick={loadWaTemplates} data-loader="off">
-              {waLoading ? "Sincronizando..." : "Sincronizar plantillas WhatsApp"}
-            </button>
-            {waError ? <span className="muted" style={{ fontSize: 12 }}>{waError}</span> : null}
-          </div>
         </div>
         <div className="settings-group-body">
-          <div style={{ display: "grid", gap: 8 }}>
-            {listItems.map((item) => (
-              <div
-                key={item.id}
-                className="card cardPad"
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 10px" }}
-              >
-                <div>
-                  <strong>{item.label}</strong>
-                  <div className="muted" style={{ fontSize: 11 }}>{item.subtitle}</div>
+          <div className="notif-list">
+            {entries.map((item) => {
+              const href = withReturnTo(`/notifications/${encodeURIComponent(item.id)}?env=${env}`, listUrl);
+              return (
+                <div key={item.id} className="card cardPad notif-row">
+                  <div className="notif-row-main">
+                    <strong>{item.label}</strong>
+                    <div className="muted notif-row-sub">{item.subtitle}</div>
+                  </div>
+                  <div className="notif-row-controls">
+                    <span className={`pill ${item.statusPill}`}>{item.statusLabel}</span>
+                    {item.ruleId ? (
+                      <form
+                        action={actions.toggleRule}
+                        onChange={(e) => {
+                          const form = (e.currentTarget as HTMLFormElement) || null;
+                          form?.requestSubmit();
+                        }}
+                        data-loader="off"
+                      >
+                        <input type="hidden" name="csrf" value={csrfToken} />
+                        <input type="hidden" name="environment" value={env} />
+                        <input type="hidden" name="ruleId" value={item.ruleId} />
+                        <input type="hidden" name="returnTo" value={listUrl} />
+                        <input type="hidden" name="enabled" value={item.enabled ? "0" : "1"} />
+                        <label className="toggleControl" aria-label={`${item.enabled ? "Apagar" : "Prender"}: ${item.label}`} data-loader="off">
+                          <input className="toggleInput" type="checkbox" defaultChecked={item.enabled} data-loader="off" />
+                          <span className="toggle" aria-hidden="true" />
+                        </label>
+                      </form>
+                    ) : null}
+                    <Link className="primary btn-compact" href={href} data-loader="off" aria-label={`Configurar ${item.label}`}>
+                      Configurar
+                    </Link>
+                  </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span className={`pill ${item.statusPill}`}>{item.statusLabel}</span>
-                  {item.ruleId ? (
-                    <form
-                      action={actions.toggleRule}
-                      onChange={(e) => {
-                        const form = (e.currentTarget as HTMLFormElement) || null;
-                        form?.requestSubmit();
-                      }}
-                      data-loader="off"
-                    >
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="environment" value={env} />
-                      <input type="hidden" name="ruleId" value={item.ruleId} />
-                      <input type="hidden" name="enabled" value={item.enabled ? "0" : "1"} />
-                      <label className="toggleControl" aria-label={item.enabled ? "Apagar" : "Prender"} data-loader="off">
-                        <input className="toggleInput" type="checkbox" defaultChecked={item.enabled} data-loader="off" />
-                        <span className="toggle" aria-hidden="true" />
-                      </label>
-                    </form>
-                  ) : null}
-                  <button className="primary btn-compact" type="button" onClick={item.onClick} data-loader="off">
-                    Configurar
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -788,7 +112,7 @@ export function NotificationsSimple({
       <section className="settings-group">
         <div className="settings-group-header">
           <div className="settings-group-header-main">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="notif-heading">
               <h3>Pagos externos</h3>
               <HelpTip text="Controla si se notifican pagos sin suscripción asociada." />
             </div>
@@ -809,9 +133,7 @@ export function NotificationsSimple({
             <input type="hidden" name="returnTo" value="/settings?tab=notificaciones-whatsapp" />
             <div className="toggleRow">
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <strong>Notificar pagos externos</strong>
-                </div>
+                <strong>Notificar pagos externos</strong>
                 <div className="field-hint">Aplica a pagos sin suscripción activa o no asociados.</div>
               </div>
               <label className="toggleControl" aria-label="Notificar pagos externos">
@@ -830,154 +152,6 @@ export function NotificationsSimple({
           </form>
         </div>
       </section>
-      <AppModal
-        open={Boolean(activeModal)}
-        onClose={() => setActiveModal(null)}
-        title={activeModalTitle}
-        maxWidth={900}
-      >
-        {activeModal?.type === "realtime" ? (
-          (() => {
-            const rt = REALTIME_TYPES.find((r) => r.key === activeModal.key);
-            if (!rt) return null;
-            const tpl = templateForKey(rt.key, rt.chatwootType, rt.label, rt.aliases);
-            const rule = rulesByKey.get(rt.key);
-            const waName = tpl?.chatwootTemplate?.name || "";
-            const waLang = tpl?.chatwootTemplate?.language || "es";
-            const waBodyParams = tpl?.chatwootTemplate?.processed_params?.body || [];
-            const waHeaderParams = tpl?.chatwootTemplate?.processed_params?.header || [];
-            const waButtonParams = tpl?.chatwootTemplate?.processed_params?.buttons || [];
-            const variableMatrix = getRealtimeVariableMatrix(rt.key);
-            return (
-              <form action={actions.saveRealtime} className="notification-form" style={{ display: "grid", gap: 10 }}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="environment" value={env} />
-                <input type="hidden" name="key" value={rt.key} />
-                <input type="hidden" name="chatwootType" value={rt.chatwootType || ""} />
-                <input type="hidden" name="paymentType" value={rt.paymentType || ""} />
-                <input type="hidden" name="templateKind" value="WHATSAPP_TEMPLATE" />
-                <input type="hidden" name="enabled" value={(rule?.enabled ?? true) ? "on" : ""} />
-                <div className="field row" style={{ justifyContent: "space-between" }}>
-                  <div className="muted">Canal: WhatsApp</div>
-                </div>
-                <div className="field-hint">
-                  Solo se aceptan plantillas WhatsApp activas. No se usan mensajes libres en estos envíos.
-                  {" "}
-                  {variableMatrix.helpText}
-                </div>
-                <WaTemplateFields
-                  templates={waTemplates}
-                  defaultName={waName}
-                  defaultLang={waLang}
-                  defaultParams={defaultTemplateParamString(waBodyParams, "body")}
-                  defaultHeaderParams={defaultTemplateParamString(waHeaderParams, "header")}
-                  defaultButtonParams={defaultTemplateParamString(waButtonParams, "buttons")}
-                  variables={variableMatrix.bodyVariables}
-                  buttonVariables={variableMatrix.buttonVariables}
-                />
-                <div className="module-footer">
-                  <button
-                    className="ghost btn-compact btn-cancel"
-                    type="button"
-                    onClick={() => setActiveModal(null)}
-                    data-modal-close="true"
-                    data-loader="off"
-                    title="Cerrar sin guardar"
-                    aria-label="Cancelar"
-                  >
-                    Cancelar
-                  </button>
-                  <PendingButton
-                    className="primary btn-compact btn-save"
-                    type="submit"
-                    pendingText="Guardando..."
-                    title="Guardar notificación"
-                    aria-label="Guardar cambios"
-                  >
-                    Guardar
-                  </PendingButton>
-                </div>
-              </form>
-            );
-          })()
-        ) : null}
-        {activeModal?.type === "reminder" ? (
-          (() => {
-            const variableMatrix = getReminderVariableMatrix({
-              kind: activeModal.kind,
-              paymentType: activeModal.paymentType
-            });
-            return (
-          <form action={actions.saveReminder} className="notification-form" style={{ display: "grid", gap: 10 }}>
-            <input type="hidden" name="csrf" value={csrfToken} />
-            <input type="hidden" name="environment" value={env} />
-            <input type="hidden" name="kind" value={activeModal.kind} />
-            <input type="hidden" name="paymentType" value={activeModal.paymentType} />
-            <input type="hidden" name="templateId" value={activeReminder?.templateId || ""} />
-            <input type="hidden" name="templateKind" value="WHATSAPP_TEMPLATE" />
-            <input
-              type="hidden"
-              name="enabled"
-              value={(activeReminder?.rule?.enabled ?? true) ? "on" : ""}
-            />
-            <div className="field row" style={{ justifyContent: "space-between" }}>
-              <div className="muted">Canal: WhatsApp</div>
-            </div>
-            <div className="field-hint">
-              Solo se aceptan plantillas WhatsApp activas. No se usan mensajes libres en estos envíos.
-              {" "}
-              {variableMatrix.helpText}
-            </div>
-            <WaTemplateFields
-              templates={waTemplates}
-              defaultName={activeReminder?.template?.chatwootTemplate?.name || ""}
-              defaultLang={activeReminder?.template?.chatwootTemplate?.language || "es"}
-              defaultParams={
-                defaultTemplateParamString(activeReminder?.template?.chatwootTemplate?.processed_params?.body, "body")
-              }
-              defaultHeaderParams={
-                defaultTemplateParamString(activeReminder?.template?.chatwootTemplate?.processed_params?.header, "header")
-              }
-              defaultButtonParams={
-                defaultTemplateParamString(activeReminder?.template?.chatwootTemplate?.processed_params?.buttons, "buttons")
-              }
-              variables={variableMatrix.bodyVariables}
-              buttonVariables={variableMatrix.buttonVariables}
-            />
-            <input
-              type="hidden"
-              name="offsetsSeconds"
-              value={reminderOffsets
-                .map((o) => secondsFromOffset(o, activeModal.kind === "DUE" ? -1 : 1))
-                .join(",")}
-            />
-            <div className="module-footer">
-              <button
-                className="ghost btn-compact btn-cancel"
-                type="button"
-                onClick={() => setActiveModal(null)}
-                data-modal-close="true"
-                data-loader="off"
-                title="Cerrar sin guardar"
-                aria-label="Cancelar"
-              >
-                Cancelar
-              </button>
-              <PendingButton
-                className="primary btn-compact btn-save"
-                type="submit"
-                pendingText="Guardando..."
-                title="Guardar configuración de recordatorio"
-                aria-label="Guardar cambios"
-              >
-                Guardar
-              </PendingButton>
-            </div>
-          </form>
-            );
-          })()
-        ) : null}
-      </AppModal>
     </div>
   );
 }

@@ -1,0 +1,140 @@
+/* Productos y servicios: lista, formularios y páginas dedicadas. Solo tokens del sistema. */
+
+/* ── Lista (sin scroll interno: nada de overflow auto/scroll) ────────────── */
+.products-list {
+  display: grid;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  min-width: 0;
+}
+.products-list-header,
+.products-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) 76px;
+  gap: var(--space-3);
+  align-items: center;
+  padding: 8px 12px;
+}
+.products-list-header {
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-strong);
+  border-bottom: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--bg) 55%, var(--panel));
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+.products-list-header > span:last-child { text-align: right; }
+.products-list-row { border-bottom: 1px solid color-mix(in srgb, var(--stroke) 78%, transparent); }
+.products-list-row:last-child { border-bottom: 0; }
+.products-list-row:hover { background: color-mix(in srgb, var(--primary-soft) 60%, transparent); }
+.products-list-cell { min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+.products-list-main { display: grid; gap: 2px; }
+.products-list-meta { display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; color: var(--text-faint); }
+.products-list-price { font-weight: 600; color: var(--text-strong); }
+.products-list-actions { display: flex; justify-content: flex-end; }
+.products-name-link { font-weight: 600; color: var(--text-strong); text-decoration: none; overflow-wrap: anywhere; }
+.products-name-link:hover { color: var(--primary); text-decoration: underline; }
+.products-name-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+.products-card-title { min-width: 0; }
+
+@media (max-width: 700px) {
+  .products-list-header { display: none; }
+  .products-list-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "main actions" "price price" "subs subs";
+    gap: 4px var(--space-3);
+  }
+  .products-list-main { grid-area: main; }
+  .products-list-actions { grid-area: actions; align-self: start; }
+  .products-list-price { grid-area: price; }
+  .products-list-row > [data-label="Suscripciones"] { grid-area: subs; }
+  .products-list-cell[data-label]::before {
+    content: attr(data-label) ": ";
+    font-weight: 400;
+    color: var(--text-faint);
+  }
+}
+
+/* ── Formulario de producto ───────────────────────────────────────────────── */
+.product-form .field { min-width: 0; }
+.product-form .page-shell-form-grid { align-items: start; }
+.product-form .input,
+.product-form .select { max-width: 100%; }
+.product-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.product-legend { padding: 0; margin-bottom: 4px; font-size: 12.5px; font-weight: 600; color: var(--text-strong); }
+.product-check-list { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.product-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.product-image-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.product-image-row .logo-preview { max-width: 120px; max-height: 120px; height: auto; }
+.product-form input:focus-visible,
+.product-form select:focus-visible,
+.product-form textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.product-delete-text { margin: 0; font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere; }
+
+/* Variantes */
+.variants-editor { border: 1px solid var(--stroke); border-radius: var(--radius-md); padding: 10px; display: grid; gap: 10px; min-width: 0; }
+.variants-editor-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.variants-editor-rows { display: grid; gap: 8px; }
+.variants-editor-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.variants-editor-row.has-option2 { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+@media (max-width: 700px) {
+  .variants-editor-row,
+  .variants-editor-row.has-option2 { grid-template-columns: minmax(0, 1fr) auto; }
+  .variants-editor-row > .field { grid-column: 1 / -1; }
+  .variants-editor-row > button { grid-column: 1 / -1; justify-self: start; }
+}
+
+/* ── Transacciones ────────────────────────────────────────────────────────── */
+.tx-table { table-layout: fixed; }
+.tx-table .mono { font-family: var(--font-mono); }
+@media (max-width: 700px) {
+  .tx-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .tx-table,
+  .tx-table tbody,
+  .tx-table tr,
+  .tx-table td { display: block; width: 100%; }
+  .tx-table tr { border: 1px solid var(--stroke); border-radius: var(--radius-md); padding: 6px 10px; margin-bottom: 8px; }
+  .tx-table td { border-bottom: 0; padding: 3px 0; display: flex; gap: 8px; justify-content: space-between; }
+  .tx-table td::before { content: attr(data-label); color: var(--text-faint); flex: 0 0 auto; }
+}
+
+/* ── Enviar producto ──────────────────────────────────────────────────────── */
+.send-product-summary-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.send-product-thumb { flex: 0 0 56px; width: 56px; height: 56px; border-radius: var(--radius-md); border: 1px solid var(--stroke); display: grid; place-items: center; overflow: hidden; background: var(--bg); }
+.send-product-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.send-product-summary-text { min-width: 0; display: grid; gap: 2px; }
+.send-selected { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; border: 1px solid var(--stroke); border-radius: var(--radius-md); padding: 8px 10px; }
+.send-selected-text { min-width: 0; overflow-wrap: anywhere; }
+.send-selected-name { font-weight: 600; color: var(--text-strong); overflow-wrap: anywhere; }
+.send-results { display: grid; gap: 6px; }
+.send-result {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; text-align: left;
+  width: 100%; padding: 8px 10px; border: 1px solid var(--stroke); border-radius: var(--radius-md);
+  background: var(--panel); color: inherit; cursor: pointer; font: inherit;
+}
+.send-result:hover { background: color-mix(in srgb, var(--primary-soft) 60%, transparent); }
+.send-result:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.send-result.is-selected { border-color: var(--primary); }
+.send-result-name { font-weight: 600; overflow-wrap: anywhere; }
+.send-result-meta { grid-column: 1; font-size: 12px; color: var(--text-faint); overflow-wrap: anywhere; }
+.send-result-tags { grid-column: 2; grid-row: 1 / span 2; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; justify-content: flex-end; }
+.send-config-link { margin-top: 6px; }
+@media (max-width: 700px) {
+  .send-result { grid-template-columns: minmax(0, 1fr); }
+  .send-result-tags { grid-column: 1; grid-row: auto; justify-content: flex-start; }
+}
+
+/* ── Crear suscripción desde producto ─────────────────────────────────────── */
+.product-subscription-page { min-width: 0; }
+.product-subscription-page .panel { max-width: 100%; }
+.product-subscription-page .input,
+.product-subscription-page .select { min-width: 0; max-width: 100%; }
+/* El formulario compartido arma columnas con estilos en línea ("1fr 1fr"): en móvil
+   los campos de fecha las ensanchan más que la pantalla. Se apilan y pueden encogerse. */
+@media (max-width: 700px) {
+  .product-subscription-page [style*="grid-template-columns"] { grid-template-columns: minmax(0, 1fr) !important; }
+}

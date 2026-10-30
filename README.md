@@ -75,8 +75,13 @@ Esta guía es **solo para local**. El seed de demo NO se usa en producción.
 ```bash
 cp .env.example .env
 docker compose up -d
-docker exec -it -w /app wompi-admin npm -w packages/database run prisma:migrate:deploy
-docker exec -it -w /app wompi-admin npm run seed:local
+
+# La imagen del admin es standalone (sin npm ni el repo), así que migraciones
+# y seed se corren desde el repo, contra el Postgres publicado en el puerto 5433.
+npm ci --include=dev
+export DATABASE_URL="postgresql://wompi_subs:${POSTGRES_PASSWORD:-wompi_subs}@localhost:5433/wompi_subs?schema=public"
+npm run prisma:migrate:deploy -w packages/database
+npm run seed:local
 ```
 
 `seed:local` crea el dataset curado de MdV: 31 suscripciones sobre solo 3 planes canónicos (`Suscripción Alpha`, `Suscripción Omega`, `Suscripción Delta`), con pricing y flete en metadata y ciclos reales en `SubscriptionBillingCycle`.
@@ -144,7 +149,7 @@ pg_dump "$DATABASE_URL" > "backup-$(date +%F-%H%M%S).sql"
 ## 4) Instalación y build
 ```bash
 cd /srv/apiflujos/mdv/suscripciones
-npm ci
+npm ci --include=dev
 npm run db:generate
 npm run build -w apps/admin
 ```
@@ -233,7 +238,7 @@ set -a
 source .env
 set +a
 git pull --ff-only
-npm ci
+npm ci --include=dev
 npm run db:generate
 npm run prisma:migrate:deploy -w packages/database
 npm run build -w apps/admin

@@ -20,6 +20,16 @@ function safeReturnTo(formData: FormData) {
   return raw.startsWith("/empresas") ? raw : "/empresas";
 }
 
+/** Agrega ?clave=valor (o &clave=valor si la ruta ya trae query). */
+function withParam(path: string, key: string, value: string) {
+  return `${path}${path.includes("?") ? "&" : "?"}${key}=${value}`;
+}
+
+/** redirect() lanza una excepción especial: no hay que tratarla como un error. */
+function rethrowRedirect(err: unknown) {
+  if (String((err as any)?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
+}
+
 function toShortErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
   return raw.replace(/\s+/g, " ").trim().slice(0, 220) || "unknown_error";
@@ -80,24 +90,24 @@ export async function createEmpresa(formData: FormData) {
   const tenantId = String(formData.get("tenantId") || "").trim();
   const returnTo = safeReturnTo(formData);
 
-  if (!nombre) redirect(`${returnTo}?error=nombre_requerido`);
+  if (!nombre) redirect(withParam(returnTo, "error", `nombre_requerido`));
   if (email) {
     try {
       assertValidEmail(email);
     } catch {
-      redirect(`${returnTo}?error=email_invalido`);
+      redirect(withParam(returnTo, "error", `email_invalido`));
     }
   }
 
   const contacts = normalizeContacts(parseContacts(contactsJson));
   for (const contact of contacts) {
-    if (!contact.nombre) redirect(`${returnTo}?error=contacto_sin_nombre`);
-    if (!contact.cargo) redirect(`${returnTo}?error=contacto_sin_cargo`);
+    if (!contact.nombre) redirect(withParam(returnTo, "error", `contacto_sin_nombre`));
+    if (!contact.cargo) redirect(withParam(returnTo, "error", `contacto_sin_cargo`));
     if (contact.email) {
       try {
         assertValidEmail(contact.email);
       } catch {
-        redirect(`${returnTo}?error=contacto_email_invalido`);
+        redirect(withParam(returnTo, "error", `contacto_email_invalido`));
       }
     }
   }
@@ -167,7 +177,8 @@ export async function createEmpresa(formData: FormData) {
     });
     redirect(`/empresas/${result.id}?created=1`);
   } catch (err) {
-    redirect(`${returnTo}?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    rethrowRedirect(err);
+    redirect(withParam(returnTo, "error", `${encodeURIComponent(toShortErrorMessage(err))}`));
   }
 }
 
@@ -183,25 +194,25 @@ export async function updateEmpresa(formData: FormData) {
   const contactoPrincipalKey = String(formData.get("contactoPrincipalKey") || "").trim();
   const returnTo = safeReturnTo(formData);
 
-  if (!id) redirect(`${returnTo}?error=empresa_no_encontrada`);
-  if (!nombre) redirect(`${returnTo}?error=nombre_requerido`);
+  if (!id) redirect(withParam(returnTo, "error", `empresa_no_encontrada`));
+  if (!nombre) redirect(withParam(returnTo, "error", `nombre_requerido`));
   if (email) {
     try {
       assertValidEmail(email);
     } catch {
-      redirect(`${returnTo}?error=email_invalido`);
+      redirect(withParam(returnTo, "error", `email_invalido`));
     }
   }
 
   const contacts = normalizeContacts(parseContacts(contactsJson));
   for (const contact of contacts) {
-    if (!contact.nombre) redirect(`${returnTo}?error=contacto_sin_nombre`);
-    if (!contact.cargo) redirect(`${returnTo}?error=contacto_sin_cargo`);
+    if (!contact.nombre) redirect(withParam(returnTo, "error", `contacto_sin_nombre`));
+    if (!contact.cargo) redirect(withParam(returnTo, "error", `contacto_sin_cargo`));
     if (contact.email) {
       try {
         assertValidEmail(contact.email);
       } catch {
-        redirect(`${returnTo}?error=contacto_email_invalido`);
+        redirect(withParam(returnTo, "error", `contacto_email_invalido`));
       }
     }
   }
@@ -287,6 +298,7 @@ export async function updateEmpresa(formData: FormData) {
     });
     redirect(`/empresas/${id}?updated=1`);
   } catch (err) {
+    rethrowRedirect(err);
     redirect(`/empresas/${id}?error=${encodeURIComponent(toShortErrorMessage(err))}`);
   }
 }
@@ -295,12 +307,13 @@ export async function deleteEmpresa(formData: FormData) {
   await assertCsrfToken(formData);
   const id = String(formData.get("id") || "").trim();
   const returnTo = safeReturnTo(formData);
-  if (!id) redirect(`${returnTo}?error=empresa_no_encontrada`);
+  if (!id) redirect(withParam(returnTo, "error", `empresa_no_encontrada`));
 
   try {
     await prisma.empresa.delete({ where: { id } });
-    redirect(`${returnTo}?deleted=1`);
+    redirect(withParam(returnTo, "deleted", "1"));
   } catch (err) {
-    redirect(`${returnTo}?error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    rethrowRedirect(err);
+    redirect(withParam(returnTo, "error", `${encodeURIComponent(toShortErrorMessage(err))}`));
   }
 }

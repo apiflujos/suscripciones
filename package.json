@@ -29,6 +29,7 @@
     "repair:subscriptions": "npx tsx packages/core/src/scripts/repair-subscriptions.ts",
     "repair:duplicate-customers": "npx tsx packages/core/src/scripts/merge-duplicate-customers.ts",
     "repair:skipped-cycles": "npx tsx packages/core/src/scripts/repair-skipped-cycles.ts",
+    "repair:unlinked-payments": "npx tsx packages/core/src/scripts/repair-unlinked-payments.ts",
     "repair:paid-cycles": "npx tsx packages/core/src/scripts/repair-paid-cycles-without-payment.ts",
     "seed:bootstrap": "node scripts/seed_bootstrap.js",
     "seed:demo": "node scripts/seed-demo.js",

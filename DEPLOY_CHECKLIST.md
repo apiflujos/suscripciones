@@ -67,9 +67,7 @@ git pull origin main
 
 ### 2. Instalar dependencias
 ```bash
-npm install
-# o
-pnpm install
+npm ci --include=dev
 ```
 
 ### 3. Aplicar migraciones en producción
@@ -77,31 +75,27 @@ pnpm install
 # Conectar a base de datos de producción
 DATABASE_URL=postgresql://user:pass@prod-host:5432/wompi_subs
 
-npx prisma migrate deploy --schema packages/database/prisma/schema.prisma
+npm run prisma:migrate:deploy -w packages/database
 ```
 
 ### 4. Generar Prisma Client
 ```bash
-npx prisma generate --schema packages/database/prisma/schema.prisma
+npm run db:generate
 ```
 
 ### 5. Build
 ```bash
-npm run build
-# o
-pnpm build
+npm run build -w apps/admin
+npm run build -w apps/worker
 ```
 
 ### 6. Reiniciar aplicación
 ```bash
-# Si usas PM2
-pm2 restart all
+# PM2 (producción)
+pm2 restart ecosystem.config.js --update-env
 
-# Si usas Docker
-docker-compose restart
-
-# Si usas systemd
-systemctl restart suscripciones
+# Docker (local): reconstruye las imágenes
+docker compose up -d --build
 ```
 
 ## Verificación Post-Deploy
@@ -161,9 +155,9 @@ GET /api/import/template?entity=customers
 git revert HEAD
 git push origin main
 
-# O volver a un commit anterior
-git checkout <commit-hash>
-git push origin main:production --force
+# O volver a un commit anterior: crear una rama de rollback y desplegar esa
+git checkout -b rollback/<fecha> <commit-hash>
+./scripts/deploy.sh   # el script hace git pull de la rama actual
 ```
 
 ## Notas Importantes

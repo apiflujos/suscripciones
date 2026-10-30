@@ -1,7 +1,7 @@
 import { getEmpresaById } from "../../../admin/_services/companies";
 import { EmpresaForm } from "../EmpresaForm";
 import { getCsrfToken } from "../../../lib/csrf";
-import { createEmpresa, updateEmpresa, deleteEmpresa } from "../actions";
+import { createEmpresa, updateEmpresa } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +57,6 @@ export default async function EmpresaDetailPage({
         csrfToken={csrfToken}
         createEmpresa={createEmpresa}
         updateEmpresa={updateEmpresa}
-        deleteEmpresa={deleteEmpresa}
         returnTo="/dashboard/empresas"
       />
     </main>

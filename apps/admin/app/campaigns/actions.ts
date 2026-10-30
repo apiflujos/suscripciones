@@ -17,6 +17,22 @@ function isNextRedirect(err: unknown) {
   return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
 }
 
+/** Solo rutas internas de /campaigns (nunca `//otro-sitio` ni otra sección). */
+function safeCampaignsPath(raw: unknown, fallback: string) {
+  const value = String(raw || "").trim();
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return fallback;
+  if (value === "/campaigns" || value.startsWith("/campaigns/") || value.startsWith("/campaigns?")) return value;
+  return fallback;
+}
+
+/** Agrega o reemplaza parámetros en una ruta que puede traer ya su propia query. */
+function withParams(path: string, params: Record<string, string>) {
+  const url = new URL(path, "http://localhost");
+  for (const key of ["created", "running", "error"]) url.searchParams.delete(key);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  return `${url.pathname}?${url.searchParams.toString()}`;
+}
+
 async function getSessionTenantId() {
   const c = await cookies();
   const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
@@ -26,7 +42,9 @@ async function getSessionTenantId() {
 
 export async function createCampaign(formData: FormData) {
   await assertCsrfToken(formData);
-  const returnTo = String(formData.get("returnTo") || "/campaigns").trim() || "/campaigns";
+  const returnTo = safeCampaignsPath(formData.get("returnTo"), "/campaigns");
+  // Si falla, se vuelve al formulario (con el error a la vista) cuando lo envía.
+  const errorTo = safeCampaignsPath(formData.get("errorTo"), returnTo);
   const name = String(formData.get("name") || "").trim();
   const smartViewId = String(formData.get("smartViewId") || "").trim();
   const templateKind = String(formData.get("templateKind") || "WHATSAPP_TEMPLATE").trim().toUpperCase();
@@ -37,7 +55,7 @@ export async function createCampaign(formData: FormData) {
   const waHeaderParamsRaw = String(formData.get("waHeaderParams") || "").trim();
   const waButtonParamsRaw = String(formData.get("waButtonParams") || "").trim();
   if (!name || !smartViewId) {
-    return redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=missing_required_fields`);
+    return redirect(withParams(errorTo, { error: "missing_required_fields" }));
   }
   let content = contentRaw;
   let templateParams: any = undefined;
@@ -61,7 +79,7 @@ export async function createCampaign(formData: FormData) {
 
   if (templateKind === "WHATSAPP_TEMPLATE") {
     if (!waTemplateName || !waLanguage) {
-      return redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=missing_template_fields`);
+      return redirect(withParams(errorTo, { error: "missing_template_fields" }));
     }
     content = contentRaw || `Plantilla WhatsApp: ${waTemplateName}`;
     templateParams = {
@@ -74,7 +92,7 @@ export async function createCampaign(formData: FormData) {
       })
     };
   } else {
-    return redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=invalid_template_kind`);
+    return redirect(withParams(errorTo, { error: "invalid_template_kind" }));
   }
 
   try {
@@ -89,24 +107,25 @@ export async function createCampaign(formData: FormData) {
       }
     });
     if (!out.ok) throw new Error(out.error || "create_failed");
-    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}created=1`);
+    redirect(withParams(returnTo, { created: "1" }));
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(withParams(errorTo, { error: toShortErrorMessage(err) }));
   }
 }
 
 export async function runCampaign(formData: FormData) {
   await assertCsrfToken(formData);
-  const returnTo = String(formData.get("returnTo") || "/campaigns").trim() || "/campaigns";
+  const returnTo = safeCampaignsPath(formData.get("returnTo"), "/campaigns");
+  const errorTo = safeCampaignsPath(formData.get("errorTo"), returnTo);
   const id = String(formData.get("id") || "").trim();
-  if (!id) return redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=missing_id`);
+  if (!id) return redirect(withParams(errorTo, { error: "missing_id" }));
   try {
     const out = await runCampaignService(id);
     if (!out.ok) throw new Error(out.error || "run_failed");
-    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}running=${encodeURIComponent(id)}`);
+    redirect(withParams(returnTo, { running: id }));
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(withParams(errorTo, { error: toShortErrorMessage(err) }));
   }
 }

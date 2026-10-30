@@ -247,6 +247,31 @@ function normalizeNameForMatch(value: unknown): string {
     .toLowerCase();
 }
 
+// Quien paga un link escribe su nombre a mano: "Federico Balthazar J", "Lina Cruz",
+// "Gabriel J Osorio B", "Kristin BustosMoron". El cliente registrado es "Federico
+// Balthazar", "Lina Marcela Cruz", "Gabriel Jaime Osorio", "Kristin Bustos". La
+// igualdad exacta los dejaba a todos sin asociar y la suscripción seguía en mora.
+// Coinciden si comparten el primer nombre y todos los tokens significativos
+// (3+ letras, sin iniciales) de uno están en el otro, con tolerancia de prefijo.
+function significantNameTokens(value: unknown): string[] {
+  return normalizeNameForMatch(value)
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= 3);
+}
+
+function nameTokensCompatible(a: string, b: string): boolean {
+  return a === b || (Math.min(a.length, b.length) >= 4 && (a.startsWith(b) || b.startsWith(a)));
+}
+
+export function namesMatchFuzzy(a: unknown, b: unknown): boolean {
+  const ta = significantNameTokens(a);
+  const tb = significantNameTokens(b);
+  if (ta.length < 2 || tb.length < 2) return false;
+  if (!nameTokensCompatible(ta[0], tb[0])) return false;
+  const [short, long] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  return short.every((t) => long.some((u) => nameTokensCompatible(t, u)));
+}
+
 function readSubscriptionPricingTotalInCents(subscriptionMeta: unknown, fallback: number): number {
   return getExpectedSubscriptionTotalInCents({
     subscriptionMetadata: subscriptionMeta,
@@ -317,11 +342,11 @@ export async function resolveAssociationByScore(args: {
 
   const tenantScope = args.tenantId ? { tenantId: args.tenantId } : {};
   const customerIds = new Set<string>();
-  let identitySource: "email" | "phone" | "name" | "email_phone" | null = null;
+  let identitySource: "email" | "phone" | "name" | "name_fuzzy" | "email_phone" | null = null;
 
   if (args.email) {
     const byEmail = await args.db.customer.findMany({
-      where: { email: args.email, ...tenantScope },
+      where: { email: { equals: args.email, mode: "insensitive" }, ...tenantScope },
       select: { id: true }
     });
     if (byEmail.length) identitySource = "email";
@@ -331,9 +356,7 @@ export async function resolveAssociationByScore(args: {
   if (args.phone) {
     const byPhone = await args.db.customer.findMany({
       where: { phone: { not: null }, ...tenantScope },
-      select: { id: true, phone: true },
-      orderBy: { updatedAt: "desc" },
-      take: 500
+      select: { id: true, phone: true }
     });
     const matched = byPhone.filter((c) => phonesMatch(c.phone, args.phone));
     if (matched.length) identitySource = identitySource ? "email_phone" : "phone";
@@ -353,15 +376,24 @@ export async function resolveAssociationByScore(args: {
       // con acentos distintos (mojibake SQL_ASCII), así que "Tomas" no encontraría
       // "Tomás". Traemos un lote acotado del tenant y filtramos por nombre
       // normalizado (sin tildes) en JS. Mismo enfoque que el match por teléfono.
+      // Sin límite de lote: con "los 500 más recientes" el titular de una
+      // suscripción antigua quedaba fuera y su pago sin asociar.
       const byName = await args.db.customer.findMany({
         where: { ...tenantScope },
-        select: { id: true, name: true },
-        orderBy: { updatedAt: "desc" },
-        take: 500
+        select: { id: true, name: true }
       });
       const matched = byName.filter((c) => normalizeNameForMatch(c.name) === nameNorm);
       if (matched.length && !identitySource) identitySource = "name";
       matched.forEach((c) => customerIds.add(c.id));
+      // Aproximado solo si nada más identificó al pagador y apunta a UN cliente:
+      // con dos homónimos posibles no se adivina.
+      if (!customerIds.size) {
+        const fuzzy = byName.filter((c) => namesMatchFuzzy(c.name, args.name));
+        if (fuzzy.length === 1) {
+          identitySource = "name_fuzzy";
+          customerIds.add(fuzzy[0].id);
+        }
+      }
     }
   }
 
@@ -409,7 +441,7 @@ export async function resolveAssociationByScore(args: {
       return {
         subscriptionId: sub.id,
         customerId: sub.customerId ?? undefined,
-        score: identitySource === "name" ? 55 : 65,
+        score: identitySource === "name" ? 55 : identitySource === "name_fuzzy" ? 50 : 65,
         reason: "IDENTITY_MATCH" as any,
         criteria: { method: "identity_amount_mismatch", source: identitySource, incomingAmount, expectedAmount: expectedTotal, currency: incomingCurrency || null }
       };
@@ -423,7 +455,7 @@ export async function resolveAssociationByScore(args: {
     return null;
   }
 
-  const score = identitySource === "name" ? 70 : 80;
+  const score = identitySource === "name" ? 70 : identitySource === "name_fuzzy" ? 60 : 80;
 
   if (withExactAmount.length === 1) {
     const winner = withExactAmount[0];

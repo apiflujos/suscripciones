@@ -29,6 +29,7 @@ import { getExpectedSubscriptionTotalInCents, getPlanCollectionMode } from "../l
 import { isBillingCyclePaid, resolveSubscriptionBillingState } from "./billingCycles";
 import { createPublicCheckoutLink, persistPublicPaymentLinkForPayment } from "./publicCheckoutLinks";
 import { extractCustomerPaymentSourceId } from "../lib/customerMetadata";
+import { nextRetryReference } from "./retryReference";
 
 const PAYMENT_LINK_LOCK_PREFIX = "payment-link";
 const AUTO_DEBIT_LOCK_PREFIX = "auto-debit";
@@ -180,14 +181,18 @@ async function resolvePlanCheckoutTemplateId(args: {
   }
 }
 
-async function hasUsableSubscriptionPaymentLinkNotification(): Promise<boolean> {
+// Mismo criterio que schedulePaymentLinkNotifications: las suscripciones que se
+// cobran con link usan reglas de tipo LINK. Preguntar siempre por SUBSCRIPTION
+// daba "no hay notificación" cuando la regla estaba hecha solo para LINK, y el
+// link se creaba pero nunca llegaba al cliente, sin dejar ningún error.
+async function hasUsableSubscriptionPaymentLinkNotification(paymentType: "LINK" | "SUBSCRIPTION"): Promise<boolean> {
   try {
     const cfg = await getNotificationsConfig();
     const template = resolveNotificationTemplate({
       rules: cfg.rules,
       templates: cfg.templates,
       trigger: "PAYMENT_LINK_CREATED",
-      paymentType: "SUBSCRIPTION"
+      paymentType
     });
     return Boolean(
       template &&
@@ -722,7 +727,10 @@ export async function createPaymentLinkForSubscription(args: {
     };
   }
 
-  const shouldNotify = await hasUsableSubscriptionPaymentLinkNotification();
+  const linkCollectionMode = resolveSubscriptionCollectionMode(sub);
+  const shouldNotify = await hasUsableSubscriptionPaymentLinkNotification(
+    linkCollectionMode === "AUTO_LINK" || linkCollectionMode === "MANUAL_LINK" ? "LINK" : "SUBSCRIPTION"
+  );
   if (!shouldNotify) {
     if (!updated.checkoutUrl) throw new Error("checkout_url_missing");
     return {
@@ -840,6 +848,11 @@ export async function createAutoDebitTransactionForSubscription(args: {
     logIgnored(err, "auto debit: failed to resolve billing state", { subscriptionId: sub.id });
     return null;
   });
+  // Sin ciclo por cobrar no se inventa uno: caer al ciclo 1 hacía que el cobro
+  // fallara con "ya aprobado" sin explicar que el período vigente está pago.
+  if (overrideCycle == null && billingState && !billingState.collectionCycle) {
+    throw new Error("no_cycle_to_collect");
+  }
   const inferredCycle = billingState?.collectionCycle?.cycleNumber ?? 1;
   const cycle = overrideCycle ?? inferredCycle;
   let reference = `SUB_${sub.id}_${cycle}`;
@@ -889,9 +902,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
 
     // If previous transaction was DECLINED/ERROR, compute a unique retry reference to avoid Wompi duplicate errors
     if (existingByCycle?.wompiTransactionId && existingByCycle.status !== PaymentStatus.PENDING && existingByCycle.status !== PaymentStatus.APPROVED) {
-      const attemptCount = await prisma.paymentAttempt.count({ where: { paymentId: existingByCycle.id } });
-      const retrySuffix = `R${Math.max(1, attemptCount + 1)}`;
-      reference = `${reference}_${retrySuffix}`;
+      reference = await nextRetryReference(reference);
     }
   }
 
@@ -899,9 +910,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
     | { id: string; wompiTransactionId: string | null; status: PaymentStatus; reference: string }
     | any;
   if (args.forceNewTransaction) {
-    const attemptCount = await prisma.payment.count({ where: { subscriptionId: sub.id, cycleNumber: cycle } });
-    const retrySuffix = `R${Math.max(1, attemptCount + 1)}`;
-    reference = `${reference}_${retrySuffix}`;
+    reference = await nextRetryReference(reference);
     payment = await prisma.payment.create({
       data: {
         tenantId,
@@ -956,11 +965,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
     if (payment.status === PaymentStatus.APPROVED) {
       throw new Error("payment_already_approved");
     }
-    const attemptCount = await prisma.paymentAttempt.count({
-      where: { paymentId: payment.id }
-    });
-    const retrySuffix = `R${Math.max(1, attemptCount + 1)}`;
-    const nextReference = `${reference}_${retrySuffix}`;
+    const nextReference = await nextRetryReference(reference);
     reference = nextReference;
     await prisma.payment.update({
       where: { id: payment.id },
@@ -989,11 +994,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
   }
 
   if (payment.wompiTransactionId && args.forceNewTransaction) {
-    const attemptCount = await prisma.paymentAttempt.count({
-      where: { paymentId: payment.id }
-    });
-    const retrySuffix = `R${Math.max(1, attemptCount + 1)}`;
-    const nextReference = `${reference}_${retrySuffix}`;
+    const nextReference = await nextRetryReference(reference);
     reference = nextReference;
     await prisma.payment.update({
       where: { id: payment.id },

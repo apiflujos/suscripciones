@@ -1,8 +1,7 @@
 import { WebhookProvider } from "@prisma/client";
 import { CopyButton } from "../ui/CopyButton";
-import { generateWebhookSecret } from "@suscripciones/core/services/webhookSecrets";
 import { PendingButton } from "../ui/PendingButton";
-import { AppModal } from "../ui/AppModal";
+import Link from "next/link";
 
 type WebhookEndpointRow = {
   id: string;
@@ -34,7 +33,6 @@ export function WebhooksPanel({
   apiTokens,
   docsUrl,
   swaggerUrl,
-  openId,
   createdToken,
   inlineState,
   actions,
@@ -50,21 +48,14 @@ export function WebhooksPanel({
   apiTokens: ApiTokenRow[];
   docsUrl: string;
   swaggerUrl: string;
-  openId: string | null;
   createdToken: string;
   inlineState: { action: string; status: string; errorText: string };
   actions: {
-    createWebhookEndpointAction: (formData: FormData) => void;
-    updateWebhookEndpointAction: (formData: FormData) => void;
-    deleteWebhookEndpointAction: (formData: FormData) => void;
     createApiTokenAction: (formData: FormData) => void;
     revokeApiTokenAction: (formData: FormData) => void;
   };
   returnTo: string;
 }) {
-  const suggestedSecret = generateWebhookSecret();
-  const openEndpoint = openId && openId !== "new" ? endpoints.find((e) => e.id === openId) || null : null;
-  const isNew = openId === "new";
   const tokenValue = String(createdToken || "").trim();
   const apiTokenScope = (perms: string[]) => (perms || []).some((p) => p.endsWith(":write")) ? "Lectura y escritura" : "Solo lectura";
   const isNeverExpiry = (date: Date) => {
@@ -127,7 +118,7 @@ export function WebhooksPanel({
             <strong>Wompi</strong>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <CopyButton text={wompiUrl} label="Copiar URL" />
-              <a className="ghost btn-compact btn-blue" href={`/settings?tab=connections&open=wompi_${wompiActiveEnv === "SANDBOX" ? "sandbox" : "prod"}`}>
+              <a className="ghost btn-compact btn-blue" href={`/settings/connections/${wompiActiveEnv === "SANDBOX" ? "wompi-sandbox" : "wompi-prod"}?returnTo=${encodeURIComponent("/settings?tab=integraciones")}`}>
                 Editar credenciales
               </a>
             </div>
@@ -182,19 +173,19 @@ export function WebhooksPanel({
             <input type="hidden" name="csrf" value={csrfToken} />
             <input type="hidden" name="returnTo" value={returnTo} />
             <div className="field">
-              <label>Nombre</label>
-              <input className="input" name="name" placeholder="Ej: Integración ERP" />
+              <label htmlFor="tok-name">Nombre</label>
+              <input id="tok-name" className="input" name="name" placeholder="Ej: Integración ERP" />
             </div>
             <div className="field">
-              <label>Permisos</label>
-              <select className="select" name="scope" defaultValue="read">
+              <label htmlFor="tok-scope">Permisos</label>
+              <select id="tok-scope" className="select" name="scope" defaultValue="read">
                 <option value="read">Solo lectura</option>
                 <option value="write">Lectura y escritura</option>
               </select>
             </div>
             <div className="field">
-              <label>Vigencia</label>
-              <select className="select" name="ttlHours" defaultValue="0">
+              <label htmlFor="tok-ttl">Vigencia</label>
+              <select id="tok-ttl" className="select" name="ttlHours" defaultValue="0">
                 <option value="0">Nunca</option>
                 <option value="24">24 horas</option>
                 <option value="168">7 días</option>
@@ -255,9 +246,9 @@ export function WebhooksPanel({
         <div className="panel module">
           <div className="panelHeaderRow" style={{ justifyContent: "space-between", gap: 8 }}>
             <strong>Webhooks</strong>
-            <a className="ghost btn-compact btn-blue" href="/settings?tab=integraciones&open=new">
+            <Link className="ghost btn-compact btn-blue" href="/settings/webhooks/new" data-loader="off">
               Nuevo webhook
-            </a>
+            </Link>
           </div>
           <div className="field-hint">
             Administra el webhook principal de Wompi y endpoints adicionales para otras pasarelas.
@@ -321,9 +312,9 @@ export function WebhooksPanel({
                     </div>
                     <div className="saved-conn-actions">
                       <CopyButton text={url} label="Copiar URL" />
-                      <a className="ghost btn-compact" href={`/settings?tab=integraciones&open=${encodeURIComponent(e.id)}`}>
+                      <Link className="ghost btn-compact" href={`/settings/webhooks/${encodeURIComponent(e.id)}`} data-loader="off">
                         Editar
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 );
@@ -338,118 +329,6 @@ export function WebhooksPanel({
         </div>
       </div>
 
-      {isNew ? (
-        <AppModal
-          open={isNew}
-          onClose={() => {}}
-          title="Nuevo webhook"
-          panelClassName="modal-panel-fixed"
-          headerActions={<a className="ghost btn-compact" href="/settings?tab=integraciones" data-loader="off">Volver</a>}
-          closeOnBackdrop={false}
-        >
-            <div className="modal-body">
-              <form action={actions.createWebhookEndpointAction} className="panel module" style={{ display: "grid", gap: 10 }}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                <div className="field">
-                  <label>Nombre</label>
-                  <input className="input" name="name" placeholder="Ej: MercadoPago" />
-                </div>
-                <div className="field">
-                  <label>Proveedor</label>
-                  <select className="select" name="provider" defaultValue="MERCADOPAGO">
-                    <option value="WOMPI">Wompi</option>
-                    <option value="CUSTOM">Custom</option>
-                    <option value="MERCADOPAGO">MercadoPago</option>
-                  </select>
-                </div>
-                <div className="field">
-                  <label>Secreto</label>
-                  <input className="input" name="secret" defaultValue={suggestedSecret} />
-                  <div className="field-hint">Guarda este secreto en la pasarela para firmar el webhook.</div>
-                </div>
-                <div className="field">
-                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <input type="hidden" name="active" value="false" />
-                    <input type="checkbox" name="active" value="true" defaultChecked />
-                    Activo
-                  </label>
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <PendingButton className="btn btn-primary" type="submit" pendingText="Creando...">Crear</PendingButton>
-                  <a className="ghost btn-compact" href="/settings?tab=integraciones">Cancelar</a>
-                </div>
-              </form>
-            </div>
-        </AppModal>
-      ) : null}
-
-      {openEndpoint ? (
-        <AppModal
-          open={Boolean(openEndpoint)}
-          onClose={() => {}}
-          title="Editar webhook"
-          panelClassName="modal-panel-fixed"
-          headerActions={<a className="ghost btn-compact" href="/settings?tab=integraciones" data-loader="off">Volver</a>}
-          closeOnBackdrop={false}
-        >
-            <div className="modal-body">
-              <form action={actions.updateWebhookEndpointAction} className="panel module" style={{ display: "grid", gap: 10 }}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                <input type="hidden" name="id" value={openEndpoint.id} />
-                <div className="field">
-                  <label>Nombre</label>
-                  <input className="input" name="name" defaultValue={openEndpoint.name} />
-                </div>
-                <div className="field">
-                  <label>Proveedor</label>
-                  <select className="select" name="provider" defaultValue={openEndpoint.provider}>
-                    <option value="WOMPI">Wompi</option>
-                    <option value="CUSTOM">Custom</option>
-                    <option value="MERCADOPAGO">MercadoPago</option>
-                  </select>
-                </div>
-                <div className="field">
-                  <label>Nuevo secreto (opcional)</label>
-                  <input className="input" name="secret" placeholder="Deja vacío para mantener el actual" />
-                </div>
-                <div className="field">
-                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <input type="hidden" name="active" value="false" />
-                    <input type="checkbox" name="active" value="true" defaultChecked={openEndpoint.active} />
-                    Activo
-                  </label>
-                </div>
-                <div className="module-footer">
-                  <PendingButton 
-                    className="primary btn-compact btn-save" 
-                    type="submit" 
-                    pendingText="Guardando..."
-                    title="Guardar configuración del webhook"
-                    aria-label="Guardar cambios"
-                  >
-                    Guardar
-                  </PendingButton>
-                  <a 
-                    className="ghost btn-compact btn-cancel" 
-                    href="/settings?tab=integraciones"
-                    title="Cerrar sin guardar"
-                    aria-label="Cancelar"
-                  >
-                    Cancelar
-                  </a>
-                </div>
-              </form>
-              <form action={actions.deleteWebhookEndpointAction} style={{ marginTop: 8 }}>
-                <input type="hidden" name="csrf" value={csrfToken} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                <input type="hidden" name="id" value={openEndpoint.id} />
-                <PendingButton className="ghost btn-compact" type="submit" pendingText="Eliminando...">Eliminar</PendingButton>
-              </form>
-            </div>
-        </AppModal>
-      ) : null}
     </section>
   );
 }

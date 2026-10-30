@@ -1,0 +1,32 @@
+/* Páginas dedicadas de suscripción: sin scroll interno, se adaptan al ancho. */
+.billing-detail-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { .billing-detail-grid { grid-template-columns: 1fr; } }
+.billing-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.billing-detail-channels { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.billing-history-pager { display: flex; align-items: center; justify-content: center; gap: 12px; padding-top: 8px; }
+/* Las tablas de historial y ciclos usan toda la página; en pantallas angostas cada
+   fila pasa a ser una tarjeta en vez de scrollear de lado. */
+.page-shell .billing-history-table-wrap { overflow: visible; max-height: none; }
+@media (max-width: 760px) {
+  .page-shell .billing-history-table thead { display: none; }
+  .page-shell .billing-history-table, .page-shell .billing-history-table tbody, .page-shell .billing-history-table tr, .page-shell .billing-history-table td { display: block; width: 100% !important; text-align: left !important; }
+  .page-shell .billing-history-table tr { padding: 8px 0; border-bottom: 1px solid var(--stroke); }
+  .page-shell .billing-history-table td { padding: 2px 0; border: 0; }
+}
+
+/* Formulario de crear suscripción/cobro: sus rejillas de dos columnas (estilos en línea)
+   se apilan en pantallas angostas en vez de desbordar la página. */
+@media (max-width: 700px) {
+  .page-shell [style*="1fr 1fr"] { grid-template-columns: minmax(0, 1fr) !important; }
+  .page-shell [style*="repeat(2"] { grid-template-columns: minmax(0, 1fr) !important; }
+  .page-shell select, .page-shell .select { max-width: 100%; min-width: 0; }
+  /* Las rejillas de una sola columna "auto" (el <form> y los bloques con display:grid en
+     línea) crecen hasta el ancho de su <select> más largo: se les fija minmax(0, 1fr). */
+  .page-shell form, .page-shell [style*="display:grid"], .page-shell [style*="display: grid"] { grid-template-columns: minmax(0, 1fr); }
+  .page-shell .panel.module { min-width: 0; }
+}
+
+/* Encabezados de sección del formulario de crear: se parten en vez de ensanchar la página. */
+.page-shell .panel-header { flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.page-shell .panel.module form,
+.page-shell form.panel.module { min-width: 0; max-width: 100%; }

@@ -156,6 +156,11 @@ vi.mock("../../db/prisma", () => {
         findUnique: async ({ where }: any) => store.customer[where.id] || null
       },
       payment: {
+        findMany: async ({ where }: any = {}) => {
+          let rows = Object.values(store.payment);
+          if (where?.reference?.startsWith) rows = rows.filter((p: any) => String(p.reference || "").startsWith(where.reference.startsWith));
+          return rows;
+        },
         findUnique: async ({ where }: any) => {
           if (where.subscriptionCycleKey) return Object.values(store.payment).find((p: any) => p.subscriptionCycleKey === where.subscriptionCycleKey) || null;
           if (where.id) return store.payment[where.id] || null;
@@ -203,6 +208,11 @@ vi.mock("../../db/prisma", () => {
         }
       },
       paymentAttempt: {
+        findMany: async ({ where }: any = {}) => {
+          let rows = Object.values(store.paymentAttempt);
+          if (where?.reference?.startsWith) rows = rows.filter((p: any) => String(p.reference || "").startsWith(where.reference.startsWith));
+          return rows;
+        },
         count: async ({ where }: any = {}) => {
           let rows = Object.values(store.paymentAttempt);
           if (where?.paymentId) rows = rows.filter((p: any) => p.paymentId === where.paymentId);

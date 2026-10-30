@@ -1,0 +1,94 @@
+/* Menú de acciones de fila (kebab), pintado en un portal sobre el body.
+   Es una lista plana de opciones —no una pila de botones—: sin borde ni sombra por
+   opción, resalte al pasar o enfocar, y la acción peligrosa separada y en rojo. */
+.row-actions-menu.is-floating {
+  display: grid;
+  gap: 2px;
+  min-width: 220px;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: 6px;
+  overflow: visible;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+}
+/* Los grupos que algunas listas usan para ordenar sus opciones no cuentan como fila. */
+.row-actions-menu.is-floating .log-actions-row,
+.row-actions-menu.is-floating .log-actions-secondary,
+.row-actions-menu.is-floating form { display: contents; }
+
+.row-actions-menu.is-floating a,
+.row-actions-menu.is-floating button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  height: auto;
+  margin: 0;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.row-actions-menu.is-floating a::before,
+.row-actions-menu.is-floating button::before { display: none; }
+
+.row-actions-menu.is-floating a:hover,
+.row-actions-menu.is-floating button:hover,
+.row-actions-menu.is-floating a:focus-visible,
+.row-actions-menu.is-floating button:focus-visible {
+  background: var(--primary-soft);
+  color: var(--primary);
+  outline: none;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--primary) 45%, transparent);
+}
+.row-actions-menu.is-floating button:disabled,
+.row-actions-menu.is-floating [aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+
+/* Acciones destructivas: rojo y separadas del resto por una línea. */
+.row-actions-menu.is-floating .btn-red,
+.row-actions-menu.is-floating .action-danger { color: var(--danger); }
+.row-actions-menu.is-floating .btn-red:hover,
+.row-actions-menu.is-floating .btn-red:focus-visible,
+.row-actions-menu.is-floating .action-danger:hover,
+.row-actions-menu.is-floating .action-danger:focus-visible {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--danger) 40%, transparent);
+}
+.row-actions-menu.is-floating > .btn-red:not(:first-child),
+.row-actions-menu.is-floating > .action-danger:not(:first-child) {
+  margin-top: 4px;
+  position: relative;
+}
+.row-actions-menu.is-floating > .btn-red:not(:first-child)::after,
+.row-actions-menu.is-floating > .action-danger:not(:first-child)::after {
+  content: "";
+  position: absolute;
+  top: -4px; left: 4px; right: 4px;
+  height: 1px;
+  background: var(--stroke);
+}
+/* En móvil el menú ocupa el ancho útil y cada opción es fácil de tocar. */
+@media (max-width: 560px) {
+  .row-actions-menu.is-floating { min-width: min(280px, calc(100vw - 16px)); }
+  .row-actions-menu.is-floating a, .row-actions-menu.is-floating button { min-height: 40px; font-size: 14px; }
+}

@@ -12,6 +12,7 @@ export function humanizeChargeError(raw: string) {
   if (msg.includes("pending_charge_exists")) return "Ya existe un cobro pendiente reciente para esta suscripción.";
   if (msg.includes("manual_charge_disabled_by_settings")) return "El cobro manual está deshabilitado en la configuración.";
   if (msg.includes("manual_charge_not_allowed")) return "Esta suscripción no permite cobro manual.";
+  if (msg.includes("no_cycle_to_collect")) return "No hay ningún ciclo por cobrar: el período actual ya está pagado.";
   if (msg.includes("payment_already_approved")) return "Esta suscripción ya fue cobrada para el ciclo actual.";
   if (msg.includes("subscription_not_found")) return "No se encontró la suscripción para el canal seleccionado.";
   if (msg.includes("invalid_body")) return "La solicitud de cobro es inválida.";

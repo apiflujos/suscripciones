@@ -312,8 +312,10 @@ async function main() {
     if (cycle) {
       await prisma.subscriptionBillingCycle.update({
         where: { subscriptionId_cycleNumber: { subscriptionId: subscription.id, cycleNumber: cycle.cycleNumber } },
+        // PAID exige un pago (CHECK paid_requires_payment): createPaymentArtifacts
+        // lo marca pagado cuando ya creó el pago. Aquí solo se deja abierto.
         data: {
-          status: member.cycleStatus === "PAID" ? "PAID" : "PENDING",
+          status: "PENDING",
           associatedBy: "seed:mdv-curated"
         }
       });

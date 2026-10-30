@@ -201,7 +201,7 @@ export function SideNav({ session }: { session: AdminSession | null }) {
   }, []);
   const currentPath = mounted ? pathname : "";
   const logTab = searchParams?.get("tab") || "";
-  const isPaymentsInLogs = currentPath === "/logs" && logTab === "payments";
+  const isPaymentsInLogs = (currentPath === "/logs" && logTab === "payments") || currentPath.startsWith("/logs/payments");
   const isNotificationsList = isActivePath(currentPath, "/notifications/list");
   const isSuperAdminPath = currentPath.startsWith("/sa") || currentPath.startsWith("/__sa");
   const isSuperAdmin = session?.role === "SUPER_ADMIN";

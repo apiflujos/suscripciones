@@ -1,10 +1,11 @@
 import { PaginationBar } from "../PaginationBar";
 import { listEmpresas } from "../admin/_services/companies";
-import { getCsrfToken } from "../lib/csrf";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
-import { deleteEmpresa, createEmpresa, updateEmpresa } from "./actions";
-import { EmpresaCreateModal } from "./EmpresaCreateModal";
+import Link from "next/link";
+import "./empresas-layout.css";
+import { withReturnTo } from "../lib/returnTo";
+import { empresaErrorMessage } from "./messages";
 import { RowActionsMenu } from "../billing/RowActionsMenu";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
@@ -26,12 +27,11 @@ export default async function EmpresasPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const csrfToken = await getCsrfToken();
   const spParams = (await searchParams) ?? {};
   const created = typeof spParams.created === "string" ? spParams.created : "";
   const updated = typeof spParams.updated === "string" ? spParams.updated : "";
   const deleted = typeof spParams.deleted === "string" ? spParams.deleted : "";
-  const error = typeof spParams.error === "string" ? spParams.error : "";
+  const error = empresaErrorMessage(spParams.error);
   const q = typeof spParams.q === "string" ? spParams.q : "";
   const page = typeof spParams.page === "string" ? Number(spParams.page) : 1;
   const vistaRaw = typeof spParams.vista === "string" ? spParams.vista : "cards";
@@ -70,6 +70,7 @@ export default async function EmpresasPage({
     ...(viewId ? { viewId } : {}),
     ...(filters ? { filters } : {})
   };
+  const listHref = `/empresas?${new URLSearchParams({ ...baseParams, ...(currentPage > 1 ? { page: String(currentPage) } : {}) }).toString()}`;
   const pageHref = (p: number) => `/empresas?${new URLSearchParams({ ...baseParams, page: String(p) })}`;
   const exportHref = `/api/list-csv?${new URLSearchParams({
     scope: "companies",
@@ -128,14 +129,9 @@ export default async function EmpresasPage({
             </>
           )}
           actions={(
-            <EmpresaCreateModal
-              csrfToken={csrfToken}
-              createEmpresa={createEmpresa}
-              updateEmpresa={updateEmpresa}
-              deleteEmpresa={deleteEmpresa}
-              returnTo={`/empresas?${new URLSearchParams(baseParams).toString()}`}
-              tenantId={session?.tenantId || null}
-            />
+            <Link className="primary btn-compact btn-create" href={withReturnTo("/empresas/new", listHref)} data-loader="off">
+              Crear empresa
+            </Link>
           )}
         />
 
@@ -166,21 +162,12 @@ export default async function EmpresasPage({
                   </div>
                   <div className="company-list-cell company-list-actions">
                     <RowActionsMenu label="Acciones de la empresa">
-                      <a className="ghost btn-compact btn-edit btn-noicon" href={`/empresas/${e.id}`} title="Editar">
+                      <Link className="ghost btn-compact btn-edit btn-noicon" href={withReturnTo(`/empresas/${e.id}`, listHref)} title="Editar">
                         Editar
-                      </a>
-                      <form
-                        action={deleteEmpresa}
-                        onSubmit={(ev) => {
-                          if (!confirm("¿Eliminar empresa?")) ev.preventDefault();
-                        }}
-                      >
-                        <input type="hidden" name="csrf" value={csrfToken} />
-                        <input type="hidden" name="id" value={e.id} />
-                        <button className="ghost btn-compact btn-red btn-noicon" type="submit" title="Eliminar">
-                          Eliminar
-                        </button>
-                      </form>
+                      </Link>
+                      <Link className="ghost btn-compact btn-red btn-noicon" href={withReturnTo(`/empresas/${e.id}/delete`, listHref)} title="Eliminar">
+                        Eliminar
+                      </Link>
                     </RowActionsMenu>
                   </div>
                 </div>
@@ -214,12 +201,8 @@ export default async function EmpresasPage({
                     </div>
                     <div className="billing-header-right">
                       <div className="billing-header-actions">
-                        <a className="ghost btn-compact btn-icon-only btn-edit" href={`/empresas/${e.id}`} aria-label="Editar" title="Editar" />
-                        <form action={deleteEmpresa}>
-                          <input type="hidden" name="csrf" value={csrfToken} />
-                          <input type="hidden" name="id" value={e.id} />
-                          <button className="ghost btn-compact btn-delete-icon btn-red" type="submit" aria-label="Eliminar" title="Eliminar" />
-                        </form>
+                        <Link className="ghost btn-compact btn-icon-only btn-edit" href={withReturnTo(`/empresas/${e.id}`, listHref)} aria-label="Editar" title="Editar" />
+                        <Link className="ghost btn-compact btn-delete-icon btn-red" href={withReturnTo(`/empresas/${e.id}/delete`, listHref)} aria-label="Eliminar" title="Eliminar" />
                       </div>
                     </div>
                   </div>

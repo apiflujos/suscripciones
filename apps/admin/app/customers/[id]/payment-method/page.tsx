@@ -1,7 +1,7 @@
-import Link from "next/link";
+import { PageSection, PageShell } from "../../../ui/PageShell";
+import "../../customers.css";
 import { normalizeErrorParam } from "../../../lib/errorParam";
 import { fetchWompiAcceptanceLinks } from "../../../lib/wompiMerchant";
-import { HelpTip } from "../../../ui/HelpTip";
 import { WompiTokenizeWidget } from "./WompiTokenizeWidget";
 import { getAdminSettings } from "../../../admin/_services/settings";
 import { getCustomerById } from "../../../admin/_services/customers";
@@ -41,89 +41,53 @@ export default async function CustomerPaymentMethodPage({
 
   if (!customer) {
     return (
-      <main className="page" style={{ maxWidth: 980 }}>
-        <div className="card cardPad">Contacto no encontrado.</div>
-        <Link className="btn" href="/customers">
-          Volver
-        </Link>
-      </main>
+      <PageShell title="Contacto no encontrado" backHref={returnTo || "/customers"} backLabel="Volver">
+        <PageSection>Contacto no encontrado.</PageSection>
+      </PageShell>
     );
   }
 
-  const hasToken = (() => {
-    return hasActiveCustomerPaymentSource(customer?.metadata);
-  })();
+  const hasToken = hasActiveCustomerPaymentSource(customer?.metadata);
+  const label = customer.name || customer.email || customer.id;
+  const errorText = normalizeErrorParam(sp.error);
+  const backHref = returnTo || `/customers/${customer.id}`;
 
   return (
-    <main className="page" style={{ maxWidth: 980 }}>
-      {normalizeErrorParam(sp.error) ? (
-        <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-          Error: {normalizeErrorParam(sp.error)}
-        </div>
-      ) : null}
-
-      <section className="settings-group">
-        <div className="settings-group-header">
-          <div className="settings-group-header-main">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h3>Método de pago (débito automático)</h3>
-              <HelpTip text="Guarda un método de pago para poder cobrar suscripciones automáticamente." />
+    <PageShell
+      title="Método de pago (débito automático)"
+      subtitle={label}
+      crumbs={[{ label: "Contactos", href: "/customers" }, { label, href: `/customers/${customer.id}` }, { label: "Método de pago" }]}
+      backHref={backHref}
+      width="wide"
+      notice={errorText ? { tone: "error", text: `Error: ${errorText}` } : null}
+    >
+      <PageSection
+        title={
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span>{customer.email || customer.name || customer.id}</span>
+            {hasToken ? <span className="pill pill-ok">Tokenizada</span> : <span className="pill pill-bad">Sin token</span>}
+          </span>
+        }
+        description="Guarda un método de pago para poder cobrar suscripciones automáticamente. Requisito: configurar `Public key` en Credenciales > Wompi."
+      >
+        {!publicKey ? (
+          <div className="customers-alert is-error">Falta `Public key` de Wompi en Configuración.</div>
+        ) : !acceptanceLinks ? (
+          <div className="customers-alert is-error">No pudimos cargar los términos de Wompi. Intenta más tarde.</div>
+        ) : !customer.email ? (
+          <div className="customers-alert is-error">Este contacto no tiene email. Wompi requiere `customer_email`.</div>
+        ) : (
+          <div style={{ display: "grid", gap: 10 }}>
+            <div className="field-hint">
+              Al guardar tarjeta, Wompi devolverá un `token` que se registrará como `paymentSourceId` en este contacto.
             </div>
+            <form method="POST" action={`/customers/${customer.id}/payment-method/process`} style={{ display: "grid", gap: 10 }}>
+              {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+              <WompiTokenizeWidget publicKey={publicKey} acceptance={acceptanceLinks} />
+            </form>
           </div>
-        </div>
-
-        <div className="settings-group-body">
-          <div className="panel module">
-            <div className="panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <h3 style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span>{customer.email || customer.name || customer.id}</span>
-                {hasToken ? (
-                  <span className="pill pill-ok">Tokenizada</span>
-                ) : (
-                  <span className="pill pill-bad">Sin token</span>
-                )}
-              </h3>
-              <span className="settings-group-title">
-                <Link href="/customers" style={{ textDecoration: "underline" }}>
-                  Volver
-                </Link>
-              </span>
-            </div>
-
-            <div className="field-hint" style={{ marginBottom: 10 }}>
-              Requisito: configurar `Public key` en Credenciales &gt; Wompi.
-            </div>
-
-            {!publicKey ? (
-              <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-                Falta `Public key` de Wompi en Configuración.
-              </div>
-            ) : !acceptanceLinks ? (
-              <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-                No pudimos cargar los terminos de Wompi. Intenta mas tarde.
-              </div>
-            ) : !customer.email ? (
-              <div className="card cardPad" style={{ borderColor: "rgba(217, 83, 79, 0.22)", background: "rgba(217, 83, 79, 0.08)" }}>
-                Este contacto no tiene email. Wompi requiere `customer_email`.
-              </div>
-            ) : (
-              <div style={{ display: "grid", gap: 10 }}>
-                <div className="field-hint">
-                  Al guardar tarjeta, Wompi devolverá un `token` que se registrará como `paymentSourceId` en este contacto.
-                </div>
-                <form
-                  method="POST"
-                  action={`/customers/${customer.id}/payment-method/process`}
-                  style={{ display: "grid", gap: 10 }}
-                >
-                  {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-                  <WompiTokenizeWidget publicKey={publicKey} acceptance={acceptanceLinks} />
-                </form>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-    </main>
+        )}
+      </PageSection>
+    </PageShell>
   );
 }

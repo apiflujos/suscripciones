@@ -1,0 +1,73 @@
+/* Plantillas de checkout: lista y formulario en página (sin modales ni scroll interno). */
+.ct-list { display: grid; width: 100%; min-width: 0; }
+.ct-list-head,
+.ct-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 0.7fr) minmax(0, 0.8fr) 40px;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+}
+.ct-list-head {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--stroke);
+}
+.ct-row { border-bottom: 1px solid color-mix(in srgb, var(--stroke) 78%, transparent); }
+.ct-row:last-child { border-bottom: 0; }
+.ct-row.is-disabled .ct-name { opacity: .7; }
+.ct-cell { min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+.ct-name { display: flex; align-items: center; gap: 10px; min-width: 0; font-weight: 600; }
+.ct-name a { color: inherit; text-decoration: none; }
+.ct-name a:hover { color: var(--primary); text-decoration: underline; }
+.ct-logo { height: 26px; width: auto; max-width: 64px; object-fit: contain; border-radius: 6px; border: 1px solid var(--stroke); flex: 0 0 auto; }
+.ct-actions { justify-self: end; }
+.ct-empty { padding: 14px 12px; }
+.ct-defaults-form { display: grid; gap: 10px; }
+.ct-defaults-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
+.ct-defaults-grid label { display: grid; gap: 4px; min-width: 0; }
+.ct-defaults-grid select { width: 100%; min-width: 0; }
+
+@media (max-width: 700px) {
+  .ct-list-head { display: none; }
+  .ct-row {
+    grid-template-columns: minmax(0, 1fr) 40px;
+    grid-template-areas: "name actions" "kind kind" "product product" "expiry expiry" "status status";
+    gap: 6px 12px;
+    padding: 12px;
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius-md);
+    margin-bottom: 8px;
+  }
+  .ct-row:last-child { border-bottom: 1px solid var(--stroke); }
+  .ct-row .ct-cell[data-area="name"] { grid-area: name; }
+  .ct-row .ct-actions { grid-area: actions; }
+  .ct-row .ct-cell[data-area="kind"] { grid-area: kind; }
+  .ct-row .ct-cell[data-area="product"] { grid-area: product; }
+  .ct-row .ct-cell[data-area="expiry"] { grid-area: expiry; }
+  .ct-row .ct-cell[data-area="status"] { grid-area: status; }
+  .ct-row .ct-cell[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--text-faint);
+    font-size: 11px;
+  }
+  .ct-row .ct-cell[data-area="name"]::before { content: none; }
+}
+
+/* Asistente de tipo / pasos */
+.ct-steps { display: flex; flex-wrap: wrap; gap: 8px; }
+.ct-kinds { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
+.ct-kind { text-align: left; cursor: pointer; display: grid; gap: 4px; }
+.ct-kind input { position: absolute; opacity: 0; pointer-events: none; }
+.ct-kind:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+.ct-product { display: grid; gap: 10px; align-items: center; padding: 8px 10px; }
+.ct-product.is-cart { grid-template-columns: minmax(0, 1fr) minmax(0, 180px); }
+.ct-product label { display: flex; align-items: center; gap: 10px; cursor: pointer; min-width: 0; overflow-wrap: anywhere; }
+.ct-product select { width: 100%; min-width: 0; }
+@media (max-width: 700px) { .ct-product.is-cart { grid-template-columns: 1fr; } }
+.ct-review { display: grid; gap: 8px; overflow-wrap: anywhere; }
+.ct-error { color: var(--danger); }
+.ct-danger-zone { border-color: var(--danger); }

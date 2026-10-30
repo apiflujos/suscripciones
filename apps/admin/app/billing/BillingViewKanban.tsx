@@ -1,12 +1,7 @@
-import { SubscriptionDetailModalWrapper } from "./SubscriptionDetailModalWrapper";
-import { PaymentLinkModalButton } from "./PaymentLinkModalButton";
-import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
-import { PaymentHistoryButton } from "./PaymentHistoryButton";
-import { ManualChargeButton } from "./ManualChargeButton";
-import { ManualMarkPaidButton } from "./ManualMarkPaidButton";
-import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
+import Link from "next/link";
+import { withReturnTo } from "../lib/returnTo";
 import { RowActionsMenu } from "./RowActionsMenu";
-import { buildSubscriptionDetail } from "./BillingCard";
+import { BillingRowMenuItems } from "./BillingRowMenuItems";
 import { fmtMoney, getCollectionStatusLabel } from "./billingDisplayHelpers";
 import { formatCivilDate } from "./civilDate";
 import type { BillingCardContext, BillingRow } from "./billingTypes";
@@ -58,30 +53,7 @@ export function BillingViewKanban({ rows, context }: BillingViewKanbanProps) {
               });
               return (
                 <div key={`kanban-item-${row.id}`} className="billing-kanban-card">
-                  <SubscriptionDetailModalWrapper
-                    className="billing-kanban-card-button"
-                    subscription={buildSubscriptionDetail(row, context)}
-                    csrfToken={context.data.csrfToken}
-                    returnTo={context.data.returnTo}
-                    tenants={context.data.tenants}
-                    planOptions={context.data.planOptions}
-                    notificationsTemplates={context.data.notificationsTemplates}
-                    notificationsRules={context.data.notificationsRules}
-                    chargeSubscriptionNow={context.actions.chargeSubscriptionNow}
-                    markSubscriptionPaidManual={context.actions.markSubscriptionPaidManual}
-                    unmarkSubscriptionPaidManual={context.actions.unmarkSubscriptionPaidManual}
-                    mergeDuplicateSubscriptions={context.actions.mergeDuplicateSubscriptions}
-                    sendWhatsAppPaymentLink={context.actions.sendWhatsAppPaymentLink}
-                    sendWhatsAppTokenizationLink={context.actions.sendWhatsAppTokenizationLink}
-                    updateSubscriptionTenants={context.actions.updateSubscriptionTenants}
-                    changeSubscriptionPlan={context.actions.changeSubscriptionPlan}
-                    updateSubscriptionBillingSettings={context.actions.updateSubscriptionBillingSettings}
-                    deleteSubscription={context.actions.deleteSubscription}
-                    suspendSubscription={context.actions.suspendSubscription}
-                    cancelSubscription={context.actions.cancelSubscription}
-                    resumeSubscription={context.actions.resumeSubscription}
-                    activateSubscription={context.actions.activateSubscription}
-                  >
+                  <Link className="billing-kanban-card-button" href={withReturnTo(`/billing/${encodeURIComponent(row.id)}`, context.data.returnTo)}>
                     <div
                       className="billing-kanban-summary"
                       title={`Suscripción: ${row.estadoInfo.label}`}
@@ -100,92 +72,11 @@ export function BillingViewKanban({ rows, context }: BillingViewKanbanProps) {
                         </span>
                       </div>
                     </div>
-                  </SubscriptionDetailModalWrapper>
+                  </Link>
                   <div className="billing-kanban-card-actions">
                     <RowActionsMenu label="Acciones de la suscripción">
-                      <PaymentHistoryButton subscriptionId={row.id} tenantId={row.tenantId} label="Historial de pagos" />
-                      {showManualCharge ? (
-                        <ManualChargeButton
-                          action={context.actions.chargeSubscriptionNow}
-                          csrfToken={context.data.csrfToken}
-                          subscriptionId={row.id}
-                          tenantId={row.tenantId}
-                          returnTo={context.data.returnTo}
-                          warnNotDue={!row.chargeDue}
-                          warnAlreadyPaid={alreadyPaidCurrentPeriod}
-                          manualChargeEnabled={row.manualChargeEnabled}
-                        />
-                      ) : null}
-                      {showMarkPaid ? (
-                        <ManualMarkPaidButton
-                          action={context.actions.markSubscriptionPaidManual}
-                          csrfToken={context.data.csrfToken}
-                          subscriptionId={row.id}
-                          tenantId={row.tenantId}
-                          returnTo={context.data.returnTo}
-                          warnAlreadyPaid={alreadyPaidCurrentPeriod}
-                          manualMarkPaidEnabled={row.manualMarkPaidEnabled}
-                        />
-                      ) : null}
-                      {!isInactive && !isAutoDebit ? (
-                        <PaymentLinkModalButton
-                          subscriptionId={row.id}
-                          customerId={row.customerId}
-                          tenantId={row.tenantId}
-                          csrfToken={context.data.csrfToken}
-                          returnTo={context.data.returnTo}
-                          defaultAmountPesos={Math.trunc(Number(row.totalInCents || row.montoInCents || 0) / 100)}
-                          notificationTemplates={context.data.notificationsTemplates}
-                          notificationRules={context.data.notificationsRules}
-                          paymentType="SUBSCRIPTION"
-                          blockedReason={context.helpers.getPaymentLinkBlockedReason(row)}
-                          action={context.actions.sendWhatsAppPaymentLink}
-                        />
-                      ) : null}
-                      {isAutoDebit && !isInactive ? (
-                        <TokenizationLinkModalButton
-                          customerId={row.customerId}
-                          productId={row.productId || undefined}
-                          planId={row.planId}
-                          tenantId={row.tenantId}
-                          csrfToken={context.data.csrfToken}
-                          returnTo={context.data.returnTo}
-                          notificationTemplates={context.data.notificationsTemplates}
-                          notificationRules={context.data.notificationsRules}
-                          blockedReason={context.helpers.getTokenizationBlockedReason(row)}
-                          action={context.actions.sendWhatsAppTokenizationLink}
-                        />
-                      ) : null}
-                      {isSuspended ? (
-                        <form action={context.actions.resumeSubscription}>
-                          <input type="hidden" name="csrf" value={context.data.csrfToken} />
-                          <input type="hidden" name="subscriptionId" value={row.id} />
-                          {row.tenantId ? <input type="hidden" name="tenantId" value={row.tenantId} /> : null}
-                          <button className="ghost btn-compact btn-green btn-noicon" type="submit" title="Reanudar suscripción">
-                            Reanudar
-                          </button>
-                        </form>
-                      ) : null}
-                      {isReactivatable ? (
-                        <form action={context.actions.activateSubscription}>
-                          <input type="hidden" name="csrf" value={context.data.csrfToken} />
-                          <input type="hidden" name="subscriptionId" value={row.id} />
-                          {row.tenantId ? <input type="hidden" name="tenantId" value={row.tenantId} /> : null}
-                          <input type="hidden" name="returnTo" value={context.data.returnTo} />
-                          <button className="ghost btn-compact btn-green btn-noicon" type="submit" title="Reactivar suscripción">
-                            Reactivar
-                          </button>
-                        </form>
-                      ) : null}
-                      <DeleteSubscriptionButton
-                        action={context.actions.deleteSubscription}
-                        csrfToken={context.data.csrfToken}
-                        subscriptionId={row.id}
-                        tenantId={row.tenantId}
-                        returnTo={context.data.returnTo}
-                        label="Eliminar"
-                      />
-                    </RowActionsMenu>
+                <BillingRowMenuItems row={row} context={context} />
+              </RowActionsMenu>
                   </div>
                 </div>
               );

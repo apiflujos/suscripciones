@@ -1,4 +1,4 @@
-import type { PlanOption } from "./ChangePlanButton";
+import type { PlanOption } from "./ChangePlanForm";
 
 export type CollectionMode = "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK";
 

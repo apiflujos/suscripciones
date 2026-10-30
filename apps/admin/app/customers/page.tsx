@@ -1,22 +1,13 @@
 import { PaginationBar } from "../PaginationBar";
-import { createCustomer } from "./actions";
-import { CustomersModals } from "./CustomersModals";
-import { listCustomers, getCustomerById } from "../admin/_services/customers";
-import { listManualOrders } from "../admin/_services/orders";
+import Link from "next/link";
+import { listCustomers } from "../admin/_services/customers";
 import { listSubscriptions } from "../admin/_services/subscriptions";
-import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
-import { listCatalogProducts } from "../admin/_services/products";
-import { listEmpresas } from "../admin/_services/companies";
 import { listTenants } from "../admin/_services/tenants";
-import { getAdminSettings } from "../admin/_services/settings";
 import { resolveTenantId } from "../admin/_services/tenantResolver";
-import { getNotificationsConfig } from "@suscripciones/core/services/notificationsConfig";
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
-import { normalizeErrorParam } from "../lib/errorParam";
-import { CustomersTable } from "./CustomersTable";
-import { getCsrfToken } from "../lib/csrf";
-import { createPlanAndSubscription } from "../billing/actions";
-import { prisma } from "@suscripciones/database";
+import { customerErrorText } from "./errors";
+import { CustomersList } from "./CustomersList";
+import { withReturnTo } from "../lib/returnTo";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
@@ -55,50 +46,6 @@ async function fetchCustomers(opts?: { q?: string; take?: number; page?: number;
 }
 
 
-async function fetchPaymentLinks(q: string, tenantId?: string, ids?: string[]) {
-  const res = await listManualOrders({ tenantId: tenantId || null, take: 200, q: q.trim() });
-  const items = Array.isArray(res.items) ? res.items : [];
-  const latestByCustomer = new Map<string, { checkoutUrl: string; createdAt: string; chatwootStatus: string; chatwootError?: string }>();
-  for (const item of items) {
-    const customerId = String(item?.customer?.id || item?.customerId || "");
-    const checkoutUrl = String(item?.checkoutUrl || "");
-    const createdAt = String(item?.createdAt || "");
-    const chatwootStatus = String(item?.chatwootMsgs?.[0]?.status || "");
-    const chatwootError = String(item?.chatwootMsgs?.[0]?.errorMessage || "");
-    if (!customerId || !checkoutUrl) continue;
-    const prev = latestByCustomer.get(customerId);
-    if (!prev || (createdAt && createdAt > prev.createdAt)) {
-      latestByCustomer.set(customerId, { checkoutUrl, createdAt, chatwootStatus, chatwootError: chatwootError || undefined });
-    }
-  }
-  const linkWhere: any = {};
-  if (tenantId) linkWhere.tenantId = tenantId;
-  if (Array.isArray(ids) && ids.length) {
-    linkWhere.payment = { customerId: { in: ids } };
-  }
-  const subscriptionLinks = await prisma.paymentLink.findMany({
-    where: linkWhere,
-    orderBy: { sentAt: "desc" },
-    take: 300,
-    select: {
-      checkoutUrl: true,
-      sentAt: true,
-      payment: { select: { customerId: true } }
-    }
-  });
-  for (const link of subscriptionLinks) {
-    const customerId = String(link?.payment?.customerId || "");
-    const checkoutUrl = String(link?.checkoutUrl || "");
-    const createdAt = link?.sentAt ? new Date(link.sentAt).toISOString() : "";
-    if (!customerId || !checkoutUrl) continue;
-    const prev = latestByCustomer.get(customerId);
-    if (!prev || (createdAt && createdAt > prev.createdAt)) {
-      latestByCustomer.set(customerId, { checkoutUrl, createdAt, chatwootStatus: "", chatwootError: undefined });
-    }
-  }
-  return latestByCustomer;
-}
-
 async function fetchCustomerSubscriptions(tenantId?: string) {
   const res = await listSubscriptions({ tenantId: tenantId || null, take: 300 });
   const items = Array.isArray(res.items) ? res.items : [];
@@ -120,39 +67,15 @@ async function fetchCustomerSubscriptions(tenantId?: string) {
   return map;
 }
 
-async function fetchProducts(tenantId?: string) {
-  return listCatalogProducts({ tenantId: tenantId || null, take: 300 });
-}
-
-async function fetchSettings() {
-  return getAdminSettings();
-}
-
-async function fetchCheckoutTemplates(tenantId?: string) {
-  return { items: await listCheckoutTemplates({ tenantId: tenantId || null }) };
-}
-
-async function fetchNotificationsConfig() {
-  const config = await getNotificationsConfig();
-  return { config };
-}
-
-async function fetchCustomerById(id: string) {
-  if (!id) return null;
-  return getCustomerById(id);
-}
-
 export default async function CustomersPage({
   searchParams
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const csrfToken = await getCsrfToken();
   const sp = (await searchParams) ?? {};
   const q = typeof sp.q === "string" ? sp.q : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const tenantId = typeof sp.tenantId === "string" ? sp.tenantId : "";
-  const txCustomerId = typeof sp.tx === "string" ? sp.tx : "";
   // La lista es la vista predeterminada en todo el producto: muestra más por
   // pantalla y deja comparar filas. Las tarjetas se quedan como opción, no como
   // punto de partida.
@@ -166,7 +89,6 @@ export default async function CustomersPage({
     ...(q ? { q } : {}),
     ...(tenantId ? { tenantId } : {}),
     ...(vista ? { vista } : {}),
-    ...(txCustomerId ? { tx: txCustomerId } : {}),
     ...(viewId ? { viewId } : {}),
     ...(filters ? { filters } : {}),
     ...(Number.isFinite(page) && page > 1 ? { page: String(page) } : {})
@@ -186,38 +108,34 @@ export default async function CustomersPage({
     resolvedIds = ["__none__"];
   }
 
-  const [data, tenantsRes, txCustomer, productsRes, templatesRes, empresasRes, settingsRes, notificationsRes] = await Promise.all([
+  const [data, tenantsRes, subscriptionsByCustomer] = await Promise.all([
     fetchCustomers({ q, take, page, tenantId: resolvedTenantId || "", ids: resolvedIds }),
     listTenants(),
-    txCustomerId ? fetchCustomerById(txCustomerId) : Promise.resolve(null),
-    fetchProducts(resolvedTenantId || ""),
-    fetchCheckoutTemplates(resolvedTenantId || ""),
-    listEmpresas({ tenantId: resolvedTenantId || "", take: 200 }),
-    fetchSettings(),
-    fetchNotificationsConfig()
+    fetchCustomerSubscriptions(resolvedTenantId || "")
   ]);
   const items = (data.items ?? []) as any[];
   const total = Number.isFinite(Number((data as any)?.total)) ? Number((data as any).total) : items.length;
-  if (txCustomer && !items.some((c) => String(c.id) === String(txCustomer.id))) {
-    items.unshift(txCustomer);
-  }
   const tenants = (tenantsRes ?? []) as Array<{ id: string; name: string }>;
-  const empresas = (empresasRes?.items ?? []) as any[];
-  const checkoutConfig = settingsRes?.checkoutConfig || {};
-  const notificationsConfig = notificationsRes?.config || null;
   const tenantById = new Map(tenants.map((t) => [String(t.id), String(t.name)]));
-  const [latestLinks, subscriptionsByCustomer] = await Promise.all([
-    fetchPaymentLinks(q, resolvedTenantId || "", items.map((c) => String(c.id))),
-    fetchCustomerSubscriptions(resolvedTenantId || "")
-  ]);
-  const latestLinksObj = Object.fromEntries(latestLinks.entries());
 
   const created = typeof sp.created === "string" ? sp.created : "";
   const updated = typeof sp.updated === "string" ? sp.updated : "";
   const deleted = typeof sp.deleted === "string" ? sp.deleted : "";
   const paymentSource = typeof sp.paymentSource === "string" ? sp.paymentSource : "";
   const paymentLink = typeof sp.paymentLink === "string" ? sp.paymentLink : "";
-  const error = normalizeErrorParam(typeof sp.error === "string" ? sp.error : undefined);
+  const tokenRemoved = typeof sp.tokenRemoved === "string" ? sp.tokenRemoved : "";
+  const sent = typeof sp.sent === "string" ? sp.sent : "";
+  const sentMessage =
+    sent === "link"
+      ? "Link de pago enviado."
+      : sent === "catalog"
+        ? "Catálogo enviado."
+        : sent === "token"
+          ? "Link de débito automático enviado."
+          : paymentLink
+            ? "Link de pago enviado."
+            : "";
+  const error = customerErrorText(sp.error);
 
   const _customersPageHref = (p: number) => {
     const bp = {
@@ -262,7 +180,8 @@ export default async function CustomersPage({
       {updated ? <div className="card cardPad">Contacto actualizado.</div> : null}
       {deleted ? <div className="card cardPad">Contacto eliminado.</div> : null}
       {paymentSource ? <div className="card cardPad">Método de pago guardado.</div> : null}
-      {paymentLink ? <div className="card cardPad">Link de pago enviado.</div> : null}
+      {tokenRemoved ? <div className="card cardPad">Método de pago removido.</div> : null}
+      {sentMessage ? <div className="card cardPad">{sentMessage}</div> : null}
 
       <section className="settings-group">
         <PageToolbar
@@ -315,40 +234,24 @@ export default async function CustomersPage({
             </>
           )}
           actions={(
-            <CustomersModals
-              actionsClassName="page-toolbar-actions-inner"
-              showPlanButton={false}
-              customers={items}
-              empresas={empresas}
-              products={productsRes?.items ?? []}
-              csrfToken={csrfToken}
-              tenants={tenants}
-              tenantId={tenantId}
-              createCustomer={createCustomer}
-              createPlanAndSubscription={createPlanAndSubscription}
-              returnTo={returnTo}
-            />
+            <div className="page-toolbar-actions-inner">
+              <Link
+                className="primary btn-compact btn-contact"
+                href={withReturnTo("/customers/new", returnTo)}
+                title="Crea un nuevo contacto con datos básicos y canal"
+              >
+                Crear contacto
+              </Link>
+            </div>
           )}
         />
 
         <div className="settings-group-body">
 
-          <CustomersTable
+          <CustomersList
             items={items.map((c) => ({ ...c, tenantName: tenantById.get(String(c.tenantId || "")) || "—" }))}
-            currentTenantId={resolvedTenantId || tenantId}
-            latestLinks={latestLinksObj}
             subscriptionsByCustomer={subscriptionsByCustomer}
-            products={productsRes?.items ?? []}
-            empresas={empresas}
-            checkoutTemplates={templatesRes?.items ?? []}
-            checkoutConfig={checkoutConfig}
-            notificationsConfig={notificationsConfig}
-            tenants={tenants}
-            createCustomer={createCustomer}
-            createPlanAndSubscription={createPlanAndSubscription}
-            csrfToken={csrfToken}
             returnTo={returnTo}
-            initialTxCustomerId={txCustomerId}
             view={vista === "lista" ? "list" : "cards"}
           />
 
