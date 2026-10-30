@@ -17856,3 +17856,6 @@ a.sb-state:hover {
 
 /* Acciones de CSV de las listas: caben en una fila angosta (móvil) sin cortarse. */
 .list-csv-actions { flex-wrap: wrap; max-width: 100%; }
+
+/* Las acciones de CSV no se estiran al 100% en móvil: así no empujan la barra fuera de la pantalla. */
+.page-toolbar .list-csv-actions { width: auto; max-width: 100%; }

@@ -214,7 +214,7 @@ export function SmartFilterBuilder({
 
                       return (
                         <div key={idx} style={{ display: "grid", gap: 6 }}>
-                          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                          <div className="smart-rule-row">
                             <span className="muted" style={{ fontSize: 11, minWidth: 20 }}>{idx + 1}.</span>
                             <select
                               className="select select-compact"
