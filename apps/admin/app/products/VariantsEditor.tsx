@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { HelpTip } from "../ui/HelpTip";
+import "./products.css";
 
 type VariantRow = { option1?: string; option2?: string; priceDeltaPesos?: string };
 
@@ -93,12 +93,12 @@ export function VariantsEditor({
   }, [initialJson, resetKey]);
 
   return (
-    <div className="panel" style={{ borderColor: "rgba(15, 23, 42, 0.12)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+    <div className="variants-editor">
+      <div className="variants-editor-head">
         <strong>Variantes</strong>
         <button
           type="button"
-          className="ghost"
+          className="ghost btn-compact"
           disabled={!!disabled}
           onClick={() => setRows((prev) => [...prev, { option1: "", option2: "", priceDeltaPesos: "" }])}
         >
@@ -108,21 +108,14 @@ export function VariantsEditor({
 
       <input type="hidden" name={fieldName || "variantsJson"} value={json} />
 
-      <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+      <div className="variants-editor-rows">
         {disabled ? <div className="field-hint">Define el nombre de las opciones para poder agregar variantes.</div> : null}
         {rows.map((r, idx) => (
-          <div
-            key={idx}
-            style={{
-              display: "grid",
-              gridTemplateColumns: showOption2 ? "1fr 1fr 1fr auto" : "1fr 1fr auto",
-              gap: 8,
-              alignItems: "end"
-            }}
-          >
+          <div key={idx} className={`variants-editor-row${showOption2 ? " has-option2" : ""}`}>
             <div className="field">
-              <label>{option1Name || "Opción 1"}</label>
+              <label htmlFor={`variant-${idx}-o1`}>{option1Name || "Opción 1"}</label>
               <input
+                id={`variant-${idx}-o1`}
                 className="input"
                 value={r.option1 || ""}
                 onChange={(e) => setRows((prev) => prev.map((x, i) => (i === idx ? { ...x, option1: e.target.value } : x)))}
@@ -131,8 +124,9 @@ export function VariantsEditor({
             </div>
             {showOption2 ? (
               <div className="field">
-                <label>{option2Name || "Opción 2"}</label>
+                <label htmlFor={`variant-${idx}-o2`}>{option2Name || "Opción 2"}</label>
                 <input
+                  id={`variant-${idx}-o2`}
                   className="input"
                   value={r.option2 || ""}
                   onChange={(e) => setRows((prev) => prev.map((x, i) => (i === idx ? { ...x, option2: e.target.value } : x)))}
@@ -141,11 +135,9 @@ export function VariantsEditor({
               </div>
             ) : null}
             <div className="field">
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span>Modificador de precio</span>
-                <HelpTip text="Suma o resta al precio base. Ej: +$5.000 o -$2.000." />
-              </label>
+              <label htmlFor={`variant-${idx}-delta`}>Modificador de precio</label>
               <input
+                id={`variant-${idx}-delta`}
                 className="input"
                 value={r.priceDeltaPesos || ""}
                 onChange={(e) =>
@@ -155,6 +147,7 @@ export function VariantsEditor({
                 }
                 placeholder="+$ 5.000 o -$ 2.000"
               />
+              <div className="field-hint">Suma o resta al precio base.</div>
             </div>
             <button
               type="button"

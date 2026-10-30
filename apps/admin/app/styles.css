@@ -149,8 +149,6 @@
   --chart-a: var(--apf-24);
   --chart-b: var(--apf-25);
   --chart-c: var(--apf-20);
-  --modal-backdrop: rgba(66, 44, 96, 0.1);
-  --modal-backdrop-blur: 10px;
 
   --status-success: #006b4d;
   --status-success-bg: #e6fcf5;
@@ -232,8 +230,6 @@ html[data-theme="dark"] {
   --chart-b: #ff8787;
   --chart-c: #ffd43b;
   --topbar-title: #b89de3;
-  --modal-backdrop: rgba(24, 18, 34, 0.3);
-  --modal-backdrop-blur: 10px;
   --btn-hover-bg: var(--royal-purple-400);
   --btn-primary-hover: var(--royal-purple-400);
   --btn-outline-hover: rgba(255, 255, 255, 0.1);
@@ -292,8 +288,6 @@ html[data-theme="pink-dark"] {
   --row-hover: rgba(226, 121, 166, 0.22);
   --chart-axis: rgba(255, 255, 255, 0.22);
   --chart-track: rgba(255, 255, 255, 0.14);
-  --modal-backdrop: rgba(62, 10, 28, 0.35);
-  --modal-backdrop-blur: 10px;
   --chart-a: #ff9ac2;
   --chart-b: #ff6b6b;
   --chart-c: var(--apf-17);
@@ -401,8 +395,6 @@ html[data-theme="high-contrast"] {
   --chart-b: #ff0000;
   --chart-c: #ffff00;
   --topbar-title: #ffff00;
-  --modal-backdrop: rgba(0, 0, 0, 0.8);
-  --modal-backdrop-blur: 0px;
   --btn-hover-bg: #ffffff;
   --btn-primary-hover: #ffffff;
   --btn-primary-text-hover: #000000;
@@ -452,8 +444,6 @@ html[data-contrast="high"] {
   --chart-b: #ff0000;
   --chart-c: #ffff00;
   --topbar-title: #ffff00;
-  --modal-backdrop: rgba(0, 0, 0, 0.8);
-  --modal-backdrop-blur: 0px;
 
   --form-bg: #0b0b0b;
   --form-border: #ffffff;
@@ -2039,10 +2029,7 @@ a {
   overflow-x: hidden;
 }
 
-.import-modal-grid {
-  display: grid;
-  gap: 10px;
-}
+
 
 .import-ok {
   color: #166534;
@@ -2376,67 +2363,19 @@ a {
   gap: 8px;
 }
 
-.smartViewsModal {
-  position: fixed;
-  inset: 0;
-  background: rgba(10, 12, 16, 0.35);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 80px 24px;
-  z-index: 60;
-}
 
-.smartViewsModalCard {
-  border: 1px solid var(--stroke-strong);
-  background: var(--panel);
-  border-radius: 14px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: min(1100px, 100%);
-  max-height: 80vh;
-  overflow: auto;
-  box-shadow: var(--shadow-soft);
-}
 
-.smartViewsModalPanel {
-  width: min(1100px, 96vw);
-}
 
-.smartViewsModalBody {
-  display: grid;
-  gap: 12px;
-}
 
-.smartViewsModalPanel .btn-compact,
-.smartViewsModalPanel .btn,
-.smartViewsModalPanel .primary,
-.smartFilterModalPanel .btn-compact,
-.smartFilterModalPanel .btn,
-.smartFilterModalPanel .primary {
-  min-height: 34px !important;
-  height: auto !important;
-  font-size: 12px !important;
-  line-height: 1.2 !important;
-  padding: 6px 12px !important;
-}
 
-.smartViewsModalPanel .btn-compact:not(.btn-icon-only),
-.smartViewsModalPanel .btn:not(.btn-icon-only),
-.smartViewsModalPanel .primary:not(.btn-icon-only),
-.smartFilterModalPanel .btn-compact:not(.btn-icon-only),
-.smartFilterModalPanel .btn:not(.btn-icon-only),
-.smartFilterModalPanel .primary:not(.btn-icon-only) {
-  width: auto !important;
-  min-width: 0 !important;
-  white-space: nowrap;
-}
 
-.smartFilterModalPanel .modal-body {
-  gap: 12px;
-}
+
+
+
+
+
+
+
 
 .smartFilterActions {
   display: flex;
@@ -2459,47 +2398,15 @@ a {
   flex-wrap: wrap;
 }
 
-.smartListModal {
-  position: fixed;
-  inset: 0;
-  background: rgba(10, 12, 16, 0.35);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 80px 24px;
-  z-index: 60;
-}
 
-.smartListModalCard {
-  border: 1px solid var(--stroke);
-  background: var(--surface);
-  border-radius: 14px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: min(1100px, 100%);
-  max-height: 80vh;
-  overflow: auto;
-}
 
-.smartListModalHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
 
-.smartViewsModalHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
 
-.smartViewsModalHeader .ghost {
-  border-color: var(--stroke);
-}
+
+
+
+
+
 
 .smartRuleRow {
   display: grid;
@@ -3559,8 +3466,7 @@ html[data-theme="dark"] .payments-health-banner code {
 .billing-header,
 .panel-header,
 .settings-group-header,
-.card-header,
-.modal-panel .panel-header {
+.card-header{
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4003,9 +3909,7 @@ html[data-theme="dark"] .payments-health-banner code {
   color: var(--text-faint);
 }
 
-.contact-edit-modal {
-  overflow-x: hidden;
-}
+
 
 .contact-edit-form {
   display: grid;
@@ -4354,11 +4258,7 @@ textarea.input {
   margin: 0;
 }
 
-.ui-modal-panel-wide {
-  width: min(980px, 96vw);
-  max-height: 90vh;
-  overflow: auto;
-}
+
 
 .ui-alert-success {
   color: #fff;
@@ -4669,19 +4569,7 @@ textarea.input {
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* Modal buttons: keep compact and prevent text overflow */
-.modal-panel .primary:not(.btn-icon-only),
-.modal-panel .ghost:not(.btn-icon-only),
-.modal-panel .btn:not(.btn-icon-only),
-.modal-panel .btnLink:not(.btn-icon-only) {
-  min-height: 32px;
-  height: auto;
-  font-size: 12px;
-  padding: 0 12px;
-  line-height: 1.2;
-  white-space: nowrap;
-  max-width: 100%;
-}
+
 
 .primary::before,
 .ghost::before,
@@ -4711,10 +4599,7 @@ textarea.input {
   --btn-icon: var(--icon-link);
 }
 
-.modal-close,
-[data-modal-close="true"] {
-  --btn-icon: var(--icon-close);
-}
+
 
 .primary,
 .btnPrimary {
@@ -5457,25 +5342,9 @@ textarea.input {
   overflow: visible;
 }
 
-/* Los modales no deben heredar el compactado extremo de headers/tablas.
-   Aquí priorizamos legibilidad y botones con altura suficiente para texto real. */
-.modal-panel :is(.primary, .ghost, .btn, .btnLink).btn-compact:not(.btn-icon-only) {
-  min-height: 34px;
-  height: auto;
-  padding: 6px 12px;
-  font-size: 12px;
-  line-height: 1.2;
-  white-space: normal;
-  width: auto;
-  min-width: 0;
-}
 
-.modal-panel :is(.primary, .ghost, .btn, .btnLink).btn-compact.btn-icon-only {
-  min-height: 32px;
-  height: 32px;
-  min-width: 32px;
-  width: 32px;
-}
+
+
 
 /* Estandar global de iconos en botones */
 .btn-compact svg,
@@ -5536,14 +5405,14 @@ textarea.input {
 }
 
 /* Estandar global: iconos en headers */
-:is(.panel-header, .settings-group-header, .billing-header, .tableHeader, .cardHead, .modal-panel .panel-header) .btn-icon-only,
-:is(.panel-header, .settings-group-header, .billing-header, .tableHeader, .cardHead, .modal-panel .panel-header) .btn-delete-icon {
+:is(.panel-header, .settings-group-header, .billing-header, .tableHeader, .cardHead) .btn-icon-only,
+:is(.panel-header, .settings-group-header, .billing-header, .tableHeader, .cardHead) .btn-delete-icon {
   border-color: var(--primary);
   color: var(--primary);
   background: var(--primary-soft);
 }
 
-:is(.panel-header, .settings-group-header, .billing-header, .tableHeader, .cardHead, .modal-panel .panel-header) .btn-delete-icon {
+:is(.panel-header, .settings-group-header, .billing-header, .tableHeader, .cardHead) .btn-delete-icon {
   border-color: var(--status-danger);
   color: var(--status-danger);
   background: var(--status-danger-bg);
@@ -5862,7 +5731,6 @@ textarea.input {
   }
 }
 
-/* Footer de modales: botones siempre compactos y sin desborde */
 .module-footer :is(.btn, .ghost, .primary, .btn-compact):not(.btn-icon-only) {
   min-height: 28px;
   height: auto;
@@ -6006,7 +5874,6 @@ textarea.input {
   line-height: 1.2;
 }
 
-/* Modal crear suscripción: resultados de búsqueda */
 .customer-search-list {
   display: grid;
   gap: 6px;
@@ -7616,8 +7483,6 @@ textarea.input {
 }
 /* Dentro del menú los botones se leen como una lista, no como una botonera:
    ocupan el ancho y alinean su texto a la izquierda. */
-/* Solo los HIJOS DIRECTOS del menú. Con un descendente, estas reglas alcanzaban
-   también los botones de dentro de los modales que abren esos mismos botones. */
 .row-actions-menu > *,
 .row-actions-menu > button {
   width: 100%;
@@ -8151,97 +8016,27 @@ textarea.input {
   color: var(--status-danger);
 }
 
-.subscription-edit-modal {
-  width: min(900px, 96vw);
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
 
-.subscription-detail-modal .modal-body {
-  display: grid;
-  gap: 16px;
-}
 
-.subscription-detail-modal .card {
-  background: color-mix(in srgb, var(--panel) 94%, var(--primary-soft) 6%);
-}
 
-.subscription-detail-modal .subscription-action-btn {
-  height: 30px;
-  min-height: 30px;
-  padding: 0 12px;
-  font-size: 11px;
-  line-height: 1.1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-  box-sizing: border-box;
-  flex: 0 0 auto;
-  min-width: max-content;
-}
 
-.subscription-edit-modal .btn-compact {
-  font-size: 12px;
-  padding: 6px 12px;
-  height: auto;
-  min-height: 34px;
-  line-height: 1.2;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-}
 
-.subscription-edit-modal :is(.primary, .ghost, .btn, .btn-compact):not(.btn-icon-only)::before {
-  content: none !important;
-  display: none !important;
-}
 
-.subscription-edit-modal .btn-compact:not(.btn-icon-only) {
-  flex: 0 0 auto;
-  min-width: fit-content;
-  max-width: 100%;
-}
 
-/* Override modal global button sizing for subscription edit */
-.subscription-edit-modal .module-footer .btn-compact,
-.subscription-edit-modal .module-footer .primary,
-.subscription-edit-modal .module-footer .ghost,
-.subscription-edit-modal .module-footer .btn {
-  height: auto !important;
-  min-height: 36px !important;
-  padding: 0 18px !important;
-  font-size: 12px !important;
-  line-height: 1.2 !important;
-}
 
-.subscription-edit-modal .card .btn-compact {
-  height: 34px !important;
-  min-height: 34px !important;
-  padding: 6px 14px !important;
-  font-size: 12px !important;
-  line-height: 1.2 !important;
-}
 
-.subscription-edit-modal .input,
-.subscription-edit-modal .select {
-  height: auto;
-  min-height: 38px;
-  font-size: 12px;
-  min-width: 0;
-}
 
-.subscription-edit-modal-body {
-  display: grid;
-  gap: 14px;
-  overflow: auto;
-  padding-right: 6px;
-  min-width: 0;
-}
+
+
+
+
+
+
+
+
+
+
+
 
 .subscription-edit-type-row {
   display: flex;
@@ -8264,23 +8059,11 @@ textarea.input {
   min-width: 0;
 }
 
-.subscription-edit-modal .subscription-product-search {
-  display: grid;
-  gap: var(--space-2);
-  min-width: 0;
-}
 
-.subscription-edit-modal .subscription-product-search-row {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  min-width: 0;
-}
 
-.subscription-edit-modal .subscription-product-search-input {
-  flex: 1 1 auto;
-  min-width: 0;
-}
+
+
+
 
 .subscription-edit-products-list {
   display: grid;
@@ -8306,25 +8089,9 @@ textarea.input {
   overflow-wrap: anywhere;
 }
 
-.subscription-edit-modal .subscription-edit-add-product-btn {
-  align-self: flex-start;
-  min-width: 0 !important;
-  width: auto !important;
-  max-width: 100%;
-}
 
-.subscription-edit-modal .plan-option-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: auto;
-  min-height: 38px;
-  padding: 8px 12px;
-  gap: 8px;
-  font-size: 12px;
-  min-width: 0;
-  width: 100%;
-}
+
+
 
 .subscription-edit-cycle-grid {
   display: grid;
@@ -8341,89 +8108,31 @@ textarea.input {
   border-radius: var(--radius-3);
 }
 
-.subscription-edit-modal .btn-icon-only {
-  width: 32px !important;
-  min-width: 32px !important;
-  height: 32px !important;
-  min-height: 32px !important;
-}
 
-.subscription-edit-modal .primary.btn-compact {
-  min-width: 120px;
-  justify-content: center;
-}
 
-.subscription-edit-modal .ghost.btn-compact {
-  min-width: 110px;
-  justify-content: center;
-}
 
-.subscription-edit-modal .module-footer {
-  padding-top: 12px;
-  border-top: 1px solid var(--stroke);
-  gap: 8px;
-  flex-wrap: nowrap;
-  width: 100%;
-  box-sizing: border-box;
-  justify-content: flex-end;
-  padding-right: 6px;
-  flex-shrink: 0;
-  align-items: center;
-  min-width: 0;
-}
 
-.subscription-edit-modal .subscription-edit-footer-btn {
-  flex: 0 0 auto;
-  min-width: 128px !important;
-  width: auto !important;
-  max-width: 100%;
-  padding: 0 18px !important;
-  line-height: 1.2 !important;
-  box-sizing: border-box;
-  text-align: center;
-  justify-content: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+
+
+
+
+
 
 .subscription-edit-footer > * {
   flex: 0 0 auto;
 }
 
-.subscription-edit-modal {
-  font-size: 12px;
-}
 
-.subscription-edit-modal .modal-body {
-  gap: 12px !important;
-}
 
-.subscription-edit-modal .card.cardPad {
-  padding: 12px !important;
-}
 
-.subscription-edit-modal .field-label,
-.subscription-edit-modal label,
-.subscription-edit-modal .field-hint {
-  font-size: 12px;
-  line-height: 1.3;
-  flex-wrap: wrap;
-}
 
-.subscription-edit-modal .input,
-.subscription-edit-modal .select {
-  height: auto;
-  min-height: 38px;
-  font-size: 12px;
-}
 
-.subscription-edit-modal .plan-option-item span:first-child {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+
+
+
+
+
+
 
 .subscription-edit-plan-price {
   flex: 0 0 auto;
@@ -8442,95 +8151,40 @@ textarea.input {
 }
 
 @media (max-width: 640px) {
-  .subscription-edit-modal .subscription-product-search-row,
-  .subscription-edit-modal .subscription-edit-frequency-row,
-  .subscription-edit-modal .module-footer {
-    flex-wrap: wrap;
-    justify-content: stretch;
-  }
+  
 
   .subscription-edit-footer > * {
     flex: 1 1 100%;
   }
 
-  .subscription-edit-modal .module-footer .btn-compact,
-  .subscription-edit-modal .module-footer .primary,
-  .subscription-edit-modal .module-footer .ghost,
-  .subscription-edit-modal .module-footer .btn {
-    width: 100%;
-    min-width: 0;
-  }
+  
 
-  .subscription-edit-modal .subscription-edit-add-product-btn {
-    width: 100% !important;
-  }
+  
 }
 
-.customer-edit-modal {
-  width: min(900px, 96vw);
-  max-height: 90vh;
-  overflow: auto;
-}
 
-.customer-edit-modal .btn-compact {
-  font-size: 12px;
-  padding: 6px 12px;
-  min-height: 34px;
-  line-height: 1.2;
-  white-space: normal;
-}
 
-.customer-edit-modal .primary.btn-compact {
-  min-width: 100px;
-  justify-content: center;
-}
 
-.customer-edit-modal .ghost.btn-compact {
-  min-width: 80px;
-  justify-content: center;
-}
 
-.customer-edit-modal .module-footer {
-  padding-top: 16px;
-  border-top: 1px solid var(--stroke);
-}
 
-.customer-edit-modal .pill.is-active {
-  background: var(--primary-soft);
-  color: var(--primary);
-  border-color: var(--primary);
-}
 
-.customer-edit-modal .pill-primary {
-  border: 2px solid var(--primary);
-}
 
-.customer-view-ficha-modal {
-  width: min(700px, 96vw);
-  max-height: 90vh;
-  overflow: auto;
-}
 
-.customer-view-ficha-modal .modal-body {
-  padding: 0;
-}
 
-.customer-view-ficha-modal .card.cardPad {
-  background: var(--surface-2);
-  border: 1px solid var(--stroke);
-}
 
-.customer-view-ficha-modal .module-footer {
-  border-top: 1px solid var(--stroke);
-}
 
-.customer-view-ficha-modal h4 {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--primary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+
+
+
+
+
+
+
+
+
+
+
+
 
 .campaigns-actions-right {
   display: flex;
@@ -9820,10 +9474,7 @@ textarea.input {
   padding-left: 12px !important;
 }
 
-.billing-cutoff-modal-form {
-  display: grid;
-  gap: 10px;
-}
+
 
 .billing-inline-cutoff .input {
   min-width: 210px;
@@ -10616,42 +10267,17 @@ textarea.input {
   padding: 6px 12px;
 }
 
-.campaignsModal .panel-header strong {
-  font-size: 15px;
-  color: var(--text-strong);
-}
 
-.campaignsModal .input,
-.campaignsModal .select,
-.campaignsModal .input.input-compact,
-.campaignsModal .select.select-compact {
-  min-height: 34px;
-  height: 34px;
-  font-size: 13px;
-}
 
-.campaignsModal textarea.input,
-.campaignsModal textarea.input-compact {
-  font-size: 13px;
-}
 
-.campaignsModal .field-hint {
-  color: var(--text-soft);
-  font-size: 12.5px;
-}
 
-.campaignsModal label {
-  color: var(--text);
-  font-weight: 600;
-}
 
-.campaignsModal .primary,
-.campaignsModal .ghost,
-.campaignsModal .btn {
-  min-height: 34px;
-  font-size: 13px;
-  padding: 6px 12px;
-}
+
+
+
+
+
+
 
 /* Customers y Products - Filtros 100% ancho */
 .customersPage .filtersPanel,
@@ -12285,16 +11911,8 @@ html[data-contrast="high"] .payment-point-provider img {
   gap: 10px;
   grid-template-columns: 1fr;
 }
-.template-modal-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-  gap: 20px;
-  align-items: flex-start;
-}
-.template-modal-left {
-  display: grid;
-  gap: 14px;
-}
+
+
 .template-preview {
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: var(--radius-xl);
@@ -12727,11 +12345,7 @@ html[data-contrast="high"] .payment-point-provider img {
   padding: 6px 12px;
   font-weight: 700;
 }
-@media (max-width: 900px) {
-  .template-modal-body {
-    grid-template-columns: 1fr;
-  }
-}
+
 
 .template-card {
   background: var(--panel);
@@ -13093,8 +12707,6 @@ body.is-global-loading {
   position: absolute;
   inset: 0;
   background: rgba(17, 24, 39, 0.26);
-  backdrop-filter: blur(var(--modal-backdrop-blur));
-  -webkit-backdrop-filter: blur(var(--modal-backdrop-blur));
 }
 
 .global-loader-card {
@@ -13912,62 +13524,23 @@ body.is-global-loading {
   white-space: nowrap;
 }
 
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--modal-backdrop);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 40050;
-  padding: 16px;
-  backdrop-filter: blur(var(--modal-backdrop-blur)) saturate(1.05);
-  -webkit-backdrop-filter: blur(var(--modal-backdrop-blur)) saturate(1.05);
-}
 
-.modal-panel {
-  width: min(980px, 96vw);
-  max-height: 90vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: var(--panel);
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--stroke);
-  box-shadow: var(--shadow-lg);
-  padding: 16px;
-  position: relative;
-  z-index: 40060;
-  min-width: 0;
-}
 
-.modal-panel > * {
-  min-width: 0;
-}
 
-.modal-panel-fixed {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
 
-.modal-panel-fixed .modal-body {
-  overflow: auto;
-  padding-right: 4px;
-}
 
-.modal-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
+
+
+
+
+
+
 
 @media (max-width: 980px) {
   .conn-grid {
     grid-template-columns: 1fr;
   }
-  .modal-split {
-    grid-template-columns: 1fr;
-  }
+  
 }
 
 @media (max-width: 980px) {
@@ -14253,7 +13826,7 @@ html[data-contrast="high"] .icon-btn.danger:hover {
 }
 
 /* Estandar global: botones de acción en footers sin icono (EXCEPTO icon-only y export/view) */
-:is(.module-footer, .billing-actions, .contact-footer, .wizard-footer, .drawer-footer, .modal-footer) :is(.btn, .ghost, .primary, .btn-compact):not(.btn-icon-only):not(.btn-view):not(.btn-export)::before {
+:is(.module-footer, .billing-actions, .contact-footer, .wizard-footer, .drawer-footer) :is(.btn, .ghost, .primary, .btn-compact):not(.btn-icon-only):not(.btn-view):not(.btn-export)::before {
   content: none !important;
 }
 
@@ -14490,42 +14063,15 @@ html[data-contrast="high"] .module-footer .ghost {
   margin-top: 2px;
 }
 
-.modal-panel .panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: nowrap;
-  padding: 0 0 var(--space-3);
-  margin-bottom: var(--space-3);
-  border-bottom: 1px solid var(--stroke);
-  min-height: 0;
-}
 
-.modal-panel .panel-header > * {
-  min-width: 0;
-}
 
-.modal-header-main {
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-  flex: 1 1 auto;
-}
 
-.modal-header-actions {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex: 0 0 auto;
-}
 
-.modal-panel .panel-header h3 {
-  margin: 0;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
+
+
+
+
+
 
 .panel-title {
   font-size: 15px;
@@ -14538,118 +14084,35 @@ html[data-contrast="high"] .module-footer .ghost {
   color: var(--text-faint);
 }
 
-.modal-body {
-  display: grid;
-  gap: var(--space-5);
-  min-width: 0;
-  padding-right: 2px;
-}
 
-/* Modal - Textos uniformes */
-.modal-body .field,
-.modal-form-stack {
-  display: grid;
-  gap: 10px;
-}
 
-.modal-body .field {
-  font-size: var(--text-base);
-  min-width: 0;
-}
 
-.modal-body .field label {
-  font-size: var(--text-base);
-  font-weight: 600;
-  line-height: 1.35;
-}
 
-.modal-body .select,
-.modal-body .input {
-  font-size: var(--text-base);
-  min-height: 38px;
-  width: 100%;
-  max-width: 100%;
-}
 
-.modal-body textarea {
-  font-size: var(--text-base);
-  line-height: 1.5;
-}
 
-.modal-body .field-hint {
-  font-size: var(--text-base);
-}
 
-.modal-note {
-  margin-bottom: 12px;
-  line-height: 1.45;
-}
 
-.modal-panel .module-footer {
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
 
-.modal-panel .module-footer :is(button, .btn, .ghost, .primary, .btn-compact):not(.btn-icon-only) {
-  min-height: 36px;
-}
 
-.modal-close {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  min-width: 36px;
-  border-radius: 12px;
-  border: 1px solid var(--stroke);
-  background: var(--panel);
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  color: var(--text);
-}
 
-.modal-close::before {
-  content: none;
-}
 
-.modal-close:empty::before {
-  content: "X";
-}
 
-.modal-close:hover {
-  background: var(--primary-soft);
-  border-color: var(--primary);
-  color: var(--primary);
-}
 
-@media (max-width: 640px) {
-  .modal-panel {
-    width: min(100%, 100vw - 16px);
-    max-height: calc(100vh - 16px);
-    padding: 14px;
-  }
 
-  .modal-panel .panel-header {
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
 
-  .modal-header-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
 
-  .modal-panel .module-footer {
-    justify-content: stretch;
-  }
 
-  .modal-panel .module-footer :is(button, .btn, .ghost, .primary, .btn-compact):not(.btn-icon-only) {
-    flex: 1 1 100%;
-    width: 100%;
-    min-width: 0;
-  }
-}
+
+
+
+
+
+
+
+
+
+
+
 
 .progress-row {
   display: grid;
@@ -15667,16 +15130,8 @@ html[data-contrast="high"] .toggle::after {
   gap: 10px;
   grid-template-columns: 1fr;
 }
-.template-modal-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-  gap: 12px;
-  align-items: flex-start;
-}
-.template-modal-left {
-  display: grid;
-  gap: 14px;
-}
+
+
 .template-preview {
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: var(--radius-xl);
@@ -16109,11 +15564,7 @@ html[data-contrast="high"] .toggle::after {
   padding: 6px 12px;
   font-weight: 700;
 }
-@media (max-width: 900px) {
-  .template-modal-body {
-    grid-template-columns: 1fr;
-  }
-}
+
 
 .template-card {
   background: var(--panel);
@@ -16560,10 +16011,6 @@ html[data-contrast="high"] .toggle::after {
   padding: 0 var(--space-1);
 }
 
-/* Contenedor plano para modales de crear (CustomersModals, ProductsModals,
-   BillingModals) cuando se pasan como slot `actions` de PageToolbar. Sin
-   este selector el div interno arrastra los estilos de customers-actions-
-   right (justify-content: flex-end en su propia fila) y rompe la línea. */
 .page-toolbar-actions-inner {
   display: inline-flex;
   align-items: center;

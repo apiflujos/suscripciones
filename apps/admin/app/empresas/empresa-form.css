@@ -1,0 +1,59 @@
+/* Formulario de empresa: las tablas de contactos no scrollean; en móvil cada fila es una tarjeta. */
+.empresa-form .empresa-table {
+  overflow: visible;
+  max-width: 100%;
+}
+
+.empresa-form .empresa-table table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.empresa-form .empresa-table td,
+.empresa-form .empresa-table th {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.empresa-form .empresa-table .input {
+  min-width: 0;
+  width: 100%;
+}
+
+@media (max-width: 760px) {
+  .empresa-form .empresa-table table,
+  .empresa-form .empresa-table tbody,
+  .empresa-form .empresa-table tr,
+  .empresa-form .empresa-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .empresa-form .empresa-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: clip;
+    clip-path: inset(50%);
+  }
+
+  .empresa-form .empresa-table tr {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--stroke, #e5e5e5);
+  }
+
+  .empresa-form .empresa-table td {
+    padding: 4px 0;
+    border: 0;
+  }
+
+  .empresa-form .empresa-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-faint, var(--muted));
+    margin-bottom: 2px;
+  }
+}

@@ -12,7 +12,19 @@ function safeReturnTo(formData: FormData) {
   if (raw.startsWith("/billing")) return raw;
   if (raw.startsWith("/empresas")) return raw;
   if (raw.startsWith("/dashboard/empresas")) return raw;
+  if (raw.startsWith("/products")) return raw;
   return "/customers";
+}
+
+/**
+ * Adónde llevar un error de validación. Las páginas dedicadas (/customers/new) lo
+ * mandan en `errorReturnTo` para que el error se vea en el mismo formulario y no en
+ * la página a la que se volvería tras guardar.
+ */
+function safeErrorReturnTo(formData: FormData, fallback: string) {
+  const raw = String(formData.get("errorReturnTo") || "").trim();
+  if (raw.startsWith("/customers") && !raw.startsWith("//") && !raw.includes("\\")) return raw;
+  return fallback;
 }
 
 function mergeQuery(path: string, extra: Record<string, string | undefined>) {
@@ -62,6 +74,7 @@ function buildCustomerMetadata(input: {
 export async function createCustomer(formData: FormData) {
   await assertCsrfToken(formData);
   const returnTo = safeReturnTo(formData);
+  const errorTo = safeErrorReturnTo(formData, returnTo);
   const nameRaw = String(formData.get("name") || "").trim();
   const emailRaw = String(formData.get("email") || "").trim();
   const phoneRaw = String(formData.get("phone") || "").trim();
@@ -75,12 +88,12 @@ export async function createCustomer(formData: FormData) {
   const idNumber = String(formData.get("idNumber") || "").trim();
 
   if (!phoneRaw && !emailRaw) {
-    return redirect(mergeQuery(returnTo, { error: "contacto_requerido", ...(tenantId ? { tenantId } : {}) }));
+    return redirect(mergeQuery(errorTo, { error: "contacto_requerido", ...(tenantId ? { tenantId } : {}) }));
   }
 
   const phoneNormalized = phoneRaw ? normalizePhoneE164(phoneRaw) : undefined;
   if (phoneRaw && !phoneNormalized) {
-    return redirect(mergeQuery(returnTo, { error: "telefono_invalido", ...(tenantId ? { tenantId } : {}) }));
+    return redirect(mergeQuery(errorTo, { error: "telefono_invalido", ...(tenantId ? { tenantId } : {}) }));
   }
 
   try {
@@ -99,10 +112,13 @@ export async function createCustomer(formData: FormData) {
       tenantIds: tenantId ? [tenantId] : []
     });
     if (!res.ok) throw new Error(res.error);
-    redirect(mergeQuery(returnTo, { created: "1", ...(tenantId ? { tenantId } : {}) }));
+    // selectCustomerId: la página que pidió crear el contacto (p. ej. /billing/new)
+    // lo preselecciona al volver.
+    const newId = String((res as any)?.customer?.id || "").trim();
+    redirect(mergeQuery(returnTo, { created: "1", ...(newId ? { selectCustomerId: newId } : {}), ...(tenantId ? { tenantId } : {}) }));
   } catch (err: any) {
     if (String(err?.digest || "").startsWith("NEXT_REDIRECT")) throw err;
-    redirect(mergeQuery(returnTo, { error: String(err?.message || "create_customer_failed"), ...(tenantId ? { tenantId } : {}) }));
+    redirect(mergeQuery(errorTo, { error: String(err?.message || "create_customer_failed"), ...(tenantId ? { tenantId } : {}) }));
   }
 }
 

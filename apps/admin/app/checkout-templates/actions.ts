@@ -10,14 +10,35 @@ import {
   listCheckoutTemplates
 } from "../admin/_services/checkoutTemplates";
 import { listTenants } from "../admin/_services/tenants";
-import { getAdminSettings } from "../admin/_services/settings";
+import { getAdminSettings, getCheckoutConfig } from "../admin/_services/settings";
+import { updateCheckoutConfig as updateCheckoutConfigService } from "../admin/_services/settingsActions";
 import { listCatalogProducts } from "../admin/_services/products";
 import { logger } from "@suscripciones/core/lib/logger";
 
-function redirectWith(action: string, status: "ok" | "fail", error?: string) {
-  const qp = new URLSearchParams({ a: action, status, tab: "checkout-publico" });
-  if (error) qp.set("error", error);
-  redirect(`/settings?${qp.toString()}`);
+const DEFAULT_RETURN_TO = "/settings?tab=checkout-publico";
+
+/** Solo rutas internas de este módulo o de Ajustes (nunca `//otro-sitio`). */
+function safeReturnTo(formData: FormData, field = "returnTo"): string {
+  const raw = String(formData.get(field) || "").trim();
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "";
+  if (raw === "/checkout-templates" || raw.startsWith("/checkout-templates/") || raw.startsWith("/checkout-templates?")) return raw;
+  if (raw === "/settings" || raw.startsWith("/settings?")) return raw;
+  return "";
+}
+
+/**
+ * Redirige con el resultado. `returnTo` es la lista a la que se vuelve (por defecto
+ * Ajustes, como antes); si falla y el formulario trae `errorTo` (la página del
+ * formulario), se vuelve ahí para mostrar el error junto a los campos.
+ */
+function redirectWith(action: string, status: "ok" | "fail", error?: string, returnTo?: string, errorTo?: string) {
+  const base = status === "fail" && errorTo ? errorTo : returnTo || DEFAULT_RETURN_TO;
+  const url = new URL(base, "http://localhost");
+  url.searchParams.set("a", action);
+  url.searchParams.set("status", status);
+  if (error) url.searchParams.set("error", error);
+  else url.searchParams.delete("error");
+  redirect(`${url.pathname}?${url.searchParams.toString()}`);
 }
 
 function isNextRedirect(err: unknown) {
@@ -43,6 +64,8 @@ function parseProductIds(raw: string): any[] {
 }
 
 export async function createCheckoutTemplate(formData: FormData) {
+  const returnTo = safeReturnTo(formData);
+  const errorTo = safeReturnTo(formData, "errorTo");
   try {
     await assertCsrfToken(formData);
     let layout: any = {};
@@ -56,19 +79,19 @@ export async function createCheckoutTemplate(formData: FormData) {
     const kind = String(formData.get("kind") || "PLAN").trim().toUpperCase();
     const tenantId = String(formData.get("tenantId") || "").trim();
     if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION" && kind !== "CART")) {
-      return redirectWith("checkout_template_create", "fail", "invalid_body");
+      return redirectWith("checkout_template_create", "fail", "invalid_body", returnTo, errorTo);
     }
     if (!tenantId) {
-      return redirectWith("checkout_template_create", "fail", "tenant_required");
+      return redirectWith("checkout_template_create", "fail", "tenant_required", returnTo, errorTo);
     }
 
     const allowProductSelect = kind === "CART" ? String(formData.get("allowProductSelect") || "") === "on" : false;
     const productIds = parseProductIds(String(formData.get("productIds") || ""));
     if (!productIds.length) {
-      return redirectWith("checkout_template_create", "fail", "product_required");
+      return redirectWith("checkout_template_create", "fail", "product_required", returnTo, errorTo);
     }
     if (kind !== "CART" && productIds.length > 1) {
-      return redirectWith("checkout_template_create", "fail", "max_one_product");
+      return redirectWith("checkout_template_create", "fail", "max_one_product", returnTo, errorTo);
     }
     const expiryHoursRaw = String(formData.get("expiryHours") || "").trim();
     const expiryHoursNum = expiryHoursRaw ? Number(expiryHoursRaw) : NaN;
@@ -90,18 +113,20 @@ export async function createCheckoutTemplate(formData: FormData) {
     };
     const res = await createCheckoutTemplateService(payload as any);
     if (!res.ok) throw new Error(res.error);
-    redirectWith("checkout_template_create", "ok");
+    redirectWith("checkout_template_create", "ok", undefined, returnTo, errorTo);
   } catch (err: any) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("checkout_template_create", "fail", String(err?.message || "create_failed"));
+    redirectWith("checkout_template_create", "fail", String(err?.message || "create_failed"), returnTo, errorTo);
   }
 }
 
 export async function updateCheckoutTemplate(formData: FormData) {
+  const returnTo = safeReturnTo(formData);
+  const errorTo = safeReturnTo(formData, "errorTo");
   try {
     await assertCsrfToken(formData);
     const id = String(formData.get("id") || "").trim();
-    if (!id) return redirectWith("checkout_template_update", "fail", "missing_id");
+    if (!id) return redirectWith("checkout_template_update", "fail", "missing_id", returnTo, errorTo);
     let layout: any = {};
     try {
       layout = JSON.parse(String(formData.get("layout") || "{}"));
@@ -113,15 +138,15 @@ export async function updateCheckoutTemplate(formData: FormData) {
     const kind = String(formData.get("kind") || "PLAN").trim().toUpperCase();
     const tenantId = String(formData.get("tenantId") || "").trim();
     if (!name || (kind !== "PLAN" && kind !== "SUBSCRIPTION" && kind !== "CART")) {
-      return redirectWith("checkout_template_update", "fail", "invalid_body");
+      return redirectWith("checkout_template_update", "fail", "invalid_body", returnTo, errorTo);
     }
     const allowProductSelect = kind === "CART" ? String(formData.get("allowProductSelect") || "") === "on" : false;
     const productIds = parseProductIds(String(formData.get("productIds") || ""));
     if (!productIds.length) {
-      return redirectWith("checkout_template_update", "fail", "product_required");
+      return redirectWith("checkout_template_update", "fail", "product_required", returnTo, errorTo);
     }
     if (kind !== "CART" && productIds.length > 1) {
-      return redirectWith("checkout_template_update", "fail", "max_one_product");
+      return redirectWith("checkout_template_update", "fail", "max_one_product", returnTo, errorTo);
     }
     const expiryHoursRaw = String(formData.get("expiryHours") || "").trim();
     const expiryHoursNum = expiryHoursRaw ? Number(expiryHoursRaw) : NaN;
@@ -143,36 +168,40 @@ export async function updateCheckoutTemplate(formData: FormData) {
     };
     const res = await updateCheckoutTemplateService({ id, ...payload } as any);
     if (!res.ok) throw new Error(res.error);
-    redirectWith("checkout_template_update", "ok");
+    redirectWith("checkout_template_update", "ok", undefined, returnTo, errorTo);
   } catch (err: any) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("checkout_template_update", "fail", String(err?.message || "update_failed"));
+    redirectWith("checkout_template_update", "fail", String(err?.message || "update_failed"), returnTo, errorTo);
   }
 }
 
 export async function deleteCheckoutTemplate(formData: FormData) {
+  const returnTo = safeReturnTo(formData);
+  const errorTo = safeReturnTo(formData, "errorTo");
   try {
     await assertCsrfToken(formData);
     const id = String(formData.get("id") || "").trim();
-    if (!id) return redirectWith("checkout_template_delete", "fail", "missing_id");
+    if (!id) return redirectWith("checkout_template_delete", "fail", "missing_id", returnTo, errorTo);
     const res = await deleteCheckoutTemplateService({ id });
     if (!res.ok) throw new Error(res.error);
-    redirectWith("checkout_template_delete", "ok");
+    redirectWith("checkout_template_delete", "ok", undefined, returnTo, errorTo);
   } catch (err: any) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("checkout_template_delete", "fail", String(err?.message || "delete_failed"));
+    redirectWith("checkout_template_delete", "fail", String(err?.message || "delete_failed"), returnTo, errorTo);
   }
 }
 
 export async function duplicateCheckoutTemplate(formData: FormData) {
+  const returnTo = safeReturnTo(formData);
+  const errorTo = safeReturnTo(formData, "errorTo");
   try {
     await assertCsrfToken(formData);
     const id = String(formData.get("id") || "").trim();
-    if (!id) return redirectWith("checkout_template_duplicate", "fail", "missing_id");
+    if (!id) return redirectWith("checkout_template_duplicate", "fail", "missing_id", returnTo, errorTo);
     const existing = await getCheckoutTemplateById({ id });
     const template = existing.ok ? existing.item : null;
-    if (!template) return redirectWith("checkout_template_duplicate", "fail", "not_found");
-    if (!template.tenantId) return redirectWith("checkout_template_duplicate", "fail", "tenant_required");
+    if (!template) return redirectWith("checkout_template_duplicate", "fail", "not_found", returnTo, errorTo);
+    if (!template.tenantId) return redirectWith("checkout_template_duplicate", "fail", "tenant_required", returnTo, errorTo);
 
     const payload = {
       name: `Copia - ${template.name || "Plantilla"}`,
@@ -192,14 +221,16 @@ export async function duplicateCheckoutTemplate(formData: FormData) {
     };
     const created = await createCheckoutTemplateService(payload as any);
     if (!created.ok) throw new Error(created.error);
-    redirectWith("checkout_template_duplicate", "ok");
+    redirectWith("checkout_template_duplicate", "ok", undefined, returnTo, errorTo);
   } catch (err: any) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("checkout_template_duplicate", "fail", String(err?.message || "duplicate_failed"));
+    redirectWith("checkout_template_duplicate", "fail", String(err?.message || "duplicate_failed"), returnTo, errorTo);
   }
 }
 
 export async function createCheckoutTemplateDefaults(formData: FormData) {
+  const returnTo = safeReturnTo(formData);
+  const errorTo = safeReturnTo(formData, "errorTo");
   try {
     await assertCsrfToken(formData);
     const tenantIdInput = String(formData.get("tenantId") || "").trim();
@@ -207,7 +238,7 @@ export async function createCheckoutTemplateDefaults(formData: FormData) {
     const mode = modeRaw === "PLAN" || modeRaw === "SUBSCRIPTION" || modeRaw === "BOTH" ? modeRaw : "BOTH";
     const tenants = await listTenants();
     const selectedTenants = tenantIdInput ? tenants.filter((t: any) => String(t.id) === tenantIdInput) : tenants;
-    if (!selectedTenants.length) return redirectWith("checkout_template_defaults", "fail", "tenant_required");
+    if (!selectedTenants.length) return redirectWith("checkout_template_defaults", "fail", "tenant_required", returnTo, errorTo);
 
     const settingsRes = await getAdminSettings();
     const checkoutConfig = (settingsRes as any)?.checkoutConfig || {};
@@ -256,10 +287,35 @@ export async function createCheckoutTemplateDefaults(formData: FormData) {
       }
     }
 
-      if (!createdCount) return redirectWith("checkout_template_defaults", "fail", "nothing_to_create");
-    redirectWith("checkout_template_defaults", "ok");
+      if (!createdCount) return redirectWith("checkout_template_defaults", "fail", "nothing_to_create", returnTo, errorTo);
+    redirectWith("checkout_template_defaults", "ok", undefined, returnTo, errorTo);
   } catch (err: any) {
     if (isNextRedirect(err)) throw err;
-    redirectWith("checkout_template_defaults", "fail", String(err?.message || "defaults_failed"));
+    redirectWith("checkout_template_defaults", "fail", String(err?.message || "defaults_failed"), returnTo, errorTo);
+  }
+}
+
+/**
+ * Guarda las plantillas predeterminadas desde /checkout-templates. Hace lo mismo que
+ * `updateCheckoutDefaults` de Ajustes, pero vuelve a la página de origen (la de Ajustes
+ * solo acepta rutas /settings).
+ */
+export async function saveCheckoutTemplateDefaults(formData: FormData) {
+  const returnTo = safeReturnTo(formData);
+  try {
+    await assertCsrfToken(formData);
+    const current = await getCheckoutConfig();
+    const merged = {
+      ...current,
+      defaultPlanTemplateId: String(formData.get("defaultPlanTemplateId") || "").trim(),
+      defaultSubscriptionTemplateId: String(formData.get("defaultSubscriptionTemplateId") || "").trim(),
+      defaultCartTemplateId: String(formData.get("defaultCartTemplateId") || "").trim()
+    };
+    const out: any = await updateCheckoutConfigService(merged as any);
+    if (!out?.ok) throw new Error(out?.error || out?.message || `request_failed_${out?.status || 400}`);
+    redirectWith("checkout_defaults", "ok", undefined, returnTo);
+  } catch (err: any) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("checkout_defaults", "fail", String(err?.message || "defaults_failed"), returnTo);
   }
 }

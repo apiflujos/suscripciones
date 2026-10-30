@@ -9,243 +9,27 @@ import { AiAssistant } from "./AiAssistant";
 import { LogsFiltersAutoSubmit } from "./LogsFiltersAutoSubmit";
 import { getCsrfToken, assertCsrfToken } from "../lib/csrf";
 import { PendingButton } from "../ui/PendingButton";
-import { ReconcilePaymentModal } from "./ReconcilePaymentModal";
 import { PageToolbar } from "../ui/PageToolbar";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { FilterButton } from "../ui/FilterButton";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { getAdminSettings } from "../admin/_services/settings";
-import { listCustomers } from "../admin/_services/customers";
-import { listCatalogProducts } from "../admin/_services/products";
-import { listEmpresas } from "../admin/_services/companies";
-import { listTenants } from "../admin/_services/tenants";
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
-import { createCustomerFromBilling, createPlanAndSubscription } from "../billing/actions";
 import {
-  recollectPayments,
-  autoAssociateUnlinkedPayments,
-  associatePaymentToSubscription,
-  reconcilePayment as reconcilePaymentAction,
-  reconcilePendingPayments as reconcilePendingPaymentsAction,
-  enqueueShopifyForwardForPayment,
-  retryFailedWebhooks as retryFailedWebhooksAction,
-  retryWebhookById
-} from "../admin/_services/logsActions";
+  retryFailedWebhooks,
+  reconcilePayment,
+  reconcilePendingPayments,
+  autoAssociatePayments,
+  associatePayment,
+  forwardShopifyPayment
+} from "./actions";
 import { isShopifyLikePayload } from "@suscripciones/core/webhooks/wompi/classifyReference";
-import { PaymentCreateSubscriptionModal } from "./PaymentCreateSubscriptionModal";
+import { withReturnTo } from "../lib/returnTo";
+import "./logs-layout.css";
 import { RowActionsMenu } from "../billing/RowActionsMenu";
 
 export const dynamic = "force-dynamic";
-
-async function getSuperAdminSession() {
-  const c = await cookies();
-  const sessionToken = c.get(ADMIN_SESSION_COOKIE)?.value || "";
-  const session = await verifyAdminSessionToken(sessionToken);
-  if (!session || session.role !== "SUPER_ADMIN") return null;
-  return session;
-}
-
-async function retryWebhook(formData: FormData) {
-  "use server";
-  await assertCsrfToken(formData);
-  const session = await getSuperAdminSession();
-  if (!session) return;
-  const id = String(formData.get("id") || "").trim();
-  if (!id) return;
-  await retryWebhookById(id);
-  revalidatePath("/logs");
-}
-
-async function retryFailedWebhooks(formData: FormData) {
-  "use server";
-  await assertCsrfToken(formData);
-  if (!(await getSuperAdminSession())) return;
-  await retryFailedWebhooksAction();
-  revalidatePath("/logs");
-  revalidatePath("/payments");
-}
-
-async function reconcilePayment(formData: FormData) {
-  "use server";
-  await assertCsrfToken(formData);
-  const session = await getSuperAdminSession();
-  if (!session) return;
-  const returnTo = safeReturnToLogs(formData);
-  const wompiTransactionId = String(formData.get("wompiTransactionId") || "").trim();
-  const reference = String(formData.get("reference") || "").trim();
-  const paymentId = String(formData.get("paymentId") || "").trim();
-  const wompiPaymentLinkId = String(formData.get("wompiPaymentLinkId") || "").trim();
-  const tenantId = String(formData.get("tenantId") || "").trim();
-  const amountInCentsRaw = Number(String(formData.get("amountInCents") || "0"));
-  const amountInCents = Number.isFinite(amountInCentsRaw) ? Math.trunc(amountInCentsRaw) : 0;
-  const currency = String(formData.get("currency") || "").trim().toUpperCase();
-  if (!wompiTransactionId && !reference && !wompiPaymentLinkId && !paymentId) {
-    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}reconcile=fail&reconcileError=missing_ids`);
-  }
-  let reconcileError: string | null = null;
-  try {
-    await reconcilePaymentAction({
-      wompiTransactionId: wompiTransactionId || undefined,
-      reference: reference || undefined,
-      paymentId: paymentId || undefined,
-      wompiPaymentLinkId: wompiPaymentLinkId || undefined,
-      tenantId: tenantId || undefined,
-      amountInCents: amountInCents > 0 ? amountInCents : undefined,
-      currency: currency || undefined,
-      actorEmail: session.email || undefined
-    });
-    revalidatePath("/logs");
-    revalidatePath("/payments");
-  } catch (err: any) {
-    reconcileError = String(err?.message || err || "reconcile_failed");
-  }
-  if (reconcileError) {
-    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}reconcile=fail&reconcileError=${encodeURIComponent(reconcileError)}`);
-  }
-  const refLabel = wompiTransactionId || reference || paymentId || wompiPaymentLinkId;
-  redirect(
-    `${returnTo}${returnTo.includes("?") ? "&" : "?"}reconcile=ok${refLabel ? `&reconcileRef=${encodeURIComponent(refLabel)}` : ""}`
-  );
-}
-
-async function associatePayment(formData: FormData) {
-  "use server";
-  await assertCsrfToken(formData);
-  const session = await getSuperAdminSession();
-  if (!session) return;
-  const returnTo = safeReturnToLogs(formData);
-  const paymentId = String(formData.get("paymentId") || "").trim();
-  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
-  const cycleId = String(formData.get("cycleId") || "").trim();
-  const tenantId = String(formData.get("tenantId") || "").trim();
-  if (!paymentId || (!subscriptionId && !cycleId)) {
-    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}assoc=fail&assocError=missing_ids`);
-  }
-  const res = await associatePaymentToSubscription({
-    paymentId,
-    subscriptionId,
-    cycleId,
-    tenantId: tenantId || undefined,
-    actorEmail: session.email || undefined
-  });
-  if (!res.ok) {
-    const err = res.error || "failed";
-    if (err === "out_of_cycle" && (res as any).details) {
-      const details = (res as any).details;
-      const fmt = (value: any) =>
-        value ? new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" }).format(new Date(value)) : "—";
-      const paidAt = fmt(details.paidAt);
-      const start = fmt(details.periodStart);
-      const end = fmt(details.periodEnd);
-      redirect(
-        `${returnTo}${returnTo.includes("?") ? "&" : "?"}assoc=fail&assocError=${encodeURIComponent(
-          `Fuera de ciclo: pago ${paidAt} · ciclo ${start} → ${end}`
-        )}`
-      );
-    }
-    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}assoc=fail&assocError=${encodeURIComponent(err)}`);
-  }
-  revalidatePath("/logs");
-  revalidatePath("/payments");
-  redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}assoc=ok`);
-}
-
-async function reconcilePendingPayments(formData: FormData) {
-  "use server";
-  await assertCsrfToken(formData);
-  if (!(await getSuperAdminSession())) return;
-  const returnTo = safeReturnToLogs(formData);
-  const tenantId = String(formData.get("tenantId") || "").trim();
-  const daysRaw = Number(String(formData.get("days") || "7"));
-  const minutesRaw = Number(String(formData.get("minutes") || "720"));
-  const takeRaw = Number(String(formData.get("take") || "100"));
-  const days = Number.isFinite(daysRaw) ? Math.min(Math.max(Math.trunc(daysRaw), 1), 30) : 7;
-  const minutes = Number.isFinite(minutesRaw) ? Math.min(Math.max(Math.trunc(minutesRaw), 10), 60 * 24 * 30) : 720;
-  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 1), 500) : 100;
-  let recollectError: string | null = null;
-  try {
-    await recollectPayments({ days, take: Math.max(200, take) });
-    await reconcilePendingPaymentsAction({ minutes, take, ...(tenantId ? { tenantId } : {}) });
-    revalidatePath("/logs");
-    revalidatePath("/payments");
-  } catch (err: any) {
-    recollectError = String(err?.message || err || "recollect_failed");
-  }
-  if (recollectError) {
-    redirect(
-      `${returnTo}${returnTo.includes("?") ? "&" : "?"}recollect=fail&recollectError=${encodeURIComponent(recollectError)}`
-    );
-  }
-  redirect(
-    `${returnTo}${returnTo.includes("?") ? "&" : "?"}recollect=ok&days=${days}&minutes=${minutes}&take=${take}`
-  );
-}
-
-async function autoAssociatePayments(formData: FormData) {
-  "use server";
-  await assertCsrfToken(formData);
-  const session = await getSuperAdminSession();
-  if (!session) return;
-  const returnTo = safeReturnToLogs(formData);
-  const tenantId = String(formData.get("tenantId") || "").trim();
-  const from = String(formData.get("from") || "").trim();
-  const to = String(formData.get("to") || "").trim();
-  const takeRaw = Number(String(formData.get("take") || "300"));
-  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(Math.trunc(takeRaw), 50), 2000) : 300;
-  let assocAllError: string | null = null;
-  let assocAllCount = 0;
-  let assocAllSkipped = 0;
-  let assocAllFailed = 0;
-  try {
-    const res = await autoAssociateUnlinkedPayments({
-      tenantId: tenantId || undefined,
-      from: from || undefined,
-      to: to || undefined,
-      take,
-      actorEmail: session.email || undefined
-    });
-    assocAllCount = Number(res.associated || 0);
-    assocAllSkipped = Number(res.skipped || 0);
-    assocAllFailed = Number(res.failed || 0);
-    revalidatePath("/logs");
-    revalidatePath("/payments");
-  } catch (err: any) {
-    assocAllError = String(err?.message || err || "assoc_all_failed");
-  }
-  if (assocAllError) {
-    redirect(
-      `${returnTo}${returnTo.includes("?") ? "&" : "?"}assocAll=fail&assocAllError=${encodeURIComponent(assocAllError)}`
-    );
-  }
-  redirect(
-    `${returnTo}${returnTo.includes("?") ? "&" : "?"}assocAll=ok&assocAllCount=${assocAllCount}&assocAllSkipped=${assocAllSkipped}&assocAllFailed=${assocAllFailed}`
-  );
-}
-
-function safeReturnToLogs(formData: FormData) {
-  const raw = String(formData.get("returnTo") || "").trim();
-  if (raw.startsWith("/logs") || raw.startsWith("/payments")) return raw;
-  return "/logs?tab=payments";
-}
-
-async function forwardShopifyPayment(formData: FormData) {
-  "use server";
-  await assertCsrfToken(formData);
-  if (!(await getSuperAdminSession())) return;
-  const paymentId = String(formData.get("paymentId") || "").trim();
-  const returnTo = safeReturnToLogs(formData);
-  if (!paymentId) return;
-  const res = await enqueueShopifyForwardForPayment({ paymentId });
-  if (!res.ok) {
-    redirect(
-      `${returnTo}${returnTo.includes("?") ? "&" : "?"}shopifyError=${encodeURIComponent(String(res.error || "unknown_error"))}`
-    );
-  }
-  redirect(
-    `${returnTo}${returnTo.includes("?") ? "&" : "?"}shopifyResent=${encodeURIComponent(res.queued ? "queued" : "exists")}`
-  );
-}
 
 function normalizeLogSource(source: any) {
   const s = String(source || "");
@@ -552,6 +336,7 @@ export default async function LogsPage({
   const assocAllCount = typeof sp.assocAllCount === "string" ? sp.assocAllCount : "";
   const assocAllSkipped = typeof sp.assocAllSkipped === "string" ? sp.assocAllSkipped : "";
   const assocAllFailed = typeof sp.assocAllFailed === "string" ? sp.assocAllFailed : "";
+  const pageError = typeof sp.error === "string" ? sp.error : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
   const take = 20;
   const skip = Number.isFinite(page) && page > 1 ? (Math.trunc(page) - 1) * take : 0;
@@ -587,19 +372,6 @@ export default async function LogsPage({
       : emptyList;
   const paymentsHealth = tab === "payments" ? await getPaymentsHealth() : null;
   const settingsRes = await getAdminSettings();
-  const paymentCustomerIds =
-    tab === "payments"
-      ? Array.from(new Set((payments.items ?? []).map((item: any) => String(item?.customer?.id || item?.customerId || "").trim()).filter(Boolean)))
-      : [];
-  const [paymentCustomersRes, paymentProductsRes, paymentEmpresasRes, paymentTenantsRes] =
-    tab === "payments"
-      ? await Promise.all([
-          listCustomers({ tenantId: tenantId || undefined, take: Math.max(paymentCustomerIds.length || 0, 1), ids: paymentCustomerIds }),
-          listCatalogProducts({ tenantId: tenantId || undefined, take: 300 }),
-          listEmpresas({ tenantId: tenantId || undefined, take: 200 }),
-          listTenants()
-        ])
-      : [{ items: [] }, { items: [] }, { items: [] }, []];
   const aiConfig = settingsRes?.ai || null;
   const aiProviders = aiConfig?.providers || null;
   const aiEnabled = Boolean(aiConfig?.enabled && (aiProviders?.openai?.configured || aiProviders?.deepseek?.configured));
@@ -623,10 +395,6 @@ export default async function LogsPage({
   const webhookItems = (webhooks.items ?? []) as any[];
   const messageItems = (messages.items ?? []) as any[];
   const paymentItems = (payments.items ?? []) as any[];
-  const paymentCustomers = ((paymentCustomersRes as any)?.items ?? []) as any[];
-  const paymentProducts = ((paymentProductsRes as any)?.items ?? []) as any[];
-  const paymentEmpresas = ((paymentEmpresasRes as any)?.items ?? []) as any[];
-  const paymentTenants = ((paymentTenantsRes as any) ?? []) as Array<{ id: string; name: string }>;
   const totals = {
     system: typeof system.total === "number" ? system.total : null,
     webhooks: typeof webhooks.total === "number" ? webhooks.total : null,
@@ -990,12 +758,13 @@ export default async function LogsPage({
             Recolectar
           </PendingButton>
         </form>
-        <ReconcilePaymentModal
-          csrfToken={csrfToken}
-          action={reconcilePayment}
-          returnTo={returnTo}
+        <Link
           className="primary btn-compact btn-noicon btn-reconcile payments-action-btn"
-        />
+          href={withReturnTo("/logs/payments/reconcile", returnTo)}
+          prefetch={false}
+        >
+          Reconciliar
+        </Link>
       </div>
     ) : null;
 
@@ -1087,6 +856,7 @@ export default async function LogsPage({
       {reconcileStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error conciliando pago: {reconcileError || "unknown_error"}</div> : null}
       {assocStatus === "ok" ? <div className="card cardPad">Pago asociado manualmente a la suscripción.</div> : null}
       {assocStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error asociando pago: {paymentAssociationErrorLabel(assocError)}</div> : null}
+      {pageError ? <div className="card cardPad" role="alert" style={{ borderColor: "var(--danger)" }}>Error: {pageError}</div> : null}
       {assocAllStatus === "ok" ? (
         <div className="card cardPad">
           Asociaciones automáticas completadas. Asociados: {assocAllCount || "0"} · Omitidos: {assocAllSkipped || "0"} · Fallidos: {assocAllFailed || "0"}
@@ -1301,15 +1071,15 @@ export default async function LogsPage({
               <div className="payments-table-wrap">
               <table className="table logs-table logs-table-payments" aria-label="Tabla de pagos">
                 <colgroup>
-                  <col style={{ width: "110px" }} />
-                  <col style={{ width: "190px" }} />
-                  <col style={{ width: "180px" }} />
-                  <col style={{ width: "110px" }} />
-                  <col style={{ width: "160px" }} />
-                  <col style={{ width: "120px" }} />
-                  <col style={{ width: "260px" }} />
-                  <col style={{ width: "320px" }} />
-                  <col style={{ width: "56px" }} />
+                  <col className="lp-col-date" />
+                  <col className="lp-col-client" />
+                  <col className="lp-col-product" />
+                  <col className="lp-col-status" />
+                  <col className="lp-col-notif" />
+                  <col className="lp-col-total" />
+                  <col className="lp-col-ref" />
+                  <col className="lp-col-detail" />
+                  <col className="lp-col-actions" />
                 </colgroup>
                 <thead>
                   <tr>
@@ -1460,16 +1230,16 @@ export default async function LogsPage({
                             : null;
                     return (
                       <tr key={p.id}>
-                        <td className="log-date-cell"><LocalDateTime value={p.paidAt || p.createdAt} variant="stacked" /></td>
-                        <td className="log-contact-cell">{renderContactBlock(p)}</td>
-                        <td className="log-plan-cell" title={productName}>{productName}</td>
-                        <td className="log-status-cell">
+                        <td className="log-date-cell" data-label="Fecha"><LocalDateTime value={p.paidAt || p.createdAt} variant="stacked" /></td>
+                        <td className="log-contact-cell" data-label="Cliente">{renderContactBlock(p)}</td>
+                        <td className="log-plan-cell" data-label="Producto" title={productName}>{productName}</td>
+                        <td className="log-status-cell" data-label="Estado">
                           <span className={`status-chip ${chip.cls}`}>
                             <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
                             {chip.label}
                           </span>
                         </td>
-                        <td className="log-status-cell">
+                        <td className="log-status-cell" data-label="Notificación">
                           {notifChip ? (
                             <div className="log-notif-stack">
                               <span className={`status-chip ${notifChip.cls}`} title={notifLabel}>
@@ -1482,9 +1252,10 @@ export default async function LogsPage({
                             "—"
                           )}
                         </td>
-                        <td>{formatAmount(p.amountInCents, p.currency)}</td>
+                        <td className="lp-total-cell" data-label="Total">{formatAmount(p.amountInCents, p.currency)}</td>
                         <td
                           className="log-ref-cell"
+                          data-label="Referencia e IDs"
                           title={[referenceText || "—", wompiTxText || null, wompiLinkText || null].filter(Boolean).join(" · ")}
                         >
                           <div className="log-ref-stack">
@@ -1493,7 +1264,7 @@ export default async function LogsPage({
                             {wompiLinkText ? <span className="log-ref-meta">Link: {wompiLinkText}</span> : null}
                           </div>
                         </td>
-                        <td className="log-payment-error-cell" title={detailText}>
+                        <td className="log-payment-error-cell" data-label="Detalle" title={detailText}>
                           <details className="log-payment-details-collapsible">
                             <summary className="log-payment-details-summary">
                               <span>{collectionModeLabel}</span>
@@ -1569,7 +1340,7 @@ export default async function LogsPage({
                             </div>
                           ) : null}
                         </td>
-                        <td className="log-payment-actions-cell">
+                        <td className="log-payment-actions-cell" data-label="">
                           <RowActionsMenu label="Acciones del pago">
                             {/* Primary actions row */}
                             <div className="log-actions-row">
@@ -1589,6 +1360,13 @@ export default async function LogsPage({
                                   </PendingButton>
                                 </form>
                               ) : null}
+                              <Link
+                                className="ghost btn-compact btn-noicon"
+                                href={withReturnTo(`/logs/payments/${encodeURIComponent(String(p.id || ""))}/reconcile`, returnTo)}
+                                prefetch={false}
+                              >
+                                Reconciliar con Wompi
+                              </Link>
                               {isShopifyPayment ? (
                                 <form action={forwardShopifyPayment}>
                                   <input type="hidden" name="csrf" value={csrfToken} />
@@ -1617,21 +1395,13 @@ export default async function LogsPage({
                             {canShowAssociationBlock ? (
                               <div className="log-actions-row log-actions-secondary">
                                 {!p.subscriptionId && contactId ? (
-                                  <PaymentCreateSubscriptionModal
-                                    paymentId={String(p.id || "")}
-                                    customerId={contactId}
-                                    tenantId={String(tenantId || p.tenantId || "")}
-                                    origin={String(p.origin || "")}
-                                    customerName={String(p.customer?.name || p.subscription?.customer?.name || "")}
-                                    customers={paymentCustomers}
-                                    empresas={paymentEmpresas}
-                                    products={paymentProducts}
-                                    csrfToken={csrfToken}
-                                    tenants={paymentTenants}
-                                    returnTo={returnTo}
-                                    createCustomer={createCustomerFromBilling}
-                                    createPlanAndSubscription={createPlanAndSubscription}
-                                  />
+                                  <Link
+                                    className="ghost btn-compact btn-noicon"
+                                    href={withReturnTo(`/logs/payments/${encodeURIComponent(String(p.id || ""))}/create-subscription`, returnTo)}
+                                    prefetch={false}
+                                  >
+                                    Crear suscripción
+                                  </Link>
                                 ) : null}
                                 {!p.subscriptionId && (contactId || contactQuery) ? (
                                   <Link

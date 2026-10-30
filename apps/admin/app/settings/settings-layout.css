@@ -1,0 +1,45 @@
+/* Ajustes: lo que styles.css no cubre tras quitar los modales. */
+a.conn-card {
+  text-decoration: none;
+  color: inherit;
+}
+
+a.conn-card:focus-visible,
+.saved-conn-actions a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.settings-sync-row {
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-sync-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* La ayuda (?) de los encabezados de sección queda en el borde derecho de la página:
+   su globo centrado se salía de la pantalla (hasta ~80 px). Se ancla a su borde derecho. */
+.settingsPage .settings-group-header .helpTipBubble.pos-center,
+.settingsPage .settings-group-header .helpTipBubble.pos-center.is-open {
+  left: auto;
+  right: 0;
+  max-width: min(360px, calc(100vw - 32px));
+  transform: translateY(-4px);
+}
+
+.settingsPage .settings-group-header .helpTipBubble.pos-center.is-open {
+  transform: translateY(0);
+}
+
+.settingsPage .settings-group-header .helpTipBubble.pos-center::before {
+  left: auto;
+  right: 12px;
+  margin-left: 0;
+}

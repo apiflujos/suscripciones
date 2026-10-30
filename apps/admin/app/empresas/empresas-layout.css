@@ -1,0 +1,20 @@
+/* Lista de empresas: la barra de herramientas pasa a otra fila en móvil en vez de desbordar. */
+.empresasPage .page-toolbar,
+.empresasPage .page-toolbar-right,
+.empresasPage .page-toolbar-summary,
+.empresasPage .list-csv-actions {
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.empresasPage .page-toolbar-right {
+  justify-content: flex-end;
+}
+
+.empresasPage .company-list,
+.empresasPage .company-list-row,
+.empresasPage .company-list-cell {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

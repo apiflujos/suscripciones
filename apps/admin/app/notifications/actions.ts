@@ -47,11 +47,31 @@ function normalizeEnv(value: unknown): "PRODUCTION" | "SANDBOX" {
   return v === "SANDBOX" ? "SANDBOX" : "PRODUCTION";
 }
 
+/** Solo rutas internas de Ajustes o de Notificaciones (nunca `//otro-sitio`). */
+function safeReturnTo(formData: FormData, field = "returnTo"): string {
+  const raw = String(formData.get(field) || "").trim();
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "";
+  const ok = ["/settings", "/notifications"].some((base) => raw === base || raw.startsWith(`${base}/`) || raw.startsWith(`${base}?`));
+  return ok ? raw : "";
+}
+
+/**
+ * URL de resultado. Por defecto la pestaña de notificaciones de Ajustes (como antes); si el
+ * formulario trae `returnTo`/`errorTo` se vuelve ahí (la lista o la página del editor).
+ */
+function resultUrl(environment: "PRODUCTION" | "SANDBOX", params: Record<string, string>, base?: string) {
+  const url = new URL(base || `/settings?tab=notificaciones-whatsapp&env=${environment}`, "http://localhost");
+  url.searchParams.delete("saved");
+  url.searchParams.delete("error");
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  return `${url.pathname}?${url.searchParams.toString()}`;
+}
+
 async function requireCsrf(formData: FormData, environment: "PRODUCTION" | "SANDBOX") {
   try {
     await assertCsrfToken(formData);
   } catch {
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=csrf_invalid`);
+    redirect(resultUrl(environment, { error: "csrf_invalid" }, safeReturnTo(formData, "errorTo") || safeReturnTo(formData)));
   }
 }
 
@@ -330,9 +350,11 @@ function normalizeRulePaymentType(value: unknown): NotificationPaymentType | "AN
 export async function saveRealtime(formData: FormData) {
   const environment = normalizeEnv(formData.get("environment"));
   await requireCsrf(formData, environment);
+  const returnTo = safeReturnTo(formData) || undefined;
+  const errorTo = safeReturnTo(formData, "errorTo") || returnTo;
   const key = String(formData.get("key") || "").trim() as RealtimeNotificationKey;
   const meta = REALTIME_NOTIFICATION_MAP[key];
-  if (!meta) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=invalid_key`);
+  if (!meta) return redirect(resultUrl(environment, { error: "invalid_key" }, errorTo));
   const enabled = String(formData.get("enabled") || "") === "on";
 
   try {
@@ -406,21 +428,24 @@ export async function saveRealtime(formData: FormData) {
 
     const next = { ...(baseConfig || {}), templates: nextTemplates, rules: nextRules, version: 1 };
     await putNotificationsConfig(environment, next);
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
+    redirect(resultUrl(environment, { saved: "1" }, returnTo));
   } catch (err) {
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    if (isNextRedirect(err)) throw err;
+    redirect(resultUrl(environment, { error: toShortErrorMessage(err) }, errorTo));
   }
 }
 
 export async function saveReminder(formData: FormData) {
   const environment = normalizeEnv(formData.get("environment"));
   await requireCsrf(formData, environment);
+  const returnTo = safeReturnTo(formData) || undefined;
+  const errorTo = safeReturnTo(formData, "errorTo") || returnTo;
   const kind = String(formData.get("kind") || "").trim().toUpperCase();
   const paymentTypeRaw = String(formData.get("paymentType") || "").trim().toUpperCase();
   const paymentType = paymentTypeRaw === "SUBSCRIPTION" ? "SUBSCRIPTION" : "LINK";
   const enabled = String(formData.get("enabled") || "") === "on";
   const templateId = String(formData.get("templateId") || "").trim();
-  if (!templateId) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=invalid_template`);
+  if (!templateId) return redirect(resultUrl(environment, { error: "invalid_template" }, errorTo));
   const offsetsRaw = String(formData.get("offsetsSeconds") || "");
   const offsetsSeconds = parseOffsetsCsv(offsetsRaw, kind === "MORA" ? 1 : -1);
 
@@ -506,23 +531,26 @@ export async function saveReminder(formData: FormData) {
 
     const next = { ...(baseConfig || {}), templates: nextTemplates, rules: nextRules, version: 1 };
     await putNotificationsConfig(environment, next);
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
+    redirect(resultUrl(environment, { saved: "1" }, returnTo));
   } catch (err) {
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    if (isNextRedirect(err)) throw err;
+    redirect(resultUrl(environment, { error: toShortErrorMessage(err) }, errorTo));
   }
 }
 
 export async function toggleRule(formData: FormData) {
   const environment = normalizeEnv(formData.get("environment"));
   await requireCsrf(formData, environment);
+  const returnTo = safeReturnTo(formData) || undefined;
+  const errorTo = safeReturnTo(formData, "errorTo") || returnTo;
   const ruleId = String(formData.get("ruleId") || "").trim();
   const enabled = String(formData.get("enabled") || "").trim() === "1";
-  if (!ruleId) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=missing_rule_id`);
+  if (!ruleId) return redirect(resultUrl(environment, { error: "missing_rule_id" }, errorTo));
   try {
     const config = await getNotificationsConfig(environment);
     const rules: NotificationRule[] = config.rules.slice();
     const idx = rules.findIndex((r) => String(r.id) === ruleId);
-    if (idx === -1) return redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=rule_not_found`);
+    if (idx === -1) return redirect(resultUrl(environment, { error: "rule_not_found" }, errorTo));
     const trigger = String(rules[idx]?.trigger || "");
     if (enabled && trigger) {
       const paymentType = normalizeRulePaymentType(rules[idx]?.conditions?.requirePaymentTypeIn?.[0]);
@@ -535,9 +563,9 @@ export async function toggleRule(formData: FormData) {
     rules[idx] = { ...rules[idx], enabled };
     const next = { ...(config || {}), rules };
     await putNotificationsConfig(environment, next);
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&saved=1`);
+    redirect(resultUrl(environment, { saved: "1" }, returnTo));
   } catch (err) {
     if (isNextRedirect(err)) throw err;
-    redirect(`/settings?tab=notificaciones-whatsapp&env=${environment}&error=${encodeURIComponent(toShortErrorMessage(err))}`);
+    redirect(resultUrl(environment, { error: toShortErrorMessage(err) }, errorTo));
   }
 }

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { hasActiveCustomerPaymentSource } from "@suscripciones/core/lib/customerMetadata";
 import Link from "next/link";
+import "./billing-pages.css";
 import { enterToNextField } from "../lib/enterToNext";
 
 type Customer = {

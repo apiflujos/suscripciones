@@ -2,36 +2,39 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { enterToNextField } from "../lib/enterToNext";
-import { AppModal } from "../ui/AppModal";
 import { HelpTip } from "../ui/HelpTip";
+import { PendingButton } from "../ui/PendingButton";
+import { FormActions, PageSection } from "../ui/PageShell";
+import "./customers.css";
 
 type Municipality = { dept: string; city: string; code5: string; dane8: string };
 
 type Props = {
   createCustomer: (formData: FormData) => Promise<void>;
-  defaultOpen?: boolean;
-  mode?: "toggle" | "always_open";
-  hidePanelHeader?: boolean;
-  useModal?: boolean;
   returnTo?: string;
+  /** Dónde mostrar un error de validación (por defecto, en returnTo). */
+  errorReturnTo?: string;
+  /** Con enlace de cancelar se pinta la barra de acciones de página; sin él, solo "Guardar". */
+  cancelHref?: string;
   csrfToken: string;
   tenantId?: string;
   tenants: Array<{ id: string; name: string }>;
+  /** @deprecated Ya no hay modal ni panel plegable; se ignoran. */
+  defaultOpen?: boolean;
+  /** @deprecated */
+  mode?: "toggle" | "always_open";
+  /** @deprecated */
+  hidePanelHeader?: boolean;
+  /** @deprecated */
+  useModal?: boolean;
 };
 
-export function NewCustomerForm({
-  createCustomer,
-  defaultOpen = false,
-  mode = "toggle",
-  hidePanelHeader = false,
-  useModal = true,
-  returnTo,
-  csrfToken,
-  tenantId,
-  tenants
-}: Props) {
-  const alwaysOpen = mode === "always_open";
-  const [open, setOpen] = useState(alwaysOpen ? true : Boolean(defaultOpen));
+/**
+ * Formulario "Crear contacto". Es una página (/customers/new), no un modal: el
+ * llamador decide el retorno y, al guardar, la acción redirige ahí con
+ * `selectCustomerId=<id nuevo>`.
+ */
+export function NewCustomerForm({ createCustomer, returnTo, errorReturnTo, cancelHref, csrfToken, tenantId, tenants }: Props) {
   const nameRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Municipality[]>([]);
@@ -42,8 +45,7 @@ export function NewCustomerForm({
   const [idType, setIdType] = useState("CC");
   const [idNumber, setIdNumber] = useState("");
   const [selectedTenant, setSelectedTenant] = useState<string>(tenantId || "");
-  const selectedTenantName =
-    tenants.find((t) => String(t.id) === String(selectedTenant))?.name || "";
+  const selectedTenantName = tenants.find((t) => String(t.id) === String(selectedTenant))?.name || "";
 
   useEffect(() => {
     let cancelled = false;
@@ -64,8 +66,7 @@ export function NewCustomerForm({
         setLoadError(String(err?.message || "dane_fetch_failed"));
       })
       .finally(() => {
-        if (cancelled) return;
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -73,17 +74,8 @@ export function NewCustomerForm({
   }, []);
 
   useEffect(() => {
-    if (!open) return;
-    const t = setTimeout(() => {
-      nameRef.current?.focus();
-    }, 0);
-    return () => clearTimeout(t);
-  }, [open]);
-
-  useEffect(() => {
-    if (alwaysOpen) return;
-    if (defaultOpen === false) setOpen(false);
-  }, [defaultOpen, alwaysOpen]);
+    nameRef.current?.focus();
+  }, []);
 
   const depts = useMemo(() => {
     const set = new Set<string>();
@@ -113,271 +105,132 @@ export function NewCustomerForm({
     if (city && !cities.includes(city)) setCity("");
   }, [dept, cities, city]);
 
+  const submit = (
+    <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
+      Guardar
+    </PendingButton>
+  );
+
   return (
-    <div className="panel module">
-      {!hidePanelHeader ? (
-        <div className="panel-header ui-panel-header ui-panel-header-left">
-          <div className="ui-panel-title">
-            <h3 className="ui-title-reset">Nuevo contacto</h3>
-            <HelpTip text="Crea un contacto con datos básicos, dirección (DANE) e identificación." />
-            {alwaysOpen ? null : (
-              <button className="primary btn-compact btn-create" type="button" onClick={() => setOpen(true)}>
-                Crear contacto
-              </button>
-            )}
+    <form
+      action={createCustomer}
+      onKeyDownCapture={enterToNextField}
+      onSubmit={(e) => e.currentTarget.classList.add("was-validated")}
+      className="page-shell-body"
+    >
+      <input type="hidden" name="csrf" value={csrfToken} />
+      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+      {errorReturnTo ? <input type="hidden" name="errorReturnTo" value={errorReturnTo} /> : null}
+
+      <PageSection title="Datos básicos" description="Con teléfono o email basta para crear el contacto.">
+        <div className="page-shell-form-grid">
+          <div className="field field-full">
+            <label htmlFor="cust-tenant">Canal de ventas</label>
+            <select
+              id="cust-tenant"
+              className="select"
+              name="tenantId"
+              value={selectedTenant}
+              onChange={(e) => setSelectedTenant(e.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Selecciona un canal
+              </option>
+              {tenants.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <div className="field-hint">
+              {selectedTenantName ? `Seleccionado: ${selectedTenantName}` : "Selecciona un canal para continuar."}
+            </div>
+          </div>
+          <div className="field">
+            <label htmlFor="cust-name">Nombre</label>
+            <input id="cust-name" ref={nameRef} className="input" name="name" placeholder="Nombre" required />
+          </div>
+          <div className="field">
+            <label htmlFor="cust-phone">Teléfono</label>
+            <input id="cust-phone" className="input" name="phone" type="tel" placeholder="+57..." required />
+          </div>
+          <div className="field field-full">
+            <label htmlFor="cust-email">Email</label>
+            <input id="cust-email" className="input" name="email" type="email" placeholder="correo@empresa.com" required />
           </div>
         </div>
-      ) : null}
+      </PageSection>
 
-      {open ? (
-        useModal ? (
-          <AppModal open={open} onClose={() => setOpen(false)} title="Crear contacto" panelClassName="ui-modal-panel-wide">
-              <form
-                action={createCustomer}
-                onKeyDownCapture={enterToNextField}
-                onSubmit={(e) => {
-                  e.currentTarget.classList.add("was-validated");
-                }}
-                className="ui-form-grid ui-grid-2 compact-form"
-              >
-                <input type="hidden" name="csrf" value={csrfToken} />
-                {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-          <div className="field grid-span-2">
-            <label>Canal de ventas</label>
-            <select
-              className="select select-compact"
-              name="tenantId"
-              value={selectedTenant}
-              onChange={(e) => setSelectedTenant(e.target.value)}
-              required
-            >
-              <option value="" disabled>
-                Selecciona un canal
-              </option>
-              {tenants.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
+      <PageSection
+        title={
+          <span className="customers-inline-title">
+            Dirección <HelpTip text="Selecciona departamento y municipio para guardar los códigos DANE." />
+          </span>
+        }
+      >
+        {loadError ? <div className="customers-alert is-error">No se pudo cargar DANE: {loadError}</div> : null}
+        <div className="page-shell-form-grid">
+          <div className="field field-full">
+            <label htmlFor="cust-address">Dirección</label>
+            <input id="cust-address" className="input" name="addressLine1" placeholder="Calle 123 # 45-67" />
+          </div>
+          <div className="field">
+            <label htmlFor="cust-dept">Departamento</label>
+            <select id="cust-dept" className="select" name="dept" value={dept} disabled={loading} onChange={(e) => setDept(e.target.value)} required>
+              <option value="">{loading ? "Cargando..." : "Selecciona"}</option>
+              {depts.map((d) => (
+                <option key={d} value={d}>
+                  {d}
                 </option>
               ))}
             </select>
-            <div className="field-hint">
-              {selectedTenantName ? `Seleccionado: ${selectedTenantName}` : "Selecciona un canal para continuar."}
-            </div>
           </div>
           <div className="field">
-            <label>Nombre</label>
-            <input ref={nameRef} className="input" name="name" placeholder="Nombre" required />
-          </div>
-          <div className="field">
-            <label>Teléfono</label>
-            <input className="input" name="phone" placeholder="+57..." required />
-          </div>
-          <div className="field">
-            <label>Email</label>
-            <input className="input" name="email" type="email" placeholder="correo@empresa.com" required />
-          </div>
-
-          <div className="panel module grid-span-2">
-            <div className="panel-header ui-panel-header">
-              <div className="ui-panel-title">
-                <h3 className="ui-title-reset">Dirección</h3>
-                <HelpTip text="Selecciona departamento y municipio para guardar los códigos DANE." />
-              </div>
-            </div>
-
-            {loadError ? (
-              <div className="field-hint ui-alert-danger">
-                No se pudo cargar DANE: {loadError}
-              </div>
-            ) : null}
-
-            <div className="field">
-              <label>Dirección</label>
-              <input className="input" name="addressLine1" placeholder="Calle 123 # 45-67" />
-            </div>
-            <div className="field">
-              <label>Departamento</label>
-              <select className="select" name="dept" value={dept} disabled={loading} onChange={(e) => setDept(e.target.value)} required>
-                <option value="">{loading ? "Cargando..." : "Selecciona"}</option>
-                {depts.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>Municipio</label>
-              <select className="select" name="city" value={city} disabled={loading || !dept} onChange={(e) => setCity(e.target.value)} required>
-                <option value="">{!dept ? "Selecciona departamento" : loading ? "Cargando..." : "Selecciona"}</option>
-                {cities.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <input type="hidden" name="code5" value={selected?.code5 ?? ""} />
-            <input type="hidden" name="dane8" value={selected?.dane8 ?? ""} />
-          </div>
-
-          <div className="panel module grid-span-2">
-            <div className="panel-header ui-panel-header">
-              <div className="ui-panel-title">
-                <h3 className="ui-title-reset">Identificación</h3>
-                <HelpTip text="Opcional. Útil para búsquedas y para trazabilidad del cliente." />
-              </div>
-            </div>
-
-            <div className="ui-grid-2-wide">
-              <div className="field">
-                <label>Tipo</label>
-                <select className="select" name="idType" value={idType} onChange={(e) => setIdType(e.target.value)}>
-                  <option value="CC">CC</option>
-                  <option value="NIT">NIT</option>
-                  <option value="CE">CE</option>
-                  <option value="PP">PP</option>
-                </select>
-              </div>
-              <div className="field">
-                <label>Número</label>
-                <input className="input" name="idNumber" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} placeholder="123456789" />
-              </div>
-            </div>
-          </div>
-
-                <div className="module-footer grid-span-2">
-                  <button className="primary btn-compact btn-save" type="submit">
-                    Guardar
-                  </button>
-                </div>
-              </form>
-          </AppModal>
-        ) : (
-          <form
-            action={createCustomer}
-            onKeyDownCapture={enterToNextField}
-            onSubmit={(e) => {
-              e.currentTarget.classList.add("was-validated");
-            }}
-            className="ui-form-grid ui-grid-2 compact-form"
-          >
-            <input type="hidden" name="csrf" value={csrfToken} />
-            {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-          <div className="field grid-span-2">
-            <label>Canal de ventas</label>
-            <select
-              className="select select-compact"
-              name="tenantId"
-              value={selectedTenant}
-              onChange={(e) => setSelectedTenant(e.target.value)}
-              required
-            >
-              <option value="" disabled>
-                Selecciona un canal
-              </option>
-              {tenants.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
+            <label htmlFor="cust-city">Municipio</label>
+            <select id="cust-city" className="select" name="city" value={city} disabled={loading || !dept} onChange={(e) => setCity(e.target.value)} required>
+              <option value="">{!dept ? "Selecciona departamento" : loading ? "Cargando..." : "Selecciona"}</option>
+              {cities.map((c) => (
+                <option key={c} value={c}>
+                  {c}
                 </option>
               ))}
             </select>
-            <div className="field-hint">
-              {selectedTenantName ? `Seleccionado: ${selectedTenantName}` : "Selecciona un canal para continuar."}
-            </div>
+          </div>
+        </div>
+        <input type="hidden" name="code5" value={selected?.code5 ?? ""} />
+        <input type="hidden" name="dane8" value={selected?.dane8 ?? ""} />
+      </PageSection>
+
+      <PageSection
+        title={
+          <span className="customers-inline-title">
+            Identificación <HelpTip text="Opcional. Útil para búsquedas y para trazabilidad del cliente." />
+          </span>
+        }
+      >
+        <div className="page-shell-form-grid">
+          <div className="field">
+            <label htmlFor="cust-idtype">Tipo</label>
+            <select id="cust-idtype" className="select" name="idType" value={idType} onChange={(e) => setIdType(e.target.value)}>
+              <option value="CC">CC</option>
+              <option value="NIT">NIT</option>
+              <option value="CE">CE</option>
+              <option value="PP">PP</option>
+            </select>
           </div>
           <div className="field">
-            <label>Nombre</label>
-            <input ref={nameRef} className="input" name="name" placeholder="Nombre" required />
+            <label htmlFor="cust-idnumber">Número</label>
+            <input id="cust-idnumber" className="input" name="idNumber" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} placeholder="123456789" />
           </div>
-          <div className="field">
-            <label>Teléfono</label>
-            <input className="input" name="phone" placeholder="+57..." required />
-          </div>
-          <div className="field">
-            <label>Email</label>
-            <input className="input" name="email" type="email" placeholder="correo@empresa.com" required />
-          </div>
+        </div>
+      </PageSection>
 
-          <div className="panel module grid-span-2">
-            <div className="panel-header ui-panel-header">
-              <div className="ui-panel-title">
-                <h3 className="ui-title-reset">Dirección</h3>
-                <HelpTip text="Selecciona departamento y municipio para guardar los códigos DANE." />
-              </div>
-            </div>
-
-            {loadError ? (
-              <div className="field-hint ui-alert-danger">
-                No se pudo cargar DANE: {loadError}
-              </div>
-            ) : null}
-
-            <div className="field">
-              <label>Dirección</label>
-              <input className="input" name="addressLine1" placeholder="Calle 123 # 45-67" />
-            </div>
-            <div className="field">
-              <label>Departamento</label>
-              <select className="select" name="dept" value={dept} disabled={loading} onChange={(e) => setDept(e.target.value)} required>
-                <option value="">{loading ? "Cargando..." : "Selecciona"}</option>
-                {depts.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>Municipio</label>
-              <select className="select" name="city" value={city} disabled={loading || !dept} onChange={(e) => setCity(e.target.value)} required>
-                <option value="">{!dept ? "Selecciona departamento" : loading ? "Cargando..." : "Selecciona"}</option>
-                {cities.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <input type="hidden" name="code5" value={selected?.code5 ?? ""} />
-            <input type="hidden" name="dane8" value={selected?.dane8 ?? ""} />
-          </div>
-
-          <div className="panel module grid-span-2">
-            <div className="panel-header ui-panel-header">
-              <div className="ui-panel-title">
-                <h3 className="ui-title-reset">Identificación</h3>
-                <HelpTip text="Opcional. Útil para búsquedas y para trazabilidad del cliente." />
-              </div>
-            </div>
-
-            <div className="ui-grid-2-wide">
-              <div className="field">
-                <label>Tipo</label>
-                <select className="select" name="idType" value={idType} onChange={(e) => setIdType(e.target.value)}>
-                  <option value="CC">CC</option>
-                  <option value="NIT">NIT</option>
-                  <option value="CE">CE</option>
-                  <option value="PP">PP</option>
-                </select>
-              </div>
-              <div className="field">
-                <label>Número</label>
-                <input className="input" name="idNumber" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} placeholder="123456789" />
-              </div>
-            </div>
-          </div>
-
-            <div className="module-footer grid-span-2">
-              <button className="primary btn-compact btn-save" type="submit">
-                Guardar
-              </button>
-            </div>
-          </form>
-        )
-      ) : null}
-    </div>
+      {cancelHref ? (
+        <FormActions cancelHref={cancelHref}>{submit}</FormActions>
+      ) : (
+        <div className="module-footer">{submit}</div>
+      )}
+    </form>
   );
 }

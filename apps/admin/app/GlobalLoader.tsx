@@ -5,8 +5,6 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 const AUTO_HIDE_MS = 8000; // Reducido de 15000 a 8000ms
 const DELAY_MS = 600; // Más delay: menos ruido visual
-const MODAL_SELECTOR =
-  ".modal-backdrop, .modal-panel, [role='dialog'][aria-modal='true'], [role='dialog']:not([aria-modal='false'])";
 
 function shouldTriggerLoader(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
@@ -22,7 +20,6 @@ export function GlobalLoader() {
   const [loading, setLoading] = useState(false);
   const timeoutRef = useRef<number | null>(null);
   const pendingShowRef = useRef<number | null>(null);
-  const modalObserverRef = useRef<MutationObserver | null>(null);
   const loadingRef = useRef(false);
 
   const clearTimer = () => {
@@ -39,52 +36,20 @@ export function GlobalLoader() {
     }
   };
 
-  const stopModalObserver = () => {
-    if (modalObserverRef.current) {
-      modalObserverRef.current.disconnect();
-      modalObserverRef.current = null;
-    }
-  };
-
-  const isModalOpen = () => Boolean(document.querySelector(MODAL_SELECTOR));
-
   const hide = () => {
     clearPendingShow();
     clearTimer();
-    stopModalObserver();
     loadingRef.current = false;
     setLoading(false);
     document.body.classList.remove("is-global-loading");
   };
 
-  const startModalObserver = () => {
-    if (modalObserverRef.current) return;
-    const observer = new MutationObserver(() => {
-      if (!loadingRef.current) {
-        stopModalObserver();
-        return;
-      }
-      if (isModalOpen()) {
-        hide();
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    modalObserverRef.current = observer;
-  };
-
   const show = () => {
     if (loadingRef.current) return;
-    if (isModalOpen()) return;
     loadingRef.current = true;
     setLoading(true);
     clearTimer();
-    startModalObserver();
     document.body.classList.add("is-global-loading");
-    requestAnimationFrame(() => {
-      if (loadingRef.current && isModalOpen()) {
-        hide();
-      }
-    });
     timeoutRef.current = window.setTimeout(() => {
       loadingRef.current = false;
       setLoading(false);
@@ -98,7 +63,6 @@ export function GlobalLoader() {
     // NUEVO: Delay antes de mostrar loader para evitar parpadeos
     pendingShowRef.current = window.setTimeout(() => {
       pendingShowRef.current = null;
-      if (isModalOpen()) return;
       show();
     }, DELAY_MS);
   };

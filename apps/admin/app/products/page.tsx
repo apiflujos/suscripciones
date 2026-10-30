@@ -1,24 +1,17 @@
-import { createProduct, deleteProduct } from "./actions";
-import { ProductsTable } from "./ProductsTable";
-import { getCsrfToken } from "../lib/csrf";
-import { ProductsModals } from "./ProductsModals";
-import { createCustomerFromBilling, createPlanAndSubscription } from "../billing/actions";
+import Link from "next/link";
+import { ProductsList } from "./ProductsList";
+import { withReturnTo } from "../lib/returnTo";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { ViewModeToggles } from "../ui/ViewModeToggles";
 import { FilterButton } from "../ui/FilterButton";
 import { listCatalogProducts } from "../admin/_services/products";
-import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
-import { getAdminSettings } from "../admin/_services/settings";
 import { PageToolbar } from "../ui/PageToolbar";
-import "./page-header.css";
+import "./products.css";
 import { listTenants } from "../admin/_services/tenants";
-import { listCustomers } from "../admin/_services/customers";
-import { listEmpresas } from "../admin/_services/companies";
-import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import { resolveSmartViewIds, parseFiltersParam, getSmartViewFields } from "@suscripciones/core/services/smartViews";
-import { normalizeErrorParam } from "../lib/errorParam";
+import { productErrorMessage } from "./format";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +20,6 @@ export default async function ProductsPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const csrfToken = await getCsrfToken();
   const spParams = (await searchParams) ?? {};
   const created = typeof spParams.created === "string" ? spParams.created : "";
   const contactCreated = typeof spParams.contactCreated === "string" ? spParams.contactCreated : "";
@@ -35,7 +27,7 @@ export default async function ProductsPage({
   const deleted = typeof spParams.deleted === "string" ? spParams.deleted : "";
   const tenantId = typeof spParams.tenantId === "string" ? spParams.tenantId : "";
   const tenantCreated = typeof spParams.tenantCreated === "string" ? spParams.tenantCreated : "";
-  const error = normalizeErrorParam(typeof spParams.error === "string" ? spParams.error : undefined);
+  const error = productErrorMessage(spParams.error);
   const sent = typeof spParams.sent === "string" ? spParams.sent : "";
   const q = typeof spParams.q === "string" ? spParams.q : "";
   const page = typeof spParams.page === "string" ? Number(spParams.page) : 1;
@@ -85,26 +77,29 @@ export default async function ProductsPage({
     q: q.trim(),
     ids
   });
-  const [tenants, customersRes, empresasRes, notificationsConfig, templates, settings] = await Promise.all([
-    listTenants(),
-    listCustomers({ take: 200, tenantId: effectiveTenantId }),
-    listEmpresas({ tenantId: effectiveTenantId, take: 200 }),
-    getNotificationsConfigForEnv("PRODUCTION").catch(() => ({ templates: [], rules: [] })),
-    listCheckoutTemplates({ tenantId: effectiveTenantId || null }).catch(() => []),
-    getAdminSettings().catch(() => null)
-  ]);
+  const tenants = await listTenants();
 
   const productItems = (products.items ?? []) as any[];
   const total = Number(products.total ?? productItems.length);
   const tenantList = (tenants ?? []) as Array<{ id: string; name: string }>;
-  const tenantsFiltered = tenantList.filter((t: any) => t?.active !== false);
   const tenantById = new Map(tenantList.map((t) => [String(t.id), String(t.name)]));
-  const filteredCustomers = (customersRes.items ?? []) as any[];
-  const empresas = (empresasRes?.items ?? []) as any[];
-  const notificationsTemplates = Array.isArray((notificationsConfig as any)?.templates) ? (notificationsConfig as any).templates : [];
-  const notificationsRules = Array.isArray((notificationsConfig as any)?.rules) ? (notificationsConfig as any).rules : [];
-  const checkoutTemplates = Array.isArray(templates) ? templates : [];
-  const checkoutConfig = (settings as any)?.checkoutConfig || {};
+  const listItems = productItems.map((p) => {
+    const ids = Array.isArray(p.tenantIds) && p.tenantIds.length ? p.tenantIds : [p.tenantId].filter(Boolean);
+    const names = ids.map((id: string) => tenantById.get(String(id))).filter(Boolean) as string[];
+    return {
+      id: String(p.id),
+      sku: String(p.sku || ""),
+      name: String(p.name || ""),
+      kind: (p.kind === "SERVICE" ? "SERVICE" : "PRODUCT") as "PRODUCT" | "SERVICE",
+      currency: String(p.currency || "COP"),
+      basePriceInCents: Number(p.basePriceInCents || 0),
+      tenantName: names.length ? names.join(", ") : "—",
+      imageUrl: p.imageUrl ? String(p.imageUrl) : null,
+      activeSubscriptions: Number(p.activeSubscriptions || 0),
+      pastDueSubscriptions: Number(p.pastDueSubscriptions || 0),
+      totalSubscriptions: Number(p.totalSubscriptions || 0)
+    };
+  });
 
   return (
     <main className="page pageWide productsPage">
@@ -166,56 +161,27 @@ export default async function ProductsPage({
           )}
           summary={(
             <>
-              <span className="page-toolbar-count">{productItems.length} productos</span>
+              <span className="page-toolbar-count">{listItems.length} productos</span>
               <ListCsvActions exportHref={exportHref} tenantId={tenantId} defaultEntity="products" />
             </>
           )}
           actions={(
-            <ProductsModals
-              actionsClassName="page-toolbar-actions-inner"
-              showPlanButton={false}
-              customers={filteredCustomers}
-              empresas={empresas}
-              products={productItems}
-              csrfToken={csrfToken}
-              tenants={tenantsFiltered}
-              tenantId={tenantId}
-              createProduct={createProduct}
-              createCustomer={createCustomerFromBilling}
-              createPlanAndSubscription={createPlanAndSubscription}
-              returnTo={returnTo}
-            />
+            <div className="page-toolbar-actions-inner">
+              <Link
+                className="primary btn-compact btn-create"
+                href={withReturnTo("/products/new", returnTo)}
+                data-loader="off"
+                title="Crea un producto o servicio del catálogo"
+              >
+                Crear producto
+              </Link>
+            </div>
           )}
         />
 
         <div className="settings-group-body">
           <div style={{ display: "grid", gap: 14 }}>
-            <ProductsTable
-              items={productItems.map((p) => {
-                const ids = Array.isArray(p.tenantIds) && p.tenantIds.length ? p.tenantIds : [p.tenantId].filter(Boolean);
-                const names = ids.map((id: string) => tenantById.get(String(id))).filter(Boolean) as string[];
-                return {
-                  ...p,
-                  currency: String(p.currency || "COP"),
-                  tenantId: tenantId || ids[0] || "",
-                  tenantName: names.length ? names.join(", ") : "—",
-                  tenantIds: ids
-                };
-              })}
-              view={vista === "lista" ? "list" : "cards"}
-              csrfToken={csrfToken}
-              deleteProductAction={deleteProduct}
-              tenants={tenantsFiltered}
-              customers={filteredCustomers}
-              empresas={empresas}
-              notificationTemplates={notificationsTemplates}
-              notificationRules={notificationsRules}
-              checkoutTemplates={checkoutTemplates}
-              checkoutConfig={checkoutConfig}
-              createCustomer={createCustomerFromBilling}
-              createPlanAndSubscription={createPlanAndSubscription}
-              returnTo={returnTo}
-            />
+            <ProductsList items={listItems} view={vista === "lista" ? "list" : "cards"} returnTo={returnTo} />
 
             {(() => {
               const currentPage = Math.max(1, Number(page) || 1);

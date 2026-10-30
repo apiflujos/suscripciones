@@ -1,0 +1,66 @@
+/* Contactos: lista y páginas dedicadas. Solo tokens del sistema de diseño. */
+
+.customers-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+.customers-inline-title { display: inline-flex; align-items: center; gap: 6px; }
+
+.customers-alert {
+  padding: 10px 12px; border: 1px solid var(--stroke); border-radius: var(--radius-md);
+  background: var(--panel); font-size: 13px; overflow-wrap: anywhere;
+}
+.customers-alert.is-error { border-color: var(--danger); }
+
+.customers-plan-link { color: var(--primary); text-decoration: underline; }
+
+/* Canales: casillas en línea que envuelven, sin scroll. */
+.customers-channels { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; min-width: 0; }
+.customers-channel { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+
+/* Confirmación en dos pasos dentro de la página (no es una capa flotante). */
+.customers-confirm { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--danger); border-radius: var(--radius-md); }
+.customers-confirm-text { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+.customers-confirm-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Ubicación: el mapa va dentro de la página, plegable. */
+.customers-location summary { cursor: pointer; font-weight: 600; font-size: 14px; padding: 2px 0; }
+.customers-location summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.customers-location-body { display: grid; gap: 10px; margin-top: 10px; }
+.customers-map { height: 320px; width: 100%; border-radius: var(--radius-md); overflow: hidden; }
+
+/* Ficha: tablas que se apilan en pantallas angostas (sin scroll horizontal). */
+.customers-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12.5px; }
+.customers-table th { text-align: left; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); padding: 6px 8px; border-bottom: 1px solid var(--stroke); }
+.customers-table td { padding: 8px; border-bottom: 1px solid color-mix(in srgb, var(--stroke) 78%, transparent); vertical-align: top; overflow-wrap: anywhere; }
+
+/* Línea de tiempo: lista vertical, sin carrusel ni scroll interno. */
+.customers-log-list { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); }
+
+.customers-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.customers-detail-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); }
+.customers-detail-grid > * { min-width: 0; }
+
+@media (max-width: 700px) {
+  /* Lista de contactos: cada fila pasa a tarjeta apilada. */
+  .customersPage .contact-list-header { display: none; }
+  .customersPage .contact-list-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "contact actions" "plan plan" "state state";
+    row-gap: 6px;
+    padding: 10px;
+  }
+  .customersPage .contact-list-row > :nth-child(1) { grid-area: contact; }
+  .customersPage .contact-list-row > :nth-child(2) { grid-area: plan; }
+  .customersPage .contact-list-row > :nth-child(3) { grid-area: state; }
+  .customersPage .contact-list-row > :nth-child(4) { grid-area: actions; }
+  .customersPage .contact-list-cell > * { white-space: normal; overflow-wrap: anywhere; }
+  .customersPage .contact-list-cell { overflow: visible; }
+
+  .customers-table, .customers-table thead, .customers-table tbody, .customers-table tr, .customers-table td { display: block; width: 100%; }
+  .customers-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .customers-table tr { padding: 6px 0; border-bottom: 1px solid var(--stroke); }
+  .customers-table td { border: 0; padding: 2px 0; }
+  .customers-table td::before { content: attr(data-label) ": "; color: var(--text-faint); font-size: 11px; }
+}

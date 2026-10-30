@@ -9,313 +9,32 @@ import { listChatwootContactConversations } from "../../admin/_services/chatwoot
 import { resolveTenantId } from "../../admin/_services/tenantResolver";
 import { AiAssistant } from "../../logs/AiAssistant";
 import { LocalDateTime } from "../../ui/LocalDateTime";
-import { TimelineScroller } from "../../ui/TimelineScroller";
-import { MapModal } from "../../ui/MapModal";
-import { isNoiseNotification, normalizeSystemText } from "../../lib/logPresentation";
+import { PageSection, PageShell } from "../../ui/PageShell";
+import { LocationSection } from "../LocationSection";
+import { customerErrorText } from "../errors";
+import { resolveReturnTo, withReturnTo } from "../../lib/returnTo";
 import { extractCustomerPaymentSourceId, readCustomerMetadata } from "@suscripciones/core/lib/customerMetadata";
+import {
+  MiniBars,
+  MiniDonut,
+  MiniLine,
+  cleanLogEntity,
+  cleanLogMessage,
+  collectionLabel,
+  compactCustomerLogs,
+  epochToIso,
+  formatCopFromCents,
+  formatProductTitle,
+  isRelevantCustomerLog,
+  logLevelLabel,
+  logPillClass,
+  statusLabel,
+  statusPillClass,
+  tokenMethodLabel
+} from "./detailHelpers";
+import "../customers.css";
 
 export const dynamic = "force-dynamic";
-
-function formatCopFromCents(cents: number) {
-  const pesos = Math.trunc(Number(cents || 0) / 100);
-  if (!Number.isFinite(pesos)) return "";
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pesos);
-}
-
-function statusLabel(status: string) {
-  if (!status) return "—";
-  if (status === "ACTIVE") return "Activa";
-  if (status === "PAST_DUE") return "En mora";
-  if (status === "PENDING") return "Pendiente";
-  if (status === "APPROVED") return "Aprobado";
-  if (status === "DECLINED" || status === "ERROR" || status === "VOIDED") return "Fallido";
-  return status;
-}
-
-function statusPillClass(status: string) {
-  if (status === "ACTIVE" || status === "APPROVED") return "pill-ok";
-  if (status === "PAST_DUE" || status === "DECLINED" || status === "ERROR" || status === "VOIDED") return "pill-bad";
-  if (status === "PENDING") return "pill-muted";
-  return "pill-muted";
-}
-
-function logLevelLabel(level: string) {
-  const upper = String(level || "").toUpperCase();
-  if (!upper) return "—";
-  if (upper === "ERROR") return "Error";
-  if (upper === "WARN" || upper === "WARNING") return "Alerta";
-  if (upper === "INFO") return "Info";
-  return upper;
-}
-
-function logPillClass(level: string) {
-  const upper = String(level || "").toUpperCase();
-  if (upper === "ERROR") return "pill-bad";
-  if (upper === "WARN" || upper === "WARNING") return "pill-warn";
-  if (upper === "INFO") return "pill-muted";
-  return "pill-muted";
-}
-
-function escapeRegex(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function cleanLogEntity(raw: string, customerLabel: string) {
-  let out = String(raw || "").trim();
-  if (!out) return "Evento del cliente";
-  out = out.replace(/^cliente\s*·\s*/i, "");
-  out = out.replace(/^pago\s*·\s*/i, "Pago · ");
-  if (customerLabel) {
-    const safe = escapeRegex(customerLabel);
-    out = out.replace(new RegExp(`\\s*·\\s*${safe}`, "ig"), "");
-    out = out.replace(new RegExp(`\\b${safe}\\b`, "ig"), "");
-  }
-  out = out.replace(/\s+·\s+$/g, "").replace(/\s{2,}/g, " ").trim();
-  return out || "Evento del cliente";
-}
-
-function cleanLogMessage(raw: string, customerLabel: string) {
-  let out = normalizeSystemText(raw);
-  if (!out) return "—";
-  if (customerLabel) {
-    const safe = escapeRegex(customerLabel);
-    out = out.replace(new RegExp(`\\b${safe}\\b`, "ig"), "");
-  }
-  out = out.replace(/\s{2,}/g, " ").trim();
-  return out || "—";
-}
-
-function isRelevantCustomerLog(log: any) {
-  const source = String(log?.source || "").trim();
-  const title = normalizeSystemText(log?.entity || "");
-  const message = normalizeSystemText(log?.message || "");
-  if (isNoiseNotification({ source, title, message })) return false;
-  return true;
-}
-
-function compactCustomerLogs(items: any[]) {
-  const dedup = new Map<string, any>();
-  for (const item of items) {
-    const key = `${String(item?.source || "").trim().toLowerCase()}|${normalizeSystemText(item?.entity || "").toLowerCase()}|${normalizeSystemText(item?.message || "").toLowerCase()}|${String(item?.level || "").toUpperCase()}`;
-    const prev = dedup.get(key);
-    if (!prev) {
-      dedup.set(key, { ...item, duplicateCount: 1 });
-      continue;
-    }
-    const prevTs = new Date(prev.createdAt || 0).getTime();
-    const currTs = new Date(item?.createdAt || 0).getTime();
-    const base = currTs >= prevTs ? item : prev;
-    dedup.set(key, { ...base, duplicateCount: Number(prev?.duplicateCount || 1) + 1 });
-  }
-  return Array.from(dedup.values()).sort(
-    (a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime()
-  );
-}
-
-function collectionLabel(mode: string) {
-  if (mode === "AUTO_DEBIT") return "Débito automático";
-  if (mode === "AUTO_LINK") return "Link de pago (auto)";
-  return "Link de pago";
-}
-
-function normalizeSku(value: unknown) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-  if (/^\d{6}$/.test(raw)) return raw;
-  const digits = raw.replace(/\D+/g, "");
-  if (!digits) return "";
-  return digits.length >= 6 ? digits.slice(-6) : digits.padStart(6, "0");
-}
-
-function formatPlanTitle(plan: any) {
-  const md = (plan?.metadata as any) || {};
-  const displayName = String(md?.displayName || "").trim();
-  const rawName = String(plan?.name || "").trim();
-  const cleanName = rawName.replace(/^\s*\[\d+\]\s*/, "").trim();
-  const name = displayName || cleanName || "—";
-  const sku = normalizeSku(md?.sku);
-  return sku ? `SKU ${sku} · ${name}` : name;
-}
-
-function formatProductTitle(product: any, fallbackPlan?: any) {
-  const displayName = String(product?.displayName || product?.name || "").trim();
-  if (displayName) return displayName;
-  return formatPlanTitle(fallbackPlan);
-}
-
-function tokenMethodLabel(meta: unknown) {
-  const customerMeta = readCustomerMetadata(meta);
-  const wompi = customerMeta.wompi || {};
-  const sources = Array.isArray(wompi?.paymentSources) ? wompi.paymentSources : [];
-  const activeId = Number(extractCustomerPaymentSourceId(customerMeta) ?? 0);
-  const active =
-    (Number.isFinite(activeId) && activeId > 0
-      ? sources.find((src: any) => Number(src?.id) === activeId)
-      : null) ||
-    sources[0] ||
-    null;
-  if (!active && !Number.isFinite(activeId)) return "";
-  const activeMeta = active && typeof active === "object" ? (active as Record<string, unknown>) : null;
-  const activeCard = activeMeta?.card && typeof activeMeta.card === "object" ? (activeMeta.card as Record<string, unknown>) : null;
-  const activePaymentMethod =
-    activeMeta?.paymentMethod && typeof activeMeta.paymentMethod === "object"
-      ? (activeMeta.paymentMethod as Record<string, unknown>)
-      : null;
-  const methodTypeRaw = String(active?.type || wompi?.paymentSourceType || "").trim().toUpperCase();
-  const methodType =
-    methodTypeRaw === "CARD" ? "Tarjeta" :
-    methodTypeRaw === "NEQUI" ? "Nequi" :
-    methodTypeRaw === "PSE" ? "PSE" :
-    "Método";
-  const brandRaw = String(
-    activeMeta?.brand ||
-    activeMeta?.cardBrand ||
-    activeCard?.brand ||
-    activePaymentMethod?.brand ||
-    ""
-  ).trim();
-  const brand = brandRaw ? brandRaw.toUpperCase() : "";
-  const last4Raw = String(
-    activeMeta?.last4 ||
-    activeMeta?.last_four ||
-    activeCard?.last4 ||
-    activeCard?.last_four ||
-    activeMeta?.cardLast4 ||
-    ""
-  ).trim();
-  const last4Digits = last4Raw.replace(/\D+/g, "");
-  const last4 = last4Digits.length >= 4 ? last4Digits.slice(-4) : "";
-  if (brand && last4) return `${methodType} ${brand} · •••• ${last4}`;
-  if (last4) return `${methodType} · •••• ${last4}`;
-  if (brand) return `${methodType} ${brand}`;
-  if (Number.isFinite(activeId) && activeId > 0) return `${methodType} · fuente ${activeId}`;
-  return methodType;
-}
-
-function epochToIso(value: any) {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return null;
-  const ms = num > 1_000_000_000_000 ? num : num * 1000;
-  return new Date(ms).toISOString();
-}
-
-function MiniLine({ values, formatValue }: { values: number[]; formatValue?: (value: number) => string }) {
-  if (!values.length) return <div className="muted">Sin datos para graficar.</div>;
-  const w = 260;
-  const h = 90;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const lastValue = values[values.length - 1] ?? 0;
-  const fmt = formatValue || ((value: number) => String(value));
-  const gridY = [0, 0.25, 0.5, 0.75, 1];
-  const gridX = [0, 0.25, 0.5, 0.75, 1];
-  const pts = values.map((v, i) => {
-    const x = (i / Math.max(1, values.length - 1)) * w;
-    const y = h - ((v - min) / range) * h;
-    return `${x},${y}`;
-  });
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: 120 }}>
-      {gridY.map((t) => (
-        <line key={`gy-${t}`} x1="0" y1={h * t} x2={w} y2={h * t} stroke="var(--chart-track)" strokeDasharray="3 4" />
-      ))}
-      {gridX.map((t) => (
-        <line key={`gx-${t}`} x1={w * t} y1="0" x2={w * t} y2={h} stroke="var(--chart-track)" strokeDasharray="3 4" />
-      ))}
-      <polyline points={pts.join(" ")} fill="none" stroke="var(--primary)" strokeWidth="2.75" strokeLinejoin="round" strokeLinecap="round" />
-      {values.length > 1 ? (
-        <circle cx={w} cy={h - ((lastValue - min) / range) * h} r="3.5" fill="var(--primary)" />
-      ) : null}
-      <line x1="0" y1={h - 0.5} x2={w} y2={h - 0.5} stroke="var(--chart-axis)" />
-      <text x="2" y="10" fontSize="10" fill="var(--text-faint)">{fmt(max)}</text>
-      <text x="2" y={h - 4} fontSize="10" fill="var(--text-faint)">{fmt(min)}</text>
-    </svg>
-  );
-}
-
-function MiniBars({ items }: { items: Array<{ label: string; value: number; color: string }> }) {
-  if (!items.length) return <div className="muted">Sin datos para graficar.</div>;
-  const w = 260;
-  const h = 90;
-  const max = Math.max(...items.map((i) => i.value)) || 1;
-  const gridY = [0, 0.25, 0.5, 0.75, 1];
-  const gap = 12;
-  const barW = (w - gap * (items.length - 1)) / items.length;
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: 120 }}>
-      {gridY.map((t) => (
-        <line key={`gby-${t}`} x1="0" y1={h * t} x2={w} y2={h * t} stroke="var(--chart-track)" strokeDasharray="3 4" />
-      ))}
-      {items.map((item, idx) => {
-        const barH = (item.value / max) * (h - 18);
-        const x = idx * (barW + gap);
-        return (
-          <g key={item.label}>
-            <rect x={x} y={h - barH - 12} width={barW} height={barH} fill={item.color} rx="4" />
-            <text x={x + barW / 2} y={h - barH - 18} textAnchor="middle" fontSize="10" fill="var(--text-faint)">
-              {item.value}
-            </text>
-            <text x={x + barW / 2} y={h - 2} textAnchor="middle" fontSize="10" fill="var(--text-faint)">
-              {item.label}
-            </text>
-          </g>
-        );
-      })}
-      <line x1="0" y1={h - 0.5} x2={w} y2={h - 0.5} stroke="var(--chart-axis)" />
-    </svg>
-  );
-}
-
-function MiniDonut({
-  items,
-  totalLabel
-}: {
-  items: Array<{ label: string; value: number; color: string }>;
-  totalLabel: string;
-}) {
-  const total = items.reduce((acc, item) => acc + item.value, 0);
-  if (!total) return <div className="muted">Sin datos para graficar.</div>;
-  const size = 120;
-  const stroke = 14;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  let offset = 0;
-
-  return (
-    <svg viewBox={`0 0 ${size} ${size}`} style={{ width: "100%", height: 140 }}>
-      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--chart-track)" strokeWidth={stroke} />
-      {items.map((item, idx) => {
-        if (!item.value) return null;
-        const dash = (item.value / total) * circumference;
-        const strokeDasharray = `${dash} ${circumference - dash}`;
-        const circle = (
-          <circle
-            key={item.label}
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={item.color}
-            strokeWidth={stroke}
-            strokeDasharray={strokeDasharray}
-            strokeDashoffset={-offset}
-            strokeLinecap="round"
-            transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          />
-        );
-        offset += dash;
-        return circle;
-      })}
-      <text x="50%" y="48%" textAnchor="middle" fontSize="12" fill="var(--text-faint)">
-        {totalLabel}
-      </text>
-      <text x="50%" y="62%" textAnchor="middle" fontSize="16" fill="var(--text)" fontWeight="700">
-        {total}
-      </text>
-    </svg>
-  );
-}
 
 async function fetchCustomer(id: string, tenantId?: string | null) {
   return getCustomerWithGamification({ customerId: id, tenantId: tenantId || null });
@@ -362,7 +81,9 @@ async function geocodeAddress(address: string) {
       headers: {
         "User-Agent": "apiflujos-admin/1.0 (contacto@apiflujos.com)"
       },
-      cache: "no-store"
+      cache: "no-store",
+      // Sin tope, un Nominatim lento o inalcanzable dejaba la ficha cargando.
+      signal: AbortSignal.timeout(4000)
     });
     if (!res.ok) return null;
     const json = await res.json().catch(() => []);
@@ -388,6 +109,27 @@ export default async function CustomerDetailPage({
   const { id } = await params;
   const resolvedTenantId = null;
   const rawSearch = (await searchParams) || {};
+  const returnTo = resolveReturnTo(rawSearch.returnTo, "/customers");
+  const selfHref = withReturnTo(`/customers/${id}`, returnTo);
+  const error = customerErrorText(rawSearch.error);
+  const sentKind = typeof rawSearch.sent === "string" ? rawSearch.sent : "";
+  const noticeText = error
+    ? null
+    : rawSearch.created
+      ? "Contacto creado."
+      : rawSearch.updated
+        ? "Contacto actualizado."
+        : rawSearch.tokenRemoved
+          ? "Método de pago removido."
+          : sentKind === "link"
+            ? "Link de pago enviado."
+            : sentKind === "catalog"
+              ? "Catálogo enviado."
+              : sentKind === "token"
+                ? "Link de débito automático enviado."
+                : rawSearch.paymentSource
+                  ? "Método de pago guardado."
+                  : null;
   const logsPage = Math.max(1, Number(rawSearch.logsPage ?? 1));
   const logsWindowDays = 30;
   const logsTo = new Date();
@@ -407,20 +149,18 @@ export default async function CustomerDetailPage({
 
   if (!customerRes.ok) {
     return (
-      <main className="page">
-        <div className="card cardPad">No encontramos el contacto solicitado.</div>
-        <Link className="ghost btn-compact" href="/customers">Volver a contactos</Link>
-      </main>
+      <PageShell title="Contacto no encontrado" backHref="/customers" backLabel="Volver a contactos">
+        <PageSection>No encontramos el contacto solicitado.</PageSection>
+      </PageShell>
     );
   }
 
   const customer = customerRes.ok ? customerRes.customer : null;
   if (!customer) {
     return (
-      <main className="page">
-        <div className="card cardPad">No encontramos el contacto solicitado.</div>
-        <Link className="ghost btn-compact" href="/customers">Volver a contactos</Link>
-      </main>
+      <PageShell title="Contacto no encontrado" backHref="/customers" backLabel="Volver a contactos">
+        <PageSection>No encontramos el contacto solicitado.</PageSection>
+      </PageShell>
     );
   }
 
@@ -604,73 +344,70 @@ export default async function CustomerDetailPage({
   const chatwootLastActivity = chatwootConvosSorted[0]?.last_activity_at || chatwootConvosSorted[0]?.updated_at || null;
 
   return (
-    <main className="page">
-      <section className="card cardPad customer-hero">
-        <div className="customer-hero-meta">
-          <div className="hero-head">
-            <div className="hero-name-block">
-              <div className="hero-name-row">
-                <div className="contact-title">{customer.name || customer.email || customer.phone || "Contacto"}</div>
-              </div>
-              <div className="contact-subline">
-                ID <span className="mono">{customer.id}</span>
-              </div>
-              <div className="contact-tags">
-                {Number.isFinite(paymentSourceId) ? (
-                  <>
-                    <span className="pill pill-ok pill-sm">Tokenizada</span>
-                    {tokenMethod ? <span className="token-method-hint">{tokenMethod}</span> : null}
-                  </>
-                ) : (
-                  <span className="pill pill-bad pill-sm">Sin token</span>
-                )}
-                {activeSub ? (
-                  <span className={`pill pill-sm ${statusPillClass(String(activeSub.status || ""))}`}>
-                    {collectionLabel(String(activeSub?.plan?.collectionMode || activeSub?.plan?.metadata?.collectionMode || ""))} · {statusLabel(String(activeSub.status || ""))}
-                  </span>
-                ) : (
-                  <span className="pill pill-muted pill-sm">Sin suscripciones</span>
-                )}
-                {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
-                  <MapModal
-                    lat={geo.lat}
-                    lon={geo.lon}
-                    label={addressDisplay || undefined}
-                    mapLink={mapLink || undefined}
-                    triggerLabel="Ubicación"
-                    triggerClassName="pill pill-sm pill-muted"
-                  />
-                ) : (
-                  <button type="button" className="pill pill-sm pill-muted" disabled>
-                    Ubicación
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className="hero-right">
-              <div className="hero-right-top">
-                <div className="hero-id-block">
-                  <span className="hero-id-label">NIT / ID</span>
-                  <span className="hero-id-value mono">{documentLabel || "—"}</span>
-                  <span className="hero-id-sub">{tenantName || customer.tenantId || "—"}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+    <PageShell
+      title={customer.name || customer.email || customer.phone || "Contacto"}
+      subtitle={<>ID <span className="mono">{customer.id}</span></>}
+      crumbs={[{ label: "Contactos", href: returnTo }, { label: customer.name || customer.email || customer.phone || "Contacto" }]}
+      backHref={returnTo}
+      width="full"
+      notice={error ? { tone: "error", text: error } : noticeText ? { tone: "ok", text: noticeText } : null}
+      headerActions={
+        <div className="customers-detail-actions">
+          <Link className="primary btn-compact" href={withReturnTo(`/customers/${customer.id}/edit`, selfHref)}>Editar</Link>
+          <Link className="ghost btn-compact" href={withReturnTo(`/customers/${customer.id}/new-subscription`, selfHref)}>Crear suscripción</Link>
+          <Link className="ghost btn-compact" href={withReturnTo(`/customers/${customer.id}/send/catalog`, selfHref)}>Enviar catálogo</Link>
+          {activeSub ? (
+            <Link className="ghost btn-compact" href={withReturnTo(`/customers/${customer.id}/send/link`, selfHref)}>Enviar link de pago</Link>
+          ) : null}
+          {activeSub ? (
+            <Link className="ghost btn-compact" href={withReturnTo(`/customers/${customer.id}/send/token`, selfHref)}>Enviar débito automático</Link>
+          ) : null}
+          <Link className="ghost btn-compact" href={withReturnTo(`/customers/${customer.id}/payment-method`, selfHref)}>Método de pago</Link>
+          {Number.isFinite(paymentSourceId) ? (
+            <Link className="ghost btn-compact btn-red" href={withReturnTo(`/customers/${customer.id}/remove-token`, selfHref)}>Quitar token</Link>
+          ) : null}
         </div>
-        <div className="customer-hero-actions">
-          <div className="hero-actions-row">
-            <Link className="ghost btn-compact btn-blue" href="/customers">Volver</Link>
-            <Link className="ghost btn-compact btn-amber" href={`/customers/${customer.id}/payment-method`}>Método de pago</Link>
-          </div>
+      }
+    >
+      <PageSection>
+        <div className="contact-tags">
+          {Number.isFinite(paymentSourceId) ? (
+            <>
+              <span className="pill pill-ok pill-sm">Tokenizada</span>
+              {tokenMethod ? <span className="token-method-hint">{tokenMethod}</span> : null}
+            </>
+          ) : (
+            <span className="pill pill-bad pill-sm">Sin token</span>
+          )}
+          {activeSub ? (
+            <span className={`pill pill-sm ${statusPillClass(String(activeSub.status || ""))}`}>
+              {collectionLabel(String(activeSub?.plan?.collectionMode || activeSub?.plan?.metadata?.collectionMode || ""))} · {statusLabel(String(activeSub.status || ""))}
+            </span>
+          ) : (
+            <span className="pill pill-muted pill-sm">Sin suscripciones</span>
+          )}
+          {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
+            <a className="pill pill-sm pill-muted" href="#ubicacion">Ubicación</a>
+          ) : null}
         </div>
-      </section>
+        <div className="contact-subline">
+          NIT / ID <span className="mono">{documentLabel || "—"}</span> · Canal {tenantName || customer.tenantId || "—"}
+        </div>
+      </PageSection>
+
+      {geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon) ? (
+        <div id="ubicacion">
+          <PageSection title="Ubicación" description={addressDisplay || "Coordenadas registradas"}>
+            <LocationSection lat={geo.lat} lon={geo.lon} label={addressDisplay || undefined} mapLink={mapLink || undefined} />
+          </PageSection>
+        </div>
+      ) : null}
 
       <section className="card cardPad customer-section">
         <div className="contact-section-title">Puntualidad de pagos (ciclos)</div>
         {billingCycles.length ? (
-          <div className="table-scroll">
-            <table className="table table-fixed">
+          <div>
+            <table className="customers-table">
               <colgroup>
                 <col style={{ width: "12%" }} />
                 <col style={{ width: "28%" }} />
@@ -701,13 +438,13 @@ export default async function CustomerDetailPage({
                           : "Tarde";
                   return (
                     <tr key={c.id}>
-                      <td>Ciclo {c.cycleNumber}</td>
-                      <td>
+                      <td data-label="Ciclo">Ciclo {c.cycleNumber}</td>
+                      <td data-label="Periodo">
                         <LocalDateTime value={c.periodStartAt} /> · <LocalDateTime value={c.periodEndAt} />
                       </td>
-                      <td>{c.paidAt ? <LocalDateTime value={c.paidAt} /> : "—"}</td>
-                      <td>{punctual}</td>
-                      <td className="cell-truncate" title={formatProductTitle(c.subscription?.product, { name: c.subscription?.plan?.name })}>
+                      <td data-label="Pago">{c.paidAt ? <LocalDateTime value={c.paidAt} /> : "—"}</td>
+                      <td data-label="Puntualidad">{punctual}</td>
+                      <td data-label="Suscripción" title={formatProductTitle(c.subscription?.product, { name: c.subscription?.plan?.name })}>
                         {formatProductTitle(c.subscription?.product, { name: c.subscription?.plan?.name })}
                       </td>
                     </tr>
@@ -1019,11 +756,11 @@ export default async function CustomerDetailPage({
       </section>
 
       <section className="grid2">
-        <div className="card cardPad customer-section">
+        <div className="card cardPad customer-section" id="pagos">
           <div className="contact-section-title">Pagos recientes</div>
           {recentPayments.length ? (
-            <div className="table-scroll">
-              <table className="table table-fixed">
+            <div>
+              <table className="customers-table">
                 <colgroup>
                   <col style={{ width: "26%" }} />
                   <col style={{ width: "18%" }} />
@@ -1041,10 +778,10 @@ export default async function CustomerDetailPage({
                 <tbody>
                   {recentPayments.map((p: any) => (
                     <tr key={p.id}>
-                      <td><LocalDateTime value={p.paidAt || p.createdAt} /></td>
-                      <td>{formatCopFromCents(Number(p.amountInCents || 0))}</td>
-                      <td className="cell-truncate" title={String(p.status || "—")}><span className={`pill pill-sm ${statusPillClass(String(p.status || ""))}`}>{statusLabel(String(p.status || ""))}</span></td>
-                      <td className="cell-truncate" title={formatProductTitle({ name: p.productName }, { name: p.planName })}>
+                      <td data-label="Fecha"><LocalDateTime value={p.paidAt || p.createdAt} /></td>
+                      <td data-label="Monto">{formatCopFromCents(Number(p.amountInCents || 0))}</td>
+                      <td data-label="Estado" title={String(p.status || "—")}><span className={`pill pill-sm ${statusPillClass(String(p.status || ""))}`}>{statusLabel(String(p.status || ""))}</span></td>
+                      <td data-label="Producto" title={formatProductTitle({ name: p.productName }, { name: p.planName })}>
                         {formatProductTitle({ name: p.productName }, { name: p.planName })}
                       </td>
                     </tr>
@@ -1083,7 +820,7 @@ export default async function CustomerDetailPage({
           <div className="customer-log-controls">
             <span className="muted">{formatWindowLabel(logsFrom, logsTo)}</span>
             <div className="customer-log-actions">
-              <Link className="ghost btn-compact" href={`/customers/${customer.id}?logsPage=${logsPage + 1}`} data-loader="off">
+              <Link className="ghost btn-compact" href={`/customers/${customer.id}?logsPage=${logsPage + 1}${returnTo !== "/customers" ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`} data-loader="off">
                 Mes anterior
               </Link>
               {logsPage <= 1 ? (
@@ -1091,16 +828,16 @@ export default async function CustomerDetailPage({
                   Más reciente
                 </span>
               ) : (
-                <Link className="ghost btn-compact" href={`/customers/${customer.id}?logsPage=${Math.max(1, logsPage - 1)}`} data-loader="off">
+                <Link className="ghost btn-compact" href={`/customers/${customer.id}?logsPage=${Math.max(1, logsPage - 1)}${returnTo !== "/customers" ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`} data-loader="off">
                   Más reciente
                 </Link>
               )}
             </div>
           </div>
           {logs.length ? (
-            <div className="timeline-scroll">
-              <TimelineScroller ariaLabel="Línea de tiempo del cliente">
-                <div className="customer-log-list" role="list">
+            <div>
+              <div>
+                <div className="customers-log-list" role="list">
                 {logs.map((l: any) => (
                   (() => {
                     const customerLabel = String(customer.name || customer.email || customer.phone || "").trim();
@@ -1132,7 +869,7 @@ export default async function CustomerDetailPage({
                   })()
                 ))}
                 </div>
-              </TimelineScroller>
+              </div>
             </div>
           ) : (
             <div className="muted">Sin logs en este periodo.</div>
@@ -1155,6 +892,6 @@ export default async function CustomerDetailPage({
           </div>
         </section>
       ) : null}
-    </main>
+    </PageShell>
   );
 }

@@ -1,0 +1,211 @@
+/* Logs y Pagos: la tabla se adapta al ancho (sin scroll horizontal).
+   styles.css no se toca: aquí se sobreescribe con selectores más específicos. */
+
+.paymentsPage .payments-table-wrap,
+.payments-table-wrap {
+  width: 100%;
+  overflow: visible;
+}
+
+.payments-table-wrap .logs-table.logs-table-payments {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.payments-table-wrap .logs-table-payments th,
+.payments-table-wrap .logs-table-payments td {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Anchos en porcentaje (con fixed layout reparten el 100 %). */
+.logs-table-payments .lp-col-date { width: 8%; }
+.logs-table-payments .lp-col-client { width: 14%; }
+.logs-table-payments .lp-col-product { width: 12%; }
+.logs-table-payments .lp-col-status { width: 10%; }
+.logs-table-payments .lp-col-notif { width: 11%; }
+.logs-table-payments .lp-col-total { width: 9%; }
+.logs-table-payments .lp-col-ref { width: 14%; }
+.logs-table-payments .lp-col-detail { width: 18%; }
+.logs-table-payments .lp-col-actions { width: 44px; }
+
+.payments-table-wrap .logs-table-payments .log-payment-error-cell,
+.payments-table-wrap .logs-table-payments .log-date-cell {
+  max-width: none;
+}
+
+.payments-table-wrap .logs-table-payments .log-payment-actions-cell {
+  width: auto;
+  padding-left: 4px;
+  padding-right: 4px;
+  text-align: center;
+}
+
+.payments-table-wrap .logs-table-payments .log-contact,
+.payments-table-wrap .logs-table-payments .log-contact-name,
+.payments-table-wrap .logs-table-payments .log-contact-meta,
+.payments-table-wrap .logs-table-payments .log-ref-stack > span {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.payments-table-wrap .logs-table-payments .status-chip,
+.payments-table-wrap .logs-table-payments .pill {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.payments-table-wrap .logs-table-payments .log-trace-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Pantallas medias y pequeñas: cada pago es una tarjeta, no una fila de tabla. */
+@media (max-width: 1279px) {
+  .payments-table-wrap .logs-table-payments,
+  .payments-table-wrap .logs-table-payments tbody,
+  .payments-table-wrap .logs-table-payments tr,
+  .payments-table-wrap .logs-table-payments td {
+    display: block;
+    width: 100%;
+  }
+
+  .payments-table-wrap .logs-table-payments colgroup {
+    display: none;
+  }
+
+  /* Encabezado fuera de vista pero disponible para lectores de pantalla. */
+  .payments-table-wrap .logs-table-payments thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: clip;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .payments-table-wrap .logs-table-payments tr {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px 16px;
+    padding: 14px 56px 14px 16px;
+    border-bottom: 1px solid var(--stroke, #e5e5e5);
+  }
+
+  .payments-table-wrap .logs-table-payments td {
+    grid-column: span 2;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    max-width: none;
+    min-width: 0;
+    height: auto;
+  }
+
+  .payments-table-wrap .logs-table-payments td.log-ref-cell,
+  .payments-table-wrap .logs-table-payments td.log-payment-error-cell {
+    grid-column: 1 / -1;
+  }
+
+  .payments-table-wrap .logs-table-payments td[data-label]:not([data-label=""])::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 3px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-faint, var(--muted));
+  }
+
+  .payments-table-wrap .logs-table-payments td.log-payment-actions-cell {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    width: auto;
+    padding: 0;
+  }
+
+  /* Fila "Sin pagos." */
+  .payments-table-wrap .logs-table-payments td[colspan] {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  .payments-table-wrap .logs-table-payments tr {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-right: 52px;
+    grid-auto-flow: row dense;
+  }
+
+  .payments-table-wrap .logs-table-payments td {
+    grid-column: span 1;
+  }
+
+  .payments-table-wrap .logs-table-payments td.log-contact-cell,
+  .payments-table-wrap .logs-table-payments td.log-plan-cell {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Barra de herramientas y pestañas: pasan a otra fila en vez de desbordar. */
+.logsPage .panel-tabs-top {
+  flex-wrap: wrap;
+  overflow: visible;
+  max-width: 100%;
+}
+
+.logsPage .page-toolbar,
+.logsPage .page-toolbar-row,
+.logsPage .page-toolbar-right,
+.logsPage .page-toolbar-filters,
+.logsPage .page-toolbar-search {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.logsPage .page-toolbar-right {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.logsPage .page-toolbar .page-header-standard-filters-group {
+  flex-wrap: wrap;
+}
+
+.paymentsPage .payments-header-actions {
+  flex-wrap: nowrap;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.paymentsPage .payments-header-actions .payments-action-btn {
+  min-width: 0;
+  flex: 0 1 auto;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+@media (max-width: 760px) {
+  .paymentsPage .payments-header-actions {
+    flex-wrap: wrap;
+  }
+}
+
+.logsPage .settings-group,
+.logsPage .settings-group-body,
+.logsPage .panel.module {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Tablas de Sistema, Webhooks y Mensajes: sin scroll propio. */
+.logsPage .webhooks-table-wrap {
+  overflow: visible;
+}

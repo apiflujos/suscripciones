@@ -13,3 +13,11 @@
   .page-shell .billing-history-table tr { padding: 8px 0; border-bottom: 1px solid var(--stroke); }
   .page-shell .billing-history-table td { padding: 2px 0; border: 0; }
 }
+
+/* Formulario de crear suscripción/cobro: sus rejillas de dos columnas (estilos en línea)
+   se apilan en pantallas angostas en vez de desbordar la página. */
+@media (max-width: 700px) {
+  .page-shell .panel.module [style*="1fr 1fr"],
+  .page-shell .panel.module [style*="repeat(2"] { grid-template-columns: 1fr !important; }
+  .page-shell .panel.module { min-width: 0; }
+}
