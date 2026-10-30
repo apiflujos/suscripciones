@@ -853,7 +853,7 @@ export default async function LogsPage({
           {reconcileRef ? <span className="muted"> · Ref: {reconcileRef}</span> : null}
         </div>
       ) : null}
-      {reconcileStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error conciliando pago: {reconcileError || "unknown_error"}</div> : null}
+      {reconcileStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error conciliando pago: {reconcileError === "missing_ids" ? "Ingresa al menos un identificador: transacción, referencia, Payment ID o Link id." : reconcileError || "unknown_error"}</div> : null}
       {assocStatus === "ok" ? <div className="card cardPad">Pago asociado manualmente a la suscripción.</div> : null}
       {assocStatus === "fail" ? <div className="card cardPad" style={{ borderColor: "var(--danger)" }}>Error asociando pago: {paymentAssociationErrorLabel(assocError)}</div> : null}
       {pageError ? <div className="card cardPad" role="alert" style={{ borderColor: "var(--danger)" }}>Error: {pageError}</div> : null}

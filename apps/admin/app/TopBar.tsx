@@ -213,7 +213,7 @@ export function TopBar({ session }: { session: AdminSession | null }) {
           </Link>
         </div>
         <div className="topbarTitleCentered">
-          <h1 className="topbarTitle" suppressHydrationWarning>{header.title}</h1>
+          <p className="topbarTitle" suppressHydrationWarning>{header.title}</p>
           <div className="topbarSubtitle" suppressHydrationWarning>{header.subtitle}</div>
         </div>
         <div className={`topbarPulse ${paymentPulse ? "is-active" : ""}`} aria-live="polite">
