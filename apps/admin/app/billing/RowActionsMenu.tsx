@@ -51,7 +51,7 @@ export function RowActionsMenu({
     const items = () =>
       Array.from(menu.querySelectorAll<HTMLElement>("a[href], button:not([disabled])")).filter((el) => !el.closest("[hidden]"));
     items().forEach((el) => el.setAttribute("role", "menuitem"));
-    items()[0]?.focus();
+    items()[0]?.focus({ preventScroll: true });
     const onKey = (event: KeyboardEvent) => {
       const list = items();
       if (!list.length) return;
@@ -89,7 +89,14 @@ export function RowActionsMenu({
     };
     // El menú está en posición fija: al desplazar o redimensionar quedaría
     // desalineado del botón, así que se cierra.
-    const onViewportChange = () => close();
+    // Un desplazamiento dentro del propio menú, o el que provoca enfocar su primera
+    // opción justo al abrir, no debe cerrarlo.
+    const openedAt = Date.now();
+    const onViewportChange = (event?: Event) => {
+      if (Date.now() - openedAt < 250) return;
+      if (event?.target instanceof Node && menuRef.current?.contains(event.target)) return;
+      close();
+    };
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("keydown", onKeyDown);
     window.addEventListener("scroll", onViewportChange, true);

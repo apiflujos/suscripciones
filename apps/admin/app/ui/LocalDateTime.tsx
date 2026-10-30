@@ -1,5 +1,10 @@
 "use client";
 
+// Node y el navegador no siempre usan el mismo espacio entre la hora y "p. m."
+// (espacio fino U+202F vs. espacio normal): el texto del servidor y el del cliente
+// difieren y React avisa de un error de hidratación. Se normaliza a un espacio normal.
+const norm = (text: string) => text.replace(/[\u202f\u00a0]/g, " ");
+
 export function LocalDateTime({
   value,
   variant = "long"
@@ -13,22 +18,22 @@ export function LocalDateTime({
   const locale = "es-CO";
   const tz = "America/Bogota";
   if (variant === "stacked") {
-    const dayMonth = d.toLocaleDateString(locale, {
+    const dayMonth = norm(d.toLocaleDateString(locale, {
       timeZone: tz,
       month: "short",
       day: "2-digit"
-    });
-    const time = d.toLocaleTimeString(locale, {
+    }));
+    const time = norm(d.toLocaleTimeString(locale, {
       timeZone: tz,
       hour: "2-digit",
       minute: "2-digit"
-    });
-    const shortDate = d.toLocaleDateString(locale, {
+    }));
+    const shortDate = norm(d.toLocaleDateString(locale, {
       timeZone: tz,
       year: "2-digit",
       month: "2-digit",
       day: "2-digit"
-    });
+    }));
     return (
       <span className="date-stack">
         <span className="date-stack-top">{dayMonth}</span>
@@ -37,7 +42,7 @@ export function LocalDateTime({
       </span>
     );
   }
-  const text =
+  const text = norm(
     variant === "short"
       ? d.toLocaleString(locale, {
           timeZone: tz,
@@ -54,6 +59,7 @@ export function LocalDateTime({
           day: "numeric",
           hour: "numeric",
           minute: "2-digit"
-        });
+        })
+  );
   return <span>{text}</span>;
 }
