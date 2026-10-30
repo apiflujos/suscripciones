@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import "./row-actions-menu.css";
 
 /**
  * Menú de acciones de una fila, detrás de un solo botón (kebab).
@@ -41,6 +42,37 @@ export function RowActionsMenu({
     const top = fitsBelow ? below : Math.max(8, rect.top - 6 - height);
     setPos({ top, right: Math.max(8, window.innerWidth - rect.right) });
   }, [open]);
+
+  // Teclado: al abrir se enfoca la primera opción; flechas, Inicio y Fin recorren el menú.
+  useEffect(() => {
+    if (!open || !pos) return;
+    const menu = menuRef.current;
+    if (!menu) return;
+    const items = () =>
+      Array.from(menu.querySelectorAll<HTMLElement>("a[href], button:not([disabled])")).filter((el) => !el.closest("[hidden]"));
+    items().forEach((el) => el.setAttribute("role", "menuitem"));
+    items()[0]?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      const list = items();
+      if (!list.length) return;
+      const index = list.indexOf(document.activeElement as HTMLElement);
+      let next = -1;
+      if (event.key === "ArrowDown") next = (index + 1) % list.length;
+      else if (event.key === "ArrowUp") next = (index - 1 + list.length) % list.length;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = list.length - 1;
+      else if (event.key === "Tab") {
+        close();
+        return;
+      }
+      if (next >= 0) {
+        event.preventDefault();
+        list[next].focus();
+      }
+    };
+    menu.addEventListener("keydown", onKey);
+    return () => menu.removeEventListener("keydown", onKey);
+  }, [open, pos, close]);
 
   useEffect(() => {
     if (!open) return;
