@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 /**
- * Menú de acciones de una fila, detrás de un solo botón.
+ * Menú de acciones de una fila, detrás de un solo botón (kebab).
  *
- * Las acciones estaban sueltas en la fila y cada etiqueta ocupaba su ancho real
- * —"Enviar link de pago" son 152 px—, así que la columna necesitaba 256 px y era
- * la que empujaba la lista fuera de la pantalla. Un botón de 36 px devuelve ese
- * espacio a las columnas que llevan el dato que se lee.
+ * Sus elementos son enlaces a páginas dedicadas (`<Link>`) o formularios de una
+ * sola acción; ya no hay modales colgando de cada fila.
  *
- * Es el patrón de la lista de pedidos de mesa de ayuda: un kebab por fila que
- * consolida todo, en vez de repartir botones por la fila.
+ * El menú se pinta en un portal sobre `document.body`, con posición fija calculada
+ * desde el botón. Así ningún contenedor con `overflow` de la lista lo recorta, y si
+ * no cabe debajo de la última fila se abre hacia arriba.
  */
 export function RowActionsMenu({
   children,
@@ -21,33 +21,59 @@ export function RowActionsMenu({
   label?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [montado, setMontado] = useState(false);
-  const boxRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const menuId = useId();
+
+  const close = useCallback(() => setOpen(false), []);
+
+  // Posición: debajo del botón, alineado a su borde derecho; arriba si no cabe.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const trigger = triggerRef.current;
+    const menu = menuRef.current;
+    if (!trigger || !menu) return;
+    const rect = trigger.getBoundingClientRect();
+    const height = menu.offsetHeight;
+    const below = rect.bottom + 6;
+    const fitsBelow = below + height <= window.innerHeight - 8;
+    const top = fitsBelow ? below : Math.max(8, rect.top - 6 - height);
+    setPos({ top, right: Math.max(8, window.innerWidth - rect.right) });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
-
-    // Cerrar al pulsar fuera. Se escucha en captura para enterarse antes de que
-    // el clic llegue a un botón del propio menú y lo desmonte.
     const onPointerDown = (event: PointerEvent) => {
-      if (!boxRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (menuRef.current?.contains(target) || triggerRef.current?.contains(target)) return;
+      close();
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        close();
+        triggerRef.current?.focus();
+      }
     };
-
+    // El menú está en posición fija: al desplazar o redimensionar quedaría
+    // desalineado del botón, así que se cierra.
+    const onViewportChange = () => close();
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("scroll", onViewportChange, true);
+    window.addEventListener("resize", onViewportChange);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("scroll", onViewportChange, true);
+      window.removeEventListener("resize", onViewportChange);
     };
-  }, [open]);
+  }, [open, close]);
 
   return (
-    <div className="row-actions" ref={boxRef}>
+    <div className="row-actions">
       <button
+        ref={triggerRef}
         type="button"
         className="ghost btn-icon-only btn-noicon row-actions-trigger"
         aria-haspopup="menu"
@@ -57,7 +83,7 @@ export function RowActionsMenu({
         title={label}
         data-loader="off"
         onClick={() => {
-          setMontado(true);
+          setPos(null);
           setOpen((v) => !v);
         }}
       >
@@ -67,20 +93,30 @@ export function RowActionsMenu({
           <circle cx="12" cy="19" r="2.2" />
         </svg>
       </button>
-      {/* Una vez abierto, el menú NO se desmonta: se oculta. Los modales de estos
-          botones se renderizan como hijos suyos —AppModal no usa portal—, así que
-          desmontar el menú al cerrarlo se llevaría por delante el modal que
-          acababa de abrir. */}
-      {montado ? (
-        <div
-          className="row-actions-menu"
-          id={menuId}
-          role="menu"
-          hidden={!open}
-        >
-          {children}
-        </div>
-      ) : null}
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className="row-actions-menu is-floating"
+              id={menuId}
+              role="menu"
+              style={{
+                position: "fixed",
+                top: pos ? pos.top : -9999,
+                right: pos ? pos.right : 0,
+                visibility: pos ? "visible" : "hidden"
+              }}
+              // Un enlace cierra el menú. El envío de un formulario NO: desmontar el
+              // formulario en el mismo clic cancelaría el envío; la página navega sola.
+              onClick={(event) => {
+                if ((event.target as HTMLElement).closest("a")) close();
+              }}
+            >
+              {children}
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

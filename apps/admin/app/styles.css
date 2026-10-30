@@ -18382,3 +18382,20 @@ a.sb-state:hover {
   min-width: 0;
   overflow: visible;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   UN SOLO SCROLL — el del documento
+   ──────────────────────────────────────────────────────────────────────────────
+   Por especificación, `overflow-x: hidden|auto` obliga a que `overflow-y` valga
+   `auto` en vez de `visible`. `.app-shell`, `.content` y `.page` lo declaraban, así
+   que cada pantalla tenía TRES contenedores de scroll anidados: cualquier cosa más
+   ancha que la página hacía scrollear de lado el bloque entero, métricas incluidas.
+   `overflow: clip` recorta sin crear contenedor de scroll.
+
+   La barra de herramientas tampoco scrollea: si no cabe en una fila, pasa a otra.
+   ══════════════════════════════════════════════════════════════════════════════ */
+.app-shell { overflow-x: clip; overflow-y: visible; }
+.content { overflow-x: clip; overflow-y: visible; min-width: 0; }
+.page, .pageWide { overflow-x: clip; overflow-y: visible; min-width: 0; }
+.page-toolbar.compact { flex-wrap: wrap; overflow: visible; }
+.page-toolbar { min-width: 0; }
