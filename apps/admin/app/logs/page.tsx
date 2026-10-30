@@ -1491,16 +1491,16 @@ export default async function LogsPage({
               <div className="webhooks-table-wrap">
                   <table className="table logs-table logs-table-webhooks" aria-label="Tabla de webhooks">
                     <colgroup>
-                      <col style={{ width: "130px" }} />
-                      <col style={{ width: "240px" }} />
-                      <col style={{ width: "120px" }} />
-                      <col style={{ width: "230px" }} />
-                      <col style={{ width: "140px" }} />
-                      <col style={{ width: "190px" }} />
-                      <col style={{ width: "150px" }} />
-                      <col style={{ width: "130px" }} />
-                      <col style={{ width: "130px" }} />
-                      <col style={{ width: "140px" }} />
+                      <col className="lw-col-date" />
+                      <col className="lw-col-client" />
+                      <col className="lw-col-amount" />
+                      <col className="lw-col-ref" />
+                      <col className="lw-col-type" />
+                      <col className="lw-col-product" />
+                      <col className="lw-col-proc" />
+                      <col className="lw-col-pay" />
+                      <col className="lw-col-fail" />
+                      <col className="lw-col-actions" />
                     </colgroup>
                 <thead>
                   <tr>
@@ -1537,30 +1537,30 @@ export default async function LogsPage({
                     });
                     return (
                       <tr key={e.id}>
-                        <td className="log-date-cell"><LocalDateTime value={e.receivedAt} variant="stacked" /></td>
-                        <td className="log-contact-cell">{renderContactBlock(e)}</td>
-                        <td>{formatAmount(e.amountInCents, e.currency)}</td>
-                        <td className="log-ref-cell" title={[e.reference, refMeta].filter(Boolean).join(" · ") || "—"}>
+                        <td className="log-date-cell" data-label="Fecha"><LocalDateTime value={e.receivedAt} variant="stacked" /></td>
+                        <td className="log-contact-cell" data-label="Cliente">{renderContactBlock(e)}</td>
+                        <td data-label="Monto">{formatAmount(e.amountInCents, e.currency)}</td>
+                        <td className="log-ref-cell" data-label="Referencia" title={[e.reference, refMeta].filter(Boolean).join(" · ") || "—"}>
                           <div className="log-ref">
                             <span className="log-ref-main">{e.reference || "—"}</span>
                             {refMeta ? <span className="log-ref-meta">{refMeta}</span> : null}
                           </div>
                         </td>
-                        <td className="log-type-cell" title={e.paymentType || e.eventName || "—"}>{e.paymentType || e.eventName || "—"}</td>
-                        <td className="log-plan-cell" title={e.productName || e.planName || "—"}>{e.productName || e.planName || "—"}</td>
-                        <td className="log-status-cell">
+                        <td className="log-type-cell" data-label="Tipo" title={e.paymentType || e.eventName || "—"}>{e.paymentType || e.eventName || "—"}</td>
+                        <td className="log-plan-cell" data-label="Producto" title={e.productName || e.planName || "—"}>{e.productName || e.planName || "—"}</td>
+                        <td className="log-status-cell" data-label="Procesamiento">
                           <span className={`status-chip ${processChip.cls}`}>
                             <span className={`status-led ${processChip.cls === "is-success" ? "is-ok" : ""}`} />
                             {processChip.label}
                           </span>
                         </td>
-                        <td className="log-status-cell">
+                        <td className="log-status-cell" data-label="Pago">
                           <span className={`status-chip ${chip.cls}`}>
                             <span className={`status-led ${chip.cls === "is-success" ? "is-ok" : ""}`} />
                             {chip.label}
                           </span>
                         </td>
-                        <td className="log-error-cell">
+                        <td className="log-error-cell" data-label="Fallo">
                           {hasFailure ? (
                             <Link className="ghost btn-compact btn-xs btn-fail" href={`/logs?${errorParams.toString()}`}>
                               Ver fallo
@@ -1569,7 +1569,7 @@ export default async function LogsPage({
                             "—"
                           )}
                         </td>
-                        <td className="log-actions-cell" style={{ textAlign: "right" }}>
+                        <td className="log-actions-cell" data-label="" style={{ textAlign: "right" }}>
                           {contactQuery ? (
                             <Link className="ghost btn-compact btn-view" href={`/customers?q=${encodeURIComponent(String(contactQuery))}`}>
                               Ver cliente
