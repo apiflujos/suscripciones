@@ -23,6 +23,7 @@ import { resolveSubscriptionCollectionMode } from "../services/subscriptionMode"
 import { ensurePaymentRetryJob, resolvePaymentRetryRunAt } from "../services/retryJobScheduler";
 import { scheduleSubscriptionDueNotifications } from "../services/notificationsScheduler";
 import { getZonedParts, applyClockTimeInZone } from "../lib/timeZoneScheduling";
+import { isSendWindowOpen } from "../lib/sendWindow";
 import { handleSubscriptionPaymentFailure, ensureExpiredSubscriptions } from "../services/subscriptionBilling";
 import { runWithActor } from "../services/actorStore";
 import { publishRealtime } from "../services/realtimePublisher";
@@ -81,7 +82,12 @@ function computeNextMonthlyReportJob(nowMs: number) {
   return { runAt, periodKey };
 }
 
+// Trabajos que terminan escribiéndole al cliente. Fuera de la ventana de envío
+// (ver lib/sendWindow.ts) se quedan pendientes y salen cuando abre.
+const CUSTOMER_FACING_JOB_TYPES = ["SUBSCRIPTION_REMINDER", "SEND_CAMPAIGN", "PAYMENT_RETRY"];
+
 async function claimJobs(limit: number) {
+  const heldTypes = isSendWindowOpen() ? [] : CUSTOMER_FACING_JOB_TYPES;
   return prisma.$queryRaw<
     Array<{ id: string; type: RetryJobType; payload: any; attempts: number; maxAttempts: number }>
   >`
@@ -90,6 +96,7 @@ async function claimJobs(limit: number) {
       FROM "RetryJob"
       WHERE "status" = 'PENDING'::"RetryJobStatus"
         AND "runAt" <= now()
+        AND ("type"::text <> ALL(${heldTypes}::text[]))
       ORDER BY "runAt" ASC
       FOR UPDATE SKIP LOCKED
       LIMIT ${limit}
