@@ -1,15 +1,7 @@
-import { BillingTenantModalButton } from "./BillingTenantModalButton";
-import { DeleteSubscriptionButton } from "./DeleteSubscriptionButton";
-import { ManualChargeButton } from "./ManualChargeButton";
-import { ManualMarkPaidButton } from "./ManualMarkPaidButton";
-import { ManualUnmarkPaidButton } from "./ManualUnmarkPaidButton";
-import { MergeDuplicateSubscriptionsButton } from "./MergeDuplicateSubscriptionsButton";
-import { PaymentCyclesModal } from "./PaymentCyclesModal";
-import { PaymentHistoryButton } from "./PaymentHistoryButton";
-import { PaymentLinkModalButton } from "./PaymentLinkModalButton";
-import { SubscriptionEditModal } from "./SubscriptionEditModal";
-import { TokenizationLinkModalButton } from "./TokenizationLinkModalButton";
+import Link from "next/link";
+import { withReturnTo } from "../lib/returnTo";
 import { RowActionsMenu } from "./RowActionsMenu";
+import { BillingRowMenuItems } from "./BillingRowMenuItems";
 import { buildBillingStatusCards, fmtMoney, formatLongCivilDate, splitProductDisplay } from "./billingDisplayHelpers";
 import type { BillingCardContext, BillingRow } from "./billingTypes";
 
@@ -17,24 +9,6 @@ type BillingCardProps = {
   row: BillingRow;
   context: BillingCardContext;
 };
-
-export function buildSubscriptionDetail(row: BillingRow, context: BillingCardContext) {
-  const transientTokenUrl =
-    context.state.checkoutCustomerId && context.state.checkoutCustomerId === row.customerId
-      ? context.state.tokenUrl
-      : "";
-  const currentCollectionDueAt =
-    row.currentCollectionDueAt instanceof Date
-      ? row.currentCollectionDueAt.toISOString()
-      : row.currentCollectionDueAt ?? null;
-
-  return {
-    ...row,
-    currentCollectionDueAt,
-    currentCheckoutUrl: context.helpers.resolveRowCheckoutUrl(row),
-    currentTokenUrl: context.helpers.resolveRowTokenUrl(row, transientTokenUrl)
-  };
-}
 
 export function BillingCard({ row, context }: BillingCardProps) {
   const isAutoDebit = row.mode === "AUTO_DEBIT";
@@ -57,8 +31,6 @@ export function BillingCard({ row, context }: BillingCardProps) {
   const alreadyPaidCurrentPeriod = Boolean(row.lastPaidInCurrentPeriod);
   const canManualUnmarkPaid = Boolean(row.canManualUnmarkPaid);
   const customerTokenized = Boolean(row.customerTokenized);
-  const paymentLinkBlockedReason = context.helpers.getPaymentLinkBlockedReason(row);
-  const tokenizationBlockedReason = context.helpers.getTokenizationBlockedReason(row);
   const paymentMethodHref = `/customers/${encodeURIComponent(String(row.customerId || ""))}/payment-method?returnTo=${encodeURIComponent(context.data.returnTo)}`;
   const showChargeButton = isAutoDebit && !isInactive;
   const showMarkPaidButton = !isInactive && !alreadyPaidCurrentPeriod;
@@ -67,6 +39,7 @@ export function BillingCard({ row, context }: BillingCardProps) {
   const duplicateKey = context.helpers.resolveDuplicateKey(row);
   const duplicateCount = context.helpers.duplicateCountByKey.get(duplicateKey) || 1;
   const keepRowId = context.helpers.duplicateKeepByKey.get(duplicateKey)?.id || row.id;
+  const go = (path = "") => withReturnTo(`/billing/${encodeURIComponent(row.id)}${path}`, context.data.returnTo);
   const productLabel = String(row.productName || row.planName || "Producto");
   const productInitials =
     String(productLabel || "Producto")
@@ -113,72 +86,12 @@ export function BillingCard({ row, context }: BillingCardProps) {
         </div>
         <div className="billing-header-right">
           <div className="billing-header-actions">
-            <BillingTenantModalButton
-              triggerId={`tenant-modal-open-${row.id}`}
-              triggerLabel={row.tenantName || "Sin canal"}
-              triggerClassName="pill pill-sm pill-muted"
-              subscriptionId={row.id}
-              scopeTenantId={row.tenantId || ""}
-              tenantIds={Array.isArray(row.tenantIds) ? row.tenantIds.map(String) : []}
-              tenants={context.data.tenants}
-              csrfToken={context.data.csrfToken}
-              returnTo={context.data.returnTo}
-              action={context.actions.updateSubscriptionTenants}
-            />
+            <Link className="pill pill-sm pill-muted" href={`${go()}${go().includes("?") ? "&" : "?"}tab=canales`}>
+              {row.tenantName || "Sin canal"}
+            </Link>
             <RowActionsMenu label="Acciones de la suscripción">
-              <SubscriptionEditModal
-                subscriptionId={row.id}
-                tenantId={row.tenantId}
-                csrfToken={context.data.csrfToken}
-                returnTo={context.data.returnTo}
-                currentChargeAt={row.vencimientoAt}
-                periodStartAt={row.periodoInicioAt}
-                currentPlanId={row.productId || row.planId}
-                currentPlanName={productLabel}
-                currentPlanCurrency={row.moneda}
-                currentShippingInCents={row.currentShippingInCents}
-                currentRequiresShipping={row.currentRequiresShipping}
-                planIntervalUnit={row.planIntervalUnit}
-                planIntervalCount={row.planIntervalCount}
-                plans={context.data.planOptions}
-                changeSubscriptionPlan={context.actions.changeSubscriptionPlan}
-                cycleStartDay={row.cycleStartDay}
-                paymentDay={row.paymentDay}
-                paymentTiming={row.paymentTiming}
-                graceDays={row.graceDays}
-                collectionMode={row.mode}
-                updateSubscriptionBillingSettings={context.actions.updateSubscriptionBillingSettings}
-                deleteSubscription={context.actions.deleteSubscription}
-                globalConfig={{ graceDays: row.graceDays }}
-                CyclesModal={PaymentCyclesModal}
-                label="Editar producto y facturación"
-              />
-              <PaymentHistoryButton subscriptionId={row.id} tenantId={row.tenantId} label="Historial de pagos" />
-              <PaymentCyclesModal
-                subscriptionId={row.id}
-                csrfToken={context.data.csrfToken}
-                returnTo={context.data.returnTo}
-                tenantId={row.tenantId}
-                trigger={(open: () => void) => (
-                  <button
-                    className="ghost btn-compact btn-calendar btn-noicon"
-                    type="button"
-                    onClick={open}
-                    title="Ver ciclos de pago"
-                  >
-                    Ciclos de facturación
-                  </button>
-                )}
-              />
-              <DeleteSubscriptionButton
-                action={context.actions.deleteSubscription}
-                csrfToken={context.data.csrfToken}
-                subscriptionId={row.id}
-                tenantId={row.tenantId}
-                returnTo={context.data.returnTo}
-                label="Eliminar"
-              />
-            </RowActionsMenu>
+                <BillingRowMenuItems row={row} context={context} />
+              </RowActionsMenu>
           </div>
         </div>
       </div>
@@ -258,71 +171,21 @@ export function BillingCard({ row, context }: BillingCardProps) {
       <div className="billing-actions">
         <div className="billing-actions-left">
           {duplicateCount > 1 && keepRowId === row.id ? (
-            <MergeDuplicateSubscriptionsButton
-              action={context.actions.mergeDuplicateSubscriptions}
-              csrfToken={context.data.csrfToken}
-              customerId={row.customerId}
-              productId={row.productId || undefined}
-              planId={row.planId}
-              keepSubscriptionId={keepRowId}
-              tenantId={row.tenantId}
-              returnTo={context.data.returnTo}
-              duplicatesCount={duplicateCount}
-            />
+            <Link className="ghost btn-compact btn-noicon btn-amber" href={go("/merge")}>Fusionar duplicadas ({duplicateCount - 1})</Link>
           ) : null}
         </div>
         <div className="billing-actions-right">
           {showChargeButton ? (
-            <ManualChargeButton
-              action={context.actions.chargeSubscriptionNow}
-              csrfToken={context.data.csrfToken}
-              subscriptionId={row.id}
-              tenantId={row.tenantId}
-              returnTo={context.data.returnTo}
-              warnNotDue={!chargeDue}
-              warnAlreadyPaid={alreadyPaidCurrentPeriod}
-              manualChargeEnabled={row.manualChargeEnabled}
-            />
+            <Link className="ghost btn-compact btn-pay contact-action-btn action-payment subscription-action-btn" href={go("/charge")}>Cobrar</Link>
           ) : null}
           {showMarkPaidButton ? (
-            <ManualMarkPaidButton
-              action={context.actions.markSubscriptionPaidManual}
-              csrfToken={context.data.csrfToken}
-              subscriptionId={row.id}
-              tenantId={row.tenantId}
-              returnTo={context.data.returnTo}
-              warnAlreadyPaid={alreadyPaidCurrentPeriod}
-              manualMarkPaidEnabled={row.manualMarkPaidEnabled}
-            />
+            <Link className="ghost btn-compact btn-green btn-noicon contact-action-btn action-token subscription-action-btn" href={go("/mark-paid")}>Marcar pagada</Link>
           ) : null}
           {showPaymentLinkButton ? (
-            <PaymentLinkModalButton
-              subscriptionId={row.id}
-              customerId={row.customerId}
-              tenantId={row.tenantId}
-              csrfToken={context.data.csrfToken}
-              returnTo={context.data.returnTo}
-              defaultAmountPesos={Math.trunc(Number(row.totalInCents || row.montoInCents || 0) / 100)}
-              notificationTemplates={context.data.notificationsTemplates}
-              notificationRules={context.data.notificationsRules}
-              paymentType="SUBSCRIPTION"
-              blockedReason={paymentLinkBlockedReason}
-              action={context.actions.sendWhatsAppPaymentLink}
-            />
+            <Link className="ghost btn-compact btn-pay contact-action-btn action-payment" href={go("/payment-link")}>Enviar link de pago</Link>
           ) : null}
           {showTokenizationLink ? (
-            <TokenizationLinkModalButton
-              customerId={row.customerId}
-              productId={row.productId || undefined}
-              planId={row.planId}
-              tenantId={row.tenantId}
-              csrfToken={context.data.csrfToken}
-              returnTo={context.data.returnTo}
-              notificationTemplates={context.data.notificationsTemplates}
-              notificationRules={context.data.notificationsRules}
-              blockedReason={tokenizationBlockedReason}
-              action={context.actions.sendWhatsAppTokenizationLink}
-            />
+            <Link className="ghost btn-compact btn-token contact-action-btn action-token" href={go("/tokenization")}>Enviar tokenización</Link>
           ) : null}
           {isAutoDebit && !isInactive ? (
             <a
@@ -334,13 +197,7 @@ export function BillingCard({ row, context }: BillingCardProps) {
             </a>
           ) : null}
           {alreadyPaidCurrentPeriod && canManualUnmarkPaid ? (
-            <ManualUnmarkPaidButton
-              action={context.actions.unmarkSubscriptionPaidManual}
-              csrfToken={context.data.csrfToken}
-              subscriptionId={row.id}
-              tenantId={row.tenantId}
-              returnTo={context.data.returnTo}
-            />
+            <Link className="ghost btn-compact btn-red btn-noicon contact-action-btn action-danger subscription-action-btn" href={go("/unmark-paid")}>Desmarcar cobro</Link>
           ) : null}
           {row.status === "SUSPENDED" ? (
             <form action={context.actions.resumeSubscription}>

@@ -43,3 +43,9 @@
 .page-shell-tab { padding: 8px 12px; font-size: 13px; color: var(--text-faint); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .page-shell-tab:hover { color: var(--text-strong); }
 .page-shell-tab.is-active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+/* Lista de datos clave/valor (resumen de una acción). */
+.page-shell-dl { display: grid; gap: 8px; margin: 0; }
+.page-shell-dl > div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; }
+.page-shell-dl dt { font-size: 12px; color: var(--text-faint); }
+.page-shell-dl dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .page-shell-dl > div { grid-template-columns: 1fr; gap: 2px; } }

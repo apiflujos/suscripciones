@@ -1,6 +1,5 @@
 import { CYCLE_STATE_LABEL } from "./billingPageModel";
 import Link from "next/link";
-import { BillingModals } from "./BillingModals";
 import { FilterButton } from "../ui/FilterButton";
 import { ListCsvActions } from "../ui/ListCsvActions";
 import { PageToolbar } from "../ui/PageToolbar";
@@ -112,19 +111,14 @@ export function BillingHeader({ filters, data, actions }: BillingHeaderProps) {
         </>
       )}
       actions={(
-        <BillingModals
-          customers={data.customerItems}
-          empresas={data.empresas}
-          catalogItems={data.productItems}
-          csrfToken={data.csrfToken}
-          tenantId={filters.tenantId}
-          tenants={data.tenants}
-          returnTo={data.returnTo}
-          defaultOpen={Boolean(data.crear) || Boolean(data.selectCustomerId)}
-          defaultSelectedCustomerId={data.selectCustomerId}
-          createCustomer={actions.createCustomerFromBilling}
-          createPlanAndSubscription={actions.createPlanAndSubscription}
-        />
+        <div className="customer-actions">
+          <Link
+            className="primary btn-compact btn-subscription"
+            href={`/billing/new?returnTo=${encodeURIComponent(data.returnTo)}${filters.tenantId ? `&tenantId=${encodeURIComponent(filters.tenantId)}` : ""}`}
+          >
+            Crear suscripción
+          </Link>
+        </div>
       )}
     />
   );

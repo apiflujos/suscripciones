@@ -8,7 +8,7 @@ import { getAdminSettings } from "../admin/_services/settings";
 import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
 import { getCsrfToken } from "../lib/csrf";
 import { buildBillingRows, createBillingCardHelpers } from "./billingPageModel";
-import type { PlanOption } from "./ChangePlanButton";
+import type { PlanOption } from "./ChangePlanForm";
 import type { BillingCardHelpers, BillingRow, TenantOption } from "./billingTypes";
 
 export type BillingRowPageData = {
@@ -16,6 +16,10 @@ export type BillingRowPageData = {
   csrfToken: string;
   tenants: TenantOption[];
   planOptions: PlanOption[];
+  /** Cuántas suscripciones tiene el contacto con este mismo producto (1 = sin duplicadas). */
+  duplicateCount: number;
+  /** ¿Es la que se conserva si se fusionan las duplicadas? */
+  isDuplicateKeep: boolean;
   notificationsTemplates: any[];
   notificationsRules: any[];
   helpers: BillingCardHelpers;
@@ -33,8 +37,13 @@ export async function loadBillingRow(subscriptionId: string): Promise<BillingRow
   const renderNowDate = getCivilDateAnchorUtc(new Date());
   const csrfToken = await getCsrfToken();
 
+  const target = await listSubscriptions({ take: 1, ids: [subscriptionId] });
+  const customerId = String((target.items?.[0] as any)?.customerId || "");
+  if (!customerId) notFound();
+
   const [subs, products, tenantsRes, settings, notificationsConfig, checkoutTemplatesRaw] = await Promise.all([
-    listSubscriptions({ take: 1, ids: [subscriptionId] }),
+    // Las demás suscripciones del mismo contacto: sirven para detectar duplicadas.
+    listSubscriptions({ take: 100, customerId }),
     listCatalogProducts({ take: 200 }),
     listTenants(),
     getAdminSettings(),
@@ -93,8 +102,14 @@ export async function loadBillingRow(subscriptionId: string): Promise<BillingRow
     };
   });
 
+  const duplicateKey = helpers.resolveDuplicateKey(row);
+  const duplicateCount = duplicateKey ? helpers.duplicateCountByKey.get(duplicateKey) || 1 : 1;
+  const isDuplicateKeep = duplicateKey ? helpers.duplicateKeepByKey.get(duplicateKey)?.id === row.id : false;
+
   return {
     row,
+    duplicateCount,
+    isDuplicateKeep,
     csrfToken,
     tenants,
     planOptions,

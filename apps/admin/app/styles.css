@@ -18399,3 +18399,13 @@ a.sb-state:hover {
 .page, .pageWide { overflow-x: clip; overflow-y: visible; min-width: 0; }
 .page-toolbar.compact { flex-wrap: wrap; overflow: visible; }
 .page-toolbar { min-width: 0; }
+
+/* Métricas: los filtros pasan a otra fila en vez de cortarse a la derecha ni scrollear. */
+.metricsPage .page-header-standard-search { flex: 1 1 100%; min-width: 0; max-width: 100%; }
+.metricsPage .page-header-standard-search-row { flex-wrap: wrap; }
+.metricsPage .filtersForm { flex-wrap: wrap; max-width: 100%; }
+.metricsFiltersGroup { flex-wrap: wrap; row-gap: 6px; }
+.metricsFiltersRight { margin-left: 0; }
+
+/* Acciones de CSV de las listas: caben en una fila angosta (móvil) sin cortarse. */
+.list-csv-actions { flex-wrap: wrap; max-width: 100%; }

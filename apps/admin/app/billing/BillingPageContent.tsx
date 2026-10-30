@@ -1,6 +1,6 @@
+import { redirect } from "next/navigation";
 import { activateSubscription, cancelSubscription, deleteSubscription, mergeDuplicateSubscriptions, resumeSubscription, suspendSubscription } from "../subscriptions/actions";
 import { changeSubscriptionPlan, chargeSubscriptionNow, createCustomerFromBilling, createPlanAndSubscription, sendWhatsAppPaymentLink, sendWhatsAppTokenizationLink, updateSubscriptionTenants, updateSubscriptionBillingSettings, markSubscriptionPaidManual, unmarkSubscriptionPaidManual } from "./actions";
-import { ChargeStatusModal } from "./ChargeStatusModal";
 import { listSubscriptions } from "../admin/_services/subscriptions";
 import { listCustomers } from "../admin/_services/customers";
 import { listCatalogProducts } from "../admin/_services/products";
@@ -11,9 +11,8 @@ import { listCheckoutTemplates } from "../admin/_services/checkoutTemplates";
 import { resolveTenantId } from "../admin/_services/tenantResolver";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { getCsrfToken } from "../lib/csrf";
-import { type PlanOption } from "./ChangePlanButton";
+import { type PlanOption } from "./ChangePlanForm";
 import { getCivilDateAnchorUtc } from "@suscripciones/core/lib/dates";
-import { SubscriptionDetailModal } from "./SubscriptionDetailModal";
 import { getNotificationsConfigForEnv } from "@suscripciones/core/services/notificationsConfig";
 import { resolveSmartViewIds, parseFiltersParam } from "@suscripciones/core/services/smartViews";
 import { normalizeErrorParam } from "../lib/errorParam";
@@ -54,6 +53,15 @@ export async function BillingPageContent({
   const crear = typeof sp.crear === "string" ? sp.crear : "";
   const selectCustomerId = typeof sp.selectCustomerId === "string" ? sp.selectCustomerId : "";
   const page = typeof sp.page === "string" ? Number(sp.page) : 1;
+
+  // Enlaces viejos: crear suscripción ya no es un modal de esta lista sino una página.
+  if (crear || selectCustomerId) {
+    const next = new URLSearchParams();
+    if (tenantId) next.set("tenantId", tenantId);
+    if (selectCustomerId) next.set("selectCustomerId", selectCustomerId);
+    next.set("returnTo", "/billing");
+    redirect(`/billing/new?${next.toString()}`);
+  }
 
   const tipo = typeof sp.tipo === "string" ? sp.tipo : "todos";
   const estado = typeof sp.estado === "string" ? sp.estado : "todos";
@@ -283,19 +291,6 @@ export async function BillingPageContent({
         <div className="card cardPad" style={{ borderColor: unmarkPaidStatus === "ok" ? "var(--success)" : "var(--danger)" }}>
           {unmarkPaidStatus === "ok" ? "Pago manual desmarcado y ciclo revertido." : `Error desmarcando pago manual: ${unmarkPaidError || "unknown_error"}`}
         </div>
-      ) : null}
-      {chargeStatus ? (
-        <ChargeStatusModal
-          initialStatus={chargeStatus === "processing" ? "processing" : chargeStatus === "ok" ? "ok" : "fail"}
-          paymentId={paymentId}
-          chargeError={chargeError}
-          chargeErrorDetails={chargeErrorDetails}
-          returnTo={returnTo}
-          subscriptionId={actionSubscriptionId}
-          tenantId={tenantId}
-          csrfToken={csrfToken}
-          retryAction={chargeSubscriptionNow}
-        />
       ) : null}
 
       <section className="settings-group">

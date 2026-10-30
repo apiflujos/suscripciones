@@ -1,0 +1,15 @@
+/* Páginas dedicadas de suscripción: sin scroll interno, se adaptan al ancho. */
+.billing-detail-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { .billing-detail-grid { grid-template-columns: 1fr; } }
+.billing-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.billing-detail-channels { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.billing-history-pager { display: flex; align-items: center; justify-content: center; gap: 12px; padding-top: 8px; }
+/* Las tablas de historial y ciclos usan toda la página; en pantallas angostas cada
+   fila pasa a ser una tarjeta en vez de scrollear de lado. */
+.page-shell .billing-history-table-wrap { overflow: visible; max-height: none; }
+@media (max-width: 760px) {
+  .page-shell .billing-history-table thead { display: none; }
+  .page-shell .billing-history-table, .page-shell .billing-history-table tbody, .page-shell .billing-history-table tr, .page-shell .billing-history-table td { display: block; width: 100% !important; text-align: left !important; }
+  .page-shell .billing-history-table tr { padding: 8px 0; border-bottom: 1px solid var(--stroke); }
+  .page-shell .billing-history-table td { padding: 2px 0; border: 0; }
+}

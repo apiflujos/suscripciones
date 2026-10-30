@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AppModal } from "../ui/AppModal";
+import Link from "next/link";
+import { PageSection } from "../ui/PageShell";
 
 type Props = {
   initialStatus: "processing" | "ok" | "fail";
   paymentId?: string;
   chargeError?: string;
   chargeErrorDetails?: string;
+  /** Esta misma página: la acción de reintento vuelve aquí con el nuevo estado. */
   returnTo: string;
+  /** La lista (o el detalle) a la que se sale cuando se termina de ver el resultado. */
+  backHref: string;
   subscriptionId?: string;
   tenantId?: string;
   csrfToken: string;
@@ -141,12 +145,13 @@ function formatChargeDetails(raw?: string) {
   }
 }
 
-export function ChargeStatusModal({
+export function ChargeStatusPanel({
   initialStatus,
   paymentId,
   chargeError,
   chargeErrorDetails,
   returnTo,
+  backHref,
   subscriptionId,
   tenantId,
   csrfToken,
@@ -230,15 +235,12 @@ export function ChargeStatusModal({
 
   const footerNote =
     status === "processing" && attempts > 6
-      ? "La confirmación está tardando. Puedes cerrar este modal y revisar el estado más tarde."
+      ? "La confirmación está tardando. Puedes salir de esta página y revisar el estado más tarde."
       : "";
 
-  const closeModal = () => {
-    window.location.href = returnTo;
-  };
-
   return (
-    <AppModal open onClose={closeModal} title={title} maxWidth={460}>
+    <div className="page-shell-body" aria-live="polite">
+      <PageSection title={title}>
         <div
           className="card cardPad"
           style={{
@@ -247,7 +249,7 @@ export function ChargeStatusModal({
           }}
         >
           {body}
-          {paymentId ? <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>Pago asociado: {paymentId}</div> : null}
+          {paymentId ? <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-faint)" }}>Pago asociado: {paymentId}</div> : null}
           {technicalDetail ? (
             <pre
               style={{
@@ -255,27 +257,31 @@ export function ChargeStatusModal({
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-word",
                 fontSize: 12,
-                color: "#444"
+                color: "var(--text)"
               }}
             >
               {technicalDetail}
             </pre>
           ) : null}
-          {footerNote ? <div style={{ marginTop: 8, color: "#666" }}>{footerNote}</div> : null}
+          {footerNote ? <div style={{ marginTop: 8, color: "var(--text-faint)" }}>{footerNote}</div> : null}
         </div>
-        <div className="module-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          {status === "fail" && subscriptionId ? (
-            <form action={retryAction}>
-              <input type="hidden" name="csrf" value={csrfToken} />
-              <input type="hidden" name="subscriptionId" value={subscriptionId} />
-              <input type="hidden" name="returnTo" value={returnTo} />
-              {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
-              <button className="ghost btn-compact btn-blue" type="submit">
-                Reintentar cobro
-              </button>
-            </form>
-          ) : null}
-        </div>
-    </AppModal>
+      </PageSection>
+      <div className="page-shell-actions">
+        <Link className="ghost btn-compact btn-cancel" href={backHref} data-loader="off">
+          Volver
+        </Link>
+        {status === "fail" && subscriptionId ? (
+          <form action={retryAction}>
+            <input type="hidden" name="csrf" value={csrfToken} />
+            <input type="hidden" name="subscriptionId" value={subscriptionId} />
+            <input type="hidden" name="returnTo" value={returnTo} />
+            {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
+            <button className="ghost btn-compact btn-blue" type="submit">
+              Reintentar cobro
+            </button>
+          </form>
+        ) : null}
+      </div>
+    </div>
   );
 }

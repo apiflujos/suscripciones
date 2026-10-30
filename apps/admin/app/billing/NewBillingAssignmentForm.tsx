@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { hasActiveCustomerPaymentSource } from "@suscripciones/core/lib/customerMetadata";
-import { AppModal } from "../ui/AppModal";
-import { NewCustomerForm } from "../customers/NewCustomerForm";
+import Link from "next/link";
 import { enterToNextField } from "../lib/enterToNext";
 
 type Customer = {
@@ -125,7 +124,9 @@ export function NewBillingAssignmentForm({
   defaultSelectedCustomerId = "",
   defaultBillingType = "SUBSCRIPCION",
   defaultExistingPaymentId = "",
-  createCustomer,
+  createCustomer: _createCustomer,
+  cancelHref,
+  selfReturnTo,
   createPlanAndSubscription
 }: {
   customers: Customer[];
@@ -142,11 +143,15 @@ export function NewBillingAssignmentForm({
   defaultSelectedCustomerId?: string;
   defaultBillingType?: BillingType;
   defaultExistingPaymentId?: string;
-  createCustomer: (formData: FormData) => Promise<void>;
+  /** Ya no se usa: crear un contacto es una página (/customers/new) y vuelve aquí con selectCustomerId. */
+  createCustomer?: (formData: FormData) => Promise<void>;
+  /** Adónde lleva "Cancelar". Por defecto, `returnTo`. */
+  cancelHref?: string;
+  /** Esta misma página: adónde regresa "Crear contacto". Por defecto, `returnTo`. */
+  selfReturnTo?: string;
   createPlanAndSubscription: (formData: FormData) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(Boolean(defaultOpen || forceOpen));
-  const [showNewCustomer, setShowNewCustomer] = useState(false);
 
   const [productQ, setProductQ] = useState("");
   const [productId, setProductId] = useState(defaultSelectedProductId || "");
@@ -564,9 +569,12 @@ export function NewBillingAssignmentForm({
           <div className="panel module" style={{ margin: 0 }}>
             <div className="panel-header" style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <h3 style={{ margin: 0 }}>2) Contacto</h3>
-                  <button className={showNewCustomer ? "ghost btn-compact btn-cancel" : "ghost btn-compact btn-contact"} type="button" onClick={() => setShowNewCustomer((v) => !v)}>
-                    {showNewCustomer ? "Cerrar" : "Crear contacto"}
-                  </button>
+                  <Link
+                    className="ghost btn-compact btn-contact"
+                    href={`/customers/new?returnTo=${encodeURIComponent(`${selfReturnTo || returnTo}${(selfReturnTo || returnTo).includes("?") ? "&" : "?"}crear=1`)}`}
+                  >
+                    Crear contacto
+                  </Link>
             </div>
 
             {selectedCustomer || selectedEmpresa ? (
@@ -646,7 +654,6 @@ export function NewBillingAssignmentForm({
                           setSelectedCustomerOverride(c);
                           setCustomerQ(String(c.name || c.email || ""));
                           setSelectedEmpresaId("");
-                          setShowNewCustomer(false);
                         }}
                       >
                         {c.name || c.email || c.id} · {c.metadata?.identificacion || c.email || c.phone || "—"} ·{" "}
@@ -669,7 +676,6 @@ export function NewBillingAssignmentForm({
                           setCustomerId("");
                           setSelectedCustomerOverride(null);
                           setCustomerQ(String(e.nombre || ""));
-                          setShowNewCustomer(false);
                         }}
                       >
                         {e.nombre} · {e.email || e.telefono || "Sin contacto"} ·{" "}
@@ -692,43 +698,6 @@ export function NewBillingAssignmentForm({
               </div>
             ) : null}
 
-            {showNewCustomer ? (
-              forceOpen ? (
-                <div className="card cardPad" style={{ marginTop: 8 }}>
-                  <div className="panel-header ui-panel-header">
-                    <strong>Crear contacto</strong>
-                    <button className="ghost modal-close" type="button" onClick={() => setShowNewCustomer(false)} aria-label="Cerrar" data-modal-close="true" data-loader="off">
-                      X
-                    </button>
-                  </div>
-                  <NewCustomerForm
-                    createCustomer={createCustomer}
-                    defaultOpen
-                    mode="always_open"
-                    hidePanelHeader
-                    useModal={false}
-                    returnTo={`${returnTo}${returnTo.includes("?") ? "&" : "?"}crear=1`}
-                    csrfToken={csrfToken}
-                    tenantId={tenantId}
-                    tenants={tenants}
-                  />
-                </div>
-              ) : (
-                <AppModal open={showNewCustomer} onClose={() => setShowNewCustomer(false)} title="Crear contacto" panelClassName="ui-modal-panel-wide">
-                    <NewCustomerForm
-                      createCustomer={createCustomer}
-                      defaultOpen
-                      mode="always_open"
-                      hidePanelHeader
-                      useModal={false}
-                      returnTo={`${returnTo}${returnTo.includes("?") ? "&" : "?"}crear=1`}
-                      csrfToken={csrfToken}
-                      tenantId={tenantId}
-                      tenants={tenants}
-                    />
-                </AppModal>
-              )
-            ) : null}
           </div>
 
           <div className="panel module" style={{ margin: 0, opacity: canSubmit ? 1 : 0.6 }}>
@@ -967,15 +936,9 @@ export function NewBillingAssignmentForm({
               ) : null}
 
               <div className="module-footer">
-                <button
-                  className="ghost btn-compact btn-cancel"
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  title="Cerrar sin crear"
-                  aria-label="Cancelar"
-                >
+                <Link className="ghost btn-compact btn-cancel" href={cancelHref || returnTo} data-loader="off">
                   Cancelar
-                </button>
+                </Link>
                 <button
                   className="ghost btn-compact"
                   type="submit"

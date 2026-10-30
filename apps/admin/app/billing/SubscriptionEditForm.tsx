@@ -1,12 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AppModal } from "../ui/AppModal";
+import Link from "next/link";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
 import { formatCivilDate } from "./civilDate";
 
-export function SubscriptionEditModal({
+export function SubscriptionEditForm({
   subscriptionId,
   tenantId,
   csrfToken,
@@ -24,9 +24,8 @@ export function SubscriptionEditModal({
   updateSubscriptionBillingSettings,
   deleteSubscription,
   globalConfig,
-  CyclesModal,
-  cyclesTrigger,
-  label
+  cancelHref,
+  cyclesHref
 }: {
   subscriptionId: string;
   tenantId?: string | null;
@@ -53,11 +52,10 @@ export function SubscriptionEditModal({
   globalConfig?: {
     graceDays: number;
   };
-  CyclesModal?: React.ComponentType<{ subscriptionId: string; csrfToken: string; returnTo: string; tenantId?: string | null }>;
-  cyclesTrigger?: () => void;
-  label?: string;
+  cancelHref: string;
+  /** Pestaña de ciclos del detalle de la suscripción. */
+  cyclesHref?: string;
 }) {
-  const [open, setOpen] = useState(false);
   const [subscriptionType, setSubscriptionType] = useState<"AUTO_DEBIT" | "LINK_PAYMENT">(
     collectionMode === "AUTO_DEBIT" ? "AUTO_DEBIT" : "LINK_PAYMENT"
   );
@@ -95,25 +93,14 @@ export function SubscriptionEditModal({
 
   return (
     <>
-      <button
-        className={label ? "ghost btn-compact btn-edit btn-noicon" : "ghost btn-compact btn-icon-only btn-edit"}
-        type="button"
-        title="Editar producto y facturación"
-        aria-label="Editar producto y facturación"
-        onClick={() => setOpen(true)}
-      >
-        {label || null}
-      </button>
-
-      <AppModal open={open} onClose={() => setOpen(false)} title="Editar producto y facturación" panelClassName="subscription-edit-modal">
-        <form action={updateSubscriptionBillingSettings} className="modal-body subscription-edit-modal-body">
+        <form action={updateSubscriptionBillingSettings} className="page-shell-body">
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="subscriptionId" value={subscriptionId} />
               {tenantId ? <input type="hidden" name="tenantId" value={tenantId} /> : null}
               {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
               <input type="hidden" name="collectionMode" value={subscriptionType === "AUTO_DEBIT" ? "AUTO_DEBIT" : "MANUAL_LINK"} />
               {/* 1. Tipo de suscripción */}
-              <section className="card cardPad">
+              <section className="page-shell-section"><div className="page-shell-section-body">
                 <div className="subscription-edit-type-row">
                   <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", cursor: "pointer" }}>
                       <input
@@ -137,10 +124,10 @@ export function SubscriptionEditModal({
                 <div className="field-hint" style={{ marginTop: "var(--space-2)" }}>
                   Débito automático requiere tarjeta tokenizada
                 </div>
-              </section>
+              </div></section>
 
               {/* 2. Resumen actual */}
-              <section className="card cardPad">
+              <section className="page-shell-section"><div className="page-shell-section-body">
                 <div style={{ display: "grid", gap: "var(--space-2)" }}>
                   <div className="field-hint">
                     Producto actual: <strong>{currentPlanName}</strong>
@@ -152,10 +139,10 @@ export function SubscriptionEditModal({
                     Esta pantalla edita reglas de cobro y ciclo. El cambio de producto o periodicidad debe hacerse desde su flujo específico.
                   </div>
                 </div>
-              </section>
+              </div></section>
 
               {/* 3. Configuración de ciclo */}
-              <section className="card cardPad">
+              <section className="page-shell-section"><div className="page-shell-section-body">
                 <div style={{ display: "grid", gap: "var(--space-3)" }}>
                   {/* Fecha de inicio — editable para regenerar ciclos */}
                   <div className="field">
@@ -179,22 +166,10 @@ export function SubscriptionEditModal({
                   <div className="field">
                     <label className="field-label">Ciclos de facturación</label>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      {cyclesTrigger ? (
-                        <button
-                          className="ghost btn-compact"
-                          type="button"
-                          onClick={cyclesTrigger}
-                        >
-                          📅 Ver y asociar ciclos
-                        </button>
-                      ) : null}
-                      {CyclesModal ? (
-                        <CyclesModal
-                          subscriptionId={subscriptionId}
-                          csrfToken={csrfToken}
-                          returnTo={returnTo}
-                          tenantId={tenantId}
-                        />
+                      {cyclesHref ? (
+                        <Link className="ghost btn-compact" href={cyclesHref}>
+                          Ver y asociar ciclos
+                        </Link>
                       ) : null}
                     </div>
                     <div className="field-hint">
@@ -272,21 +247,15 @@ export function SubscriptionEditModal({
                     </div>
                   )}
                 </div>
-              </section>
+              </div></section>
 
               {/* Acciones */}
-              <div className="module-footer subscription-edit-footer">
-                <button
-                  className="ghost btn-compact subscription-edit-footer-btn subscription-edit-cancel-btn"
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  title="Cerrar sin guardar"
-                  aria-label="Cancelar"
-                >
+              <div className="page-shell-actions">
+                <Link className="ghost btn-compact btn-cancel" href={cancelHref} data-loader="off">
                   Cancelar
-                </button>
+                </Link>
                 <PendingButton
-                  className="primary btn-compact subscription-edit-footer-btn subscription-edit-submit-btn"
+                  className="primary btn-compact btn-save"
                   type="submit"
                   pendingText="Guardando..."
                   title="Guardar cambios en la suscripción"
@@ -296,7 +265,6 @@ export function SubscriptionEditModal({
                 </PendingButton>
               </div>
         </form>
-      </AppModal>
     </>
   );
 }

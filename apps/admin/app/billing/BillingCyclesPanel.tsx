@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, Fragment } from "react";
-import { AppModal } from "../ui/AppModal";
 import { LocalDateTime } from "../ui/LocalDateTime";
 import { movePaymentToCycle, autoAssociatePaymentToCycle } from "./actions";
 import { formatCivilDate } from "./civilDate";
@@ -78,9 +77,6 @@ type Props = {
   csrfToken: string;
   returnTo: string;
   tenantId?: string | null;
-  trigger?: (onOpen: () => void) => React.ReactNode;
-  forceOpen?: boolean;
-  onOpenChange?: (open: boolean) => void;
 };
 
 function originLabel(origin?: string | null) {
@@ -174,14 +170,13 @@ function autoReasonLabel(reason: PaymentSuggestion["reasonCode"]) {
   return "Pago en curso";
 }
 
-export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenantId, trigger, forceOpen, onOpenChange }: Props) {
-  const [internalOpen, setInternalOpen] = useState(false);
+export function BillingCyclesPanel({ subscriptionId, csrfToken, returnTo, tenantId }: Props) {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<BillingCycleItem[]>([]);
   const [expandedCycle, setExpandedCycle] = useState<string | null>(null);
 
   // Auto-associate state
-  const [autoModalOpen, setAutoModalOpen] = useState(false);
+  const [autoPanelOpen, setAutoPanelOpen] = useState(false);
   const [autoLoading, setAutoLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<PaymentSuggestion[]>([]);
   const [selectedCycleByPayment, setSelectedCycleByPayment] = useState<Record<string, string>>({});
@@ -189,23 +184,13 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
   const [autoResult, setAutoResult] = useState<{ ok: boolean; message?: string; error?: string } | null>(null);
 
   // Manual search state
-  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [searchPanelOpen, setSearchPanelOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedCycleForManual, setSelectedCycleForManual] = useState<string | null>(null);
 
-  const open = forceOpen ?? internalOpen;
-
-  const setOpen = (next: boolean) => {
-    if (forceOpen === undefined) {
-      setInternalOpen(next);
-    }
-    onOpenChange?.(next);
-  };
-
   useEffect(() => {
-    if (!open) return;
     let active = true;
     setLoading(true);
     fetch(`/api/billing/billing-cycles?subscriptionId=${encodeURIComponent(subscriptionId)}&take=36`, { cache: "no-store" })
@@ -229,9 +214,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
     return () => {
       active = false;
     };
-  }, [open, subscriptionId]);
-
-  const handleOpen = () => setOpen(true);
+  }, [subscriptionId]);
 
   // Auto-associate handler
   const handleAutoAssociate = async () => {
@@ -239,7 +222,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
     setSuggestions([]);
     setSelectedCycleByPayment({});
     setAutoResult(null);
-    setAutoModalOpen(true);
+    setAutoPanelOpen(true);
 
     try {
       const res = await fetch(`/api/billing/cycle-candidates?subscriptionId=${encodeURIComponent(subscriptionId)}`);
@@ -301,9 +284,9 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
         const json = await res.json();
         if (json.ok && Array.isArray(json.items)) setItems(json.items);
         setSuggestions((prev) => prev.filter((entry) => entry.payment.id !== suggestion.payment.id));
-        // Close auto-modal after showing success
+        // Cierra el panel tras showing success
         setTimeout(() => {
-          setAutoModalOpen(false);
+          setAutoPanelOpen(false);
           setSuggestions([]);
           setAutoResult(null);
         }, 1500);
@@ -351,57 +334,33 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
       const res = await fetch(`/api/billing/billing-cycles?subscriptionId=${encodeURIComponent(subscriptionId)}&take=36`);
       const json = await res.json();
       if (json.ok && Array.isArray(json.items)) setItems(json.items);
-      setSearchModalOpen(false);
+      setSearchPanelOpen(false);
       setSelectedCycleForManual(null);
       setSearchResults([]);
     }
   };
-
-  const triggerButton = forceOpen !== undefined
-    ? null
-    : trigger ? (
-        trigger(handleOpen)
-      ) : (
-        <button
-          className="ghost btn-compact btn-icon-only btn-calendar"
-          type="button"
-          title="Ver ciclos de pago"
-          aria-label="Ver ciclos de pago"
-          onClick={handleOpen}
-        >
-          <span aria-hidden="true" />
-        </button>
-      );
 
   const pendingCyclesCount = items.filter((c) => c.status === "PENDING" || c.status === "FAILED").length;
   const autoOpenCycles = items.filter((c) => !c.paymentId && (c.status === "PENDING" || c.status === "FAILED"));
 
   return (
     <>
-      {triggerButton}
-
-      <AppModal
-        open={open}
-        onClose={() => setOpen(false)}
-        title={
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            <span>Ciclos de Pago</span>
-            <span className="pill pill-sm pill-muted">{items.length} ciclos</span>
-            {pendingCyclesCount > 0 && (
-              <button
-                className="ghost btn-compact btn-send"
-                type="button"
-                onClick={handleAutoAssociate}
-                title="Buscar y asociar pagos automáticamente"
-              >
-                <span>Asociar pagos</span>
-              </button>
-            )}
-          </div>
-        }
-        width="min(900px, 96vw)"
-        panelClassName="modal-panel-fixed"
-      >
+      <section className="page-shell-section">
+        <div className="page-shell-section-head" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <h2 className="page-shell-section-title">Ciclos de pago</h2>
+          <span className="pill pill-sm pill-muted">{items.length} ciclos</span>
+          {pendingCyclesCount > 0 && (
+            <button
+              className="ghost btn-compact btn-send"
+              type="button"
+              onClick={handleAutoAssociate}
+              title="Buscar y asociar pagos automáticamente"
+            >
+              <span>Asociar pagos</span>
+            </button>
+          )}
+        </div>
+        <div className="page-shell-section-body">
         <div style={{ padding: "8px 0" }}>
               {loading ? (
                 <div style={{ padding: "40px", textAlign: "center", color: "var(--text-faint)" }}>
@@ -415,9 +374,9 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                   <div style={{ fontSize: "13px" }}>Esta suscripción aún no tiene ciclos de pago.</div>
                 </div>
               ) : (
-                <div className="billing-history-table-wrap" style={{ maxHeight: "60vh" }}>
+                <div className="billing-history-table-wrap">
                   <table className="table billing-history-table" aria-label="Ciclos de pago">
-                    <thead style={{ position: "sticky", top: 0, zIndex: 1 }}>
+                    <thead>
                       <tr>
                         <th style={{ width: "70px", textAlign: "left" }}>Ciclo</th>
                         <th style={{ width: "220px", textAlign: "left" }}>Período</th>
@@ -469,7 +428,7 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setSelectedCycleForManual(cycle.id);
-                                      setSearchModalOpen(true);
+                                      setSearchPanelOpen(true);
                                       setSearchResults([]);
                                       setSearchQuery("");
                                     }}
@@ -642,15 +601,19 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
                 </div>
               )}
         </div>
-      </AppModal>
+        </div>
+      </section>
 
-      {/* ── MODAL: Auto-associate ── */}
-      <AppModal
-        open={autoModalOpen}
-        onClose={() => { setAutoModalOpen(false); setSuggestions([]); setAutoResult(null); }}
-        title="Pagos detectados"
-        width="min(860px, 96vw)"
-      >
+      {/* ── Pagos detectados (sección en línea) ── */}
+      {autoPanelOpen ? (
+      <section className="page-shell-section">
+        <div className="page-shell-section-head" style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between" }}>
+          <h2 className="page-shell-section-title">Pagos detectados</h2>
+          <button className="ghost btn-compact btn-noicon" type="button" onClick={() => { setAutoPanelOpen(false); setSuggestions([]); setAutoResult(null); }}>
+            Ocultar
+          </button>
+        </div>
+        <div className="page-shell-section-body">
         <div style={{ padding: "8px 0" }}>
           {autoLoading ? (
             <div style={{ padding: "40px", textAlign: "center", color: "var(--text-faint)" }}>
@@ -852,21 +815,26 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
             <button
               className="ghost btn-compact"
               type="button"
-              onClick={() => { setAutoModalOpen(false); setSuggestions([]); setAutoResult(null); }}
+              onClick={() => { setAutoPanelOpen(false); setSuggestions([]); setAutoResult(null); }}
             >
               Cerrar
             </button>
           </div>
         </div>
-      </AppModal>
+        </div>
+      </section>
+      ) : null}
 
-      {/* ── MODAL: Manual search ── */}
-      <AppModal
-        open={searchModalOpen}
-        onClose={() => { setSearchModalOpen(false); setSelectedCycleForManual(null); setSearchResults([]); setSearchQuery(""); }}
-        title="Buscar pago para asociar"
-        width="min(600px, 96vw)"
-      >
+      {/* ── Buscar pago para asociar (sección en línea) ── */}
+      {searchPanelOpen ? (
+      <section className="page-shell-section">
+        <div className="page-shell-section-head" style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between" }}>
+          <h2 className="page-shell-section-title">Buscar pago para asociar</h2>
+          <button className="ghost btn-compact btn-noicon" type="button" onClick={() => { setSearchPanelOpen(false); setSelectedCycleForManual(null); setSearchResults([]); setSearchQuery(""); }}>
+            Ocultar
+          </button>
+        </div>
+        <div className="page-shell-section-body">
         <div style={{ padding: "8px 0" }}>
           <div className="field">
             <label>Buscar pago aprobado</label>
@@ -942,13 +910,15 @@ export function BillingCyclesModal({ subscriptionId, csrfToken, returnTo, tenant
             <button
               className="ghost btn-compact"
               type="button"
-              onClick={() => { setSearchModalOpen(false); setSelectedCycleForManual(null); setSearchResults([]); setSearchQuery(""); }}
+              onClick={() => { setSearchPanelOpen(false); setSelectedCycleForManual(null); setSearchResults([]); setSearchQuery(""); }}
             >
               Cerrar
             </button>
           </div>
         </div>
-      </AppModal>
+        </div>
+      </section>
+      ) : null}
     </>
   );
 }

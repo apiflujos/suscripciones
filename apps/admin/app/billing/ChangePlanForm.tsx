@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HelpTip } from "../ui/HelpTip";
 import { PendingButton } from "../ui/PendingButton";
-import { AppModal } from "../ui/AppModal";
+import Link from "next/link";
 
 export type PlanOption = {
   id: string;
@@ -92,7 +92,7 @@ export function mapPlanFromApi(p: any): PlanOption {
   };
 }
 
-export function ChangePlanButton({
+export function ChangePlanForm({
   subscriptionId,
   currentPlanId,
   currentChargeAt,
@@ -105,7 +105,7 @@ export function ChangePlanButton({
   returnTo,
   tenantId,
   action,
-  iconOnly = false
+  cancelHref
 }: {
   subscriptionId: string;
   currentPlanId: string;
@@ -119,9 +119,8 @@ export function ChangePlanButton({
   returnTo: string;
   tenantId?: string;
   action: (formData: FormData) => void;
-  iconOnly?: boolean;
+  cancelHref: string;
 }) {
-  const [open, setOpen] = useState(false);
   const initialChargeDate = useMemo(() => toLocalInput(currentChargeAt), [currentChargeAt]);
   const [productId, setProductId] = useState(currentPlanId);
   const [chargeDate, setChargeDate] = useState(initialChargeDate);
@@ -279,25 +278,7 @@ export function ChangePlanButton({
 
   return (
     <>
-      <button
-        className={`ghost btn-compact btn-blue ${iconOnly ? "btn-icon-only btn-edit" : "btn-noicon"}`}
-        type="button"
-        data-loader="off"
-        onClick={() => setOpen(true)}
-        aria-label={iconOnly ? "Editar producto, flete y fecha de pago" : undefined}
-        title={iconOnly ? "Editar producto, flete y fecha de pago" : undefined}
-      >
-        {iconOnly ? null : "Cambiar producto"}
-      </button>
-
-      <AppModal
-        open={open}
-        onClose={() => setOpen(false)}
-        title="Cambiar producto de la suscripción"
-        width="min(560px, 96vw)"
-        bodyClassName=""
-      >
-        <form action={action} style={{ display: "grid", gap: 10 }}>
+        <form action={action} className="page-shell-body">
               <input type="hidden" name="csrf" value={csrfToken} />
               <input type="hidden" name="subscriptionId" value={subscriptionId} />
               <input type="hidden" name="returnTo" value={returnTo} />
@@ -408,17 +389,10 @@ export function ChangePlanButton({
                 </>
               )}
 
-              <div className="module-footer">
-                <button 
-                  className="ghost btn-compact btn-cancel" 
-                  type="button" 
-                  data-loader="off" 
-                  onClick={() => setOpen(false)}
-                  title="Cerrar sin guardar"
-                  aria-label="Cancelar"
-                >
+              <div className="page-shell-actions">
+                <Link className="ghost btn-compact btn-cancel" href={cancelHref} data-loader="off">
                   Cancelar
-                </button>
+                </Link>
                 <PendingButton 
                   className="primary btn-compact btn-save" 
                   type="submit" 
@@ -431,7 +405,6 @@ export function ChangePlanButton({
                 </PendingButton>
               </div>
         </form>
-      </AppModal>
     </>
   );
 }
