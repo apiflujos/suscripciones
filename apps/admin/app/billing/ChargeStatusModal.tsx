@@ -44,6 +44,7 @@ function describeChargeError(raw?: string) {
   if (code === "manual_charge_disabled_by_settings" || code === "manual_charge_not_allowed") {
     return "El cobro manual esta deshabilitado para esta configuracion.";
   }
+  if (code === "no_cycle_to_collect") return "No hay ningún ciclo por cobrar: el período actual ya está pagado.";
   if (code === "payment_already_approved") return "Esta suscripción ya fue cobrada para el ciclo actual.";
   if (code === "subscription_not_found") return "No se encontró la suscripción para el canal seleccionado.";
   if (code === "fetch_failed") return "No se pudo conectar con el API de suscripciones.";

@@ -843,7 +843,8 @@ async function runOnce() {
             errMsg === "subscription_not_found" ||
             errMsg === "auto_debit_not_allowed_for_collection_mode" ||
             errMsg === "wompi_reference_already_used_guard" ||
-            errMsg === "payment_already_approved"
+            errMsg === "payment_already_approved" ||
+            errMsg === "no_cycle_to_collect"
           )
         ) {
           await prisma.retryJob.update({

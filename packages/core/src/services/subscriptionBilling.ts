@@ -847,6 +847,11 @@ export async function createAutoDebitTransactionForSubscription(args: {
     logIgnored(err, "auto debit: failed to resolve billing state", { subscriptionId: sub.id });
     return null;
   });
+  // Sin ciclo por cobrar no se inventa uno: caer al ciclo 1 hacía que el cobro
+  // fallara con "ya aprobado" sin explicar que el período vigente está pago.
+  if (overrideCycle == null && billingState && !billingState.collectionCycle) {
+    throw new Error("no_cycle_to_collect");
+  }
   const inferredCycle = billingState?.collectionCycle?.cycleNumber ?? 1;
   const cycle = overrideCycle ?? inferredCycle;
   let reference = `SUB_${sub.id}_${cycle}`;
