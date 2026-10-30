@@ -18,3 +18,26 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* Móvil: la lista deja de ser una tabla de 4 columnas (mínimo ~540 px) y cada empresa es una tarjeta. */
+@media (max-width: 760px) {
+  .empresasPage .company-list-header {
+    display: none;
+  }
+
+  .empresasPage .company-list-row {
+    grid-template-columns: minmax(0, 1fr) 48px;
+    align-items: start;
+    padding: 10px 12px;
+  }
+
+  .empresasPage .company-list-row > .company-list-cell {
+    grid-column: 1;
+  }
+
+  .empresasPage .company-list-row > .company-list-actions {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+}

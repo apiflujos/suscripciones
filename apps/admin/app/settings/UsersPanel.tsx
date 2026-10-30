@@ -1,6 +1,7 @@
 "use client";
 
-import { changeUserPassword, createUser, deleteUser, updateUser } from "./users/actions";
+import Link from "next/link";
+import { changeUserPassword, createUser, updateUser } from "./users/actions";
 import { PendingButton } from "../ui/PendingButton";
 
 export function UsersPanel({
@@ -264,30 +265,29 @@ export function UsersPanel({
                       </div>
                     </form>
 
-                    <form
-                      action={deleteUser}
-                      className="panel module"
-                      onSubmit={(event) => {
-                        if (!window.confirm(`Vas a eliminar el usuario ${u.email}. Esta acción no se puede deshacer.`)) {
-                          event.preventDefault();
-                        }
-                      }}
-                    >
-                      <input type="hidden" name="csrf" value={csrfToken} />
-                      <input type="hidden" name="returnTo" value={returnTo} />
-                      <input type="hidden" name="userId" value={u.id} />
+                    <div className="panel module">
                       <div className="field-hint" style={{ marginBottom: 12 }}>
                         Eliminará el acceso del usuario y sus asignaciones de tenant.
                       </div>
-                      <PendingButton className="btn-compact" type="submit" pendingText="Eliminando..." disabled={!canManageRow || isCurrentUser}>
-                        Eliminar usuario
-                      </PendingButton>
+                      {!canManageRow || isCurrentUser ? (
+                        <button className="btn-compact" type="button" disabled>
+                          Eliminar usuario
+                        </button>
+                      ) : (
+                        <Link
+                          className="btn-compact"
+                          href={`/settings/users/${encodeURIComponent(String(u.id))}/delete?returnTo=${encodeURIComponent(returnTo)}`}
+                          data-loader="off"
+                        >
+                          Eliminar usuario
+                        </Link>
+                      )}
                       {isCurrentUser ? (
                         <div className="field-hint" style={{ marginTop: 8 }}>
                           No puedes eliminar tu propio usuario desde esta pantalla.
                         </div>
                       ) : null}
-                    </form>
+                    </div>
                   </div>
                 </details>
               );

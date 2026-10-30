@@ -1477,17 +1477,6 @@ export default async function LogsPage({
             </div>
           ) : (
             <div className="panel module" style={{ padding: 0 }}>
-              <div className="filtersRow" style={{ padding: "12px 16px 0" }}>
-                <div className="filtersLeft">
-                  <div className="filtersPanel">
-                    <form action="/logs" method="GET" className="filtersForm filtersSearch" data-debounce-form="true">
-                      <input type="hidden" name="tab" value="webhooks" />
-                      <input className="input" name="q" defaultValue={q} placeholder="Buscar cliente, referencia o tx..." aria-label="Buscar webhooks" />
-                      <button className="ghost btn-icon-only btn-search" type="submit" aria-label="Buscar" title="Buscar" />
-                    </form>
-                  </div>
-                </div>
-              </div>
               <div className="webhooks-table-wrap">
                   <table className="table logs-table logs-table-webhooks" aria-label="Tabla de webhooks">
                     <colgroup>
