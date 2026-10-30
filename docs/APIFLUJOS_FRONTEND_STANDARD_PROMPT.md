@@ -45,7 +45,7 @@ Tipografía:
   - Título principal de página: 28px, weight 700, line-height 1.2.
   - Subtítulo o descripción de página: 16px, weight 400, line-height 1.5.
   - Título de sección: 20px, weight 700.
-  - Título de card, panel o modal: 18px, weight 600.
+  - Título de card o panel: 18px, weight 600.
   - Texto base: 14px, weight 400.
   - Texto secundario: 13px, weight 400.
   - Label, caption, chip o metadata menor: 12px, weight 500 o 600.
@@ -68,11 +68,10 @@ Bordes, radios y sombras:
 - Radio grande: 16px.
 - Inputs, botones y selects: 10px a 12px.
 - Cards: 12px.
-- Modales: 16px.
 - Usa sombras sutiles:
   - reposo: sombra mínima o casi nula.
   - hover: una capa más perceptible pero discreta.
-  - modal/dropdown: sombra limpia, elegante y controlada.
+  - dropdown: sombra limpia, elegante y controlada.
 - No uses sombras pesadas ni efectos dramáticos.
 
 Grid y layout:
@@ -196,18 +195,18 @@ Inputs, selects y formularios:
 - Mantén el mismo patrón en todos los formularios del ecosistema.
 - Los grupos de formulario deben dividirse por secciones lógicas, no por columnas arbitrarias.
 
-Modales y drawers:
-- Modal pequeño: 400px.
-- Modal mediano: 560px.
-- Modal grande: 720px.
-- Modal XL: 960px.
-- Fondo blanco, radio 16px, sombra suave.
-- Estructura fija:
-  1. Header con título y cerrar.
-  2. Body con contenido.
-  3. Footer con acciones.
-- CTA principal abajo a la derecha.
-- Usa drawer para edición rápida o detalle lateral, no para formularios excesivamente largos si merecen página completa.
+Acciones con contenido (sin modales):
+- En este producto NO se usan modales. Toda acción que muestra o pide información
+  (crear, editar, enviar, cobrar, confirmar, ver detalle) es una página con URL propia.
+- Usa `PageShell` (`apps/admin/app/ui/PageShell.tsx`): migas de pan, botón "Volver", secciones
+  a ancho completo y barra de acciones fija abajo (`FormActions`). Cancelar es un enlace.
+- Pasa `returnTo` por la URL y reenvíalo en un campo oculto; las server actions redirigen ahí
+  (`resolveReturnTo`/`withReturnTo` en `apps/admin/app/lib/returnTo.ts`).
+- Las acciones de una fila viven en el kebab (`RowActionsMenu`), cuyos ítems son enlaces.
+- Confirmaciones destructivas: dos pasos dentro de la página (casilla o `?confirm=1`), sin capas.
+- Sin scroll interno en listas, métricas ni formularios: el único scroll es el de la página.
+  A ≤700 px las filas pasan a tarjetas apiladas.
+- Una prueba (`ui/__tests__/sinModales.test.ts`) falla si se importa o reimplementa un modal.
 
 Mensajería de sistema:
 - Los mensajes deben ser específicos, no genéricos.

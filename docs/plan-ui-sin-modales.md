@@ -1,6 +1,26 @@
 # Plan integral: quitar los modales y pasar todo a páginas dedicadas
 
-Estado: **propuesta, sin implementar**. Fecha: 2026-10-30.
+Estado: **implementado** (2026-10-30). Ninguna pantalla usa modales: `AppModal` y `MapModal`
+se eliminaron y la prueba `apps/admin/app/ui/__tests__/sinModales.test.ts` falla si vuelven.
+
+## Cómo quedó (resumen)
+
+- **Base común:** `ui/PageShell.tsx` (migas, volver, secciones, barra de acciones fija),
+  `lib/returnTo.ts` (`resolveReturnTo`/`withReturnTo`) y `billing/RowActionsMenu.tsx`
+  (kebab en portal: nada lo recorta; sus ítems son enlaces).
+- **Un solo scroll:** `.app-shell`, `.content` y `.page` usaban `overflow-x: hidden|auto`, lo que
+  obliga a `overflow-y: auto`; ahora usan `clip`. Barras de herramientas y listas no scrollean.
+- **Suscripciones:** `/billing/[id]` (pestañas Resumen, Ciclos, Pagos, Canales) y
+  `/billing/[id]/{edit,change-product,charge,mark-paid,unmark-paid,payment-link,tokenization,merge,delete}`,
+  `/billing/new`.
+- **Otros módulos:** contactos (`/customers/new`, `[id]/edit`, `[id]/send/*`…), productos,
+  plantillas de checkout, campañas, notificaciones (`/notifications/[id]`), pagos/logs
+  (`/logs/payments/*`), empresas y ajustes (`/settings/connections/*`, `/settings/webhooks/*`,
+  `/settings/redirects`). Filtros inteligentes e importación CSV: `/filters/[scope]`, `/import`.
+- **Confirmaciones destructivas** en dos pasos dentro de la página (casilla o `?confirm=1`).
+
+Lo que sigue es el plan original, como registro de las decisiones.
+
 
 ## 1. Qué está mal (verificado en el código)
 
