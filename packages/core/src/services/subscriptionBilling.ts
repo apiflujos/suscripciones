@@ -29,6 +29,7 @@ import { getExpectedSubscriptionTotalInCents, getPlanCollectionMode } from "../l
 import { isBillingCyclePaid, resolveSubscriptionBillingState } from "./billingCycles";
 import { createPublicCheckoutLink, persistPublicPaymentLinkForPayment } from "./publicCheckoutLinks";
 import { extractCustomerPaymentSourceId } from "../lib/customerMetadata";
+import { nextRetryReference } from "./retryReference";
 
 const PAYMENT_LINK_LOCK_PREFIX = "payment-link";
 const AUTO_DEBIT_LOCK_PREFIX = "auto-debit";
@@ -901,9 +902,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
 
     // If previous transaction was DECLINED/ERROR, compute a unique retry reference to avoid Wompi duplicate errors
     if (existingByCycle?.wompiTransactionId && existingByCycle.status !== PaymentStatus.PENDING && existingByCycle.status !== PaymentStatus.APPROVED) {
-      const attemptCount = await prisma.paymentAttempt.count({ where: { paymentId: existingByCycle.id } });
-      const retrySuffix = `R${Math.max(1, attemptCount + 1)}`;
-      reference = `${reference}_${retrySuffix}`;
+      reference = await nextRetryReference(reference);
     }
   }
 
@@ -911,9 +910,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
     | { id: string; wompiTransactionId: string | null; status: PaymentStatus; reference: string }
     | any;
   if (args.forceNewTransaction) {
-    const attemptCount = await prisma.payment.count({ where: { subscriptionId: sub.id, cycleNumber: cycle } });
-    const retrySuffix = `R${Math.max(1, attemptCount + 1)}`;
-    reference = `${reference}_${retrySuffix}`;
+    reference = await nextRetryReference(reference);
     payment = await prisma.payment.create({
       data: {
         tenantId,
@@ -968,11 +965,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
     if (payment.status === PaymentStatus.APPROVED) {
       throw new Error("payment_already_approved");
     }
-    const attemptCount = await prisma.paymentAttempt.count({
-      where: { paymentId: payment.id }
-    });
-    const retrySuffix = `R${Math.max(1, attemptCount + 1)}`;
-    const nextReference = `${reference}_${retrySuffix}`;
+    const nextReference = await nextRetryReference(reference);
     reference = nextReference;
     await prisma.payment.update({
       where: { id: payment.id },
@@ -1001,11 +994,7 @@ export async function createAutoDebitTransactionForSubscription(args: {
   }
 
   if (payment.wompiTransactionId && args.forceNewTransaction) {
-    const attemptCount = await prisma.paymentAttempt.count({
-      where: { paymentId: payment.id }
-    });
-    const retrySuffix = `R${Math.max(1, attemptCount + 1)}`;
-    const nextReference = `${reference}_${retrySuffix}`;
+    const nextReference = await nextRetryReference(reference);
     reference = nextReference;
     await prisma.payment.update({
       where: { id: payment.id },
