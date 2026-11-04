@@ -8,7 +8,8 @@ type InlineMsgProps = { action: string; status: string; errorText: string };
 const DELETE_MESSAGES: Record<string, string> = {
   wompi_delete: "Conexión de Wompi",
   central_delete: "Conexión de Chatwoot",
-  shopify_delete: "Conexión de Shopify"
+  shopify_delete: "Conexión de Shopify",
+  brasilia_delete: "Conexión de Brasilia"
 };
 
 /**
@@ -21,6 +22,7 @@ export function ConnectionsPanel({
   wompiSandbox,
   commsProduction,
   shopify,
+  brasilia,
   inlineState,
   returnTo = CONNECTIONS_LIST_HREF
 }: {
@@ -29,6 +31,7 @@ export function ConnectionsPanel({
   wompiSandbox: any;
   commsProduction: any;
   shopify: any;
+  brasilia?: any;
   inlineState: InlineMsgProps;
   returnTo?: string;
 }) {
@@ -142,6 +145,20 @@ export function ConnectionsPanel({
                     <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
                   </svg>
                 ) : null}
+              </div>
+            </Link>
+
+            <Link className="conn-card" href={connectionHref("brasilia", { returnTo })} data-loader="off">
+              <div className="conn-icon conn-icon-apiflujos">
+                <img src="/brand/logo_vertical.svg" alt="Brasilia" data-theme-logo="vertical" />
+              </div>
+              <div className="conn-body">
+                <div className="conn-title">Brasilia · Envíos</div>
+                <div className="conn-sub">Transportadora (FivePostal)</div>
+              </div>
+              <div className="conn-status" style={{ display: "grid", gap: 4, justifyItems: "end" }}>
+                <span>{brasilia?.activeEnv === "PRODUCTION" ? "Producción" : "Calidad"}</span>
+                <span className="muted">{brasilia?.hasToken ? "Con credencial" : "Sin credencial"}</span>
               </div>
             </Link>
           </div>

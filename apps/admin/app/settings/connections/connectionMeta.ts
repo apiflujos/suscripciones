@@ -1,12 +1,13 @@
-export type ConnectionSlug = "wompi-prod" | "wompi-sandbox" | "chatwoot" | "shopify";
+export type ConnectionSlug = "wompi-prod" | "wompi-sandbox" | "chatwoot" | "shopify" | "brasilia";
 
-export const CONNECTION_SLUGS: ConnectionSlug[] = ["wompi-prod", "wompi-sandbox", "chatwoot", "shopify"];
+export const CONNECTION_SLUGS: ConnectionSlug[] = ["wompi-prod", "wompi-sandbox", "chatwoot", "shopify", "brasilia"];
 
 export const CONNECTION_TITLES: Record<ConnectionSlug, string> = {
   "wompi-prod": "Wompi · Producción",
   "wompi-sandbox": "Wompi · Sandbox",
   chatwoot: "Chatwoot · WhatsApp",
-  shopify: "Shopify"
+  shopify: "Shopify",
+  brasilia: "Brasilia · Envíos"
 };
 
 export const CONNECTIONS_LIST_HREF = "/settings?tab=connections";
