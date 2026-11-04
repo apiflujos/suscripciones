@@ -248,7 +248,8 @@ export async function getAdminSettings() {
       activeEnv: brasiliaConfig.env,
       qualityUrl: brasiliaConfig.qualityUrl,
       productionUrl: brasiliaConfig.productionUrl,
-      hasToken: Boolean(brasiliaConfig.token)
+      hasToken: Boolean(brasiliaConfig.token),
+      contractId: brasiliaConfig.contractId
     },
     autoDebit: autoDebitConfig,
     paymentsConfig,

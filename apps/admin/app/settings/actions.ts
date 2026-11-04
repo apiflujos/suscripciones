@@ -180,11 +180,13 @@ function brasiliaPayload(formData: FormData) {
   const qualityUrl = String(formData.get("qualityUrl") || "").trim();
   const productionUrl = String(formData.get("productionUrl") || "").trim();
   const token = String(formData.get("token") || "").trim();
+  const contractId = String(formData.get("contractId") || "").trim();
   return {
     ...(activeEnv ? { activeEnv } : {}),
     ...(qualityUrl ? { qualityUrl } : {}),
     productionUrl,
-    ...(token ? { token } : {})
+    ...(token ? { token } : {}),
+    contractId
   };
 }
 

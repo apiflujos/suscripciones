@@ -339,6 +339,10 @@ export async function updateBrasiliaSettings(input: unknown) {
       else await clearCredential(CredentialProvider.BRASILIA, "API_URL_PRODUCTION");
     }
     if (d.token) await setCredential(CredentialProvider.BRASILIA, "API_TOKEN", d.token);
+    if (d.contractId != null) {
+      if (d.contractId) await setCredential(CredentialProvider.BRASILIA, "CONTRACT_ID", d.contractId);
+      else await clearCredential(CredentialProvider.BRASILIA, "CONTRACT_ID");
+    }
   } catch (err: any) {
     return { ok: false as const, status: 400, error: "credentials_error" as const, message: String(err?.message || err) };
   }
@@ -351,7 +355,7 @@ export async function updateBrasiliaSettings(input: unknown) {
 export async function deleteBrasiliaSettings() {
   try {
     await Promise.all(
-      ["ACTIVE_ENV", "API_URL_QUALITY", "API_URL_PRODUCTION", "API_TOKEN"].map((key) =>
+      ["ACTIVE_ENV", "API_URL_QUALITY", "API_URL_PRODUCTION", "API_TOKEN", "CONTRACT_ID"].map((key) =>
         clearCredential(CredentialProvider.BRASILIA, key).catch((err: any) => {
           logger.warn({ err, key }, "Fallo eliminando credencial de Brasilia");
         })

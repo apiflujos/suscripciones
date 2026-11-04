@@ -22,14 +22,17 @@ export type BrasiliaConfig = {
   /** URL del ambiente activo ("" si producción aún no está configurada). */
   url: string;
   token: string;
+  /** Número de contrato (contract_id): es de la conexión, igual para todos los pedidos. */
+  contractId: string;
 };
 
 export async function getBrasiliaConfig(): Promise<BrasiliaConfig> {
-  const [env, qualityUrl, productionUrl, token] = await Promise.all([
+  const [env, qualityUrl, productionUrl, token, contractId] = await Promise.all([
     getCredential(CredentialProvider.BRASILIA, "ACTIVE_ENV"),
     getCredential(CredentialProvider.BRASILIA, "API_URL_QUALITY"),
     getCredential(CredentialProvider.BRASILIA, "API_URL_PRODUCTION"),
-    getCredential(CredentialProvider.BRASILIA, "API_TOKEN")
+    getCredential(CredentialProvider.BRASILIA, "API_TOKEN"),
+    getCredential(CredentialProvider.BRASILIA, "CONTRACT_ID")
   ]);
   const activeEnv = normalizeBrasiliaEnv(env);
   const quality = (qualityUrl || "").trim() || BRASILIA_QUALITY_URL;
@@ -39,7 +42,8 @@ export async function getBrasiliaConfig(): Promise<BrasiliaConfig> {
     qualityUrl: quality,
     productionUrl: production,
     url: activeEnv === "PRODUCTION" ? production : quality,
-    token: (token || "").trim()
+    token: (token || "").trim(),
+    contractId: (contractId || "").trim()
   };
 }
 

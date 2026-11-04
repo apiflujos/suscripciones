@@ -44,7 +44,8 @@ export const brasiliaUpdateSchema = z.object({
   activeEnv: z.enum(["QUALITY", "PRODUCTION"]).optional(),
   qualityUrl: z.string().url().optional().or(z.literal("")),
   productionUrl: z.string().url().optional().or(z.literal("")),
-  token: z.string().optional().or(z.literal(""))
+  token: z.string().optional().or(z.literal("")),
+  contractId: z.string().trim().max(60).optional().or(z.literal(""))
 });
 
 export const autoDebitUpdateSchema = z.object({

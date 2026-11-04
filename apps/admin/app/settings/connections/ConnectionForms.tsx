@@ -206,6 +206,15 @@ export function BrasiliaConnectionForm({ slug, csrfToken, listHref, selfHref, co
           <div className="field-hint">Déjalo vacío para conservar el actual.</div>
         </div>
       </PageSection>
+      <PageSection
+        title="Configuración avanzada"
+        description="Solo lo que es igual para todos los pedidos. El tipo de servicio (type_service_id) y el tipo de producto (type_product_id) se definen en cada pedido, no aquí."
+      >
+        <div className="field">
+          <label htmlFor="br-contract">Número de contrato (contract_id)</label>
+          <input id="br-contract" className="input" name="contractId" inputMode="numeric" defaultValue={config?.contractId || ""} />
+        </div>
+      </PageSection>
       <FormActions cancelHref={listHref}>
         <DeleteLink slug={slug} listHref={listHref} label="Eliminar conexión" />
         <PendingButton className="ghost btn-compact btn-noicon" type="submit" formAction={testBrasiliaConnection} pendingText="Probando...">
