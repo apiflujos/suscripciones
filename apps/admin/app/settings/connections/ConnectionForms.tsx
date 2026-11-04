@@ -2,16 +2,20 @@ import Link from "next/link";
 import { PendingButton } from "../../ui/PendingButton";
 import { FormActions, PageSection } from "../../ui/PageShell";
 import {
+  deleteBrasiliaConnection,
   deleteCentralConnection,
   deleteShopifyConnection,
   deleteWompiConnection,
+  testBrasiliaConnection,
   testCentralConnection,
   testShopifyForward,
   testWompiConnection,
+  updateBrasilia,
   updateChatwoot,
   updateShopify,
   updateWompi
 } from "../actions";
+import { BRASILIA_QUALITY_URL } from "@suscripciones/core/services/brasiliaConfig";
 import { connectionHref, type ConnectionSlug } from "./connectionMeta";
 
 type CommonProps = {
@@ -175,6 +179,46 @@ export function ShopifyConnectionForm({ slug, csrfToken, listHref, selfHref, con
   );
 }
 
+export function BrasiliaConnectionForm({ slug, csrfToken, listHref, selfHref, config }: CommonProps & { config: any }) {
+  return (
+    <form action={updateBrasilia} className="page-shell-body">
+      <Hidden csrfToken={csrfToken} returnTo={selfHref} />
+      <PageSection title="Brasilia · Envíos (FivePostal)" description="Transportadora para generar guías. El ambiente de calidad viene preconfigurado.">
+        <div className="field">
+          <label htmlFor="br-env">Ambiente activo</label>
+          <select id="br-env" className="select" name="activeEnv" defaultValue={config?.activeEnv || "QUALITY"}>
+            <option value="QUALITY">Calidad</option>
+            <option value="PRODUCTION">Producción</option>
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="br-quality">URL de calidad</label>
+          <input id="br-quality" className="input" name="qualityUrl" defaultValue={config?.qualityUrl || BRASILIA_QUALITY_URL} />
+        </div>
+        <div className="field">
+          <label htmlFor="br-prod">URL de producción</label>
+          <input id="br-prod" className="input" name="productionUrl" placeholder="https://..." defaultValue={config?.productionUrl || ""} />
+          <div className="field-hint">Pendiente hasta que Brasilia entregue la URL de producción.</div>
+        </div>
+        <div className="field">
+          <label htmlFor="br-token">Token / credencial API</label>
+          <input id="br-token" className="input" name="token" type="password" placeholder={config?.hasToken ? "••••••••" : ""} autoComplete="new-password" />
+          <div className="field-hint">Déjalo vacío para conservar el actual.</div>
+        </div>
+      </PageSection>
+      <FormActions cancelHref={listHref}>
+        <DeleteLink slug={slug} listHref={listHref} label="Eliminar conexión" />
+        <PendingButton className="ghost btn-compact btn-noicon" type="submit" formAction={testBrasiliaConnection} pendingText="Probando...">
+          Probar conexión
+        </PendingButton>
+        <PendingButton className="primary btn-compact btn-save" type="submit" pendingText="Guardando...">
+          Guardar
+        </PendingButton>
+      </FormActions>
+    </form>
+  );
+}
+
 /** Segundo paso de "Eliminar conexión": confirmación dentro de la página, sin capa encima. */
 export function ConfirmDeleteConnection({
   slug,
@@ -184,7 +228,13 @@ export function ConfirmDeleteConnection({
   title
 }: CommonProps & { title: string }) {
   const action =
-    slug === "chatwoot" ? deleteCentralConnection : slug === "shopify" ? deleteShopifyConnection : deleteWompiConnection;
+    slug === "chatwoot"
+      ? deleteCentralConnection
+      : slug === "shopify"
+        ? deleteShopifyConnection
+        : slug === "brasilia"
+          ? deleteBrasiliaConnection
+          : deleteWompiConnection;
   const environment = slug === "wompi-prod" ? "PRODUCTION" : slug === "wompi-sandbox" ? "SANDBOX" : slug === "chatwoot" ? "PRODUCTION" : "";
   return (
     <form action={action} className="page-shell-body">

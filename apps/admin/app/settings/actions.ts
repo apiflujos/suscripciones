@@ -7,13 +7,16 @@ import { getCredential } from "@suscripciones/core/services/credentials";
 import { assertCsrfToken } from "../lib/csrf";
 import {
   deleteAiProvider as deleteAiProviderAction,
+  deleteBrasiliaSettings,
   deleteChatwootSettings,
   deleteShopifySettings,
   deleteWompiSettings,
+  testBrasiliaConnection as testBrasiliaConnectionAction,
   testShopifyForward as testShopifyForwardAction,
   testWompiConnection as testWompiConnectionAction,
   updateAiProvider as updateAiProviderAction,
   updateAutoDebitConfig as updateAutoDebitConfigAction,
+  updateBrasiliaSettings,
   updateChatwootSettings,
   updateCheckoutConfig as updateCheckoutConfigAction,
   updatePaymentsConfig as updatePaymentsConfigAction,
@@ -169,6 +172,58 @@ export async function updateShopify(formData: FormData) {
   } catch (err) {
     if (isNextRedirect(err)) throw err;
     redirectWith("shopify_save", "fail", toShortErrorMessage(err), returnTo);
+  }
+}
+
+function brasiliaPayload(formData: FormData) {
+  const activeEnv = String(formData.get("activeEnv") || "").trim();
+  const qualityUrl = String(formData.get("qualityUrl") || "").trim();
+  const productionUrl = String(formData.get("productionUrl") || "").trim();
+  const token = String(formData.get("token") || "").trim();
+  return {
+    ...(activeEnv ? { activeEnv } : {}),
+    ...(qualityUrl ? { qualityUrl } : {}),
+    productionUrl,
+    ...(token ? { token } : {})
+  };
+}
+
+export async function updateBrasilia(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  try {
+    const out = await updateBrasiliaSettings(brasiliaPayload(formData));
+    assertOk(out as any);
+    redirectWith("brasilia_save", "ok", undefined, returnTo);
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("brasilia_save", "fail", toShortErrorMessage(err), returnTo);
+  }
+}
+
+export async function testBrasiliaConnection(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  try {
+    const out = await testBrasiliaConnectionAction(brasiliaPayload(formData));
+    assertOk(out as any);
+    redirectWith("brasilia_test", "ok", undefined, returnTo);
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("brasilia_test", "fail", toShortErrorMessage(err), returnTo);
+  }
+}
+
+export async function deleteBrasiliaConnection(formData: FormData) {
+  await assertCsrfToken(formData);
+  const returnTo = safeReturnTo(formData);
+  try {
+    const out = await deleteBrasiliaSettings();
+    assertOk(out as any);
+    redirectWith("brasilia_delete", "ok", undefined, returnTo);
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
+    redirectWith("brasilia_delete", "fail", toShortErrorMessage(err), returnTo);
   }
 }
 

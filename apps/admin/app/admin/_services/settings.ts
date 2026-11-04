@@ -6,6 +6,7 @@ import { getGlobalModuleAccess } from "@suscripciones/core/services/moduleAccess
 import { readCheckoutConfig } from "@suscripciones/core/services/checkoutConfig";
 import { getCheckoutBaseUrlsFromEnv, getPublicReturnUrlFromEnv, getSafePublicReturnUrl } from "@suscripciones/core/services/publicBase";
 import { logger } from "@suscripciones/core/lib/logger";
+import { getBrasiliaConfig } from "@suscripciones/core/services/brasiliaConfig";
 import { ActiveEnv, maskSecret, toBool, toInt, deriveRetryUnitAndValue } from "../settings/_lib";
 
 export async function getCheckoutConfig() {
@@ -42,7 +43,7 @@ export async function getAdminSettings() {
     encryptionKeyValid = buf.length === 32;
   }
 
-  const [wompiCreds, shopifyCreds, commsCreds, checkoutConfigRaw, openAiCreds, deepseekCreds, aiAccess] = await Promise.all([
+  const [wompiCreds, brasiliaConfig, shopifyCreds, commsCreds, checkoutConfigRaw, openAiCreds, deepseekCreds, aiAccess] = await Promise.all([
     getCredentialsBulk(CredentialProvider.WOMPI, [
       "ACTIVE_ENV",
       "PUBLIC_KEY",
@@ -69,6 +70,7 @@ export async function getAdminSettings() {
       "AUTO_DEBIT_CONFIG",
       "PAYMENTS_CONFIG"
     ]),
+    getBrasiliaConfig(),
     getCredentialsBulk(CredentialProvider.SHOPIFY, [
       "FORWARD_URL",
       "FORWARD_SECRET",
@@ -241,6 +243,12 @@ export async function getAdminSettings() {
       forwardOrigin: shopifyForwardOrigin,
       forwardRetryEnabled: shopifyForwardRetryEnabled,
       forwardRetryMinutes: shopifyForwardRetryMinutes
+    },
+    brasilia: {
+      activeEnv: brasiliaConfig.env,
+      qualityUrl: brasiliaConfig.qualityUrl,
+      productionUrl: brasiliaConfig.productionUrl,
+      hasToken: Boolean(brasiliaConfig.token)
     },
     autoDebit: autoDebitConfig,
     paymentsConfig,

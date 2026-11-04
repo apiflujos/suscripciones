@@ -11,6 +11,7 @@ import {
   isConnectionSlug
 } from "../connectionMeta";
 import {
+  BrasiliaConnectionForm,
   ChatwootConnectionForm,
   ConfirmDeleteConnection,
   ShopifyConnectionForm,
@@ -28,7 +29,10 @@ const LABELS = {
   shopify_test: { ok: "Forward OK.", fail: "Error probando" },
   wompi_delete: { ok: "Eliminado.", fail: "Error eliminando" },
   central_delete: { ok: "Eliminado.", fail: "Error eliminando" },
-  shopify_delete: { ok: "Eliminado.", fail: "Error eliminando" }
+  shopify_delete: { ok: "Eliminado.", fail: "Error eliminando" },
+  brasilia_save: { ok: "Guardado.", fail: "Error guardando" },
+  brasilia_test: { ok: "La URL responde.", fail: "Error conectando" },
+  brasilia_delete: { ok: "Eliminado.", fail: "Error eliminando" }
 };
 
 /**
@@ -79,6 +83,8 @@ export default async function ConnectionPage({
         <WompiConnectionForm {...common} config={wompiSandbox} />
       ) : slug === "chatwoot" ? (
         <ChatwootConnectionForm {...common} config={commsProduction} />
+      ) : slug === "brasilia" ? (
+        <BrasiliaConnectionForm {...common} config={s?.brasilia || {}} />
       ) : (
         <ShopifyConnectionForm {...common} config={s?.shopify || {}} />
       )}

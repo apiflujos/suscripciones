@@ -13,6 +13,7 @@ import { checkoutConfigSchema } from "@suscripciones/core/services/checkoutConfi
 import { systemLog } from "@suscripciones/core/services/systemLog";
 import { WompiClient } from "@suscripciones/core/providers/wompi/client";
 import { getGlobalModuleAccess } from "@suscripciones/core/services/moduleAccess";
+import { BRASILIA_QUALITY_URL, getBrasiliaConfig } from "@suscripciones/core/services/brasiliaConfig";
 import { getAutoDebitConfig, getShopifyForward } from "@suscripciones/core/services/runtimeConfig";
 import { postJson } from "@suscripciones/core/lib/http";
 import { logger } from "@suscripciones/core/lib/logger";
@@ -25,6 +26,7 @@ import {
   wompiTestSchema,
   wompiUpdateSchema,
   shopifyUpdateSchema,
+  brasiliaUpdateSchema,
   chatwootUpdateSchema,
   autoDebitUpdateSchema,
   paymentsConfigUpdateSchema,
@@ -323,6 +325,64 @@ export async function deleteShopifySettings() {
     logger.warn({ err }, "Fallo escribiendo systemLog al eliminar configuracion de reenvio");
   });
   return { ok: true as const };
+}
+
+export async function updateBrasiliaSettings(input: unknown) {
+  const parsed = brasiliaUpdateSchema.safeParse(input ?? {});
+  if (!parsed.success) return { ok: false as const, status: 400, error: "invalid_body" as const, details: parsed.error.flatten() };
+  const d = parsed.data;
+  try {
+    if (d.activeEnv != null) await setCredential(CredentialProvider.BRASILIA, "ACTIVE_ENV", d.activeEnv);
+    if (d.qualityUrl) await setCredential(CredentialProvider.BRASILIA, "API_URL_QUALITY", d.qualityUrl);
+    if (d.productionUrl != null) {
+      if (d.productionUrl) await setCredential(CredentialProvider.BRASILIA, "API_URL_PRODUCTION", d.productionUrl);
+      else await clearCredential(CredentialProvider.BRASILIA, "API_URL_PRODUCTION");
+    }
+    if (d.token) await setCredential(CredentialProvider.BRASILIA, "API_TOKEN", d.token);
+  } catch (err: any) {
+    return { ok: false as const, status: 400, error: "credentials_error" as const, message: String(err?.message || err) };
+  }
+  await systemLog(LogLevel.INFO, "configuracion.brasilia", "Configuración de Brasilia actualizada").catch((err: any) => {
+    logger.warn({ err }, "Fallo escribiendo systemLog al actualizar Brasilia");
+  });
+  return { ok: true as const };
+}
+
+export async function deleteBrasiliaSettings() {
+  try {
+    await Promise.all(
+      ["ACTIVE_ENV", "API_URL_QUALITY", "API_URL_PRODUCTION", "API_TOKEN"].map((key) =>
+        clearCredential(CredentialProvider.BRASILIA, key).catch((err: any) => {
+          logger.warn({ err, key }, "Fallo eliminando credencial de Brasilia");
+        })
+      )
+    );
+  } catch (err: any) {
+    return { ok: false as const, status: 400, error: "credentials_error" as const, message: String(err?.message || err) };
+  }
+  await systemLog(LogLevel.INFO, "configuracion.brasilia", "Configuración de Brasilia eliminada").catch((err: any) => {
+    logger.warn({ err }, "Fallo escribiendo systemLog al eliminar Brasilia");
+  });
+  return { ok: true as const };
+}
+
+/** Prueba de alcance: cualquier respuesta HTTP (aunque sea 401/405) indica que la URL responde. */
+export async function testBrasiliaConnection(input: unknown) {
+  const parsed = brasiliaUpdateSchema.safeParse(input ?? {});
+  if (!parsed.success) return { ok: false as const, status: 400, error: "invalid_body" as const, details: parsed.error.flatten() };
+  const stored = await getBrasiliaConfig();
+  const env = parsed.data.activeEnv || stored.env;
+  const url =
+    env === "PRODUCTION"
+      ? parsed.data.productionUrl || stored.productionUrl
+      : parsed.data.qualityUrl || stored.qualityUrl || BRASILIA_QUALITY_URL;
+  if (!url) return { ok: false as const, status: 400, error: "brasilia_url_not_configured" as const };
+  try {
+    const res = await fetch(url, { method: "GET", signal: AbortSignal.timeout(10_000) });
+    return { ok: true as const, httpStatus: res.status };
+  } catch (err: any) {
+    return { ok: false as const, status: 502, error: "brasilia_unreachable" as const, message: String(err?.message || err) };
+  }
 }
 
 export async function testShopifyForward(input: unknown) {
