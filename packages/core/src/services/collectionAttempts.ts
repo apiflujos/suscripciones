@@ -40,6 +40,20 @@ export function maxAttemptsPerCycle(config: { retryEnabled?: boolean | null; max
   return 1 + retries;
 }
 
+/** Mínimo entre dos links del mismo cobro, haya o no reintentos configurados. */
+export const MIN_LINK_RESEND_GAP_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * Cuánto debe pasar desde el último link pendiente antes de crear otro.
+ * Con reintentos activos manda el "cada" que se configura en Ajustes; sin
+ * reintentos solo rige el mínimo, porque el tope de intentos ya frena el resto.
+ */
+export function linkResendWindowMs(config: { retryEnabled?: boolean | null; retryEveryMinutes?: number | null }) {
+  const everyMinutes = Number(config?.retryEveryMinutes);
+  if (!config?.retryEnabled || !Number.isFinite(everyMinutes) || everyMinutes <= 0) return MIN_LINK_RESEND_GAP_MS;
+  return Math.max(MIN_LINK_RESEND_GAP_MS, Math.trunc(everyMinutes) * 60_000);
+}
+
 /**
  * Si el ciclo ya agotó sus intentos, nadie debe volver a pasar la tarjeta:
  * insistir sobre una tarjeta que rechaza es lo que hace que el adquirente
