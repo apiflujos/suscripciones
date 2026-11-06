@@ -1,4 +1,4 @@
-import { hasExhaustedCycleAttempts } from "../services/collectionAttempts";
+import { hasExhaustedCycleAttempts, linkResendWindowMs } from "../services/collectionAttempts";
 import { isPermanentMessagingError } from "./permanentErrors";
 import { prisma } from "../db/prisma";
 import { logger } from "../lib/logger";
@@ -501,8 +501,9 @@ async function ensureDueCutoffRetries() {
         if (mode === "AUTO_DEBIT" && (!autoDebitEnabled || !chargeAtCutoffEnabled)) continue;
 
         // FIX #1: Si ya hay un payment link pendiente reciente, saltar para evitar spam.
-        // Ventana de 2 horas: si se creó un link en las últimas 2h, no crear otro.
-        const hasRecent = await hasRecentPendingPaymentLink(sub.id, 2 * 60 * 60 * 1000);
+        // La separación entre links es el "cada" de los reintentos (Ajustes), con
+        // un mínimo de 2 h; antes iba fija en 2 h y los reintentos salían en ráfaga.
+        const hasRecent = await hasRecentPendingPaymentLink(sub.id, linkResendWindowMs(autoDebitConfig));
         if (hasRecent) {
           skippedRecentLink++;
           continue;

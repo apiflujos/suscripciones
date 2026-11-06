@@ -34,7 +34,7 @@ describe("Runner: Payment link spam prevention (Fix #1)", () => {
     expect(content).toContain("AUTO_LINK");
     expect(content).toContain("MANUAL_LINK");
     expect(content).toContain("skippedRecentLink");
-    expect(content).toContain("2 * 60 * 60 * 1000"); // 2 hour window
+    expect(content).toContain("linkResendWindowMs(autoDebitConfig)"); // separación configurable, mínimo 2 h
   });
 
   it("should log summary metrics after processing", async () => {
