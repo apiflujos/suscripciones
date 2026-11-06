@@ -228,6 +228,10 @@ export default async function SubscriptionDetailPage({
 
       {tab === "pagos" ? (
         <PageSection title="Historial de pagos">
+          <p style={{ margin: "0 0 12px" }}>
+            ¿El cliente pagó pero el pago no aparece aquí?{" "}
+            <Link href={withReturnTo(`/billing/${encodeURIComponent(row.id)}/associate-payments`, detailUrl)}>Asociar pagos sueltos</Link>
+          </p>
           <PaymentHistoryPanel subscriptionId={row.id} tenantId={row.tenantId || undefined} />
         </PageSection>
       ) : null}

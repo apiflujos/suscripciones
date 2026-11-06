@@ -34,6 +34,7 @@ export function BillingRowMenuItems({ row, context }: { row: BillingRow; context
       <Link className="ghost btn-compact btn-noicon" href={go()} role="menuitem">Ver detalle</Link>
       <Link className="ghost btn-compact btn-noicon" href={go("/change-product")} role="menuitem">Cambiar producto</Link>
       <Link className="ghost btn-compact btn-noicon" href={`${go()}${go().includes("?") ? "&" : "?"}tab=pagos`} role="menuitem">Historial de pagos</Link>
+      <Link className="ghost btn-compact btn-noicon" href={go("/associate-payments")} role="menuitem">Asociar pagos sueltos</Link>
       {showCharge ? <Link className="ghost btn-compact btn-noicon" href={go("/charge")} role="menuitem">Cobrar</Link> : null}
       {showMarkPaid ? <Link className="ghost btn-compact btn-noicon" href={go("/mark-paid")} role="menuitem">Marcar pagada</Link> : null}
       {showUnmark ? <Link className="ghost btn-compact btn-noicon" href={go("/unmark-paid")} role="menuitem">Desmarcar cobro</Link> : null}

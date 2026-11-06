@@ -9,7 +9,8 @@ import { sendChatwootMessage } from "./handlers/sendChatwootMessage";
 import { paymentRetry } from "./handlers/paymentRetry";
 import { subscriptionReminder } from "./handlers/subscriptionReminder";
 import { systemLog, SystemActor } from "../services/systemLog";
-import { getAutoDebitConfig, getShopifyForward, getShopifyForwardRetryConfig } from "../services/runtimeConfig";
+import { getAutoDebitConfig, getPaymentsConfig, getShopifyForward, getShopifyForwardRetryConfig } from "../services/runtimeConfig";
+import { sweepUnlinkedPayments } from "../services/unlinkedPaymentsSweep";
 import { resolveEffectiveSubscriptionAutomationConfigById } from "../services/subscriptionAutomationConfig";
 import { billingMonthlyReport } from "./handlers/billingMonthlyReport";
 import { sendCampaign } from "./handlers/sendCampaign";
@@ -324,6 +325,26 @@ async function ensureJobsHeartbeat() {
   ]).catch((err) => {
     logger.warn({ err, workerId, workerHeartbeatKey }, '[Jobs/Heartbeat] Fallo actualizando heartbeat');
   });
+}
+
+let lastUnlinkedSweepAtMs = 0;
+
+/**
+ * Asocia sola los pagos aprobados que quedaron sin suscripción (el pagador usó otro
+ * nombre o correo). Se apaga con "Asociar pagos sin suscripción" en Ajustes.
+ */
+async function ensureUnlinkedPaymentsSweep() {
+  const now = Date.now();
+  if (now - lastUnlinkedSweepAtMs < 30 * 60 * 1000) return;
+  lastUnlinkedSweepAtMs = now;
+  try {
+    const paymentsConfig = await getPaymentsConfig();
+    if (!paymentsConfig.autoReconcileUnlinkedPayments) return;
+    const res = await sweepUnlinkedPayments();
+    if (res.associated > 0) logger.info({ ...res }, "[Jobs/Sweep] Pagos sueltos asociados automáticamente");
+  } catch (err) {
+    logger.warn({ err }, "[Jobs/Sweep] Fallo asociando pagos sueltos");
+  }
 }
 
 async function ensurePendingPaymentsAutoReconcile() {
@@ -959,6 +980,7 @@ async function main() {
       await ensureShopifyForwardRetries();
       await ensureJobsHeartbeat();
       await ensurePendingPaymentsAutoReconcile();
+      await ensureUnlinkedPaymentsSweep();
       await ensureWompiWebhookRecoveryJobs();
       await ensureDueCutoffRetries();
       await ensurePaymentRetryQueueHealth();
