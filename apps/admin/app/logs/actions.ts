@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { prisma } from "@suscripciones/database";
+import { reconcileApprovedPaymentWithSubscription } from "@suscripciones/core/services/billingCycles";
 import { assertCsrfToken } from "../lib/csrf";
+import { resolveReturnTo } from "../lib/returnTo";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
 import {
   recollectPayments,
@@ -115,6 +118,72 @@ export async function associatePayment(formData: FormData) {
   revalidatePath("/logs");
   revalidatePath("/payments");
   redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}assoc=ok`);
+}
+
+/**
+ * Asocia varios pagos sueltos a una suscripción, del más viejo al más nuevo.
+ * Cada uno pasa por la misma asociación manual de un solo pago: si no encaja en
+ * ningún ciclo por fecha, ese se rechaza y los demás siguen.
+ */
+export async function associatePaymentsBulk(formData: FormData) {
+  "use server";
+  await assertCsrfToken(formData);
+  const session = await getSuperAdminSession();
+  if (!session) return;
+  const subscriptionId = String(formData.get("subscriptionId") || "").trim();
+  const base = `/billing/${encodeURIComponent(subscriptionId)}/associate-payments`;
+  const returnTo = resolveReturnTo(formData.get("returnTo"), `/billing/${encodeURIComponent(subscriptionId)}`);
+  const goto = (qs: Record<string, string>) =>
+    redirect(`${base}?${new URLSearchParams({ ...qs, returnTo }).toString()}`);
+  const ids = Array.from(new Set(formData.getAll("paymentId").map((v) => String(v).trim()).filter(Boolean)));
+  if (!subscriptionId || !ids.length) goto({ assocNone: "1" });
+
+  const payments = await prisma.payment.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, paidAt: true, createdAt: true, amountInCents: true }
+  });
+  payments.sort((a, b) => (a.paidAt || a.createdAt).getTime() - (b.paidAt || b.createdAt).getTime());
+
+  let ok = 0;
+  let lastOk: (typeof payments)[number] | null = null;
+  const errors: string[] = [];
+  for (const payment of payments) {
+    // Un pago que falla no debe tumbar el lote: se anota y siguen los demás.
+    const res: { ok: boolean; error?: string } = await associatePaymentToSubscription({
+      paymentId: payment.id,
+      subscriptionId,
+      actorEmail: session.email || undefined
+    }).catch((err: any) => ({ ok: false, error: String(err?.code || err?.message || "error").slice(0, 60) }));
+    if (res.ok) {
+      ok += 1;
+      lastOk = payment;
+      continue;
+    }
+    const when = new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" }).format(payment.paidAt || payment.createdAt);
+    const why = res.error === "out_of_cycle" ? "no encaja en ningún ciclo por fecha" : String(res.error || "falló");
+    errors.push(`${when}: ${why}`);
+  }
+
+  // La asociación manual no recalcula el estado: sin esto la suscripción seguiría
+  // en mora aunque ya no le quede ningún ciclo vencido.
+  if (lastOk) {
+    await reconcileApprovedPaymentWithSubscription({
+      subscriptionId,
+      paymentId: lastOk.id,
+      paymentAt: lastOk.paidAt || lastOk.createdAt,
+      asOf: new Date()
+    }).catch(() => null);
+  }
+
+  revalidatePath("/billing");
+  revalidatePath(`/billing/${subscriptionId}`);
+  revalidatePath("/payments");
+  revalidatePath("/logs");
+  goto({
+    assocOk: String(ok),
+    assocFail: String(errors.length),
+    ...(errors.length ? { assocErr: errors.slice(0, 6).join(" · ") } : {})
+  });
 }
 
 export async function reconcilePendingPayments(formData: FormData) {

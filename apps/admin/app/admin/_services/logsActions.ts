@@ -389,12 +389,27 @@ export async function associatePaymentToSubscription(args: {
     };
   }
 
+  // La llave `suscripción:ciclo` es única y la reservan los pagos que el sistema
+  // abre para ese ciclo (un link o un cobro pendiente). Si otro pago ya la tiene,
+  // este se asocia igual al ciclo, pero sin reclamarla: pelearla tumbaba la
+  // asociación de un pago que el cliente sí hizo.
+  const cycleKeyFor = async (cycleNumber: number | null | undefined) => {
+    if (!cycleNumber) return null;
+    const key = `${subscription.id}:${cycleNumber}`;
+    const holder = await prisma.payment.findFirst({
+      where: { subscriptionCycleKey: key, id: { not: payment.id } },
+      select: { id: true }
+    });
+    return holder ? null : key;
+  };
+
   if (cycleToAttach) {
+    const claimKey = await cycleKeyFor(cycleToAttach.cycleNumber);
     await prisma.payment.update({
       where: { id: payment.id },
       data: {
         cycleNumber: cycleToAttach.cycleNumber,
-        subscriptionCycleKey: `${subscription.id}:${cycleToAttach.cycleNumber}`
+        ...(claimKey ? { subscriptionCycleKey: claimKey } : {})
       }
     }).catch((err: any) => {
       logger.warn({ err, paymentId: payment.id, subscriptionId: subscription.id, cycleId: cycleToAttach.id }, "Fallo actualizando ciclo del payment antes de asociarlo");
@@ -423,6 +438,8 @@ export async function associatePaymentToSubscription(args: {
     };
   }
   const actor = args.actorEmail ? String(args.actorEmail) : "system";
+  const finalCycleNumber = cycleToAttach?.cycleNumber ?? payment.cycleNumber ?? activeCycle?.cycleNumber ?? 1;
+  const finalKey = await cycleKeyFor(finalCycleNumber);
   await prisma.$transaction(async (tx) => {
     const existingCycle = await tx.subscriptionBillingCycle.findFirst({
       where: { paymentId: payment.id }
@@ -451,7 +468,7 @@ export async function associatePaymentToSubscription(args: {
         subscriptionId: subscription.id,
         customerId: subscription.customerId,
         cycleNumber,
-        subscriptionCycleKey: cycleNumber ? `${subscription.id}:${cycleNumber}` : payment.subscriptionCycleKey,
+        ...(finalKey ? { subscriptionCycleKey: finalKey } : {}),
         associationReason: "MANUAL_RECONCILE" as any,
         associatedBy: actor
       }
