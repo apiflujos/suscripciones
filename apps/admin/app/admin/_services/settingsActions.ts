@@ -433,20 +433,20 @@ export async function updateAutoDebitConfig(input: unknown) {
       : toBool(current?.chargeAtCutoffEnabled, true);
   const allowManualCharge =
     parsed.data.allowManualCharge != null ? toBool(parsed.data.allowManualCharge, true) : toBool(current?.allowManualCharge, true);
-  const executionHour = String(parsed.data.executionHour || current?.executionHour || "09:00").trim() || "09:00";
+  const executionHour = String(parsed.data.executionHour || current?.executionHour || "15:00").trim() || "15:00";
   const timeZone = String(parsed.data.timeZone || current?.timeZone || current?.timezone || "America/Bogota").trim() || "America/Bogota";
-  const retryEnabled = parsed.data.retryEnabled != null ? toBool(parsed.data.retryEnabled, false) : toBool(current?.retryEnabled, false);
+  const retryEnabled = parsed.data.retryEnabled != null ? toBool(parsed.data.retryEnabled, true) : toBool(current?.retryEnabled, true);
   const retryUnit = parsed.data.retryEveryUnit ? normalizeRetryUnit(parsed.data.retryEveryUnit) : normalizeRetryUnit(current?.retryEveryUnit);
   const retryValue =
     parsed.data.retryEveryValue != null ? toInt(parsed.data.retryEveryValue, 1, 1, 10080) : toInt(current?.retryEveryValue, 0, 0, 10080);
   const retryEveryMinutes =
     retryValue > 0
-      ? toInt(retryValue * retryUnitMultiplier(retryUnit), 60, 1, 10080)
+      ? toInt(retryValue * retryUnitMultiplier(retryUnit), 1440, 1, 10080)
       : parsed.data.retryEveryMinutes != null
-      ? toInt(parsed.data.retryEveryMinutes, 60, 1, 10080)
-      : toInt(current?.retryEveryMinutes, 60, 1, 10080);
+      ? toInt(parsed.data.retryEveryMinutes, 1440, 1, 10080)
+      : toInt(current?.retryEveryMinutes, 1440, 1, 10080);
   const derived = deriveRetryUnitAndValue(retryEveryMinutes);
-  const maxRetriesRaw = parsed.data.maxRetries != null ? toInt(parsed.data.maxRetries, 0, 0, 20) : toInt(current?.maxRetries, 0, 0, 20);
+  const maxRetriesRaw = parsed.data.maxRetries != null ? toInt(parsed.data.maxRetries, 3, 0, 20) : toInt(current?.maxRetries, 3, 0, 20);
   const maxRetries = retryEnabled ? Math.max(1, maxRetriesRaw) : maxRetriesRaw;
   const graceDays = parsed.data.graceDays != null ? toInt(parsed.data.graceDays, 5, 1, 30) : toInt(current?.graceDays, 5, 1, 30);
   await setCredential(

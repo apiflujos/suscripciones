@@ -116,8 +116,8 @@ export default async function SettingsPage({
   const maxRetriesOptions = [1, 2, 3, 4, 5, 8, 10, 12, 15, 20];
   const retryEveryValue = Number(autoDebit?.retryEveryValue || 1);
   const retryEveryUnit = String(autoDebit?.retryEveryUnit || "MINUTES");
-  const retryEveryMinutes = Number(autoDebit?.retryEveryMinutes || 60);
-  const autoDebitExecutionHour = String(autoDebit?.executionHour || "09:00");
+  const retryEveryMinutes = Number(autoDebit?.retryEveryMinutes || 1440);
+  const autoDebitExecutionHour = String(autoDebit?.executionHour || "15:00");
   const autoDebitTimeZone = String(autoDebit?.timeZone || settings?.checkoutConfig?.timeZone || "America/Bogota");
   const sp = (await searchParams) ?? {};
   const action = String(sp.a || "");
@@ -814,7 +814,7 @@ export default async function SettingsPage({
                   </div>
                   <div className="field">
                     <label>Máximo de reintentos</label>
-                    <select className="select" name="maxRetries" defaultValue={String(autoDebit?.maxRetries ?? 0)} data-auto-submit="true" disabled={!Boolean(autoDebit?.enabled) || !Boolean(autoDebit?.retryEnabled)}>
+                    <select className="select" name="maxRetries" defaultValue={String(autoDebit?.maxRetries ?? 3)} data-auto-submit="true" disabled={!Boolean(autoDebit?.enabled) || !Boolean(autoDebit?.retryEnabled)}>
                       {maxRetriesOptions.map((value) => (
                         <option key={`retry-max-${value}`} value={String(value)}>
                           {value}

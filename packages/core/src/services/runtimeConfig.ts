@@ -185,11 +185,11 @@ export async function getAutoDebitConfig(): Promise<AutoDebitConfig> {
   }
 
   const envDisabled = toBool(process.env.AUTO_DEBIT_DISABLED, false);
-  const envRetryEnabled = toBool(process.env.AUTO_DEBIT_RETRY_ENABLED, false);
-  const envRetryMinutes = toInt(process.env.AUTO_DEBIT_RETRY_MINUTES, 60, 1, 10_080);
-  const envMaxRetries = toInt(process.env.AUTO_DEBIT_MAX_RETRIES, 0, 0, 20);
+  const envRetryEnabled = toBool(process.env.AUTO_DEBIT_RETRY_ENABLED, true);
+  const envRetryMinutes = toInt(process.env.AUTO_DEBIT_RETRY_MINUTES, 1440, 1, 10_080);
+  const envMaxRetries = toInt(process.env.AUTO_DEBIT_MAX_RETRIES, 3, 0, 20);
   const fallbackTimeZone = await getAppTimeZone().catch(() => "America/Bogota");
-  const executionHour = normalizeClockTime(parsed?.executionHour || process.env.AUTO_DEBIT_EXECUTION_HOUR || "09:00");
+  const executionHour = normalizeClockTime(parsed?.executionHour || process.env.AUTO_DEBIT_EXECUTION_HOUR || "15:00");
   const timeZone = normalizeTimeZone(parsed?.timeZone || parsed?.timezone || process.env.AUTO_DEBIT_TIMEZONE, fallbackTimeZone);
 
   const enabled = envDisabled ? false : toBool(String(parsed?.enabled ?? ""), true);

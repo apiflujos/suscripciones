@@ -197,7 +197,7 @@ export async function getAdminSettings() {
     enabled: toBool(autoDebitConfigRaw?.enabled, true),
     chargeAtCutoffEnabled: toBool(autoDebitConfigRaw?.chargeAtCutoffEnabled, true),
     allowManualCharge: toBool(autoDebitConfigRaw?.allowManualCharge, true),
-    executionHour: String(autoDebitConfigRaw?.executionHour || "09:00").trim() || "09:00",
+    executionHour: String(autoDebitConfigRaw?.executionHour || "15:00").trim() || "15:00",
     timeZone:
       String(
         autoDebitConfigRaw?.timeZone ||
@@ -206,11 +206,11 @@ export async function getAdminSettings() {
           checkoutConfig?.timezone ||
           "America/Bogota"
       ).trim() || "America/Bogota",
-    retryEnabled: toBool(autoDebitConfigRaw?.retryEnabled, false),
-    retryEveryMinutes: toInt(autoDebitConfigRaw?.retryEveryMinutes, 60, 1, 10080),
-    retryEveryValue: deriveRetryUnitAndValue(toInt(autoDebitConfigRaw?.retryEveryMinutes, 60, 1, 10080)).retryEveryValue,
-    retryEveryUnit: deriveRetryUnitAndValue(toInt(autoDebitConfigRaw?.retryEveryMinutes, 60, 1, 10080)).retryEveryUnit,
-    maxRetries: toInt(autoDebitConfigRaw?.maxRetries, 0, 0, 20),
+    retryEnabled: toBool(autoDebitConfigRaw?.retryEnabled, true),
+    retryEveryMinutes: toInt(autoDebitConfigRaw?.retryEveryMinutes, 1440, 1, 10080),
+    retryEveryValue: deriveRetryUnitAndValue(toInt(autoDebitConfigRaw?.retryEveryMinutes, 1440, 1, 10080)).retryEveryValue,
+    retryEveryUnit: deriveRetryUnitAndValue(toInt(autoDebitConfigRaw?.retryEveryMinutes, 1440, 1, 10080)).retryEveryUnit,
+    maxRetries: toInt(autoDebitConfigRaw?.maxRetries, 3, 0, 20),
     graceDays: toInt(autoDebitConfigRaw?.graceDays, 5, 1, 30)
   };
 

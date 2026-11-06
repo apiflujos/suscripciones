@@ -9,7 +9,12 @@ describe("linkResendWindowMs", () => {
   });
 
   it("con reintentos manda el 'cada' configurado", () => {
-    expect(linkResendWindowMs({ retryEnabled: true, retryEveryMinutes: 3 * 24 * 60 })).toBe(3 * DAY);
+    expect(linkResendWindowMs({ retryEnabled: true, retryEveryMinutes: 6 * 60 })).toBe(6 * 60 * 60 * 1000);
+  });
+
+  it("de un día en adelante descuenta 3 h para no perder el turno diario", () => {
+    expect(linkResendWindowMs({ retryEnabled: true, retryEveryMinutes: 24 * 60 })).toBe(DAY - 3 * 60 * 60 * 1000);
+    expect(linkResendWindowMs({ retryEnabled: true, retryEveryMinutes: 3 * 24 * 60 })).toBe(3 * DAY - 3 * 60 * 60 * 1000);
   });
 
   it("nunca baja del mínimo ni se rompe con valores inválidos", () => {
