@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@suscripciones/database";
 import { reconcileApprovedPaymentWithSubscription } from "@suscripciones/core/services/billingCycles";
+import { recoverWompiTransactions } from "@suscripciones/core/services/wompiRecovery";
 import { assertCsrfToken } from "../lib/csrf";
 import { resolveReturnTo } from "../lib/returnTo";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "../../lib/session";
@@ -184,6 +185,39 @@ export async function associatePaymentsBulk(formData: FormData) {
     assocFail: String(errors.length),
     ...(errors.length ? { assocErr: errors.slice(0, 6).join(" · ") } : {})
   });
+}
+
+/**
+ * Trae de Wompi los pagos aprobados que no tenemos (los webhooks que no llegaron
+ * durante una caída) y los registra; los de Shopify quedan encolados para reenviarse.
+ */
+export async function recoverWompiPayments(formData: FormData) {
+  "use server";
+  await assertCsrfToken(formData);
+  if (!(await getSuperAdminSession())) return;
+  const base = "/logs/payments/recover";
+  const fromDay = String(formData.get("from") || "").trim();
+  const untilDay = String(formData.get("until") || "").trim();
+  const ids = String(formData.get("ids") || "")
+    .split(/[\s,;]+/)
+    .map((v) => v.trim())
+    .filter(Boolean)
+    .slice(0, 200);
+  const res = await recoverWompiTransactions({ fromDay, untilDay, ids: ids.length ? ids : undefined, apply: true });
+  revalidatePath("/payments");
+  revalidatePath("/logs");
+  const failures = res.items.filter((i) => i.outcome === "error").slice(0, 6).map((i) => `${i.id}: ${i.detail || "error"}`);
+  redirect(
+    `${base}?${new URLSearchParams({
+      from: fromDay,
+      until: untilDay,
+      done: "1",
+      ok: String(res.recovered),
+      had: String(res.alreadyHad),
+      fail: String(res.failed),
+      ...(res.error ? { err: res.error } : failures.length ? { err: failures.join(" · ") } : {})
+    }).toString()}`
+  );
 }
 
 export async function reconcilePendingPayments(formData: FormData) {

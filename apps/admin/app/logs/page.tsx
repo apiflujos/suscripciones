@@ -765,6 +765,14 @@ export default async function LogsPage({
         >
           Reconciliar
         </Link>
+        <Link
+          className="ghost btn-compact btn-noicon payments-action-btn"
+          href={withReturnTo("/logs/payments/recover", returnTo)}
+          prefetch={false}
+          title="Trae de Wompi los pagos que no llegaron, por ejemplo tras una caída"
+        >
+          Recuperar de Wompi
+        </Link>
       </div>
     ) : null;
 

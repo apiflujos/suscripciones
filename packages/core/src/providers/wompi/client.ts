@@ -252,6 +252,48 @@ export class WompiClient {
     throw new Error(`Wompi get transaction: unexpected response ${JSON.stringify(json)}`);
   }
 
+  /**
+   * Transacciones de un rango de fechas (YYYY-MM-DD), una página. Sirve para
+   * recuperar pagos cuyo webhook nunca llegó, por ejemplo tras una caída.
+   */
+  async listTransactionsByDateRange(args: {
+    authKey: string;
+    fromDate: string;
+    untilDate: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<Array<{ id: string; status?: string; reference?: string; amountInCents?: number; currency?: string; createdAt?: string | number; finalizedAt?: string | number; raw: any }>> {
+    const base = this.opts.apiBaseUrl.replace(/\/$/, "");
+    const qs = new URLSearchParams({
+      from_date: args.fromDate,
+      until_date: args.untilDate,
+      page: String(args.page ?? 1),
+      page_size: String(args.pageSize ?? 100)
+    });
+    const res = await fetch(`${base}/transactions?${qs.toString()}`, {
+      method: "GET",
+      headers: { authorization: `Bearer ${args.authKey}` }
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(`Wompi list transactions failed: ${res.status} ${JSON.stringify(json)}`);
+    }
+    const data = (json && typeof json === "object" ? (json as Record<string, any>).data : null) as any;
+    const list = Array.isArray(data) ? data : Array.isArray((json as any)?.transactions) ? (json as any).transactions : [];
+    return list
+      .filter((t: any) => t && (typeof t.id === "string" || typeof t.id === "number"))
+      .map((t: any) => ({
+        id: String(t.id),
+        status: typeof t.status === "string" ? t.status : undefined,
+        reference: typeof t.reference === "string" ? t.reference : undefined,
+        amountInCents: typeof t.amount_in_cents === "number" ? t.amount_in_cents : undefined,
+        currency: typeof t.currency === "string" ? t.currency : undefined,
+        createdAt: t.created_at,
+        finalizedAt: t.finalized_at,
+        raw: t
+      }));
+  }
+
   async listTransactionsByReference(
     reference: string,
     authKey: string
