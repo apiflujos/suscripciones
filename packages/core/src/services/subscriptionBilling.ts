@@ -30,6 +30,7 @@ import { isBillingCyclePaid, resolveSubscriptionBillingState } from "./billingCy
 import { createPublicCheckoutLink, persistPublicPaymentLinkForPayment } from "./publicCheckoutLinks";
 import { extractCustomerPaymentSourceId } from "../lib/customerMetadata";
 import { nextRetryReference } from "./retryReference";
+import { MIN_LINK_RESEND_GAP_MS } from "./collectionAttempts";
 
 const PAYMENT_LINK_LOCK_PREFIX = "payment-link";
 const AUTO_DEBIT_LOCK_PREFIX = "auto-debit";
@@ -377,6 +378,8 @@ export async function createPaymentLinkForSubscription(args: {
   subscriptionId: string;
   amountInCentsOverride?: number;
   sendNotifications?: boolean;
+  /** Si el link del ciclo ya existe, volver a enviarlo al cliente. */
+  resendIfExists?: boolean;
 }): Promise<{
   paymentId: string;
   wompiPaymentLinkId: string;
@@ -385,6 +388,7 @@ export async function createPaymentLinkForSubscription(args: {
   notificationsSent: number;
   notificationsRulesActive: boolean;
   chatwootError: string | null;
+  alreadySentRecently?: boolean;
 }> {
   const emptyNotificationResult = {
     notificationsScheduled: 0,
@@ -465,6 +469,120 @@ export async function createPaymentLinkForSubscription(args: {
     }
   });
 
+  // Envía al cliente el link guardado en el pago, sea recién creado o ya existente.
+  const subscription = sub;
+  const ownerTenantId = tenantId;
+  const notifyLink = async (
+    updated: { id: string; checkoutUrl: string | null; amountInCents?: number | null },
+    wompiPaymentLinkId: string
+  ) => {
+    const linkCollectionMode = resolveSubscriptionCollectionMode(subscription);
+    const shouldNotify = await hasUsableSubscriptionPaymentLinkNotification(
+      linkCollectionMode === "AUTO_LINK" || linkCollectionMode === "MANUAL_LINK" ? "LINK" : "SUBSCRIPTION"
+    );
+    if (!shouldNotify) {
+      if (!updated.checkoutUrl) throw new Error("checkout_url_missing");
+      return {
+        paymentId: updated.id,
+        wompiPaymentLinkId,
+        checkoutUrl: updated.checkoutUrl,
+        ...emptyNotificationResult
+      };
+    }
+
+    const publicTemplateId = await resolvePlanCheckoutTemplateId({
+      tenantId: ownerTenantId,
+      subscriptionMetadata: subscription.metadata,
+      planMetadata: subscription.plan?.metadata
+    }).catch(() => null);
+    if (!publicTemplateId) {
+      throw new Error("missing_checkout_for_product");
+    }
+
+    const publicCheckout = await createPublicCheckoutLink({
+      customerId: subscription.customerId,
+      templateId: publicTemplateId,
+      checkoutUrl: updated.checkoutUrl
+    }).catch((err) => {
+      logIgnored(err, "payment link: failed to create public checkout before notifications", {
+        subscriptionId: subscription.id,
+        paymentId: updated.id,
+        templateId: publicTemplateId
+      });
+      return null;
+    });
+    if (!publicCheckout?.url) {
+      throw new Error("public_checkout_create_failed");
+    }
+    await persistPublicPaymentLinkForPayment({
+      paymentId: updated.id,
+      publicCheckout,
+      checkoutUrl: updated.checkoutUrl,
+      productId:
+        String((subscription as any)?.productId || "") ||
+        String((subscription as any)?.plan?.catalogProductId || (subscription as any)?.plan?.metadata?.catalog?.itemId || "") ||
+        null,
+      amountInCents: updated.amountInCents
+    }).catch((err) => {
+      logIgnored(err, "payment link: failed to persist public checkout on payment", {
+        subscriptionId: subscription.id,
+        paymentId: updated.id
+      });
+    });
+
+    const scheduledInfo = await schedulePaymentLinkNotifications({
+      paymentId: updated.id,
+      paymentLinkUrl: String(publicCheckout?.url || "").trim() || undefined,
+      forceNow: true
+    }).catch((err) => {
+      logIgnored(err, "payment link: failed to schedule notifications", { paymentId: updated.id });
+      return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
+    });
+    const chatwootError = firstNotificationDeliveryError(scheduledInfo) || null;
+
+    const chatwoot = await getChatwootConfig();
+    if (chatwoot.configured) {
+      await syncChatwootAttributesForCustomer(subscription.customerId).catch((err) => {
+        logIgnored(err, "payment link: failed to sync chatwoot attributes", { customerId: subscription.customerId });
+      });
+    }
+
+    if (!updated.checkoutUrl) throw new Error("checkout_url_missing");
+    return {
+      paymentId: updated.id,
+      wompiPaymentLinkId,
+      checkoutUrl: updated.checkoutUrl,
+      notificationsScheduled: scheduledInfo?.scheduled ?? 0,
+      notificationsSent: scheduledInfo?.sentNow ?? 0,
+      notificationsRulesActive: scheduledInfo?.rulesActive ?? false,
+      chatwootError
+    };
+  };
+
+  // Link que ya existía: antes se devolvía sin avisar a nadie y el reintento
+  // quedaba como exitoso sin que el cliente recibiera nada.
+  const reuseLink = async (paymentId: string, checkoutUrl: string, wompiPaymentLinkId: string, amountInCentsOfLink?: number | null) => {
+    const base = { paymentId, wompiPaymentLinkId, checkoutUrl, ...emptyNotificationResult };
+    if (!args.resendIfExists || args.sendNotifications === false) return base;
+
+    // Si ya salió hace poco (p. ej. el recordatorio del mismo día), no se duplica.
+    const recent = await prisma.chatwootMessage.findFirst({
+      where: {
+        paymentId,
+        status: { in: ["PENDING", "SENT"] },
+        createdAt: { gte: new Date(Date.now() - MIN_LINK_RESEND_GAP_MS) }
+      },
+      select: { id: true }
+    });
+    if (recent) return { ...base, alreadySentRecently: true };
+
+    // Cada reenvío cuenta para el tope de intentos del ciclo.
+    await prisma.paymentAttempt.create({
+      data: { paymentId, attemptNo: 0, reference, status: "PAYMENT_LINK_RESENT", provider: "wompi" }
+    });
+    return notifyLink({ id: paymentId, checkoutUrl, amountInCents: amountInCentsOfLink }, wompiPaymentLinkId);
+  };
+
   if (payment.checkoutUrl && payment.wompiPaymentLinkId) {
     await prisma.paymentLink
       .upsert({
@@ -493,12 +611,7 @@ export async function createPaymentLinkForSubscription(args: {
       .catch((err) => {
         logIgnored(err, "payment link: failed to upsert existing link", { subscriptionId: sub.id, paymentId: payment.id });
       });
-    return {
-      paymentId: payment.id,
-      wompiPaymentLinkId: payment.wompiPaymentLinkId,
-      checkoutUrl: payment.checkoutUrl,
-      ...emptyNotificationResult
-    };
+    return reuseLink(payment.id, payment.checkoutUrl, payment.wompiPaymentLinkId, payment.amountInCents);
   }
 
   const lockKey = `${PAYMENT_LINK_LOCK_PREFIX}:${subscriptionCycleKey}`;
@@ -548,12 +661,7 @@ export async function createPaymentLinkForSubscription(args: {
     });
     if (existing?.checkoutUrl && existing?.wompiPaymentLinkId) {
       await releaseLock();
-      return {
-        paymentId: payment.id,
-        wompiPaymentLinkId: existing.wompiPaymentLinkId,
-        checkoutUrl: existing.checkoutUrl,
-        ...emptyNotificationResult
-      };
+      return reuseLink(payment.id, existing.checkoutUrl, existing.wompiPaymentLinkId, payment.amountInCents);
     }
 
     const privateKey = await getWompiPrivateKey();
@@ -727,87 +835,7 @@ export async function createPaymentLinkForSubscription(args: {
     };
   }
 
-  const linkCollectionMode = resolveSubscriptionCollectionMode(sub);
-  const shouldNotify = await hasUsableSubscriptionPaymentLinkNotification(
-    linkCollectionMode === "AUTO_LINK" || linkCollectionMode === "MANUAL_LINK" ? "LINK" : "SUBSCRIPTION"
-  );
-  if (!shouldNotify) {
-    if (!updated.checkoutUrl) throw new Error("checkout_url_missing");
-    return {
-      paymentId: updated.id,
-      wompiPaymentLinkId: created.id,
-      checkoutUrl: updated.checkoutUrl,
-      ...emptyNotificationResult
-    };
-  }
-
-  const publicTemplateId = await resolvePlanCheckoutTemplateId({
-    tenantId,
-    subscriptionMetadata: sub.metadata,
-    planMetadata: sub.plan?.metadata
-  }).catch(() => null);
-  if (!publicTemplateId) {
-    throw new Error("missing_checkout_for_product");
-  }
-
-  const publicCheckout = await createPublicCheckoutLink({
-    customerId: sub.customerId,
-    templateId: publicTemplateId,
-    checkoutUrl: updated.checkoutUrl
-  }).catch((err) => {
-    logIgnored(err, "payment link: failed to create public checkout before notifications", {
-      subscriptionId: sub.id,
-      paymentId: updated.id,
-      templateId: publicTemplateId
-    });
-    return null;
-  });
-  if (!publicCheckout?.url) {
-    throw new Error("public_checkout_create_failed");
-  }
-  await persistPublicPaymentLinkForPayment({
-    paymentId: updated.id,
-    publicCheckout,
-    checkoutUrl: updated.checkoutUrl,
-    productId:
-      String((sub as any)?.productId || "") ||
-      String((sub as any)?.plan?.catalogProductId || (sub as any)?.plan?.metadata?.catalog?.itemId || "") ||
-      null,
-    amountInCents: updated.amountInCents
-  }).catch((err) => {
-    logIgnored(err, "payment link: failed to persist public checkout on payment", {
-      subscriptionId: sub.id,
-      paymentId: updated.id
-    });
-  });
-
-  const scheduledInfo = await schedulePaymentLinkNotifications({
-    paymentId: updated.id,
-    paymentLinkUrl: String(publicCheckout?.url || "").trim() || undefined,
-    forceNow: true
-  }).catch((err) => {
-    logIgnored(err, "payment link: failed to schedule notifications", { paymentId: updated.id });
-    return { scheduled: 0, sentNow: 0, rulesActive: false, errors: [] as string[] };
-  });
-  const chatwootError = firstNotificationDeliveryError(scheduledInfo) || null;
-
-  const chatwoot = await getChatwootConfig();
-  if (chatwoot.configured) {
-    await syncChatwootAttributesForCustomer(sub.customerId).catch((err) => {
-      logIgnored(err, "payment link: failed to sync chatwoot attributes", { customerId: sub.customerId });
-    });
-  }
-
-  if (!updated.checkoutUrl) throw new Error("checkout_url_missing");
-  return {
-    paymentId: updated.id,
-    wompiPaymentLinkId: created.id,
-    checkoutUrl: updated.checkoutUrl,
-    notificationsScheduled: scheduledInfo?.scheduled ?? 0,
-    notificationsSent: scheduledInfo?.sentNow ?? 0,
-    notificationsRulesActive: scheduledInfo?.rulesActive ?? false,
-    chatwootError
-  };
+  return notifyLink(updated, created.id);
 }
 
 export async function createAutoDebitTransactionForSubscription(args: {
