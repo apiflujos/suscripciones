@@ -311,6 +311,7 @@ export default async function SettingsPage({
             wompiSandbox={wompiSandbox}
             commsProduction={commsProduction}
             shopify={settings?.shopify || {}}
+            brasilia={(settings as any)?.brasilia || {}}
             inlineState={inlineState}
             returnTo="/settings?tab=connections"
           />
