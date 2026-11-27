@@ -431,7 +431,16 @@ async function hasRecentPendingPaymentLink(subscriptionId: string, windowMs: num
     },
     select: { id: true }
   });
-  return recent !== null;
+  if (recent) return true;
+  const resent = await prisma.paymentAttempt.findFirst({
+    where: {
+      status: "PAYMENT_LINK_RESENT",
+      createdAt: { gte: new Date(Date.now() - windowMs) },
+      payment: { subscriptionId, status: PaymentStatus.PENDING }
+    },
+    select: { id: true }
+  });
+  return Boolean(resent);
 }
 
 async function ensureDueCutoffRetries() {
@@ -598,7 +607,7 @@ async function ensureDueCutoffRetries() {
           : nowDate;
 
         // ensurePaymentRetryJob internamente revisa si ya existe uno pendiente.
-        const job = await ensurePaymentRetryJob({ subscriptionId: sub.id, runAt, maxAttempts: 1 }).catch((err) => {
+        const job = await ensurePaymentRetryJob({ subscriptionId: sub.id, runAt, maxAttempts: 1, keepOverdue: true }).catch((err) => {
           logger.warn({ err, subscriptionId: sub.id }, '[Jobs/SafetySync] Fallo en sincronización de seguridad');
           return null;
         });
@@ -607,13 +616,14 @@ async function ensureDueCutoffRetries() {
         if (job) {
           createdJobs++;
           const currentMetadata = (sub.metadata as Record<string, any>) || {};
+          const scheduledRunAt = job.runAt instanceof Date ? job.runAt : runAt;
           const newMetadata = {
             ...currentMetadata,
             autoRetry: {
-              nextRetryAt: runAt.toISOString(),
+              nextRetryAt: scheduledRunAt.toISOString(),
               scheduledAt: new Date().toISOString(),
               source: "ensureDueCutoffRetries",
-              runAt: runAt.toISOString()
+              runAt: scheduledRunAt.toISOString()
             }
           };
 
@@ -742,6 +752,16 @@ function getActorForJobType(type: RetryJobType): string {
   return `job:${type}`;
 }
 
+// El envío no lanza error cuando falla: deja el mensaje en FAILED. Sin esta
+// comprobación el job quedaba como exitoso.
+async function assertChatwootMessageNotFailed(chatwootMessageId: string) {
+  const message = await prisma.chatwootMessage.findUnique({
+    where: { id: chatwootMessageId },
+    select: { status: true, errorMessage: true }
+  });
+  if (message?.status === "FAILED") throw new Error(message.errorMessage || "chatwoot_send_failed");
+}
+
 async function runOnce() {
   const jobs = await claimJobs(10);
   for (const job of jobs) {
@@ -751,6 +771,7 @@ async function runOnce() {
         let paymentRetryOutcome:
           | { status: "processed" | "deferred" | "skipped"; reason?: string; nextRunAt?: Date; action?: string }
           | null = null;
+        let skippedReason: string | null = null;
 
         if (job.type === RetryJobType.PROCESS_WOMPI_EVENT) {
           const parsed = processWompiEventSchema.safeParse(job.payload);
@@ -789,6 +810,7 @@ async function runOnce() {
         } else if (job.type === RetryJobType.SEND_CHATWOOT_MESSAGE) {
           const p = job.payload as SendChatwootMessagePayload;
           await sendChatwootMessage(p.chatwootMessageId);
+          await assertChatwootMessageNotFailed(p.chatwootMessageId);
         } else if (job.type === RetryJobType.PAYMENT_RETRY) {
           const parsed = paymentRetrySchema.safeParse(job.payload);
           if (!parsed.success) {
@@ -808,7 +830,8 @@ async function runOnce() {
           paymentRetryOutcome = await paymentRetry(p);
         } else if (job.type === RetryJobType.SUBSCRIPTION_REMINDER) {
           const p = job.payload as SubscriptionReminderPayload;
-          await subscriptionReminder(p);
+          const result = await subscriptionReminder(p);
+          if (result && !result.ok) skippedReason = result.error || "aviso_no_enviado";
         } else if (job.type === RetryJobType.BILLING_MONTHLY_REPORT) {
           const p = job.payload as BillingReportPayload;
           await billingMonthlyReport(p);
@@ -850,7 +873,7 @@ async function runOnce() {
           where: { id: job.id },
           data: {
             status: RetryJobStatus.SUCCEEDED,
-            lastError: job.type === RetryJobType.PAYMENT_RETRY ? (paymentRetryOutcome?.reason || null) : null,
+            lastError: job.type === RetryJobType.PAYMENT_RETRY ? (paymentRetryOutcome?.reason || null) : skippedReason,
             lockedAt: null,
             lockedBy: null
           }
@@ -899,7 +922,10 @@ async function runOnce() {
         // Un aviso que falló por configuración o por datos va a fallar igual las
         // nueve veces que quedan, y con Meta insistir cuesta reputación. Se corta
         // en el primer intento y queda el error escrito para poder arreglarlo.
-        const permanent = isPermanentMessagingError({ type: job.type, message: errMsg });
+        // Un mensaje al cliente se intenta una sola vez: no hay reintentos seguidos.
+        // Los siguientes intentos los decide el cobro, según Ajustes.
+        const permanent =
+          job.type === RetryJobType.SEND_CHATWOOT_MESSAGE || isPermanentMessagingError({ type: job.type, message: errMsg });
         let status: RetryJobStatus =
           permanent || attempts >= job.maxAttempts ? RetryJobStatus.FAILED : RetryJobStatus.PENDING;
         let runAt: Date | undefined = status === RetryJobStatus.PENDING ? nextRunAt(attempts) : undefined;

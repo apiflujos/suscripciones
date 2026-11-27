@@ -37,6 +37,8 @@ export async function ensurePaymentRetryJob(args: {
   runAt: Date;
   maxAttempts?: number;
   db?: Pick<typeof prisma, "retryJob">;
+  /** Si el job pendiente ya venció, se respeta en vez de moverlo a más tarde. */
+  keepOverdue?: boolean;
 }) {
   const subscriptionId = String(args.subscriptionId || "").trim();
   if (!subscriptionId) return null;
@@ -67,6 +69,12 @@ export async function ensurePaymentRetryJob(args: {
 
   const sameSlot = Math.abs(existing.runAt.getTime() - targetRunAt.getTime()) <= SAME_SLOT_TOLERANCE_MS;
   if (sameSlot) return existing;
+
+  // Pasada la hora de cobro, la sincronización calcula "mañana". Si el job de hoy
+  // todavía no se ha tomado (worker caído, cola atrasada), moverlo lo dejaba sin
+  // ejecutar ese día.
+  const overdue = existing.runAt.getTime() <= Date.now() && targetRunAt.getTime() > existing.runAt.getTime();
+  if (args.keepOverdue && overdue) return existing;
 
   return db.retryJob.update({
     where: { id: existing.id },

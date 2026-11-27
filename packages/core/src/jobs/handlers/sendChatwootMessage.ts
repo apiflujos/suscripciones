@@ -374,6 +374,39 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
           // fall through to re-create contact
         }
       }
+      // Chatwoot rechaza el source_id (puede venir de otro canal): se reintenta una
+      // vez con el que sale del teléfono del cliente.
+      const rejectedSourceId = /invalid source id for whatsapp/i.test(message);
+      let sourceIdFailure = "";
+      if (rejectedSourceId && sourceIdDelTelefono) {
+        const inboxId = selectedInboxId ?? cfg.inboxId;
+        const previousSourceId = sourceId;
+        // Puede que el contact_inbox ya exista; lo que decide es la conversación.
+        await client.createContactInbox(contactId, sourceIdDelTelefono, inboxId).catch((inboxErr) => {
+          logger.warn({ err: inboxErr, contactId, inboxId }, "chatwoot.send: no se pudo crear el contact_inbox al recuperar el source_id");
+        });
+        try {
+          conversationId = (
+            await client.createConversation({ contactId, sourceId: sourceIdDelTelefono, inboxId, message: undefined })
+          ).conversationId;
+          sourceId = sourceIdDelTelefono;
+        } catch (phoneErr: any) {
+          sourceIdFailure = String(phoneErr?.message || phoneErr);
+        }
+        await systemLog(LogLevel.WARN, "chatwoot.send", "source_id rechazado por Chatwoot", {
+          actor: "job:sendChatwootMessage",
+          chatwootMessageId,
+          customerId: msg.customerId,
+          inboxId,
+          contactId,
+          rejectedSourceId: previousSourceId ?? null,
+          phoneSourceId: sourceIdDelTelefono,
+          recovered: Boolean(conversationId),
+          err: sourceIdFailure || null
+        }).catch((logErr) => {
+          logger.warn({ err: logErr, chatwootMessageId }, "chatwoot.send: failed to write system log");
+        });
+      }
       if (!conversationId && isNotFound) {
         try {
           const cleanedMeta =
@@ -432,7 +465,7 @@ export async function sendChatwootMessage(chatwootMessageId: string) {
           });
           return;
         }
-      } else {
+      } else if (!conversationId) {
         await prisma.chatwootMessage.update({
           where: { id: chatwootMessageId },
           data: { status: MessageStatus.FAILED, errorMessage: message }

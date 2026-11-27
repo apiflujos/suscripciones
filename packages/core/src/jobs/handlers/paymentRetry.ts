@@ -17,7 +17,7 @@ function shouldCreateFallbackLinkWhenAutoDebitDisabled() {
 }
 
 export type PaymentRetryResult =
-  | { status: "processed"; mode: "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK"; action: "AUTO_DEBIT_CHARGE" | "PAYMENT_LINK_CREATED"; subscriptionId: string }
+  | { status: "processed"; mode: "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK"; action: "AUTO_DEBIT_CHARGE" | "PAYMENT_LINK_CREATED"; subscriptionId: string; reason?: string }
   | { status: "deferred"; mode: "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK"; reason: string; subscriptionId: string; nextRunAt: Date }
   | { status: "skipped"; mode: "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK"; reason: string; subscriptionId: string };
 
@@ -30,6 +30,36 @@ function asResultMode(raw: string): "AUTO_DEBIT" | "AUTO_LINK" | "MANUAL_LINK" {
 
 function hasUsableCustomerPaymentSource(metadata: unknown) {
   return Number.isFinite(extractCustomerPaymentSourceId(metadata));
+}
+
+/**
+ * Crea (o reutiliza) el link del ciclo y comprueba que haya salido.
+ * Devuelve un motivo cuando no hay regla de envío; lanza si el envío falló.
+ */
+async function sendPaymentLinkOrThrow(subscriptionId: string): Promise<string | undefined> {
+  const startedAt = new Date();
+  const link = await createPaymentLinkForSubscription({ subscriptionId, resendIfExists: true });
+  if (link.alreadySentRecently || link.notificationsSent > 0) return undefined;
+
+  if (!link.notificationsRulesActive) {
+    // No se lanza: reintentar no arregla una configuración que falta.
+    await systemLog(LogLevel.ERROR, "jobs.payment_retry", "Link NO enviado: no hay regla activa de link de pago", {
+      subscriptionId,
+      paymentId: link.paymentId
+    }, SystemActor.JOB_PAYMENT_RETRY).catch((logErr: any) => {
+      logger.warn({ err: logErr, subscriptionId }, "Fallo escribiendo systemLog por link sin regla de envío");
+    });
+    return "link_not_sent_no_rule";
+  }
+
+  // Un mensaje aceptado y aún sin confirmación no es un fallo: repetirlo lo duplicaría.
+  const inFlight = await prisma.chatwootMessage.findFirst({
+    where: { paymentId: link.paymentId, status: { in: ["PENDING", "SENT"] }, createdAt: { gte: startedAt } },
+    select: { id: true }
+  });
+  if (inFlight) return undefined;
+
+  throw new Error(`payment_link_not_delivered:${link.chatwootError || "unknown"}`);
 }
 
 async function createFallbackPaymentLinkOrThrow(args: {
@@ -364,12 +394,13 @@ export async function paymentRetry(payload: any): Promise<PaymentRetryResult> {
       }
     }
 
-    await createPaymentLinkForSubscription({ subscriptionId });
+    const reason = await sendPaymentLinkOrThrow(subscriptionId);
     return {
       status: "processed",
       mode: asResultMode(mode),
       action: "PAYMENT_LINK_CREATED",
-      subscriptionId
+      subscriptionId,
+      ...(reason ? { reason } : {})
     };
   } finally {
     await prisma.$queryRaw`SELECT pg_advisory_unlock(hashtext(${lockKey}))`.catch((err: any) => {
