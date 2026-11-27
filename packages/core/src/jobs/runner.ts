@@ -753,7 +753,7 @@ function getActorForJobType(type: RetryJobType): string {
 }
 
 // El envío no lanza error cuando falla: deja el mensaje en FAILED. Sin esta
-// comprobación el job quedaba como exitoso y nunca se reintentaba.
+// comprobación el job quedaba como exitoso.
 async function assertChatwootMessageNotFailed(chatwootMessageId: string) {
   const message = await prisma.chatwootMessage.findUnique({
     where: { id: chatwootMessageId },
@@ -922,7 +922,10 @@ async function runOnce() {
         // Un aviso que falló por configuración o por datos va a fallar igual las
         // nueve veces que quedan, y con Meta insistir cuesta reputación. Se corta
         // en el primer intento y queda el error escrito para poder arreglarlo.
-        const permanent = isPermanentMessagingError({ type: job.type, message: errMsg });
+        // Un mensaje al cliente se intenta una sola vez: no hay reintentos seguidos.
+        // Los siguientes intentos los decide el cobro, según Ajustes.
+        const permanent =
+          job.type === RetryJobType.SEND_CHATWOOT_MESSAGE || isPermanentMessagingError({ type: job.type, message: errMsg });
         let status: RetryJobStatus =
           permanent || attempts >= job.maxAttempts ? RetryJobStatus.FAILED : RetryJobStatus.PENDING;
         let runAt: Date | undefined = status === RetryJobStatus.PENDING ? nextRunAt(attempts) : undefined;
